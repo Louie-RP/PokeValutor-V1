@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="PokeValutor project website" />
+  <title>PokeValutor</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body id="pv-body" class="pv-body">
+  <a class="pv-skiplink" href="#pv-main">Skip to content</a>
+
+  <header id="pv-header" class="pv-header" role="banner">
+    <div class="pv-header__inner" aria-label="Site header">
+      <a id="pv-brand" class="pv-brand" href="#pv-home" aria-label="PokeValutor home">PokeValutor</a>
+      <button id="pv-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-nav" aria-label="Toggle navigation">
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+      </button>
+      <nav id="pv-nav" class="pv-nav" aria-label="Primary">
+        <ul class="pv-nav__list">
+          <li class="pv-nav__item"><a class="pv-nav__link" href="#pv-about">About</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="#pv-features">Features</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="#pv-contact">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="pv-main" class="pv-main" role="main">
+    <section id="pv-hero" class="pv-hero" aria-labelledby="pv-heroTitle">
+      <h1 id="pv-heroTitle" class="pv-hero__title">Welcome to PokeValutor</h1>
+      <p class="pv-hero__subtitle">A simple tool to evaluate and explore Pokémon values.</p>
+      <div class="pv-cta" role="group" aria-label="Primary actions">
+        <a id="pv-getStarted" class="pv-button pv-button--primary" href="#pv-features">Get Started</a>
+        <a id="pv-learnMore" class="pv-button pv-button--secondary" href="#pv-about">Learn More</a>
+      </div>
+    </section>
+
+    <section id="pv-about" class="pv-section pv-about" aria-labelledby="pv-aboutTitle">
+      <h2 id="pv-aboutTitle" class="pv-section__title">About This Project</h2>
+      <p class="pv-section__text">PokeValutor helps trainers analyze Pokémon stats and values in a clean, accessible interface.</p>
+    </section>
+
+    <section id="pv-features" class="pv-section pv-features" aria-labelledby="pv-featuresTitle">
+      <h2 id="pv-featuresTitle" class="pv-section__title">Key Features</h2>
+      <ul class="pv-features__list">
+        <li class="pv-features__item">Accessible design with strong color contrast</li>
+        <li class="pv-features__item">Responsive layout for mobile and desktop</li>
+        <li class="pv-features__item">Keyboard-friendly navigation</li>
+      </ul>
+    </section>
+
+    <section id="pv-contact" class="pv-section pv-contact" aria-labelledby="pv-contactTitle">
+      <h2 id="pv-contactTitle" class="pv-section__title">Contact</h2>
+      <form id="pv-contactForm" class="pv-form" aria-describedby="pv-contactDesc">
+        <p id="pv-contactDesc" class="pv-section__text">Send a quick message.</p>
+        <div class="pv-form__field">
+          <label for="pv-name">Name</label>
+          <input id="pv-name" name="pv-name" type="text" autocomplete="name" required />
+        </div>
+        <div class="pv-form__field">
+          <label for="pv-email">Email</label>
+          <input id="pv-email" name="pv-email" type="email" autocomplete="email" required />
+        </div>
+        <div class="pv-form__field">
+          <label for="pv-message">Message</label>
+          <textarea id="pv-message" name="pv-message" rows="4" required></textarea>
+        </div>
+        <button id="pv-submit" class="pv-button pv-button--primary" type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+
+  <footer id="pv-footer" class="pv-footer" role="contentinfo">
+    <div class="pv-footer__inner">
+      <p class="pv-footer__text">© <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
+      <ul class="pv-footer__links" aria-label="Footer links">
+        <li><a id="pv-privacy" href="#pv-privacyPolicy">Privacy</a></li>
+        <li><a id="pv-terms" href="#pv-termsOfUse">Terms</a></li>
+        <li><a id="pv-access" href="#pv-accessibility">Accessibility</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
