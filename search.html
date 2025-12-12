@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Search Pokémon on PokeValutor" />
   <title>PokeValutor • Search</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAg35S8O0I5b5AdhFuZV2Q" crossorigin="anonymous">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body id="pv-search-body" class="pv-body">
@@ -24,20 +26,22 @@
   </header>
 
   <main id="pv-search-main" class="pv-main" role="main">
-    <section id="pv-search-hero" class="pv-hero" aria-labelledby="pv-search-title">
+    <section id="pv-search-hero" class="pv-hero container" aria-labelledby="pv-search-title">
       <h1 id="pv-search-title" class="pv-hero__title">Search Pokémon</h1>
       <p class="pv-hero__subtitle">Find Pokémon by name and see demo results.</p>
     </section>
 
-    <section id="pv-search-section" class="pv-section" aria-labelledby="pv-search-form-title">
+    <section id="pv-search-section" class="pv-section container" aria-labelledby="pv-search-form-title">
       <h2 id="pv-search-form-title" class="pv-section__title">Search</h2>
-      <form id="pv-search-form" class="pv-form" role="search" aria-describedby="pv-search-desc">
+      <form id="pv-search-form" class="pv-form row g-3" role="search" aria-describedby="pv-search-desc">
         <p id="pv-search-desc" class="pv-section__text">Enter a Pokémon name to search the demo dataset.</p>
-        <div class="pv-form__field">
-          <label for="pv-search-query">Pokémon Name</label>
-          <input id="pv-search-query" name="pv-search-query" type="search" placeholder="e.g., pikachu" aria-controls="pv-search-results" required />
+        <div class="pv-form__field col-12 col-md-6">
+          <label for="pv-search-query" class="form-label">Pokémon Name</label>
+          <input id="pv-search-query" name="pv-search-query" type="search" class="form-control" placeholder="e.g., pikachu" aria-controls="pv-search-results" required />
         </div>
-        <button id="pv-search-submit" class="pv-button pv-button--primary" type="submit">Search</button>
+        <div class="col-12">
+          <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+        </div>
       </form>
 
       <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
@@ -62,5 +66,7 @@
 
   <script src="script.js" defer></script>
   <script src="search.js" defer></script>
+  <!-- Bootstrap JS (optional for components; included for completeness) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-B7YfVZV6Cqkq6sCwQHjYcGJmZk8kQk3b6Q4KfJQeEwqvCwqYwVb9YQW5K6Q+z9M2y" crossorigin="anonymous"></script>
 </body>
 </html>
