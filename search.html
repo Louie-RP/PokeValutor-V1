@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Search Pokémon on PokeValutor" />
+  <title>PokeValutor • Search</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body id="pv-search-body" class="pv-body">
+  <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
+
+  <header id="pv-search-header" class="pv-header" role="banner">
+    <div class="pv-header__inner" aria-label="Site header">
+      <a id="pv-search-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokeValutor</a>
+      <nav id="pv-search-nav" class="pv-nav" aria-label="Primary">
+        <ul class="pv-nav__list">
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-about">About</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-features">Features</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-contact">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="pv-search-main" class="pv-main" role="main">
+    <section id="pv-search-hero" class="pv-hero" aria-labelledby="pv-search-title">
+      <h1 id="pv-search-title" class="pv-hero__title">Search Pokémon</h1>
+      <p class="pv-hero__subtitle">Find Pokémon by name and see demo results.</p>
+    </section>
+
+    <section id="pv-search-section" class="pv-section" aria-labelledby="pv-search-form-title">
+      <h2 id="pv-search-form-title" class="pv-section__title">Search</h2>
+      <form id="pv-search-form" class="pv-form" role="search" aria-describedby="pv-search-desc">
+        <p id="pv-search-desc" class="pv-section__text">Enter a Pokémon name to search the demo dataset.</p>
+        <div class="pv-form__field">
+          <label for="pv-search-query">Pokémon Name</label>
+          <input id="pv-search-query" name="pv-search-query" type="search" placeholder="e.g., pikachu" aria-controls="pv-search-results" required />
+        </div>
+        <button id="pv-search-submit" class="pv-button pv-button--primary" type="submit">Search</button>
+      </form>
+
+      <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <section id="pv-search-results" class="pv-section" aria-labelledby="pv-search-results-title">
+        <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
+        <ul id="pv-search-list" class="pv-features__list" aria-label="Search results list"></ul>
+      </section>
+    </section>
+  </main>
+
+  <footer id="pv-search-footer" class="pv-footer" role="contentinfo">
+    <div class="pv-footer__inner">
+      <p class="pv-footer__text">© <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
+      <ul class="pv-footer__links" aria-label="Footer links">
+        <li><a id="pv-search-privacy" href="index.html#pv-privacyPolicy">Privacy</a></li>
+        <li><a id="pv-search-terms" href="index.html#pv-termsOfUse">Terms</a></li>
+        <li><a id="pv-search-access" href="index.html#pv-accessibility">Accessibility</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+  <script src="search.js" defer></script>
+</body>
+</html>
