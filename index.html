@@ -6,6 +6,8 @@
   <meta name="description" content="PokeValutor project website" />
   <title>PokeValutor</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAg35S8O0I5b5AdhFuZV2Q" crossorigin="anonymous">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body id="pv-body" class="pv-body">
@@ -31,21 +33,21 @@
   </header>
 
   <main id="pv-main" class="pv-main" role="main">
-    <section id="pv-hero" class="pv-hero" aria-labelledby="pv-heroTitle">
+    <section id="pv-hero" class="pv-hero container" aria-labelledby="pv-heroTitle">
       <h1 id="pv-heroTitle" class="pv-hero__title">Welcome to PokeValutor</h1>
       <p class="pv-hero__subtitle">A simple tool to evaluate and explore Pokémon values.</p>
       <div class="pv-cta" role="group" aria-label="Primary actions">
-        <a id="pv-getStarted" class="pv-button pv-button--primary" href="#pv-features">Get Started</a>
-        <a id="pv-learnMore" class="pv-button pv-button--secondary" href="#pv-about">Learn More</a>
+        <a id="pv-getStarted" class="pv-button pv-button--primary btn" href="#pv-features">Get Started</a>
+        <a id="pv-learnMore" class="pv-button pv-button--secondary btn" href="#pv-about">Learn More</a>
       </div>
     </section>
 
-    <section id="pv-about" class="pv-section pv-about" aria-labelledby="pv-aboutTitle">
+    <section id="pv-about" class="pv-section pv-about container" aria-labelledby="pv-aboutTitle">
       <h2 id="pv-aboutTitle" class="pv-section__title">About This Project</h2>
       <p class="pv-section__text">PokeValutor helps trainers analyze Pokémon stats and values in a clean, accessible interface.</p>
     </section>
 
-    <section id="pv-features" class="pv-section pv-features" aria-labelledby="pv-featuresTitle">
+    <section id="pv-features" class="pv-section pv-features container" aria-labelledby="pv-featuresTitle">
       <h2 id="pv-featuresTitle" class="pv-section__title">Key Features</h2>
       <ul class="pv-features__list">
         <li class="pv-features__item">Accessible design with strong color contrast</li>
@@ -54,23 +56,25 @@
       </ul>
     </section>
 
-    <section id="pv-contact" class="pv-section pv-contact" aria-labelledby="pv-contactTitle">
+    <section id="pv-contact" class="pv-section pv-contact container" aria-labelledby="pv-contactTitle">
       <h2 id="pv-contactTitle" class="pv-section__title">Contact</h2>
-      <form id="pv-contactForm" class="pv-form" aria-describedby="pv-contactDesc">
+      <form id="pv-contactForm" class="pv-form row g-3" aria-describedby="pv-contactDesc">
         <p id="pv-contactDesc" class="pv-section__text">Send a quick message.</p>
-        <div class="pv-form__field">
-          <label for="pv-name">Name</label>
-          <input id="pv-name" name="pv-name" type="text" autocomplete="name" required />
+        <div class="pv-form__field col-12 col-md-6">
+          <label for="pv-name" class="form-label">Name</label>
+          <input id="pv-name" name="pv-name" type="text" class="form-control" autocomplete="name" required />
         </div>
-        <div class="pv-form__field">
-          <label for="pv-email">Email</label>
-          <input id="pv-email" name="pv-email" type="email" autocomplete="email" required />
+        <div class="pv-form__field col-12 col-md-6">
+          <label for="pv-email" class="form-label">Email</label>
+          <input id="pv-email" name="pv-email" type="email" class="form-control" autocomplete="email" required />
         </div>
-        <div class="pv-form__field">
-          <label for="pv-message">Message</label>
-          <textarea id="pv-message" name="pv-message" rows="4" required></textarea>
+        <div class="pv-form__field col-12">
+          <label for="pv-message" class="form-label">Message</label>
+          <textarea id="pv-message" name="pv-message" rows="4" class="form-control" required></textarea>
         </div>
-        <button id="pv-submit" class="pv-button pv-button--primary" type="submit">Send</button>
+        <div class="col-12">
+          <button id="pv-submit" class="pv-button pv-button--primary btn" type="submit">Send</button>
+        </div>
       </form>
     </section>
   </main>
@@ -87,5 +91,7 @@
   </footer>
 
   <script src="script.js" defer></script>
+  <!-- Bootstrap JS (optional for components; included for completeness) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-B7YfVZV6Cqkq6sCwQHjYcGJmZk8kQk3b6Q4KfJQeEwqvCwqYwVb9YQW5K6Q+z9M2y" crossorigin="anonymous"></script>
 </body>
 </html>
