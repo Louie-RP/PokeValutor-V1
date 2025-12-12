@@ -64,7 +64,9 @@
 
     // Fetch by card number via the configured base URL (Cloudflare Worker recommended)
     async function fetchCardsByNumber(cardNumber) {
-        const base = (window?.PV_SECRETS?.PV_API_URL || '').replace(/\/$/, '');
+        // Prefer secrets.js, but fall back to a built-in public Worker URL so the site works without secrets
+        const defaultWorker = 'https://pokevalutor.lreyperez18.workers.dev';
+        const base = (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
         if (!base) {
             console.warn('[PokeValutor] PV_API_URL is not set in secrets.js');
         }
@@ -172,7 +174,8 @@
             }
 
             // Fallback: name search
-            const base = (window?.PV_SECRETS?.PV_API_URL || '').replace(/\/$/, '');
+            const defaultWorker = 'https://pokevalutor.lreyperez18.workers.dev';
+            const base = (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
             const nameTerm = (/\s/.test(q) || /[^A-Za-z0-9]/.test(q)) ? `"${q}"` : q;
             const nameUrl = `${base}/v2/cards?q=${encodeURIComponent(`name:${nameTerm}`)}&orderBy=name&pageSize=25&page=1`;
             console.log('[PokeValutor] name URL', nameUrl);
@@ -283,7 +286,8 @@
     // Optional: expose a quick connectivity test to the console
     // Usage: window.pvTest('pikachu')
     window.pvTest = async function pvTest(name = 'pikachu') {
-        const base = (window?.PV_SECRETS?.PV_API_URL || '').replace(/\/$/, '');
+        const defaultWorker = 'https://pokevalutor.lreyperez18.workers.dev';
+        const base = (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
         const url = `${base}/v2/cards?q=${encodeURIComponent(`name:${name}`)}&orderBy=name&pageSize=50&page=1`;
         console.log('[PokeValutor] test URL', url);
         const res = await fetch(url);
