@@ -1,0 +1,7 @@
+# Ignore local secrets
+secrets.js
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/

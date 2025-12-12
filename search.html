@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Search Pokémon on PokeValutor" />
   <title>PokeValutor • Search</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAg35S8O0I5b5AdhFuZV2Q" crossorigin="anonymous">
+  <!-- Bootstrap CSS (SRI removed to avoid integrity mismatch) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body id="pv-search-body" class="pv-body">
   <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
@@ -41,14 +42,18 @@
         </div>
         <div class="col-12">
           <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+          <button id="pv-conn-test" class="btn btn-outline-secondary ms-2" type="button" aria-describedby="pv-conn-status">Connection Test</button>
+          <button id="pv-health-test" class="btn btn-outline-secondary ms-2" type="button" aria-describedby="pv-health-status">Worker Health</button>
         </div>
       </form>
 
       <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="pv-conn-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="pv-health-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true"></div>
 
       <section id="pv-search-results" class="pv-section" aria-labelledby="pv-search-results-title">
         <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
-        <ul id="pv-search-list" class="pv-features__list" aria-label="Search results list"></ul>
+        <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
       </section>
     </section>
   </main>
@@ -65,8 +70,10 @@
   </footer>
 
   <script src="script.js" defer></script>
+  <!-- Local secrets: API key (ignored by git) -->
+  <script src="secrets.js" defer></script>
   <script src="search.js" defer></script>
-  <!-- Bootstrap JS (optional for components; included for completeness) -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-B7YfVZV6Cqkq6sCwQHjYcGJmZk8kQk3b6Q4KfJQeEwqvCwqYwVb9YQW5K6Q+z9M2y" crossorigin="anonymous"></script>
+  <!-- Bootstrap JS (SRI removed to avoid integrity mismatch) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

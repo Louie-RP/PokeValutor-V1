@@ -100,6 +100,17 @@ body {
 /* Features */
 .pv-features__list { list-style: disc; padding-left: 1.25rem; }
 
+/* Cards */
+.pv-card { background: #0b1020; border: 1px solid var(--pv-border); border-radius: 12px; overflow: hidden; }
+.pv-card__img { width: 100%; height: auto; display: block; }
+.pv-card__body { padding: 0.75rem; }
+.pv-card__title { font-weight: 700; margin: 0 0 0.25rem; }
+.pv-card__text { color: var(--pv-muted); margin: 0; }
+
+/* Loading skeleton */
+.pv-skeleton { background: linear-gradient(90deg, #0b1020 25%, #121a2f 37%, #0b1020 63%); background-size: 400% 100%; animation: pv-shimmer 1.4s ease infinite; border-radius: 8px; }
+@keyframes pv-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
 /* Form */
 .pv-form { max-width: 640px; }
 .pv-form__field { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
