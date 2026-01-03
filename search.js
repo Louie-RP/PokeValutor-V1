@@ -122,19 +122,23 @@
         const lines = [];
         for (const p of prices) {
             if (!p || typeof p !== 'object') continue;
-            const label = p?.name || p?.source || p?.provider || p?.type || '';
+            const condition = p?.condition != null ? String(p.condition) : '';
+            const type = p?.type != null ? String(p.type) : '';
+            const currency = p?.currency != null ? String(p.currency) : '';
             const market = p?.market ?? null;
-            const mid = p?.mid ?? null;
             const low = p?.low ?? null;
-            const high = p?.high ?? null;
+
+            const moneySymbol = currency === 'USD' || currency === '' ? '$' : '';
             const bits = [
-                market != null ? `market $${market}` : null,
-                mid != null ? `mid $${mid}` : null,
-                low != null ? `low $${low}` : null,
-                high != null ? `high $${high}` : null,
+                market != null ? `market ${moneySymbol}${market}` : null,
+                low != null ? `low ${moneySymbol}${low}` : null,
             ].filter(Boolean);
+
             if (bits.length) {
-                lines.push(label ? `${label}: ${bits.join(' • ')}` : bits.join(' • '));
+                const prefix = condition
+                    ? (type ? `${condition} (${type})` : condition)
+                    : (type ? `(${type})` : '');
+                lines.push(prefix ? `${prefix}: ${bits.join(' • ')}` : bits.join(' • '));
                 continue;
             }
             const entries = Object.entries(p)
