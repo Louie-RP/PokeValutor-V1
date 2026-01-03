@@ -101,7 +101,7 @@ body {
 .pv-section { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
 .pv-main { flex: 1 0 auto; }
 .pv-section__title { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0 0 0.75rem; color: var(--pv-primary); }
-.pv-section__text { color: var(--pv-muted); }
+.pv-section__text { color: #ffffff; }
 
 /* Features */
 .pv-features__list { list-style: disc; padding-left: 1.25rem; }
@@ -120,8 +120,10 @@ body {
 /* Form */
 .pv-form { max-width: 640px; }
 .pv-form__field { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
-.pv-form input, .pv-form textarea { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--pv-border); background: #0a0a0a; color: var(--pv-text); }
+.pv-form input, .pv-form textarea { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--pv-primary); background: #ffffff; color: #0b0b0b; }
 .pv-form input:focus, .pv-form textarea:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
+/* Placeholders for white inputs */
+.pv-form input::placeholder, .pv-form textarea::placeholder { color: #6b7280; }
 /* Search field: keep white background + yellow border at all times */
 label[for="pv-search-query"] { color: var(--pv-primary); }
 #pv-search-query { background: #ffffff; color: #0b0b0b; border-color: var(--pv-primary); }
