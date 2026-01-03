@@ -50,17 +50,17 @@
                 </div>
                 <div class="col-12">
                     <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                    <button id="pv-conn-test" class="btn btn-outline-secondary ms-2" type="button"
+                    <button id="pv-conn-test" class="btn btn-outline-secondary ms-2" type="button" hidden
                         aria-describedby="pv-conn-status">Connection Test</button>
-                    <button id="pv-health-test" class="btn btn-outline-secondary ms-2" type="button"
+                    <button id="pv-health-test" class="btn btn-outline-secondary ms-2" type="button" hidden
                         aria-describedby="pv-health-status">Worker Health</button>
                 </div>
             </form>
 
             <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
             </div>
-            <div id="pv-conn-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true"></div>
-            <div id="pv-health-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true">
+            <div id="pv-conn-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+            <div id="pv-health-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true" hidden>
             </div>
 
             <section id="pv-search-results" class="pv-section" aria-labelledby="pv-search-results-title">
