@@ -261,8 +261,8 @@
             setStatus(`${cardsByName.length} result${cardsByName.length !== 1 ? 's' : ''} for name "${q}"`);
         } catch (err) {
             console.error('[PokeValutor] Search error', err);
-            const base = window?.PV_SECRETS?.PV_API_URL;
-            if (!base) console.warn('[PokeValutor] Set PV_API_URL in secrets.js to your Cloudflare Worker URL.');
+            const defaultWorker = 'https://pokevalutor.lreyperez18.workers.dev';
+            const base = (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
             renderCards([]);
             const msg = String(err);
             const matchCode = msg.match(/API error (\d+)/);
@@ -278,7 +278,7 @@
             if (code === '404') {
                 setStatus(`API 404 at base: ${base}. Ensure your Worker routes /v2/cards and returns JSON.`);
             } else {
-                setStatus(base ? friendly : 'Missing PV_API_URL. Add it in secrets.js and retry.');
+                setStatus(friendly);
             }
             currentSearchController = null;
         }
@@ -321,11 +321,8 @@
     if (connBtn) {
         connBtn.addEventListener('click', async () => {
             const name = input?.value?.trim() || 'pikachu';
-            const base = (window?.PV_SECRETS?.PV_API_URL || '').replace(/\/$/, '');
-            if (!base) {
-                if (connStatus) connStatus.textContent = 'Missing PV_API_URL. Add it in secrets.js.';
-                return;
-            }
+            const defaultWorker = 'https://pokevalutor.lreyperez18.workers.dev';
+            const base = (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
             const nameTerm = (/\s/.test(name) || /[^A-Za-z0-9]/.test(name)) ? `"${name}"` : name;
             const url = `${base}/v2/cards?q=${encodeURIComponent(`name:${nameTerm}`)}&orderBy=name&pageSize=25&page=1`;
             if (connStatus) connStatus.textContent = 'Testing connection…';
@@ -351,11 +348,8 @@
     const healthStatus = document.getElementById('pv-health-status');
     if (healthBtn) {
         healthBtn.addEventListener('click', async () => {
-            const base = (window?.PV_SECRETS?.PV_API_URL || '').replace(/\/$/, '');
-            if (!base) {
-                if (healthStatus) healthStatus.textContent = 'Missing PV_API_URL. Add it in secrets.js.';
-                return;
-            }
+            const defaultWorker = 'https://pokevalutor.lreyperez18.workers.dev';
+            const base = (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
             const url = `${base}/health`;
             if (healthStatus) healthStatus.textContent = 'Checking worker health…';
             try {
