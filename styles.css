@@ -104,7 +104,7 @@ body {
 .pv-section__text { color: #ffffff; }
 
 /* Features */
-.pv-features__list { list-style: disc; padding-left: 1.25rem; }
+.pv-features__list { list-style: none; padding-left: 0; margin: 0; }
 
 /* Cards */
 .pv-card { background: #0a0a0a; border: 1px solid var(--pv-border); border-radius: 12px; overflow: hidden; }
@@ -125,7 +125,8 @@ body {
 /* Placeholders for white inputs */
 .pv-form input::placeholder, .pv-form textarea::placeholder { color: #6b7280; }
 /* Search field: keep white background + yellow border at all times */
-label[for="pv-search-query"] { color: var(--pv-primary); }
+label[for="pv-search-query"],
+label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-search-query { background: #ffffff; color: #0b0b0b; border-color: var(--pv-primary); }
 #pv-search-query::placeholder { color: #6b7280; }
 

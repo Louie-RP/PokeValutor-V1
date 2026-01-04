@@ -173,7 +173,7 @@
             const variants = Array.isArray(card?.variants) ? card.variants.map((v) => v?.name).filter(Boolean) : [];
 
             const variantOptions = variants.length
-                ? ['<option value="">Select a variant…</option>', ...variants.map((v) => `<option value="${String(v)}">${String(v)}</option>`)].join('')
+                ? ['<option value="">Select a holo type</option>', ...variants.map((v) => `<option value="${String(v)}">${String(v)}</option>`)].join('')
                 : '<option value="">No variants</option>';
 
             col.innerHTML = `
@@ -200,7 +200,7 @@
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
                 if (!variantName) {
-                    pricesEl.textContent = variants.length ? 'Select a variant to load prices.' : '';
+                    pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
                     return;
                 }
                 pricesEl.textContent = 'Loading prices…';
@@ -220,7 +220,7 @@
 
             if (selectEl) {
                 selectEl.addEventListener('change', showPricesForSelectedVariant);
-                if (variants.length && pricesEl) pricesEl.textContent = 'Select a variant to load prices.';
+                if (variants.length && pricesEl) pricesEl.textContent = 'Select a holo type to load prices.';
             }
 
             grid.appendChild(col);
