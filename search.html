@@ -20,8 +20,7 @@
             <a id="pv-search-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
             <nav id="pv-search-nav" class="pv-nav" aria-label="Primary">
                 <ul class="pv-nav__list">
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-about">About</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-features">Features</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-features">Guide</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-contact">Contact</a></li>
                 </ul>
             </nav>
@@ -34,22 +33,21 @@
             <p class="pv-hero__subtitle">Find Pokémon by name or card number.</p>
         </section>
 
-        <section id="pv-search-section" class="pv-section container" aria-labelledby="pv-search-form-title">
-            <h2 id="pv-search-form-title" class="pv-section__title">Search</h2>
-            <form id="pv-search-form" class="pv-form row g-3" role="search" aria-describedby="pv-search-desc">
-                <p id="pv-search-desc" class="pv-section__text">Enter a Pokémon name or card number to search.</p>
+        <section id="pv-search-section" class="pv-section container">
+            <form id="pv-search-form" class="pv-form row g-3" role="search">
                 <div class="pv-form__field col-12 col-md-6">
                     <label for="pv-search-query" class="form-label">Pokémon Name</label>
                     <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
                         placeholder="e.g., pikachu" aria-controls="pv-search-results" />
                 </div>
                 <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-number" class="form-label">Card Number (Printed)</label>
+                    <label for="pv-search-number" class="form-label">Card Number</label>
                     <input id="pv-search-number" name="pv-search-number" type="search" class="form-control"
                         placeholder="e.g., 87/160 or SWSH101" aria-controls="pv-search-results" />
                 </div>
                 <div class="col-12">
                     <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+                    <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
                     <button id="pv-conn-test" class="btn btn-outline-secondary ms-2" type="button" hidden
                         aria-describedby="pv-conn-status">Connection Test</button>
                     <button id="pv-health-test" class="btn btn-outline-secondary ms-2" type="button" hidden
