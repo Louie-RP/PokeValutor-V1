@@ -5,11 +5,14 @@
     const numberInput = /** @type {HTMLInputElement} */(document.getElementById('pv-search-number'));
     const status = document.getElementById('pv-search-status');
     const grid = document.getElementById('pv-search-grid');
+    const clearBtn = document.getElementById('pv-clear-results');
 
     const CACHE_PREFIX = 'pv:scrydex:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const CARD_TTL_MS = 24 * 60 * 60 * 1000;
     const MAX_CACHE_ENTRIES = 250;
+
+    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
 
     function setStatus(message) {
         if (status) status.textContent = message;
@@ -24,6 +27,31 @@
 
     function safeParseJson(value) {
         try { return JSON.parse(value); } catch { return null; }
+    }
+
+    function loadLastResults() {
+        try {
+            const raw = localStorage.getItem(LAST_RESULTS_KEY);
+            if (!raw) return null;
+            const parsed = safeParseJson(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            if (!Array.isArray(parsed.cards)) return null;
+            return parsed;
+        } catch {
+            return null;
+        }
+    }
+
+    function saveLastResults(next) {
+        try {
+            localStorage.setItem(LAST_RESULTS_KEY, JSON.stringify(next));
+        } catch {
+            // ignore
+        }
+    }
+
+    function clearLastResults() {
+        try { localStorage.removeItem(LAST_RESULTS_KEY); } catch {}
     }
 
     function cacheGet(key) {
@@ -150,7 +178,7 @@
         return lines.length ? lines.join('\n') : 'No price data available.';
     }
 
-    function renderCards(cards) {
+    function renderCards(cards, restoreState) {
         if (!grid) return;
         grid.innerHTML = '';
 
@@ -196,6 +224,11 @@
             const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
 
+            const restoredSelection = restoreState?.selections?.[id];
+            if (pricesEl && restoredSelection?.pricesText) {
+                pricesEl.textContent = String(restoredSelection.pricesText);
+            }
+
             async function showPricesForSelectedVariant() {
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
@@ -211,7 +244,16 @@
                     const cardObj = data?.data || data;
                     const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
                     const match = allVariants.find((v) => String(v?.name || '') === variantName);
-                    pricesEl.textContent = formatPriceList(match?.prices);
+                    const formatted = formatPriceList(match?.prices);
+                    pricesEl.textContent = formatted;
+
+                    // Persist user selection + rendered prices so refresh restores the same view.
+                    const prev = loadLastResults();
+                    if (prev && Array.isArray(prev.cards)) {
+                        const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                        selections[id] = { holoType: variantName, pricesText: formatted };
+                        saveLastResults({ ...prev, selections });
+                    }
                 } catch (e) {
                     pricesEl.textContent = 'Unable to load prices.';
                     console.warn('[PokeValutor] prices error', e);
@@ -220,7 +262,10 @@
 
             if (selectEl) {
                 selectEl.addEventListener('change', showPricesForSelectedVariant);
-                if (variants.length && pricesEl) pricesEl.textContent = 'Select a holo type to load prices.';
+                if (variants.length && pricesEl && !pricesEl.textContent) pricesEl.textContent = 'Select a holo type to load prices.';
+                if (restoredSelection?.holoType && variants.includes(restoredSelection.holoType)) {
+                    selectEl.value = restoredSelection.holoType;
+                }
             }
 
             grid.appendChild(col);
@@ -255,7 +300,17 @@
             renderCards(cards);
             const guidance = 'If your card is not displayed, please search by card number (printed number) instead.';
             const limitNote = cards.length >= 5 ? ' Showing up to 5 matches.' : '';
-            setStatus(`${cards.length} result${cards.length !== 1 ? 's' : ''} for "${q}".${limitNote} ${guidance}`);
+            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${q}".${limitNote} ${guidance}`;
+            setStatus(statusText);
+
+            saveLastResults({
+                savedAt: Date.now(),
+                mode: 'name',
+                query: q,
+                cards,
+                statusText,
+                selections: {},
+            });
         } catch (e) {
             console.warn('[PokeValutor] search error', e);
             renderCards([]);
@@ -290,7 +345,17 @@
             const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
             const cards = Array.isArray(data?.data) ? data.data : [];
             renderCards(cards);
-            setStatus(`${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".`);
+            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".`;
+            setStatus(statusText);
+
+            saveLastResults({
+                savedAt: Date.now(),
+                mode: 'number',
+                query: pn,
+                cards,
+                statusText,
+                selections: {},
+            });
         } catch (e) {
             console.warn('[PokeValutor] printed number search error', e);
             renderCards([]);
@@ -372,5 +437,29 @@
                 void searchByName(byName);
             }
         });
+    }
+
+    function clearResultsUI() {
+        if (grid) grid.innerHTML = '';
+        if (status) status.textContent = '';
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            clearResultsUI();
+            clearLastResults();
+
+            if (input) input.value = '';
+            if (numberInput) numberInput.value = '';
+        });
+    }
+
+    // Restore last results after refresh.
+    const restored = loadLastResults();
+    if (restored && Array.isArray(restored.cards) && restored.cards.length) {
+        if (restored.mode === 'name' && input) input.value = String(restored.query || '');
+        if (restored.mode === 'number' && numberInput) numberInput.value = String(restored.query || '');
+        renderCards(restored.cards, restored);
+        if (restored.statusText) setStatus(String(restored.statusText));
     }
 })();
