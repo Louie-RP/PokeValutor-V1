@@ -6,6 +6,8 @@
   --pv-muted: #cbd5e1; /* muted gray */
   --pv-primary: #FFCB05; /* Pokémon Yellow */
   --pv-primary-dark: #c79b00; /* darker yellow for hover */
+  --pv-danger: #dc2626; /* red */
+  --pv-danger-dark: #b91c1c; /* darker red for hover */
   --pv-accent: #a78bfa; /* violet accent (unchanged) */
   --pv-focus: #FFD54A; /* yellow focus ring */
   --pv-border: #1f2937; /* deep slate border */
@@ -96,6 +98,17 @@ body {
 .pv-button--primary:hover { background: var(--pv-primary-dark); }
 .pv-button--primary:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 .pv-button--secondary { background: transparent; color: var(--pv-text); }
+
+/* Clear Results button (danger) */
+#pv-clear-results {
+  background: var(--pv-danger);
+  border-color: transparent;
+  color: #ffffff;
+}
+#pv-clear-results:hover {
+  background: var(--pv-danger-dark);
+  color: #ffffff;
+}
 
 /* Sections */
 .pv-section { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
