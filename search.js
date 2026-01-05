@@ -1,5 +1,5 @@
 /* Scrydex-backed Search page behavior */
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-search-form');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-search-query'));
     const numberInput = /** @type {HTMLInputElement} */(document.getElementById('pv-search-number'));
@@ -462,4 +462,4 @@
         renderCards(restored.cards, restored);
         if (restored.statusText) setStatus(String(restored.statusText));
     }
-})();
+});
