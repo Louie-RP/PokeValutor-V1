@@ -221,14 +221,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
 
+            // Declare these after col.innerHTML so the elements exist
             const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
 
-            const restoredSelection = restoreState?.selections?.[id];
-            if (pricesEl && restoredSelection?.pricesText) {
-                pricesEl.textContent = String(restoredSelection.pricesText);
-            }
-
+            // Now define the function, so selectEl/pricesEl are in scope
             async function showPricesForSelectedVariant() {
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
@@ -260,12 +257,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            if (selectEl) {
-                selectEl.addEventListener('change', showPricesForSelectedVariant);
-                if (variants.length && pricesEl && !pricesEl.textContent) pricesEl.textContent = 'Select a holo type to load prices.';
+            const restoredSelection = restoreState?.selections?.[id];
+            if (selectEl && pricesEl) {
+                // Restore previously selected holo type and prices if available
                 if (restoredSelection?.holoType && variants.includes(restoredSelection.holoType)) {
                     selectEl.value = restoredSelection.holoType;
+                    if (restoredSelection.pricesText) {
+                        pricesEl.textContent = String(restoredSelection.pricesText);
+                    } else {
+                        // If pricesText is missing, trigger loading
+                        selectEl.dispatchEvent(new Event('change'));
+                    }
+                } else {
+                    // No previous selection, show default prompt
+                    pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
                 }
+                selectEl.addEventListener('change', showPricesForSelectedVariant);
             }
 
             grid.appendChild(col);
