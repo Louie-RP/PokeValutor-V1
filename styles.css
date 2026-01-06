@@ -4,6 +4,7 @@
   --pv-bg: #000000; /* true black */
   --pv-text: #e5e7eb; /* light gray for readability */
   --pv-muted: #cbd5e1; /* muted gray */
+  --pv-heading-font: "Playfair Display", serif;
   --pv-primary: #FFCB05; /* Pokémon Yellow */
   --pv-primary-dark: #c79b00; /* darker yellow for hover */
   --pv-danger: #dc2626; /* red */
@@ -91,6 +92,13 @@ body {
 }
 .pv-hero__title { font-size: clamp(2rem, 5vw, 3rem); margin: 0 0 0.5rem; color: var(--pv-primary); }
 .pv-hero__subtitle { color: #ffffff; margin: 0 0 1rem; }
+
+/* Heading font */
+h1, h2, h3, h4, h5, h6,
+.pv-hero__title,
+.pv-section__title {
+  font-family: var(--pv-heading-font);
+}
 
 /* Buttons */
 .pv-button { display: inline-block; text-decoration: none; border: 1px solid var(--pv-border); border-radius: 8px; padding: 0.6rem 1rem; }
