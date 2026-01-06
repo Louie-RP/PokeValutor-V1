@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesGrid = document.getElementById('pv-favorites-grid');
     const favoritesBody = document.getElementById('pv-favorites-body');
     const favoritesToggle = document.getElementById('pv-favorites-toggle');
+    const favoritesClearBtn = document.getElementById('pv-favorites-clear');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
 
@@ -61,6 +62,16 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch {
             // ignore
         }
+    }
+
+    function clearFavorites() {
+        favorites = [];
+        try { localStorage.removeItem(FAVORITES_KEY); } catch {}
+        renderFavorites();
+
+        // Keep results stars in sync.
+        const restored = loadLastResults();
+        renderCards(currentResultsCards, restored || undefined);
     }
 
     /** @type {Array<any>} */
@@ -666,6 +677,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     setFavoritesCollapsed(loadFavoritesCollapsed());
+
+    if (favoritesClearBtn) {
+        favoritesClearBtn.addEventListener('click', () => {
+            clearFavorites();
+        });
+    }
 
     // Restore last results after refresh.
     const restored = loadLastResults();
