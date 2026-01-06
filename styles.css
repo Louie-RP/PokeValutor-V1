@@ -100,12 +100,14 @@ body {
 .pv-button--secondary { background: transparent; color: var(--pv-text); }
 
 /* Clear Results button (danger) */
-#pv-clear-results {
+#pv-clear-results,
+#pv-favorites-clear {
   background: var(--pv-danger);
   border-color: transparent;
   color: #ffffff;
 }
-#pv-clear-results:hover {
+#pv-clear-results:hover,
+#pv-favorites-clear:hover {
   background: var(--pv-danger-dark);
   color: #ffffff;
 }
