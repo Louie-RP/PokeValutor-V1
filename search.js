@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const numberInput = /** @type {HTMLInputElement} */(document.getElementById('pv-search-number'));
     const status = document.getElementById('pv-search-status');
     const grid = document.getElementById('pv-search-grid');
+    const favoritesGrid = document.getElementById('pv-favorites-grid');
+    const favoritesBody = document.getElementById('pv-favorites-body');
+    const favoritesToggle = document.getElementById('pv-favorites-toggle');
+    const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
 
     const CACHE_PREFIX = 'pv:scrydex:';
@@ -13,6 +17,108 @@ document.addEventListener('DOMContentLoaded', function () {
     const MAX_CACHE_ENTRIES = 250;
 
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
+    const FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
+    const FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+
+    /** @type {Array<any>} */
+    let currentResultsCards = [];
+
+    function safeString(value, fallback) {
+        const s = String(value ?? '');
+        return s ? s : (fallback || '');
+    }
+
+    function normalizeFavoriteCard(card) {
+        // Keep a minimal snapshot so Favorites can render without extra API calls.
+        return {
+            id: safeString(card?.id, ''),
+            name: safeString(card?.name, 'Unknown'),
+            rarity: safeString(card?.rarity, ''),
+            images: Array.isArray(card?.images) ? card.images : [],
+            variants: Array.isArray(card?.variants) ? card.variants : [],
+            selectedVariant: safeString(card?.selectedVariant, ''),
+            pricesText: safeString(card?.pricesText, ''),
+        };
+    }
+
+    function loadFavorites() {
+        try {
+            const raw = localStorage.getItem(FAVORITES_KEY);
+            if (!raw) return [];
+            const parsed = safeParseJson(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .filter((c) => c && typeof c === 'object' && c.id != null)
+                .map(normalizeFavoriteCard);
+        } catch {
+            return [];
+        }
+    }
+
+    function saveFavorites(list) {
+        try {
+            localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+        } catch {
+            // ignore
+        }
+    }
+
+    /** @type {Array<any>} */
+    let favorites = loadFavorites();
+
+    function loadFavoritesCollapsed() {
+        try {
+            const raw = localStorage.getItem(FAVORITES_COLLAPSED_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveFavoritesCollapsed(isCollapsed) {
+        try {
+            localStorage.setItem(FAVORITES_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+        } catch {
+            // ignore
+        }
+    }
+
+    function setFavoritesCollapsed(isCollapsed) {
+        if (favoritesBody) favoritesBody.hidden = !!isCollapsed;
+        if (favoritesToggle) {
+            favoritesToggle.textContent = isCollapsed ? 'Show' : 'Hide';
+            favoritesToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        saveFavoritesCollapsed(isCollapsed);
+    }
+
+    function isFavorite(cardId) {
+        const id = String(cardId || '');
+        return favorites.some((c) => String(c?.id || '') === id);
+    }
+
+    function toggleFavorite(card) {
+        const id = safeString(card?.id, '');
+        if (!id) return;
+
+        if (isFavorite(id)) {
+            favorites = favorites.filter((c) => String(c?.id || '') !== id);
+        } else {
+            const prev = loadLastResults();
+            const selection = prev?.selections?.[id];
+            favorites = [...favorites, normalizeFavoriteCard({
+                ...card,
+                selectedVariant: selection?.holoType ?? card?.selectedVariant,
+                pricesText: selection?.pricesText ?? card?.pricesText,
+            })];
+        }
+        saveFavorites(favorites);
+        renderFavorites();
+
+        // Keep results stars in sync without losing variant selection.
+        const restored = loadLastResults();
+        renderCards(currentResultsCards, restored || undefined);
+    }
 
     function setStatus(message) {
         if (status) status.textContent = message;
@@ -85,7 +191,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const keys = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const k = localStorage.key(i);
-                if (k && k.startsWith(CACHE_PREFIX)) keys.push(k);
+                // Only sweep URL cache entries (do not touch persistent UI state like lastResults/favorites).
+                if (k && k.startsWith(`${CACHE_PREFIX}url:`)) keys.push(k);
             }
 
             const now = Date.now();
@@ -106,6 +213,53 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch {
             // ignore
+        }
+    }
+
+    function renderFavorites() {
+        if (!favoritesGrid) return;
+        favoritesGrid.innerHTML = '';
+
+        if (!Array.isArray(favorites) || favorites.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'col-12';
+            empty.textContent = 'No favorites yet. Click ☆ on a result card to save it here.';
+            favoritesGrid.appendChild(empty);
+            return;
+        }
+
+        for (const fav of favorites) {
+            const col = document.createElement('div');
+            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+
+            const id = safeString(fav?.id, '');
+            const name = safeString(fav?.name, 'Unknown');
+            const rarity = safeString(fav?.rarity, '');
+            const imgUrl = pickFrontMediumImage(fav?.images);
+            const selectedVariant = safeString(fav?.selectedVariant, '');
+            const pricesText = safeString(fav?.pricesText, '');
+
+            col.innerHTML = `
+                <div class="pv-card h-100">
+                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrl}" alt="${name} card image"/>` : ''}
+                    <div class="pv-card__body">
+                        <div class="pv-card__header">
+                            <div class="pv-card__title">${name}</div>
+                            <button id="pv-fav-${id}" class="pv-fav-btn" type="button" aria-label="Remove from favorites" aria-pressed="true" title="Unfavorite">★</button>
+                        </div>
+                        <p class="pv-card__text">${rarity ? `Rarity: ${rarity}` : 'Rarity: n/a'}</p>
+                        ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariant}</p>` : ''}
+                        <pre class="pv-card__text" style="white-space:pre-wrap;margin:0">${pricesText ? pricesText : 'No prices loaded yet. Load prices in Results to show them here.'}</pre>
+                    </div>
+                </div>
+            `;
+
+            const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
+            if (favBtn) {
+                favBtn.addEventListener('click', () => toggleFavorite(fav));
+            }
+
+            favoritesGrid.appendChild(col);
         }
     }
 
@@ -180,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderCards(cards, restoreState) {
         if (!grid) return;
+        currentResultsCards = Array.isArray(cards) ? cards : [];
         grid.innerHTML = '';
 
         if (!Array.isArray(cards) || cards.length === 0) {
@@ -199,6 +354,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const rarity = String(card?.rarity || '');
             const imgUrl = pickFrontMediumImage(card?.images);
             const variants = Array.isArray(card?.variants) ? card.variants.map((v) => v?.name).filter(Boolean) : [];
+            const fav = isFavorite(id);
+            const favSymbol = fav ? '★' : '☆';
+            const favLabel = fav ? 'Remove from favorites' : 'Add to favorites';
 
             const variantOptions = variants.length
                 ? ['<option value="">Select a holo type</option>', ...variants.map((v) => `<option value="${String(v)}">${String(v)}</option>`)].join('')
@@ -208,7 +366,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="pv-card h-100">
                     ${imgUrl ? `<img class="pv-card__img" src="${imgUrl}" alt="${name} card image"/>` : ''}
                     <div class="pv-card__body">
-                        <div class="pv-card__title">${name}</div>
+                        <div class="pv-card__header">
+                            <div class="pv-card__title">${name}</div>
+                            <button id="pv-fav-${id}" class="pv-fav-btn" type="button" aria-label="${favLabel}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabel}">${favSymbol}</button>
+                        </div>
                         <p class="pv-card__text">${rarity ? `Rarity: ${rarity}` : 'Rarity: n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-variant-${id}">Variant</label>
@@ -224,6 +385,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Declare these after col.innerHTML so the elements exist
             const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
+            const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
+            if (favBtn) {
+                favBtn.addEventListener('click', () => toggleFavorite(card));
+            }
 
             // Now define the function, so selectEl/pricesEl are in scope
             async function showPricesForSelectedVariant() {
@@ -250,6 +415,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
                         selections[id] = { holoType: variantName, pricesText: formatted };
                         saveLastResults({ ...prev, selections });
+                    }
+
+                    // If this card is favorited, keep the Favorites price display in sync.
+                    if (isFavorite(id)) {
+                        favorites = favorites.map((f) => {
+                            if (String(f?.id || '') !== id) return f;
+                            return { ...f, selectedVariant: variantName, pricesText: formatted };
+                        });
+                        saveFavorites(favorites);
+                        renderFavorites();
                     }
                 } catch (e) {
                     pricesEl.textContent = 'Unable to load prices.';
@@ -461,6 +636,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Render Favorites immediately (persisted across refresh).
+    renderFavorites();
+
+    // Favorites collapsible behavior (persisted across refresh).
+    if (favoritesToggle) {
+        favoritesToggle.addEventListener('click', () => {
+            const currentlyCollapsed = !!favoritesBody?.hidden;
+            setFavoritesCollapsed(!currentlyCollapsed);
+        });
+    }
+    setFavoritesCollapsed(loadFavoritesCollapsed());
+
     // Restore last results after refresh.
     const restored = loadLastResults();
     if (restored && Array.isArray(restored.cards) && restored.cards.length) {
@@ -468,5 +655,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (restored.mode === 'number' && numberInput) numberInput.value = String(restored.query || '');
         renderCards(restored.cards, restored);
         if (restored.statusText) setStatus(String(restored.statusText));
+    }
+
+    if (scrollTopBtn) {
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
     }
 });
