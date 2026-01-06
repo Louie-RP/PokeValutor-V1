@@ -301,6 +301,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function formatPriceList(prices) {
         if (!Array.isArray(prices) || prices.length === 0) return 'No price data available.';
+
+        function normalizeConditionKey(raw) {
+            const s = String(raw || '').trim();
+            if (!s) return '';
+            const upper = s.toUpperCase();
+            if (upper === 'NM' || upper === 'LP' || upper === 'MP') return upper;
+            if (upper === 'NEAR MINT') return 'NM';
+            if (upper === 'LIGHT PLAY' || upper === 'LIGHTLY PLAYED') return 'LP';
+            if (upper === 'MODERATE PLAY' || upper === 'MODERATELY PLAYED' || upper === 'MID PLAY') return 'MP';
+            if (upper === 'DM' || upper === 'DAMAGED') return 'DM';
+            return upper;
+        }
+
+        const allowedConditions = new Set(['NM', 'LP', 'MP']);
+
         const lines = [];
         for (const p of prices) {
             if (!p || typeof p !== 'object') continue;
@@ -308,17 +323,21 @@ document.addEventListener('DOMContentLoaded', function () {
             const type = p?.type != null ? String(p.type) : '';
             const currency = p?.currency != null ? String(p.currency) : '';
             const market = p?.market ?? null;
-            const low = p?.low ?? null;
+            // const low = p?.low ?? null; // intentionally hidden (market only)
+
+            // Only show NM / LP / MP. This also hides DM (Damaged) and any other conditions.
+            const conditionKey = normalizeConditionKey(condition);
+            if (!allowedConditions.has(conditionKey)) continue;
 
             const moneySymbol = currency === 'USD' || currency === '' ? '$' : '';
             const bits = [
                 market != null ? `market ${moneySymbol}${market}` : null,
-                low != null ? `low ${moneySymbol}${low}` : null,
+                // low != null ? `low ${moneySymbol}${low}` : null,
             ].filter(Boolean);
 
             if (bits.length) {
-                const prefix = condition
-                    ? (type ? `${condition} (${type})` : condition)
+                const prefix = conditionKey
+                    ? (type ? `${conditionKey} (${type})` : conditionKey)
                     : (type ? `(${type})` : '');
                 lines.push(prefix ? `${prefix}: ${bits.join(' • ')}` : bits.join(' • '));
                 continue;
