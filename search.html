@@ -65,6 +65,17 @@
                 <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
                 <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
             </section>
+
+            <section id="pv-favorites" class="pv-section" aria-labelledby="pv-favorites-title">
+                <div class="pv-section__header">
+                    <h2 id="pv-favorites-title" class="pv-section__title">Favorites</h2>
+                    <button id="pv-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
+                        aria-controls="pv-favorites-body" aria-expanded="true">Hide</button>
+                </div>
+                <div id="pv-favorites-body">
+                    <div id="pv-favorites-grid" class="row g-3" aria-label="Favorites grid"></div>
+                </div>
+            </section>
         </section>
     </main>
 
@@ -78,6 +89,8 @@
             </ul>
         </div>
     </footer>
+
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
 
     <script src="script.js" defer></script>
     <script src="search.js" defer></script>
