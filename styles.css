@@ -80,9 +80,20 @@ body {
 .pv-nav__link:focus, .pv-nav__link:hover { background: #1f2937; }
 
 @media (max-width: 767.98px) {
+  .pv-brand { grid-column: 1; grid-row: 1; }
+
+  /* Ensure hamburger is always on the far right */
+  .pv-navToggle { grid-column: 3; grid-row: 1; }
+
   .pv-nav {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .pv-nav[aria-expanded="true"] {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--pv-border);
   }
 
   .pv-nav__list {
@@ -210,9 +221,11 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 /* Footer */
 .pv-footer { border-top: 1px solid var(--pv-border); background: var(--pv-surface); flex-shrink: 0; }
-.pv-footer__inner { max-width: 1100px; margin: 0 auto; padding: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; justify-content: space-between; }
+.pv-footer__inner { max-width: 1100px; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; flex-wrap: wrap; gap: 0.25rem; align-items: center; justify-content: center; text-align: center; }
+.pv-footer__text { margin: 0; font-size: 0.875rem; line-height: 1.4; }
 .pv-footer__links { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.75rem; }
-.pv-footer__links a { color: var(--pv-text); text-decoration: none; }
+.pv-footer__links { justify-content: center; }
+.pv-footer__links a { color: var(--pv-text); text-decoration: none; font-size: 0.875rem; line-height: 1.4; }
 
 /* Accessibility helpers */
 :focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
