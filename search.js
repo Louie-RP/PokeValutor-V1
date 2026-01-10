@@ -33,6 +33,41 @@ document.addEventListener('DOMContentLoaded', function () {
         return s ? s : (fallback || '');
     }
 
+    function escapeHtml(value) {
+        const s = String(value ?? '');
+        return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(value) {
+        // Same escaping as HTML text; safe for placing inside quoted attributes.
+        return escapeHtml(value);
+    }
+
+    function normalizeVariantNameForCompare(name) {
+        return String(name ?? '').trim().toLowerCase();
+    }
+
+    function findVariantByName(variants, variantName) {
+        if (!Array.isArray(variants)) return null;
+        const want = normalizeVariantNameForCompare(variantName);
+        if (!want) return null;
+        return variants.find((v) => normalizeVariantNameForCompare(v?.name) === want) || null;
+    }
+
+    function sanitizeUrl(raw) {
+        const s = String(raw ?? '').trim();
+        if (!s) return '';
+        // Allow http(s) and data:image/* only.
+        if (/^https?:\/\//i.test(s)) return s;
+        if (/^data:image\//i.test(s)) return s;
+        return '';
+    }
+
     function normalizeFavoriteCard(card) {
         // Keep a minimal snapshot so Favorites can render without extra API calls.
         return {
@@ -134,18 +169,38 @@ document.addEventListener('DOMContentLoaded', function () {
             const domPricesTextRaw = domPricesEl ? String(domPricesEl.textContent || '') : '';
             const domPricesUsable = !!domPricesTextRaw
                 && !/select a holo type/i.test(domPricesTextRaw)
+                && !/no prices loaded yet/i.test(domPricesTextRaw)
                 && !/loading prices/i.test(domPricesTextRaw)
                 && !/unable to load prices/i.test(domPricesTextRaw);
 
+            const domPricesLooksValid = domPricesUsable
+                && !/^\s*no price data available\.?\s*$/i.test(domPricesTextRaw);
+
             const pickedVariant = domVariant || selection?.holoType || card?.selectedVariant || '';
             const pickedPricesText = domPricesUsable
-                ? domPricesTextRaw
+                ? (domPricesLooksValid ? domPricesTextRaw : '')
                 : (selection?.pricesText || card?.pricesText || '');
 
             if (domTradePct != null) {
                 persistTradePercent(id, domTradePct);
             } else if (selection?.tradePercent != null) {
                 persistTradePercent(id, selection.tradePercent);
+            }
+
+            // Ensure lastResults has the most up-to-date snapshot (Favorites renders from it on refresh).
+            if (prev && Array.isArray(prev.cards)) {
+                const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+                const tradePercentToSave = domTradePct != null
+                    ? domTradePct
+                    : (selection?.tradePercent != null ? normalizeTradePercent(selection.tradePercent) : (prevSel.tradePercent != null ? normalizeTradePercent(prevSel.tradePercent) : getSavedTradePercentForId(id, prev)));
+                selections[id] = {
+                    ...prevSel,
+                    holoType: pickedVariant || prevSel.holoType || '',
+                    pricesText: pickedPricesText || prevSel.pricesText || '',
+                    tradePercent: tradePercentToSave,
+                };
+                saveLastResults({ ...prev, selections });
             }
 
             favorites = [...favorites, normalizeFavoriteCard({
@@ -334,38 +389,51 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = safeString(fav?.id, '');
             const name = safeString(fav?.name, 'Unknown');
             const rarity = safeString(fav?.rarity, '');
-            const imgUrl = pickFrontMediumImage(fav?.images);
+            const imgUrl = sanitizeUrl(pickFrontMediumImage(fav?.images));
             const selectedVariant = safeString(restoreState?.selections?.[id]?.holoType ?? fav?.selectedVariant, '');
             const pct = getSavedTradePercentForId(id, restoreState);
 
+            const restoredPricesText = safeString(restoreState?.selections?.[id]?.pricesText, '');
+
+            const idAttr = escapeAttr(id);
+            const nameHtml = escapeHtml(name);
+            const nameAttr = escapeAttr(name);
+            const rarityHtml = escapeHtml(rarity);
+            const selectedVariantHtml = escapeHtml(selectedVariant);
+            const imgUrlAttr = escapeAttr(imgUrl);
+
             function getPricesForVariant(cardLike, variantName) {
                 const vars = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
-                const match = vars.find((v) => String(v?.name || '') === String(variantName || ''));
+                const match = findVariantByName(vars, variantName);
                 return Array.isArray(match?.prices) ? match.prices : null;
             }
 
             const maybePrices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
-            const pricesText = maybePrices ? formatPriceList(maybePrices, pct) : safeString(fav?.pricesText, '');
+            const pricesText = maybePrices
+                ? formatPriceList(maybePrices, pct)
+                : (restoredPricesText || safeString(fav?.pricesText, ''));
+
+            const pricesTextHtml = escapeHtml(pricesText);
 
             col.innerHTML = `
                 <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrl}" alt="${name} card image"/>` : ''}
+                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/>` : ''}
                     <div class="pv-card__body">
                         <div class="pv-card__header">
-                            <div class="pv-card__title">${name}</div>
-                            <button id="pv-fav-${id}" class="pv-fav-btn" type="button" aria-label="Remove from favorites" aria-pressed="true" title="Unfavorite">★</button>
+                            <div class="pv-card__title">${nameHtml}</div>
+                            <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from favorites" aria-pressed="true" title="Unfavorite">★</button>
                         </div>
-                        <p class="pv-card__text">${rarity ? `Rarity: ${rarity}` : 'Rarity: n/a'}</p>
-                        ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariant}</p>` : ''}
+                        <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
+                        ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariantHtml}</p>` : ''}
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-fav-trade-${id}">Trade %</label>
-                            <select class="form-select" id="pv-fav-trade-${id}">
+                            <label class="form-label" for="pv-fav-trade-${idAttr}">Trade %</label>
+                            <select class="form-select" id="pv-fav-trade-${idAttr}">
                                 ${TRADE_PERCENT_CHOICES
                                     .map((p) => `<option value="${p}" ${p === pct ? 'selected' : ''}>${p}%</option>`)
                                     .join('')}
                             </select>
                         </div>
-                        <pre class="pv-card__text" id="pv-fav-prices-${id}" style="white-space:pre-wrap;margin:0">${pricesText ? pricesText : 'No prices loaded yet. Load prices in Results to show them here.'}</pre>
+                        <pre class="pv-card__text" id="pv-fav-prices-${idAttr}" style="white-space:pre-wrap;margin:0">${pricesText ? pricesTextHtml : 'No prices loaded yet. Load prices in Results to show them here.'}</pre>
                     </div>
                 </div>
             `;
@@ -377,6 +445,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-fav-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-fav-prices-${CSS.escape(id)}`));
+
+            async function ensureFavoritePricesLoaded() {
+                if (!pricesEl) return;
+                // If we already have real prices text, don't refetch.
+                const currentText = String(pricesEl.textContent || '').trim();
+                const looksPlaceholder = !currentText
+                    || /select a holo type/i.test(currentText)
+                    || /no prices loaded yet/i.test(currentText)
+                    || /loading prices/i.test(currentText)
+                    || /unable to load prices/i.test(currentText);
+                if (!looksPlaceholder) return;
+                if (!selectedVariant) return;
+
+                pricesEl.textContent = 'Loading prices…';
+                try {
+                    const base = getWorkerBase();
+                    const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+                    const data = await fetchJsonWithCache(url, CARD_TTL_MS);
+                    const cardObj = data?.data || data;
+                    const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
+                    const match = findVariantByName(allVariants, selectedVariant);
+                    const loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
+                    const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
+                    pricesEl.textContent = formatted;
+
+                    favorites = favorites.map((f) => {
+                        if (String(f?.id || '') !== id) return f;
+                        return { ...f, variants: allVariants, selectedVariant, pricesText: formatted };
+                    });
+                    saveFavorites(favorites);
+
+                    const prev = loadLastResults();
+                    if (prev && Array.isArray(prev.cards)) {
+                        const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                        const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+                        selections[id] = { ...prevSel, pricesText: formatted, holoType: prevSel.holoType || selectedVariant };
+                        saveLastResults({ ...prev, selections });
+                    }
+                } catch (e) {
+                    pricesEl.textContent = 'Unable to load prices.';
+                    console.warn('[PokeValutor] favorite prices preload error', e);
+                }
+            }
             if (tradeEl) {
                 tradeEl.addEventListener('change', async () => {
                     const nextPct = normalizeTradePercent(tradeEl.value);
@@ -392,6 +503,15 @@ document.addEventListener('DOMContentLoaded', function () {
                             pricesEl.textContent = formatted;
                             favorites = favorites.map((f) => (String(f?.id || '') === id ? { ...f, pricesText: formatted } : f));
                             saveFavorites(favorites);
+
+                            // Keep lastResults selection text in sync so Favorites can restore reliably.
+                            const prev = loadLastResults();
+                            if (prev && Array.isArray(prev.cards)) {
+                                const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                                const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+                                selections[id] = { ...prevSel, pricesText: formatted, tradePercent: nextPct, holoType: prevSel.holoType || selectedVariant };
+                                saveLastResults({ ...prev, selections });
+                            }
                             return;
                         }
                     }
@@ -405,7 +525,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const data = await fetchJsonWithCache(url, CARD_TTL_MS);
                         const cardObj = data?.data || data;
                         const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
-                        const match = allVariants.find((v) => String(v?.name || '') === selectedVariant);
+                        const match = findVariantByName(allVariants, selectedVariant);
                         const loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                         const formatted = formatPriceList(loadedPrices, nextPct);
                         pricesEl.textContent = formatted;
@@ -414,11 +534,25 @@ document.addEventListener('DOMContentLoaded', function () {
                             return { ...f, variants: allVariants, selectedVariant, pricesText: formatted };
                         });
                         saveFavorites(favorites);
+
+                        // Keep lastResults selection text in sync so Favorites can restore reliably.
+                        const prev = loadLastResults();
+                        if (prev && Array.isArray(prev.cards)) {
+                            const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                            const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+                            selections[id] = { ...prevSel, pricesText: formatted, tradePercent: nextPct, holoType: prevSel.holoType || selectedVariant };
+                            saveLastResults({ ...prev, selections });
+                        }
                     } catch (e) {
                         pricesEl.textContent = 'Unable to load prices.';
                         console.warn('[PokeValutor] favorite prices error', e);
                     }
                 });
+            }
+
+            // If a favorite has a known variant but no stored prices, fetch once to populate.
+            if (!pricesText && selectedVariant) {
+                void ensureFavoritePricesLoaded();
             }
 
             favoritesGrid.appendChild(col);
@@ -478,10 +612,17 @@ document.addEventListener('DOMContentLoaded', function () {
         function normalizeConditionKey(raw) {
             const s = String(raw || '').trim();
             if (!s) return '';
-            const upper = s.toUpperCase();
+            // Normalize common separators so values like "near_mint" / "NM-MT" match.
+            const upper = s.toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
             if (upper === 'NM' || upper === 'LP' || upper === 'MP') return upper;
+            // Common abbreviated prefixes.
+            if (upper.startsWith('NM')) return 'NM';
+            if (upper.startsWith('LP')) return 'LP';
+            if (upper.startsWith('MP')) return 'MP';
             if (upper === 'NEAR MINT') return 'NM';
+            if (upper === 'NEAR MINT MINT' || upper === 'NEAR MINT MINT CONDITION') return 'NM';
             if (upper === 'LIGHT PLAY' || upper === 'LIGHTLY PLAYED') return 'LP';
+            if (upper === 'LIGHT PLAYED') return 'LP';
             if (upper === 'MODERATE PLAY' || upper === 'MODERATELY PLAYED' || upper === 'MID PLAY') return 'MP';
             if (upper === 'DM' || upper === 'DAMAGED') return 'DM';
             return upper;
@@ -489,18 +630,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const allowedConditions = new Set(['NM', 'LP', 'MP']);
 
-        const lines = [];
+        /** @type {string[]} */
+        const preferredLines = [];
+        /** @type {string[]} */
+        const fallbackLines = [];
         for (const p of prices) {
             if (!p || typeof p !== 'object') continue;
             const condition = p?.condition != null ? String(p.condition) : '';
             const type = p?.type != null ? String(p.type) : '';
             const currency = p?.currency != null ? String(p.currency) : '';
-            const market = p?.market ?? null;
+            const market = (p?.market ?? p?.marketPrice ?? p?.market_price ?? null);
             // const low = p?.low ?? null; // intentionally hidden (market only)
 
-            // Only show NM / LP / MP. This also hides DM (Damaged) and any other conditions.
             const conditionKey = normalizeConditionKey(condition);
-            if (!allowedConditions.has(conditionKey)) continue;
 
             const marketText = market != null ? formatMoney(currency, market) : null;
             const tradeText = (pct != null && marketText)
@@ -516,16 +658,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 const prefix = conditionKey
                     ? (type ? `${conditionKey} (${type})` : conditionKey)
                     : (type ? `(${type})` : '');
-                lines.push(prefix ? `${prefix}: ${bits.join(' • ')}` : bits.join(' • '));
+                const line = prefix ? `${prefix}: ${bits.join(' • ')}` : bits.join(' • ');
+                if (allowedConditions.has(conditionKey)) {
+                    preferredLines.push(line);
+                } else {
+                    fallbackLines.push(line);
+                }
                 continue;
             }
             const entries = Object.entries(p)
                 .filter(([k, v]) => v != null && typeof v !== 'object' && typeof v !== 'function')
                 .slice(0, 6)
                 .map(([k, v]) => `${k} ${v}`);
-            if (entries.length) lines.push(entries.join(' • '));
+            if (entries.length) {
+                const line = entries.join(' • ');
+                if (allowedConditions.has(conditionKey)) {
+                    preferredLines.push(line);
+                } else {
+                    fallbackLines.push(line);
+                }
+            }
         }
-        return lines.length ? lines.join('\n') : 'No price data available.';
+        if (preferredLines.length) return preferredLines.join('\n');
+        if (fallbackLines.length) return fallbackLines.join('\n');
+        return 'No price data available.';
     }
 
     function renderCards(cards, restoreState) {
@@ -548,14 +704,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = String(card?.id || '');
             const name = String(card?.name || 'Unknown');
             const rarity = String(card?.rarity || '');
-            const imgUrl = pickFrontMediumImage(card?.images);
+            const imgUrl = sanitizeUrl(pickFrontMediumImage(card?.images));
             const variants = Array.isArray(card?.variants) ? card.variants.map((v) => v?.name).filter(Boolean) : [];
             const fav = isFavorite(id);
             const favSymbol = fav ? '★' : '☆';
             const favLabel = fav ? 'Remove from favorites' : 'Add to favorites';
 
             const variantOptions = variants.length
-                ? ['<option value="">Select a holo type</option>', ...variants.map((v) => `<option value="${String(v)}">${String(v)}</option>`)].join('')
+                ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
+                    const vv = String(v);
+                    return `<option value="${escapeAttr(vv)}">${escapeHtml(vv)}</option>`;
+                })].join('')
                 : '<option value="">No variants</option>';
 
             const restoredSelection = restoreState?.selections?.[id];
@@ -564,28 +723,35 @@ document.addEventListener('DOMContentLoaded', function () {
                 .map((p) => `<option value="${p}" ${p === restoredTradePercent ? 'selected' : ''}>${p}%</option>`)
                 .join('');
 
+            const idAttr = escapeAttr(id);
+            const nameHtml = escapeHtml(name);
+            const nameAttr = escapeAttr(name);
+            const rarityHtml = escapeHtml(rarity);
+            const favLabelAttr = escapeAttr(favLabel);
+            const imgUrlAttr = escapeAttr(imgUrl);
+
             col.innerHTML = `
                 <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrl}" alt="${name} card image"/>` : ''}
+                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/>` : ''}
                     <div class="pv-card__body">
                         <div class="pv-card__header">
-                            <div class="pv-card__title">${name}</div>
-                            <button id="pv-fav-${id}" class="pv-fav-btn" type="button" aria-label="${favLabel}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabel}">${favSymbol}</button>
+                            <div class="pv-card__title">${nameHtml}</div>
+                            <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
                         </div>
-                        <p class="pv-card__text">${rarity ? `Rarity: ${rarity}` : 'Rarity: n/a'}</p>
+                        <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-variant-${id}">Variant</label>
-                            <select class="form-select" id="pv-variant-${id}" ${variants.length ? '' : 'disabled'}>
+                            <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
+                            <select class="form-select" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
                                 ${variantOptions}
                             </select>
                         </div>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-trade-${id}">Trade %</label>
-                            <select class="form-select" id="pv-trade-${id}">
+                            <label class="form-label" for="pv-trade-${idAttr}">Trade %</label>
+                            <select class="form-select" id="pv-trade-${idAttr}">
                                 ${tradePercentOptions}
                             </select>
                         </div>
-                        <pre class="pv-card__text" id="pv-prices-${id}" style="white-space:pre-wrap;margin:0"></pre>
+                        <pre class="pv-card__text" id="pv-prices-${idAttr}" style="white-space:pre-wrap;margin:0"></pre>
                     </div>
                 </div>
             `;
@@ -610,6 +776,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             function persistSelection(variantName, formatted) {
+                // Keep an in-memory snapshot on the card object so favoriting can
+                // immediately copy what the user sees, even if localStorage writes fail.
+                try {
+                    card.selectedVariant = variantName;
+                    card.pricesText = formatted;
+                } catch {
+                    // ignore
+                }
+
                 const prev = loadLastResults();
                 if (prev && Array.isArray(prev.cards)) {
                     const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
@@ -657,11 +832,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     const data = await fetchJsonWithCache(url, CARD_TTL_MS);
                     const cardObj = data?.data || data;
                     const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
-                    const match = allVariants.find((v) => String(v?.name || '') === variantName);
+                    const match = findVariantByName(allVariants, variantName);
                     lastLoadedVariantName = variantName;
                     lastLoadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
                     pricesEl.textContent = formatted;
+
+                    // Keep the in-memory card object in sync with what is shown.
+                    try {
+                        card.variants = allVariants;
+                    } catch {
+                        // ignore
+                    }
                     persistSelection(variantName, formatted);
 
                     // If favorited, store the fetched variants (with prices) so Favorites can re-render trade % without refetching.
@@ -687,6 +869,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (restoredSelection.pricesText) {
                         pricesEl.textContent = String(restoredSelection.pricesText);
                         lastLoadedVariantName = String(restoredSelection.holoType);
+
+                        // Keep the in-memory card snapshot aligned with restored state.
+                        try {
+                            card.selectedVariant = String(restoredSelection.holoType);
+                            card.pricesText = String(restoredSelection.pricesText);
+                        } catch {
+                            // ignore
+                        }
                     } else {
                         // If pricesText is missing, trigger loading
                         selectEl.dispatchEvent(new Event('change'));
@@ -899,6 +1089,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function clearResultsUI() {
         if (grid) grid.innerHTML = '';
         if (status) status.textContent = '';
+        currentResultsCards = [];
     }
 
     if (clearBtn) {
