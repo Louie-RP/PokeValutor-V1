@@ -28,6 +28,29 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let currentResultsCards = [];
 
+    /** @type {'name' | 'number' | null} */
+    let lastEditedSearchField = null;
+
+    function clearSearchInputs() {
+        if (input) input.value = '';
+        if (numberInput) numberInput.value = '';
+    }
+
+    // Keep search modes mutually exclusive so one field never blocks the other.
+    if (input) {
+        input.addEventListener('input', () => {
+            lastEditedSearchField = 'name';
+            if (numberInput && numberInput.value) numberInput.value = '';
+        });
+    }
+
+    if (numberInput) {
+        numberInput.addEventListener('input', () => {
+            lastEditedSearchField = 'number';
+            if (input && input.value) input.value = '';
+        });
+    }
+
     function safeString(value, fallback) {
         const s = String(value ?? '');
         return s ? s : (fallback || '');
@@ -1020,12 +1043,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderCards([]);
                 return;
             }
-            // Prefer printed-number search if provided.
-            if (byNumber) {
-                void searchByPrintedNumber(byNumber);
-            } else {
-                void searchByName(byName);
+
+            // Clear the inputs immediately after capturing the query.
+            // This prevents a previous search from blocking the next.
+            clearSearchInputs();
+
+            // If both are somehow filled, choose the most recently edited field.
+            if (byNumber && byName) {
+                if (lastEditedSearchField === 'name') {
+                    void searchByName(byName);
+                } else {
+                    void searchByPrintedNumber(byNumber);
+                }
+                return;
             }
+
+            if (byNumber) void searchByPrintedNumber(byNumber);
+            else void searchByName(byName);
         });
     }
 
@@ -1040,8 +1074,7 @@ document.addEventListener('DOMContentLoaded', function () {
             clearResultsUI();
             clearLastResults();
 
-            if (input) input.value = '';
-            if (numberInput) numberInput.value = '';
+            clearSearchInputs();
         });
     }
 
