@@ -4,6 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="PokéValutor project website" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="color-scheme" content="dark" />
+  <meta property="og:title" content="PokéValutor" />
+  <meta property="og:description" content="Search Pokémon TCG cards and sealed product, compare variants, and save favorites." />
+  <meta property="og:type" content="website" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
   <title>PokéValutor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +24,7 @@
 
   <header id="pv-header" class="pv-header" role="banner">
     <div class="pv-header__inner" aria-label="Site header">
-      <a id="pv-brand" class="pv-brand" href="#pv-home" aria-label="PokéValutor home">PokéValutor</a>
+      <a id="pv-brand" class="pv-brand" href="#pv-hero" aria-label="PokéValutor home">PokéValutor</a>
       <button id="pv-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-nav" aria-label="Toggle navigation">
         <span class="pv-navToggle__bar" aria-hidden="true"></span>
         <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -37,23 +42,122 @@
   </header>
 
   <main id="pv-main" class="pv-main" role="main">
-    <section id="pv-hero" class="pv-hero container" aria-labelledby="pv-heroTitle">
-      <h1 id="pv-heroTitle" class="pv-hero__title">Welcome to PokéValutor</h1>
-      <p class="pv-hero__subtitle">A simple tool to evaluate and explore Pokémon TCG card prices.</p>
-      <div class="pv-cta" role="group" aria-label="Primary actions">
-        <a id="pv-getStarted" class="pv-button pv-button--primary btn" href="search.html">Get Started</a>
-        <a id="pv-learnMore" class="pv-button pv-button--secondary btn" href="#pv-features">Learn More</a>
+    <section id="pv-hero" class="pv-hero pv-hero--home" aria-labelledby="pv-heroTitle">
+      <div class="pv-hero__grid">
+        <div class="pv-hero__content">
+          <h1 id="pv-heroTitle" class="pv-hero__title">PokéValutor</h1>
+          <p class="pv-hero__subtitle">Search Pokémon TCG cards and sealed product, compare variants, and save favorites — fast and simple.</p>
+          <div class="pv-cta" role="group" aria-label="Primary actions">
+            <a id="pv-cta-cards" class="pv-button pv-button--primary btn" href="search.html">Search Cards</a>
+            <a id="pv-cta-sealed" class="pv-button pv-button--secondary btn" href="sealed.html">Search Sealed</a>
+          </div>
+          <p class="pv-hero__fineprint">Favorites are stored locally in your browser.</p>
+        </div>
+
+        <div class="pv-hero__panel" aria-label="Preview">
+          <div class="pv-heroCard">
+            <div class="pv-heroCard__header">
+              <span class="pv-badge" aria-label="Tip">Quick tip</span>
+              <span class="pv-heroCard__title">Try a search</span>
+            </div>
+            <div class="pv-heroCard__body" role="presentation">
+              <div class="pv-heroCard__row">
+                <span class="pv-heroCard__label">Name</span>
+                <span class="pv-heroCard__value">Pikachu</span>
+              </div>
+              <div class="pv-heroCard__row">
+                <span class="pv-heroCard__label">Card #</span>
+                <span class="pv-heroCard__value">238/191</span>
+              </div>
+              <div class="pv-heroCard__row">
+                <span class="pv-heroCard__label">Variant</span>
+                <span class="pv-heroCard__value">Holo / Reverse / etc.</span>
+              </div>
+              <div class="pv-heroCard__divider" aria-hidden="true"></div>
+              <div class="pv-heroCard__row">
+                <span class="pv-heroCard__label">Favorites</span>
+                <span class="pv-heroCard__value">★ Save what you like</span>
+              </div>
+            </div>
+          </div>
+
+          <svg class="pv-heroGlow" viewBox="0 0 600 320" role="presentation" aria-hidden="true" focusable="false">
+            <defs>
+              <radialGradient id="pv-hero-grad" cx="35%" cy="25%" r="70%">
+                <stop offset="0%" stop-color="#FFCB05" stop-opacity="0.55" />
+                <stop offset="45%" stop-color="#A78BFA" stop-opacity="0.18" />
+                <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <rect x="0" y="0" width="600" height="320" fill="url(#pv-hero-grad)" />
+          </svg>
+        </div>
       </div>
     </section>
 
-    <section id="pv-features" class="pv-section pv-features container" aria-labelledby="pv-featuresTitle">
-      <h2 id="pv-featuresTitle" class="pv-section__title">How to use</h2>
-      <ul class="pv-features__list">
-        <li class="pv-features__item">1. Click on "Get Started" button to begin or click Search.</li>
-        <li class="pv-features__item">2. Search by Pokémon name or card number.</li>
-        <li class="pv-features__item">3. Select a holo type.</li>
-        <li class="pv-features__item">4. Review current market values.</li>
-      </ul>
+    <section id="pv-quick" class="pv-section pv-quick" aria-label="Quick links">
+      <div class="pv-tileGrid">
+        <a class="pv-tile" href="search.html" aria-label="Go to card search">
+          <div class="pv-tile__title">Cards</div>
+          <div class="pv-tile__text">Search by Pokémon name or card number.</div>
+        </a>
+        <a class="pv-tile" href="sealed.html" aria-label="Go to sealed product search">
+          <div class="pv-tile__title">Sealed</div>
+          <div class="pv-tile__text">Find booster boxes, ETBs, and more.</div>
+        </a>
+        <a class="pv-tile" href="search.html#pv-favorites" aria-label="Jump to favorites on the Cards page">
+          <div class="pv-tile__title">Favorites</div>
+          <div class="pv-tile__text">Star cards and keep them handy.</div>
+        </a>
+      </div>
+    </section>
+
+    <section id="pv-features" class="pv-section pv-features" aria-labelledby="pv-featuresTitle">
+      <h2 id="pv-featuresTitle" class="pv-section__title">What you can do</h2>
+      <div class="pv-featureGrid" role="list">
+        <div class="pv-feature" role="listitem">
+          <h3 class="pv-feature__title">Fast searching</h3>
+          <p class="pv-feature__text">Look up cards by name or number with clean results you can scan quickly.</p>
+        </div>
+        <div class="pv-feature" role="listitem">
+          <h3 class="pv-feature__title">Variant-aware prices</h3>
+          <p class="pv-feature__text">Select the holo/variant you care about and review current market values.</p>
+        </div>
+        <div class="pv-feature" role="listitem">
+          <h3 class="pv-feature__title">Save favorites locally</h3>
+          <p class="pv-feature__text">Favorite cards and sealed product; your list stays in your browser.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pv-how" class="pv-section pv-how" aria-labelledby="pv-howTitle">
+      <h2 id="pv-howTitle" class="pv-section__title">How it works</h2>
+      <ol class="pv-steps">
+        <li class="pv-step"><span class="pv-step__num">1</span><span class="pv-step__text">Open <a class="pv-inlineLink" href="search.html">Cards</a> or <a class="pv-inlineLink" href="sealed.html">Sealed</a>.</span></li>
+        <li class="pv-step"><span class="pv-step__num">2</span><span class="pv-step__text">Search by name (or card # for cards).</span></li>
+        <li class="pv-step"><span class="pv-step__num">3</span><span class="pv-step__text">Pick a variant/holo type when available.</span></li>
+        <li class="pv-step"><span class="pv-step__num">4</span><span class="pv-step__text">Star items to save them as favorites.</span></li>
+      </ol>
+    </section>
+
+    <section id="pv-disclaimer" class="pv-section" aria-labelledby="pv-disclaimerTitle">
+      <h2 id="pv-disclaimerTitle" class="pv-section__title">Disclaimer</h2>
+      <p class="pv-section__text">PokéValutor is a fan-made tool and is not affiliated with, endorsed by, or sponsored by The Pokémon Company, Nintendo, Game Freak, or Creatures.</p>
+    </section>
+
+    <section id="pv-privacyPolicy" class="pv-section" aria-labelledby="pv-privacyTitle">
+      <h2 id="pv-privacyTitle" class="pv-section__title">Privacy</h2>
+      <p class="pv-section__text">PokéValutor stores favorites in your browser using local storage. This site does not include sign-in or collect personal data by default.</p>
+    </section>
+
+    <section id="pv-termsOfUse" class="pv-section" aria-labelledby="pv-termsTitle">
+      <h2 id="pv-termsTitle" class="pv-section__title">Terms</h2>
+      <p class="pv-section__text">Market values are provided for informational purposes only and may vary by marketplace, condition, and time.</p>
+    </section>
+
+    <section id="pv-accessibility" class="pv-section" aria-labelledby="pv-accessTitle">
+      <h2 id="pv-accessTitle" class="pv-section__title">Accessibility</h2>
+      <p class="pv-section__text">If something is hard to use (keyboard navigation, contrast, screen readers), please reach out via the <a class="pv-inlineLink" href="contact.html">Contact</a> page.</p>
     </section>
 
   </main>
