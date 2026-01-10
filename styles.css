@@ -409,7 +409,9 @@ h1, h2, h3, h4, h5, h6,
 .pv-form { max-width: 640px; }
 .pv-form__field { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
 .pv-form input, .pv-form textarea { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--pv-primary); background: #ffffff; color: #0b0b0b; }
+.pv-form select { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--pv-primary); background: #ffffff; color: #0b0b0b; }
 .pv-form input:focus, .pv-form textarea:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
+.pv-form select:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 /* Placeholders for white inputs */
 .pv-form input::placeholder, .pv-form textarea::placeholder { color: #6b7280; }
 /* Search field: keep white background + yellow border at all times */
@@ -417,6 +419,99 @@ label[for="pv-search-query"],
 label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-search-query { background: #ffffff; color: #0b0b0b; border-color: var(--pv-primary); }
 #pv-search-query::placeholder { color: #6b7280; }
+
+/* -------------------------------------------------------------------------- */
+/* Bootstrap-compatible utilities (minimal)                                    */
+/* -------------------------------------------------------------------------- */
+
+/* Layout container */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Grid: mimic Bootstrap's .row/.col-* using CSS grid */
+.row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.row > * { min-width: 0; }
+/* If an element inside a .row doesn't declare a col-* span, treat it like col-12. */
+.row > :not([class*="col-"]) { grid-column: 1 / -1; }
+/* Hidden inputs should never take up grid cells. */
+.row input[type="hidden"] { display: none; }
+.g-3 { gap: 1rem; }
+
+/* When using `.pv-form` with the grid-based `.row`, let `gap` control spacing. */
+.pv-form.row .pv-form__field { margin-bottom: 0; }
+
+/* Base column spans */
+.col-12 { grid-column: span 12; }
+.col-6 { grid-column: span 6; }
+.col-4 { grid-column: span 4; }
+.col-3 { grid-column: span 3; }
+
+@media (min-width: 576px) {
+  .col-sm-12 { grid-column: span 12; }
+  .col-sm-6 { grid-column: span 6; }
+  .col-sm-4 { grid-column: span 4; }
+  .col-sm-3 { grid-column: span 3; }
+}
+
+@media (min-width: 768px) {
+  .col-md-12 { grid-column: span 12; }
+  .col-md-8 { grid-column: span 8; }
+  .col-md-6 { grid-column: span 6; }
+  .col-md-4 { grid-column: span 4; }
+  .col-md-3 { grid-column: span 3; }
+}
+
+@media (min-width: 992px) {
+  .col-lg-12 { grid-column: span 12; }
+  .col-lg-6 { grid-column: span 6; }
+  .col-lg-4 { grid-column: span 4; }
+  .col-lg-3 { grid-column: span 3; }
+}
+
+/* Spacing utilities used in markup */
+.ms-2 { margin-left: 0.5rem !important; }
+.me-2 { margin-right: 0.5rem !important; }
+
+/* Text utilities */
+.small { font-size: 0.875rem; }
+.text-muted { color: var(--pv-muted) !important; }
+
+/* Buttons (leave pv-button as primary; provide sane defaults for plain .btn) */
+.btn { font: inherit; cursor: pointer; }
+.btn:not(.pv-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border: 1px solid var(--pv-border);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  color: var(--pv-text);
+}
+.btn:not(.pv-button):hover { background: #1f2937; }
+
+/* Form helpers used by JS and markup */
+.form-label { display: inline-block; margin-bottom: 0.25rem; color: var(--pv-primary); }
+.form-control, .form-select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--pv-primary);
+  background: #ffffff;
+  color: #0b0b0b;
+  font: inherit;
+}
+.form-control:focus, .form-select:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
+.form-control::placeholder { color: #6b7280; }
+.form-select:disabled { opacity: 0.7; }
 
 /* Footer */
 .pv-footer { border-top: 1px solid var(--pv-border); background: var(--pv-surface); flex-shrink: 0; }
