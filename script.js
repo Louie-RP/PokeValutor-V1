@@ -1,7 +1,5 @@
 /* PokeValutor site JS */
 (function () {
-  const navToggle = document.getElementById('pv-navToggle');
-  const nav = document.getElementById('pv-nav');
   const year = document.getElementById('pv-year');
   const form = document.getElementById('pv-contactForm');
 
@@ -10,11 +8,17 @@
     year.textContent = String(new Date().getFullYear());
   }
 
-  // Mobile nav toggle with ARIA sync
-  if (navToggle && nav) {
-    navToggle.addEventListener('click', () => {
-      const expanded = navToggle.getAttribute('aria-expanded') === 'true';
-      navToggle.setAttribute('aria-expanded', String(!expanded));
+  // Mobile nav toggles with ARIA sync (works across pages)
+  const navToggles = Array.from(document.querySelectorAll('.pv-navToggle'));
+  for (const btn of navToggles) {
+    btn.addEventListener('click', () => {
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!expanded));
+
+      const targetId = btn.getAttribute('aria-controls');
+      if (!targetId) return;
+      const nav = document.getElementById(targetId);
+      if (!nav) return;
       nav.setAttribute('aria-expanded', String(!expanded));
     });
   }

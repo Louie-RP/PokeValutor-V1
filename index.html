@@ -24,12 +24,12 @@
         <span class="pv-navToggle__bar" aria-hidden="true"></span>
         <span class="pv-navToggle__bar" aria-hidden="true"></span>
       </button>
-      <nav id="pv-nav" class="pv-nav" aria-label="Primary">
+      <nav id="pv-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
         <ul class="pv-nav__list">
-          <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Search</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
           <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
-          <li class="pv-nav__item"><a class="pv-nav__link" href="#pv-features">Guide</a></li>
-          <li class="pv-nav__item"><a class="pv-nav__link" href="#pv-contact">Contact</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
         </ul>
       </nav>
     </div>
@@ -55,27 +55,6 @@
       </ul>
     </section>
 
-    <section id="pv-contact" class="pv-section pv-contact container" aria-labelledby="pv-contactTitle">
-      <h2 id="pv-contactTitle" class="pv-section__title">Contact Us</h2>
-      <form id="pv-contactForm" class="pv-form row g-3" aria-describedby="pv-contactDesc">
-        <p id="pv-contactDesc" class="pv-section__text">Send a quick message.</p>
-        <div class="pv-form__field col-12 col-md-6">
-          <label for="pv-name" class="form-label">Name</label>
-          <input id="pv-name" name="pv-name" type="text" class="form-control" autocomplete="name" required />
-        </div>
-        <div class="pv-form__field col-12 col-md-6">
-          <label for="pv-email" class="form-label">Email</label>
-          <input id="pv-email" name="pv-email" type="email" class="form-control" autocomplete="email" required />
-        </div>
-        <div class="pv-form__field col-12">
-          <label for="pv-message" class="form-label">Message</label>
-          <textarea id="pv-message" name="pv-message" rows="4" class="form-control" required></textarea>
-        </div>
-        <div class="col-12">
-          <button id="pv-submit" class="pv-button pv-button--primary btn" type="submit">Send</button>
-        </div>
-      </form>
-    </section>
   </main>
 
   <footer id="pv-footer" class="pv-footer" role="contentinfo">
