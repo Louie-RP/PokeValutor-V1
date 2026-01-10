@@ -133,6 +133,7 @@ h1, h2, h3, h4, h5, h6,
 /* Cards */
 .pv-card { background: #0a0a0a; border: 1px solid var(--pv-border); border-radius: 12px; overflow: hidden; }
 .pv-card__img { width: 100%; height: auto; display: block; }
+.pv-card__img--sealed { width: auto; max-width: 170px; margin: 0.75rem auto 0; }
 .pv-card__body { padding: 0.75rem; }
 .pv-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
 .pv-card__title { font-weight: 700; margin: 0 0 0.25rem; }
