@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Contact PokéValutor" />
+  <title>PokéValutor • Contact</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Bootstrap CSS (SRI removed to avoid integrity mismatch) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+
+<body id="pv-contact-body" class="pv-body">
+  <a class="pv-skiplink" href="#pv-contact-main">Skip to content</a>
+
+  <header id="pv-contact-header" class="pv-header" role="banner">
+    <div class="pv-header__inner" aria-label="Site header">
+      <a id="pv-contact-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+      <button id="pv-contact-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-contact-nav" aria-label="Toggle navigation">
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+      </button>
+      <nav id="pv-contact-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
+        <ul class="pv-nav__list">
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="pv-contact-main" class="pv-main" role="main">
+    <section class="pv-hero container" aria-labelledby="pv-contact-title">
+      <h1 id="pv-contact-title" class="pv-hero__title">Contact Us</h1>
+      <p class="pv-hero__subtitle">Send a quick message.</p>
+    </section>
+
+    <section class="pv-section pv-contact container" aria-labelledby="pv-contactFormTitle">
+      <h2 id="pv-contactFormTitle" class="pv-section__title">Message</h2>
+      <form id="pv-contactForm" class="pv-form row g-3" aria-describedby="pv-contactDesc">
+        <p id="pv-contactDesc" class="pv-section__text">This demo does not send emails.</p>
+        <div class="pv-form__field col-12 col-md-6">
+          <label for="pv-name" class="form-label">Name</label>
+          <input id="pv-name" name="pv-name" type="text" class="form-control" autocomplete="name" required />
+        </div>
+        <div class="pv-form__field col-12 col-md-6">
+          <label for="pv-email" class="form-label">Email</label>
+          <input id="pv-email" name="pv-email" type="email" class="form-control" autocomplete="email" required />
+        </div>
+        <div class="pv-form__field col-12">
+          <label for="pv-message" class="form-label">Message</label>
+          <textarea id="pv-message" name="pv-message" rows="4" class="form-control" required></textarea>
+        </div>
+        <div class="col-12">
+          <button id="pv-submit" class="pv-button pv-button--primary btn" type="submit">Send</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer id="pv-contact-footer" class="pv-footer" role="contentinfo">
+    <div class="pv-footer__inner">
+      <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+      <ul class="pv-footer__links" aria-label="Footer links">
+        <li><a id="pv-contact-privacy" href="index.html#pv-privacyPolicy">Privacy</a></li>
+        <li><a id="pv-contact-terms" href="index.html#pv-termsOfUse">Terms</a></li>
+        <li><a id="pv-contact-access" href="index.html#pv-accessibility">Accessibility</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+  <!-- Bootstrap JS (SRI removed to avoid integrity mismatch) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
