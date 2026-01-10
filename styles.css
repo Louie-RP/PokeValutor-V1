@@ -5,6 +5,8 @@
   --pv-text: #e5e7eb; /* light gray for readability */
   --pv-muted: #cbd5e1; /* muted gray */
   --pv-heading-font: "Playfair Display", serif;
+  --pv-brand-font: "PV-PokemonSolid";
+  /* --pv-brand-font: "PV-PokemonHollow"; */
   --pv-primary: #FFCB05; /* Pokémon Yellow */
   --pv-primary-dark: #c79b00; /* darker yellow for hover */
   --pv-danger: #dc2626; /* red */
@@ -13,6 +15,22 @@
   --pv-focus: #FFD54A; /* yellow focus ring */
   --pv-border: #1f2937; /* deep slate border */
   --pv-surface: #0a0a0a; /* near-black surface */
+}
+
+@font-face {
+  font-family: "PV-PokemonSolid";
+  src: url("fonts/PokemonSolidNormal-xyWR.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PV-PokemonHollow";
+  src: url("fonts/PokemonHollowNormal-pyPZ.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
 }
 
 * { box-sizing: border-box; }
@@ -61,7 +79,11 @@ body {
   gap: 1rem;
   align-items: center;
 }
-.pv-brand { color: var(--pv-primary); text-decoration: none; font-weight: 700; }
+.pv-brand { color: var(--pv-primary); text-decoration: none; font-weight: 700; font-family: var(--pv-brand-font), var(--pv-heading-font); font-size: 1.35rem; line-height: 1.1; }
+
+@media (min-width: 768px) {
+  .pv-brand { font-size: 1.6rem; }
+}
 
 /* Navigation */
 .pv-navToggle {
