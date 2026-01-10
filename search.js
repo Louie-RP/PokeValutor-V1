@@ -17,9 +17,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const CARD_TTL_MS = 24 * 60 * 60 * 1000;
     const MAX_CACHE_ENTRIES = 250;
 
+    const DEFAULT_TRADE_PERCENT = 80;
+    const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
+
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
     const FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+    const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
 
     /** @type {Array<any>} */
     let currentResultsCards = [];
@@ -67,11 +71,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function clearFavorites() {
         favorites = [];
         try { localStorage.removeItem(FAVORITES_KEY); } catch {}
-        renderFavorites();
+        const restoredState = loadLastResults();
+        renderFavorites(restoredState || undefined);
 
         // Keep results stars in sync.
-        const restored = loadLastResults();
-        renderCards(currentResultsCards, restored || undefined);
+        renderCards(currentResultsCards, restoredState || undefined);
     }
 
     /** @type {Array<any>} */
@@ -117,18 +121,45 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             const prev = loadLastResults();
             const selection = prev?.selections?.[id];
+
+            // Prefer whatever is currently shown in Results (most reliable),
+            // then fall back to saved lastResults selection.
+            const domVariantEl = document.getElementById(`pv-variant-${id}`);
+            const domTradeEl = document.getElementById(`pv-trade-${id}`);
+            const domPricesEl = document.getElementById(`pv-prices-${id}`);
+
+            const domVariant = (domVariantEl && 'value' in domVariantEl) ? String(domVariantEl.value || '') : '';
+            const domTradePctRaw = (domTradeEl && 'value' in domTradeEl) ? domTradeEl.value : null;
+            const domTradePct = domTradePctRaw != null ? normalizeTradePercent(domTradePctRaw) : null;
+            const domPricesTextRaw = domPricesEl ? String(domPricesEl.textContent || '') : '';
+            const domPricesUsable = !!domPricesTextRaw
+                && !/select a holo type/i.test(domPricesTextRaw)
+                && !/loading prices/i.test(domPricesTextRaw)
+                && !/unable to load prices/i.test(domPricesTextRaw);
+
+            const pickedVariant = domVariant || selection?.holoType || card?.selectedVariant || '';
+            const pickedPricesText = domPricesUsable
+                ? domPricesTextRaw
+                : (selection?.pricesText || card?.pricesText || '');
+
+            if (domTradePct != null) {
+                persistTradePercent(id, domTradePct);
+            } else if (selection?.tradePercent != null) {
+                persistTradePercent(id, selection.tradePercent);
+            }
+
             favorites = [...favorites, normalizeFavoriteCard({
                 ...card,
-                selectedVariant: selection?.holoType ?? card?.selectedVariant,
-                pricesText: selection?.pricesText ?? card?.pricesText,
+                selectedVariant: pickedVariant,
+                pricesText: pickedPricesText,
             })];
         }
         saveFavorites(favorites);
-        renderFavorites();
+        const restoredState = loadLastResults();
+        renderFavorites(restoredState || undefined);
 
         // Keep results stars in sync without losing variant selection.
-        const restored = loadLastResults();
-        renderCards(currentResultsCards, restored || undefined);
+        renderCards(currentResultsCards, restoredState || undefined);
     }
 
     function setStatus(message) {
@@ -169,6 +200,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearLastResults() {
         try { localStorage.removeItem(LAST_RESULTS_KEY); } catch {}
+    }
+
+    function normalizeTradePercent(raw) {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return DEFAULT_TRADE_PERCENT;
+        return Math.max(0, Math.min(200, Math.round(n)));
+    }
+
+    function loadTradePercentMap() {
+        try {
+            const raw = localStorage.getItem(TRADE_PERCENT_MAP_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function saveTradePercentMap(map) {
+        try {
+            localStorage.setItem(TRADE_PERCENT_MAP_KEY, JSON.stringify(map && typeof map === 'object' ? map : {}));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getSavedTradePercentForId(id, restoreState) {
+        const fromRestore = restoreState?.selections?.[id]?.tradePercent;
+        if (fromRestore != null) return normalizeTradePercent(fromRestore);
+
+        const fromMap = loadTradePercentMap()?.[id];
+        if (fromMap != null) return normalizeTradePercent(fromMap);
+
+        const prev = loadLastResults();
+        const fromSaved = prev?.selections?.[id]?.tradePercent;
+        if (fromSaved != null) return normalizeTradePercent(fromSaved);
+
+        return DEFAULT_TRADE_PERCENT;
+    }
+
+    function persistTradePercent(id, tradePercent) {
+        const nextPct = normalizeTradePercent(tradePercent);
+
+        // Persist independently of lastResults so Favorites keeps the value across reload/navigation.
+        const map = loadTradePercentMap();
+        map[id] = nextPct;
+        saveTradePercentMap(map);
+
+        // Also persist into lastResults when available.
+        const prev = loadLastResults();
+        if (prev && Array.isArray(prev.cards)) {
+            const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+            const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+            selections[id] = { ...prevSel, tradePercent: nextPct };
+            saveLastResults({ ...prev, selections });
+        }
     }
 
     function cacheGet(key) {
@@ -227,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function renderFavorites() {
+    function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
 
@@ -247,8 +335,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const name = safeString(fav?.name, 'Unknown');
             const rarity = safeString(fav?.rarity, '');
             const imgUrl = pickFrontMediumImage(fav?.images);
-            const selectedVariant = safeString(fav?.selectedVariant, '');
-            const pricesText = safeString(fav?.pricesText, '');
+            const selectedVariant = safeString(restoreState?.selections?.[id]?.holoType ?? fav?.selectedVariant, '');
+            const pct = getSavedTradePercentForId(id, restoreState);
+
+            function getPricesForVariant(cardLike, variantName) {
+                const vars = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+                const match = vars.find((v) => String(v?.name || '') === String(variantName || ''));
+                return Array.isArray(match?.prices) ? match.prices : null;
+            }
+
+            const maybePrices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
+            const pricesText = maybePrices ? formatPriceList(maybePrices, pct) : safeString(fav?.pricesText, '');
 
             col.innerHTML = `
                 <div class="pv-card h-100">
@@ -260,7 +357,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                         <p class="pv-card__text">${rarity ? `Rarity: ${rarity}` : 'Rarity: n/a'}</p>
                         ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariant}</p>` : ''}
-                        <pre class="pv-card__text" style="white-space:pre-wrap;margin:0">${pricesText ? pricesText : 'No prices loaded yet. Load prices in Results to show them here.'}</pre>
+                        <div class="pv-form__field" style="margin-bottom:0.5rem">
+                            <label class="form-label" for="pv-fav-trade-${id}">Trade %</label>
+                            <select class="form-select" id="pv-fav-trade-${id}">
+                                ${TRADE_PERCENT_CHOICES
+                                    .map((p) => `<option value="${p}" ${p === pct ? 'selected' : ''}>${p}%</option>`)
+                                    .join('')}
+                            </select>
+                        </div>
+                        <pre class="pv-card__text" id="pv-fav-prices-${id}" style="white-space:pre-wrap;margin:0">${pricesText ? pricesText : 'No prices loaded yet. Load prices in Results to show them here.'}</pre>
                     </div>
                 </div>
             `;
@@ -268,6 +373,52 @@ document.addEventListener('DOMContentLoaded', function () {
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
             if (favBtn) {
                 favBtn.addEventListener('click', () => toggleFavorite(fav));
+            }
+
+            const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-fav-trade-${CSS.escape(id)}`));
+            const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-fav-prices-${CSS.escape(id)}`));
+            if (tradeEl) {
+                tradeEl.addEventListener('change', async () => {
+                    const nextPct = normalizeTradePercent(tradeEl.value);
+                    persistTradePercent(id, nextPct);
+
+                    if (!pricesEl) return;
+
+                    // If we have cached prices in the favorite snapshot, re-render without refetching.
+                    if (selectedVariant) {
+                        const cachedPrices = getPricesForVariant(fav, selectedVariant);
+                        if (cachedPrices) {
+                            const formatted = formatPriceList(cachedPrices, nextPct);
+                            pricesEl.textContent = formatted;
+                            favorites = favorites.map((f) => (String(f?.id || '') === id ? { ...f, pricesText: formatted } : f));
+                            saveFavorites(favorites);
+                            return;
+                        }
+                    }
+
+                    // Otherwise fetch prices for the selected variant (if known) so we can compute trade values.
+                    if (!selectedVariant) return;
+                    pricesEl.textContent = 'Loading prices…';
+                    try {
+                        const base = getWorkerBase();
+                        const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+                        const data = await fetchJsonWithCache(url, CARD_TTL_MS);
+                        const cardObj = data?.data || data;
+                        const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
+                        const match = allVariants.find((v) => String(v?.name || '') === selectedVariant);
+                        const loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
+                        const formatted = formatPriceList(loadedPrices, nextPct);
+                        pricesEl.textContent = formatted;
+                        favorites = favorites.map((f) => {
+                            if (String(f?.id || '') !== id) return f;
+                            return { ...f, variants: allVariants, selectedVariant, pricesText: formatted };
+                        });
+                        saveFavorites(favorites);
+                    } catch (e) {
+                        pricesEl.textContent = 'Unable to load prices.';
+                        console.warn('[PokeValutor] favorite prices error', e);
+                    }
+                });
             }
 
             favoritesGrid.appendChild(col);
@@ -310,8 +461,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${fieldName}:${term}`;
     }
 
-    function formatPriceList(prices) {
+    function formatPriceList(prices, tradePercent) {
         if (!Array.isArray(prices) || prices.length === 0) return 'No price data available.';
+
+        const pctRaw = tradePercent != null ? Number(tradePercent) : NaN;
+        const pct = Number.isFinite(pctRaw) ? Math.max(0, Math.min(200, pctRaw)) : null;
+
+        function formatMoney(currency, amount) {
+            const moneySymbol = currency === 'USD' || currency === '' ? '$' : '';
+            if (amount == null) return null;
+            const n = typeof amount === 'number' ? amount : Number(amount);
+            if (!Number.isFinite(n)) return null;
+            return `${moneySymbol}${n.toFixed(2)}`;
+        }
 
         function normalizeConditionKey(raw) {
             const s = String(raw || '').trim();
@@ -340,10 +502,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const conditionKey = normalizeConditionKey(condition);
             if (!allowedConditions.has(conditionKey)) continue;
 
-            const moneySymbol = currency === 'USD' || currency === '' ? '$' : '';
+            const marketText = market != null ? formatMoney(currency, market) : null;
+            const tradeText = (pct != null && marketText)
+                ? formatMoney(currency, (typeof market === 'number' ? market : Number(market)) * (pct / 100))
+                : null;
+
             const bits = [
-                market != null ? `market ${moneySymbol}${market}` : null,
-                // low != null ? `low ${moneySymbol}${low}` : null,
+                marketText ? `market ${marketText}` : null,
+                tradeText ? `@${pct}% ${tradeText}` : null,
             ].filter(Boolean);
 
             if (bits.length) {
@@ -392,6 +558,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? ['<option value="">Select a holo type</option>', ...variants.map((v) => `<option value="${String(v)}">${String(v)}</option>`)].join('')
                 : '<option value="">No variants</option>';
 
+            const restoredSelection = restoreState?.selections?.[id];
+            const restoredTradePercent = getSavedTradePercentForId(id, restoreState);
+            const tradePercentOptions = TRADE_PERCENT_CHOICES
+                .map((p) => `<option value="${p}" ${p === restoredTradePercent ? 'selected' : ''}>${p}%</option>`)
+                .join('');
+
             col.innerHTML = `
                 <div class="pv-card h-100">
                     ${imgUrl ? `<img class="pv-card__img" src="${imgUrl}" alt="${name} card image"/>` : ''}
@@ -407,6 +579,12 @@ document.addEventListener('DOMContentLoaded', function () {
                                 ${variantOptions}
                             </select>
                         </div>
+                        <div class="pv-form__field" style="margin-bottom:0.5rem">
+                            <label class="form-label" for="pv-trade-${id}">Trade %</label>
+                            <select class="form-select" id="pv-trade-${id}">
+                                ${tradePercentOptions}
+                            </select>
+                        </div>
                         <pre class="pv-card__text" id="pv-prices-${id}" style="white-space:pre-wrap;margin:0"></pre>
                     </div>
                 </div>
@@ -414,10 +592,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Declare these after col.innerHTML so the elements exist
             const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
+            const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
             if (favBtn) {
                 favBtn.addEventListener('click', () => toggleFavorite(card));
+            }
+
+            let lastLoadedVariantName = '';
+            /** @type {Array<any>|null} */
+            let lastLoadedPrices = null;
+
+            function getSelectedTradePercent() {
+                const raw = tradeEl?.value;
+                const n = Number(raw);
+                return Number.isFinite(n) ? n : DEFAULT_TRADE_PERCENT;
+            }
+
+            function persistSelection(variantName, formatted) {
+                const prev = loadLastResults();
+                if (prev && Array.isArray(prev.cards)) {
+                    const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                    selections[id] = { holoType: variantName, pricesText: formatted, tradePercent: getSelectedTradePercent() };
+                    saveLastResults({ ...prev, selections });
+                }
+
+                // Also persist trade percent independently so it survives lastResults clearing.
+                persistTradePercent(id, getSelectedTradePercent());
+
+                // If this card is favorited, keep the Favorites price display in sync.
+                if (isFavorite(id)) {
+                    favorites = favorites.map((f) => {
+                        if (String(f?.id || '') !== id) return f;
+                        return { ...f, selectedVariant: variantName, pricesText: formatted };
+                    });
+                    saveFavorites(favorites);
+                    const restored = loadLastResults();
+                    renderFavorites(restored || undefined);
+                }
+            }
+
+            function renderPricesFromLoaded() {
+                if (!pricesEl) return;
+                if (!lastLoadedPrices || !Array.isArray(lastLoadedPrices)) return;
+                const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
+                pricesEl.textContent = formatted;
+                if (lastLoadedVariantName) {
+                    persistSelection(lastLoadedVariantName, formatted);
+                }
             }
 
             // Now define the function, so selectEl/pricesEl are in scope
@@ -436,25 +658,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     const cardObj = data?.data || data;
                     const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
                     const match = allVariants.find((v) => String(v?.name || '') === variantName);
-                    const formatted = formatPriceList(match?.prices);
+                    lastLoadedVariantName = variantName;
+                    lastLoadedPrices = Array.isArray(match?.prices) ? match.prices : [];
+                    const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
                     pricesEl.textContent = formatted;
+                    persistSelection(variantName, formatted);
 
-                    // Persist user selection + rendered prices so refresh restores the same view.
-                    const prev = loadLastResults();
-                    if (prev && Array.isArray(prev.cards)) {
-                        const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
-                        selections[id] = { holoType: variantName, pricesText: formatted };
-                        saveLastResults({ ...prev, selections });
-                    }
-
-                    // If this card is favorited, keep the Favorites price display in sync.
+                    // If favorited, store the fetched variants (with prices) so Favorites can re-render trade % without refetching.
                     if (isFavorite(id)) {
                         favorites = favorites.map((f) => {
                             if (String(f?.id || '') !== id) return f;
-                            return { ...f, selectedVariant: variantName, pricesText: formatted };
+                            return { ...f, variants: allVariants, selectedVariant: variantName, pricesText: formatted };
                         });
                         saveFavorites(favorites);
-                        renderFavorites();
+                        const restored = loadLastResults();
+                        renderFavorites(restored || undefined);
                     }
                 } catch (e) {
                     pricesEl.textContent = 'Unable to load prices.';
@@ -462,13 +680,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            const restoredSelection = restoreState?.selections?.[id];
             if (selectEl && pricesEl) {
                 // Restore previously selected holo type and prices if available
                 if (restoredSelection?.holoType && variants.includes(restoredSelection.holoType)) {
                     selectEl.value = restoredSelection.holoType;
                     if (restoredSelection.pricesText) {
                         pricesEl.textContent = String(restoredSelection.pricesText);
+                        lastLoadedVariantName = String(restoredSelection.holoType);
                     } else {
                         // If pricesText is missing, trigger loading
                         selectEl.dispatchEvent(new Event('change'));
@@ -478,6 +696,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
                 }
                 selectEl.addEventListener('change', showPricesForSelectedVariant);
+            }
+
+            if (tradeEl) {
+                tradeEl.addEventListener('change', () => {
+                    persistTradePercent(id, getSelectedTradePercent());
+
+                    // If we already have prices loaded, re-render without refetching.
+                    if (lastLoadedPrices && Array.isArray(lastLoadedPrices) && lastLoadedVariantName) {
+                        renderPricesFromLoaded();
+                        return;
+                    }
+
+                    // If a variant is selected but we don't have cached prices in-memory (e.g., after refresh), fetch.
+                    if (selectEl && selectEl.value) {
+                        void showPricesForSelectedVariant();
+                        return;
+                    }
+
+                    // Otherwise just persist the percent choice for restore.
+                    // (lastResults persistence handled inside persistTradePercent)
+                });
             }
 
             grid.appendChild(col);
@@ -521,7 +760,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 query: q,
                 cards,
                 statusText,
-                selections: {},
+                selections: (() => {
+                    const prev = loadLastResults();
+                    return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                })(),
             });
         } catch (e) {
             console.warn('[PokeValutor] search error', e);
@@ -566,7 +808,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 query: pn,
                 cards,
                 statusText,
-                selections: {},
+                selections: (() => {
+                    const prev = loadLastResults();
+                    return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                })(),
             });
         } catch (e) {
             console.warn('[PokeValutor] printed number search error', e);
@@ -667,7 +912,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Render Favorites immediately (persisted across refresh).
-    renderFavorites();
+    renderFavorites(loadLastResults() || undefined);
 
     // Favorites collapsible behavior (persisted across refresh).
     if (favoritesToggle) {
@@ -690,6 +935,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (restored.mode === 'name' && input) input.value = String(restored.query || '');
         if (restored.mode === 'number' && numberInput) numberInput.value = String(restored.query || '');
         renderCards(restored.cards, restored);
+        renderFavorites(restored);
         if (restored.statusText) setStatus(String(restored.statusText));
     }
 

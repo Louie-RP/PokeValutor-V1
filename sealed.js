@@ -13,10 +13,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
+    const DEFAULT_TRADE_PERCENT = 80;
+    const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
 
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
     const FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+    const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
 
     /** @type {Array<any>} */
     let currentResultsProducts = [];
@@ -234,7 +237,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function getMarketValue(product) {
+    function getMarketQuote(product) {
         const variants = Array.isArray(product?.variants) ? product.variants : [];
 
         /** @type {Array<{market:number, currency:string}>} */
@@ -250,14 +253,86 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        if (!markets.length) return 'N/A';
+        if (!markets.length) return null;
 
         // Prefer the lowest market value across variants/prices.
         markets.sort((a, b) => a.market - b.market);
-        return formatCurrency(markets[0].market, markets[0].currency);
+        return markets[0];
     }
 
-    function renderFavorites() {
+    function getMarketValue(product) {
+        const quote = getMarketQuote(product);
+        if (!quote) return 'N/A';
+        return formatCurrency(quote.market, quote.currency);
+    }
+
+    function normalizeTradePercent(raw) {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) return DEFAULT_TRADE_PERCENT;
+        return Math.max(0, Math.min(200, Math.round(n)));
+    }
+
+    function loadTradePercentMap() {
+        try {
+            const raw = localStorage.getItem(TRADE_PERCENT_MAP_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function saveTradePercentMap(map) {
+        try {
+            localStorage.setItem(TRADE_PERCENT_MAP_KEY, JSON.stringify(map && typeof map === 'object' ? map : {}));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getSavedTradePercentForId(id, restoreState) {
+        const fromRestore = restoreState?.selections?.[id]?.tradePercent;
+        if (fromRestore != null) return normalizeTradePercent(fromRestore);
+
+        const fromMap = loadTradePercentMap()?.[id];
+        if (fromMap != null) return normalizeTradePercent(fromMap);
+
+        const prev = loadLastResults();
+        const fromSaved = prev?.selections?.[id]?.tradePercent;
+        if (fromSaved != null) return normalizeTradePercent(fromSaved);
+        return DEFAULT_TRADE_PERCENT;
+    }
+
+    function persistTradePercent(id, tradePercent) {
+        const nextPct = normalizeTradePercent(tradePercent);
+
+        // Persist independently of lastResults so Favorites keeps the value across reload/navigation.
+        const map = loadTradePercentMap();
+        map[id] = nextPct;
+        saveTradePercentMap(map);
+
+        // Also persist into lastResults when available.
+        const prev = loadLastResults();
+        if (prev && Array.isArray(prev.products)) {
+            const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+            const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+            selections[id] = { ...prevSel, tradePercent: nextPct };
+            saveLastResults({ ...prev, selections });
+        }
+    }
+
+    function buildMarketLine(product, tradePercent) {
+        const quote = getMarketQuote(product);
+        if (!quote) return 'Market: N/A';
+
+        const pct = normalizeTradePercent(tradePercent);
+        const marketText = formatCurrency(quote.market, quote.currency);
+        const tradeText = formatCurrency(quote.market * (pct / 100), quote.currency);
+        return `Market: ${marketText} • @${pct}% ${tradeText}`;
+    }
+
+    function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
 
@@ -311,12 +386,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `Expansion: ${expName} • ${expSeries}`
                 : (expName ? `Expansion: ${expName}` : (expSeries ? `Series: ${expSeries}` : 'Expansion: N/A'));
 
+            const productId = safeString(fav?.id, '');
+            const tradeField = document.createElement('div');
+            tradeField.className = 'pv-form__field';
+            tradeField.style.marginBottom = '0.5rem';
+
+            const tradeLabel = document.createElement('label');
+            tradeLabel.className = 'form-label';
+            tradeLabel.htmlFor = `pv-sealed-trade-${productId}`;
+            tradeLabel.textContent = 'Trade %';
+
+            const tradeSelect = document.createElement('select');
+            tradeSelect.className = 'form-select';
+            tradeSelect.id = `pv-sealed-trade-${productId}`;
+            const pct = getSavedTradePercentForId(productId, restoreState);
+            tradeSelect.innerHTML = TRADE_PERCENT_CHOICES
+                .map((p) => `<option value="${p}" ${p === pct ? 'selected' : ''}>${p}%</option>`)
+                .join('');
+
+            tradeField.appendChild(tradeLabel);
+            tradeField.appendChild(tradeSelect);
+
             const marketLine = document.createElement('p');
             marketLine.className = 'pv-card__text';
-            marketLine.textContent = `Market: ${getMarketValue(fav)}`;
+            marketLine.textContent = buildMarketLine(fav, pct);
+
+            tradeSelect.addEventListener('change', () => {
+                const nextPct = normalizeTradePercent(tradeSelect.value);
+                marketLine.textContent = buildMarketLine(fav, nextPct);
+                if (productId) persistTradePercent(productId, nextPct);
+            });
 
             body.appendChild(header);
             body.appendChild(expansionLine);
+            body.appendChild(tradeField);
             body.appendChild(marketLine);
             card.appendChild(body);
             col.appendChild(card);
@@ -324,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function renderProducts(products) {
+    function renderProducts(products, restoreState) {
         if (!grid) return;
         currentResultsProducts = Array.isArray(products) ? products : [];
         grid.innerHTML = '';
@@ -380,12 +483,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `Expansion: ${expName} • ${expSeries}`
                 : (expName ? `Expansion: ${expName}` : (expSeries ? `Series: ${expSeries}` : 'Expansion: N/A'));
 
+            const productId = safeString(p?.id, '');
+            const tradeField = document.createElement('div');
+            tradeField.className = 'pv-form__field';
+            tradeField.style.marginBottom = '0.5rem';
+
+            const tradeLabel = document.createElement('label');
+            tradeLabel.className = 'form-label';
+            tradeLabel.htmlFor = `pv-sealed-trade-${productId}`;
+            tradeLabel.textContent = 'Trade %';
+
+            const tradeSelect = document.createElement('select');
+            tradeSelect.className = 'form-select';
+            tradeSelect.id = `pv-sealed-trade-${productId}`;
+            const pct = getSavedTradePercentForId(productId, restoreState);
+            tradeSelect.innerHTML = TRADE_PERCENT_CHOICES
+                .map((pp) => `<option value="${pp}" ${pp === pct ? 'selected' : ''}>${pp}%</option>`)
+                .join('');
+
+            tradeField.appendChild(tradeLabel);
+            tradeField.appendChild(tradeSelect);
+
             const marketLine = document.createElement('p');
             marketLine.className = 'pv-card__text';
-            marketLine.textContent = `Market: ${getMarketValue(p)}`;
+            marketLine.textContent = buildMarketLine(p, pct);
+
+            tradeSelect.addEventListener('change', () => {
+                const nextPct = normalizeTradePercent(tradeSelect.value);
+                marketLine.textContent = buildMarketLine(p, nextPct);
+                if (productId) persistTradePercent(productId, nextPct);
+            });
 
             body.appendChild(header);
             body.appendChild(expansionLine);
+            body.appendChild(tradeField);
             body.appendChild(marketLine);
 
             card.appendChild(body);
@@ -415,11 +546,15 @@ document.addEventListener('DOMContentLoaded', function () {
             renderProducts(list);
             setStatus(list.length ? `Found ${list.length} result(s). If your searched product is not displayed, include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.` : 'No results found. Search by Product name e.g., "Prismatic Evolutions" and include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.');
 
+            const prev = loadLastResults();
+            const preservedSelections = (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+
             saveLastResults({
                 mode: 'name',
                 query: q,
                 products: list,
                 statusText: list.length ? `Found ${list.length} result(s). If your searched product is not displayed, include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.` : 'No results found. Search by Product name e.g., "Prismatic Evolutions" and include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.',
+                selections: preservedSelections,
                 savedAt: Date.now(),
             });
         } catch (e) {
@@ -469,7 +604,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const restored = loadLastResults();
     if (restored && Array.isArray(restored.products) && restored.products.length) {
         if (restored.mode === 'name' && input) input.value = String(restored.query || '');
-        renderProducts(restored.products);
+        renderProducts(restored.products, restored);
+        renderFavorites(restored);
         if (restored.statusText) setStatus(String(restored.statusText));
     }
 
