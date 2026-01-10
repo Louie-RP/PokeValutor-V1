@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Search sealed products on PokéValutor" />
+    <title>PokéValutor • Sealed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap CSS (SRI removed to avoid integrity mismatch) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+
+<body id="pv-sealed-body" class="pv-body">
+    <a class="pv-skiplink" href="#pv-sealed-main">Skip to content</a>
+
+    <header id="pv-sealed-header" class="pv-header" role="banner">
+        <div class="pv-header__inner" aria-label="Site header">
+            <a id="pv-sealed-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <nav id="pv-sealed-nav" class="pv-nav" aria-label="Primary">
+                <ul class="pv-nav__list">
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-features">Guide</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html#pv-contact">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="pv-sealed-main" class="pv-main" role="main">
+        <section id="pv-sealed-hero" class="pv-hero container" aria-labelledby="pv-sealed-title">
+            <h1 id="pv-sealed-title" class="pv-hero__title">Search Sealed Product</h1>
+            <p class="pv-hero__subtitle">Find sealed products by name and view market values.</p>
+        </section>
+
+        <section id="pv-sealed-section" class="pv-section container">
+            <form id="pv-sealed-form" class="pv-form row g-3" role="search">
+                <div class="pv-form__field col-12 col-md-8">
+                    <label for="pv-sealed-query" class="form-label">Product Name</label>
+                    <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
+                        placeholder="e.g., booster box" aria-controls="pv-sealed-results" />
+                </div>
+                <div class="col-12">
+                    <button id="pv-sealed-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+                    <button id="pv-sealed-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                </div>
+            </form>
+
+            <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
+
+            <section id="pv-sealed-results" class="pv-section" aria-labelledby="pv-sealed-results-title">
+                <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
+            </section>
+
+            <section id="pv-sealed-favorites" class="pv-section" aria-labelledby="pv-sealed-favorites-title">
+                <div class="pv-section__header">
+                    <h2 id="pv-sealed-favorites-title" class="pv-section__title">Favorites</h2>
+                    <div>
+                        <button id="pv-sealed-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
+                            aria-controls="pv-sealed-favorites-body" aria-expanded="true">Hide</button>
+                        <button id="pv-sealed-favorites-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
+                    </div>
+                </div>
+                <div id="pv-sealed-favorites-body">
+                    <div id="pv-sealed-favorites-grid" class="row g-3" aria-label="Sealed favorites grid"></div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <footer id="pv-sealed-footer" class="pv-footer" role="contentinfo">
+        <div class="pv-footer__inner">
+            <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+            <ul class="pv-footer__links" aria-label="Footer links">
+                <li><a id="pv-sealed-privacy" href="index.html#pv-privacyPolicy">Privacy</a></li>
+                <li><a id="pv-sealed-terms" href="index.html#pv-termsOfUse">Terms</a></li>
+                <li><a id="pv-sealed-access" href="index.html#pv-accessibility">Accessibility</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
+
+    <script src="script.js" defer></script>
+    <script src="sealed.js" defer></script>
+    <!-- Bootstrap JS (SRI removed to avoid integrity mismatch) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
