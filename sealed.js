@@ -413,13 +413,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
             const list = Array.isArray(data?.data) ? data.data : [];
             renderProducts(list);
-            setStatus(list.length ? `Found ${list.length} result(s).` : 'No results found.');
+            setStatus(list.length ? `Found ${list.length} result(s). If your searched product is not displayed, include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.` : 'No results found. Search by Product name e.g., "Prismatic Evolutions" and include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.');
 
             saveLastResults({
                 mode: 'name',
                 query: q,
                 products: list,
-                statusText: list.length ? `Found ${list.length} result(s).` : 'No results found.',
+                statusText: list.length ? `Found ${list.length} result(s). If your searched product is not displayed, include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.` : 'No results found. Search by Product name e.g., "Prismatic Evolutions" and include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.',
                 savedAt: Date.now(),
             });
         } catch (e) {
