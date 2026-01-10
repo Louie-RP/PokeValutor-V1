@@ -23,21 +23,67 @@
     });
   }
 
-  // Basic form handler (no network)
+  // Contact form handler (Formspree)
   if (form) {
-    form.addEventListener('submit', (e) => {
+    const statusEl = document.getElementById('pv-contactStatus');
+    const submitBtn = document.getElementById('pv-submit');
+
+    function setStatus(message) {
+      if (statusEl) statusEl.textContent = String(message || '');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      const action = String(form.getAttribute('action') || '');
+      const isFormspree = /(^|\/\/)formspree\.io\//i.test(action);
+
+      // If this ever becomes a non-Formspree form, don't interfere.
+      if (!isFormspree) return;
+
       e.preventDefault();
-      const name = /** @type {HTMLInputElement} */(document.getElementById('pv-name'))?.value?.trim();
-      const email = /** @type {HTMLInputElement} */(document.getElementById('pv-email'))?.value?.trim();
-      const message = /** @type {HTMLTextAreaElement} */(document.getElementById('pv-message'))?.value?.trim();
+      setStatus('Sending…');
 
-      if (!name || !email || !message) {
-        alert('Please fill in all fields.');
-        return;
+      if (submitBtn && 'disabled' in submitBtn) submitBtn.disabled = true;
+
+      try {
+        const formData = new FormData(form);
+        const res = await fetch(action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        if (res.ok) {
+          setStatus('Thanks! Your message has been sent. Redirecting…');
+          form.reset();
+
+          // Redirect to a static success page (GitHub Pages friendly).
+          window.setTimeout(() => {
+            window.location.href = 'thanks.html';
+          }, 600);
+          return;
+        }
+
+        // Formspree returns JSON with error details when possible.
+        let errorMsg = 'Sorry, there was a problem sending your message. Please try again.';
+        try {
+          const data = await res.json();
+          if (data && typeof data === 'object' && Array.isArray(data.errors) && data.errors.length) {
+            const first = data.errors[0];
+            if (first && typeof first.message === 'string' && first.message.trim()) {
+              errorMsg = first.message.trim();
+            }
+          }
+        } catch {
+          // ignore
+        }
+        setStatus(errorMsg);
+      } catch {
+        setStatus('Network error. Please check your connection and try again.');
+      } finally {
+        if (submitBtn && 'disabled' in submitBtn) submitBtn.disabled = false;
       }
-
-      alert('Thanks for reaching out! This demo does not send emails.');
-      form.reset();
     });
   }
 })();

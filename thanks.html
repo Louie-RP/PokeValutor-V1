@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Thanks for contacting PokéValutor" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="color-scheme" content="dark" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
+  <title>PokéValutor • Thanks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+
+<body id="pv-thanks-body" class="pv-body">
+  <a class="pv-skiplink" href="#pv-thanks-main">Skip to content</a>
+
+  <header id="pv-thanks-header" class="pv-header" role="banner">
+    <div class="pv-header__inner" aria-label="Site header">
+      <a id="pv-thanks-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+      <button id="pv-thanks-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-thanks-nav"
+        aria-label="Toggle navigation">
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+      </button>
+      <nav id="pv-thanks-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
+        <ul class="pv-nav__list">
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="pv-thanks-main" class="pv-main" role="main">
+    <section class="pv-hero container" aria-labelledby="pv-thanks-title">
+      <h1 id="pv-thanks-title" class="pv-hero__title">Message received</h1>
+      <p class="pv-hero__subtitle">Thanks for reaching out — I’ll get back to you soon.</p>
+
+      <div class="pv-cta" role="group" aria-label="Next actions">
+        <a class="pv-button pv-button--primary btn" href="index.html">Back to Home</a>
+        <a class="pv-button pv-button--secondary btn" href="search.html">Search Cards</a>
+      </div>
+    </section>
+  </main>
+
+  <footer id="pv-thanks-footer" class="pv-footer" role="contentinfo">
+    <div class="pv-footer__inner">
+      <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+      <ul class="pv-footer__links" aria-label="Footer links">
+        <li><a id="pv-thanks-privacy" href="index.html#pv-privacyPolicy">Privacy</a></li>
+        <li><a id="pv-thanks-terms" href="index.html#pv-termsOfUse">Terms</a></li>
+        <li><a id="pv-thanks-access" href="index.html#pv-accessibility">Accessibility</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+
+</html>

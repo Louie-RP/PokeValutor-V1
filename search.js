@@ -1010,63 +1010,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    const connBtn = document.getElementById('pv-conn-test');
-    const connStatus = document.getElementById('pv-conn-status');
-    if (connBtn) {
-        connBtn.addEventListener('click', async () => {
-            const base = getWorkerBase();
-            if (!base) {
-                if (connStatus) connStatus.textContent = 'Missing PV_API_URL. Set your Worker URL in secrets.js.';
-                return;
-            }
-            const name = input?.value?.trim() || 'pikachu';
-            const url = `${base}/cards/search?name=${encodeURIComponent(name)}&page=1&pageSize=1&lang=en`;
-            if (connStatus) connStatus.textContent = 'Testing connection…';
-            try {
-                const res = await fetch(url);
-                const text = await res.text();
-                const ctype = res.headers.get('content-type') || '';
-                let count = 'n/a';
-                try {
-                    const parsed = JSON.parse(text);
-                    count = Array.isArray(parsed?.data) ? String(parsed.data.length) : 'n/a';
-                } catch {}
-                if (connStatus) connStatus.textContent = `Status ${res.status} • ${ctype || 'no content-type'} • Count ${count}`;
-            } catch (err) {
-                if (connStatus) connStatus.textContent = `Test failed: ${err?.name || err}`;
-            }
-        });
-    }
-
-    const healthBtn = document.getElementById('pv-health-test');
-    const healthStatus = document.getElementById('pv-health-status');
-    if (healthBtn) {
-        healthBtn.addEventListener('click', async () => {
-            const base = getWorkerBase();
-            if (!base) {
-                if (healthStatus) healthStatus.textContent = 'Missing PV_API_URL. Set your Worker URL in secrets.js.';
-                return;
-            }
-            const url = `${base}/health`;
-            if (healthStatus) healthStatus.textContent = 'Checking worker health…';
-            try {
-                const res = await fetch(url);
-                const text = await res.text();
-                const ctype = res.headers.get('content-type') || '';
-                let info = '';
-                try {
-                    const parsed = JSON.parse(text);
-                    info = `ok=${String(!!parsed?.ok)} • path=${parsed?.pathname ?? 'n/a'}`;
-                } catch {
-                    info = 'non-JSON';
-                }
-                if (healthStatus) healthStatus.textContent = `Status ${res.status} • ${ctype || 'no content-type'} • ${info}`;
-            } catch (err) {
-                if (healthStatus) healthStatus.textContent = `Health check failed: ${err?.name || err}`;
-            }
-        });
-    }
-
     if (form && input) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();

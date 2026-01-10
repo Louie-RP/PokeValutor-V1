@@ -6,14 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Search Pokémon on PokéValutor" />
     <title>PokéValutor • Search</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
    
    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Bootstrap CSS (SRI removed to avoid integrity mismatch) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
@@ -61,17 +59,10 @@
                 <div class="col-12">
                     <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
                     <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
-                    <button id="pv-conn-test" class="btn btn-outline-secondary ms-2" type="button" hidden
-                        aria-describedby="pv-conn-status">Connection Test</button>
-                    <button id="pv-health-test" class="btn btn-outline-secondary ms-2" type="button" hidden
-                        aria-describedby="pv-health-status">Worker Health</button>
                 </div>
             </form>
 
             <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
-            </div>
-            <div id="pv-conn-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true" hidden></div>
-            <div id="pv-health-status" class="small text-muted" role="status" aria-live="polite" aria-atomic="true" hidden>
             </div>
 
             <section id="pv-search-results" class="pv-section" aria-labelledby="pv-search-results-title">
@@ -110,8 +101,6 @@
 
     <script src="script.js" defer></script>
     <script src="search.js" defer></script>
-    <!-- Bootstrap JS (SRI removed to avoid integrity mismatch) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
