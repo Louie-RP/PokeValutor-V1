@@ -140,13 +140,17 @@ h1, h2, h3, h4, h5, h6,
 
 /* Clear Results button (danger) */
 #pv-clear-results,
-#pv-favorites-clear {
+#pv-favorites-clear,
+#pv-sealed-clear,
+#pv-sealed-favorites-clear {
   background: var(--pv-danger);
   border-color: transparent;
   color: #ffffff;
 }
 #pv-clear-results:hover,
-#pv-favorites-clear:hover {
+#pv-favorites-clear:hover,
+#pv-sealed-clear:hover,
+#pv-sealed-favorites-clear:hover {
   background: var(--pv-danger-dark);
   color: #ffffff;
 }
