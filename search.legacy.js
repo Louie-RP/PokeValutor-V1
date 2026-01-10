@@ -11,6 +11,28 @@
         if (status) status.textContent = message;
     }
 
+    function escapeHtml(value) {
+        const s = String(value ?? '');
+        return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value);
+    }
+
+    function sanitizeUrl(raw) {
+        const s = String(raw ?? '').trim();
+        if (!s) return '';
+        if (/^https?:\/\//i.test(s)) return s;
+        if (/^data:image\//i.test(s)) return s;
+        return '';
+    }
+
     // Render cards with image + price details
     function renderCards(cards) {
         if (!grid) return;
@@ -33,6 +55,13 @@
             const number = card?.number || '';
             const setName = card?.set?.name || '';
 
+            const imgSafe = sanitizeUrl(imgUrl);
+            const imgAttr = escapeAttr(imgSafe);
+            const nameHtml = escapeHtml(name);
+            const nameAttr = escapeAttr(name);
+            const numberHtml = escapeHtml(number);
+            const setNameHtml = escapeHtml(setName);
+
             const prices = card?.tcgplayer?.prices || {};
             const normal = prices?.normal || prices?.holofoil || prices?.reverseHolofoil || prices?.firstEditionHolofoil || null;
             const market = normal?.market ?? null;
@@ -49,12 +78,14 @@
                 ].filter(Boolean).join(' • ')}`
                 : 'Price data not available';
 
+            const priceTextHtml = escapeHtml(priceText);
+
             col.innerHTML = `
                 <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrl}" alt="${name} card image"/>` : ''}
+                    ${imgSafe ? `<img class="pv-card__img" src="${imgAttr}" alt="${nameAttr} card image"/>` : ''}
                     <div class="pv-card__body">
-                        <div class="pv-card__title">${name} ${setName ? `• ${setName}` : ''} ${number ? `• #${number}` : ''}</div>
-                        <p class="pv-card__text">${priceText}</p>
+                        <div class="pv-card__title">${nameHtml} ${setName ? `• ${setNameHtml}` : ''} ${number ? `• #${numberHtml}` : ''}</div>
+                        <p class="pv-card__text">${priceTextHtml}</p>
                     </div>
                 </div>
             `;
