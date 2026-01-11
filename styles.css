@@ -272,11 +272,49 @@ h1, h2, h3, h4, h5, h6,
 .pv-section__text { color: #ffffff; }
 .pv-section__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 
+/* Allow section headers to wrap text without pushing action buttons off-line. */
+.pv-section__header > * { min-width: 0; }
+.pv-section__header .pv-section__title { flex: 1 1 auto; min-width: 0; }
+
 /* Favorites totals: use body font for readability (not heading font) */
 #pv-favorites-totals,
 #pv-sealed-favorites-totals {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
   font-weight: 600;
+}
+
+@media (max-width: 575.98px) {
+  /* On small screens, show totals on the next line under the title text. */
+  #pv-favorites-totals,
+  #pv-sealed-favorites-totals {
+    display: block;
+    margin-left: 0 !important;
+    margin-top: 0.25rem;
+  }
+}
+
+@media (max-width: 420px) {
+  /* Extra-small phones: keep Favorites action buttons on one line. */
+  #pv-favorites .pv-section__header > div,
+  #pv-sealed-favorites .pv-section__header > div {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+
+  #pv-favorites .pv-section__header > div .btn,
+  #pv-sealed-favorites .pv-section__header > div .btn {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  /* Remove the Bootstrap-like left margin on the second button in this tight layout. */
+  #pv-favorites .pv-section__header > div .ms-2,
+  #pv-sealed-favorites .pv-section__header > div .ms-2 {
+    margin-left: 0 !important;
+  }
 }
 
 /* Inline links (used on home policy sections) */
