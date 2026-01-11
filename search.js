@@ -994,6 +994,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const base = getWorkerBase();
 
+        function normalizeSimplePrintedFraction(raw) {
+            // Handle common input like "109/094" by stripping leading zeros only
+            // when both sides are purely numeric.
+            const s = String(raw || '').trim();
+            const m = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+            if (!m) return s;
+            const left = String(m[1]).replace(/^0+(?=\d)/, '');
+            const right = String(m[2]).replace(/^0+(?=\d)/, '');
+            return `${left}/${right}`;
+        }
+
         setStatus('Searching…');
         if (grid) {
             grid.innerHTML = '';
@@ -1007,12 +1018,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             // Scrydex query: use printed_number:<value>
-            const q = buildFieldQuery('printed_number', pn);
-            const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=5&lang=en`;
-            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-            const cards = Array.isArray(data?.data) ? data.data : [];
+            let matchedPn = pn;
+            let q = buildFieldQuery('printed_number', matchedPn);
+            let url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=5&lang=en`;
+            let data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+            let cards = Array.isArray(data?.data) ? data.data : [];
+
+            // Some data sources store printed totals without leading zeros (e.g., 109/94).
+            // If the first attempt returns no results, retry a normalized form.
+            if (cards.length === 0) {
+                const normalized = normalizeSimplePrintedFraction(pn);
+                if (normalized && normalized !== pn) {
+                    matchedPn = normalized;
+                    q = buildFieldQuery('printed_number', matchedPn);
+                    url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=5&lang=en`;
+                    data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+                    cards = Array.isArray(data?.data) ? data.data : [];
+                }
+            }
             renderCards(cards);
-            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".`;
+            const matchedNote = matchedPn !== pn ? ` Matched as "${matchedPn}".` : '';
+            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".${matchedNote}`;
             setStatus(statusText);
 
             saveLastResults({
