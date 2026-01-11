@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesBody = document.getElementById('pv-sealed-favorites-body');
     const favoritesToggle = document.getElementById('pv-sealed-favorites-toggle');
     const favoritesClearBtn = document.getElementById('pv-sealed-favorites-clear');
+    const favoritesTotalsEl = document.getElementById('pv-sealed-favorites-totals');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-sealed-clear');
 
@@ -332,12 +333,52 @@ document.addEventListener('DOMContentLoaded', function () {
         return `Market: ${marketText} • @${pct}% ${tradeText}`;
     }
 
+    function updateFavoritesTotals(restoreState) {
+        if (!favoritesTotalsEl) return;
+
+        const totalCount = Array.isArray(favorites) ? favorites.length : 0;
+        if (totalCount === 0) {
+            favoritesTotalsEl.textContent = 'Total: $0.00 • Trade: $0.00';
+            return;
+        }
+
+        let pricedCount = 0;
+        let totalMarket = 0;
+        let totalTrade = 0;
+        let currency = null;
+        let mixedCurrency = false;
+
+        for (const fav of favorites) {
+            const id = safeString(fav?.id, '');
+            const pct = getSavedTradePercentForId(id, restoreState);
+            const quote = getMarketQuote(fav);
+            if (!quote) continue;
+
+            const cur = String(quote.currency || 'USD');
+            if (currency == null) currency = cur;
+            else if (cur !== currency) mixedCurrency = true;
+
+            pricedCount++;
+            totalMarket += Number(quote.market) || 0;
+            totalTrade += (Number(quote.market) || 0) * (Number(pct) / 100);
+        }
+
+        const coverage = pricedCount < totalCount ? ` • ${pricedCount}/${totalCount} priced` : '';
+        if (mixedCurrency) {
+            favoritesTotalsEl.textContent = `Total: N/A • Trade: N/A${coverage}`;
+            return;
+        }
+
+        favoritesTotalsEl.textContent = `Total: ${formatCurrency(totalMarket, currency || 'USD')} • Trade: ${formatCurrency(totalTrade, currency || 'USD')}${coverage}`;
+    }
+
     function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
 
         if (!Array.isArray(favorites) || favorites.length === 0) {
             favoritesGrid.innerHTML = '<div class="col-12"><p class="pv-section__text">No favorites yet.</p></div>';
+            updateFavoritesTotals(restoreState);
             return;
         }
 
@@ -415,6 +456,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
                 marketLine.textContent = buildMarketLine(fav, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
+                updateFavoritesTotals(loadLastResults() || restoreState);
             });
 
             body.appendChild(header);
@@ -425,6 +467,8 @@ document.addEventListener('DOMContentLoaded', function () {
             col.appendChild(card);
             favoritesGrid.appendChild(col);
         }
+
+        updateFavoritesTotals(restoreState);
     }
 
     function renderProducts(products, restoreState) {

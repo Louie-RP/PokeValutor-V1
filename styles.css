@@ -272,6 +272,13 @@ h1, h2, h3, h4, h5, h6,
 .pv-section__text { color: #ffffff; }
 .pv-section__header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 
+/* Favorites totals: use body font for readability (not heading font) */
+#pv-favorites-totals,
+#pv-sealed-favorites-totals {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  font-weight: 600;
+}
+
 /* Inline links (used on home policy sections) */
 .pv-inlineLink { color: var(--pv-primary); text-decoration: none; }
 .pv-inlineLink:hover, .pv-inlineLink:focus { text-decoration: underline; }

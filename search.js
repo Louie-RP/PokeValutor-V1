@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesBody = document.getElementById('pv-favorites-body');
     const favoritesToggle = document.getElementById('pv-favorites-toggle');
     const favoritesClearBtn = document.getElementById('pv-favorites-clear');
+    const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
 
@@ -402,6 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
             empty.className = 'col-12';
             empty.textContent = 'No favorites yet. Click ☆ on a result card to save it here.';
             favoritesGrid.appendChild(empty);
+            updateFavoritesTotals(restoreState);
             return;
         }
 
@@ -424,12 +426,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const rarityHtml = escapeHtml(rarity);
             const selectedVariantHtml = escapeHtml(selectedVariant);
             const imgUrlAttr = escapeAttr(imgUrl);
-
-            function getPricesForVariant(cardLike, variantName) {
-                const vars = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
-                const match = findVariantByName(vars, variantName);
-                return Array.isArray(match?.prices) ? match.prices : null;
-            }
 
             const maybePrices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
             const pricesText = maybePrices
@@ -506,6 +502,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         selections[id] = { ...prevSel, pricesText: formatted, holoType: prevSel.holoType || selectedVariant };
                         saveLastResults({ ...prev, selections });
                     }
+
+                    updateFavoritesTotals(loadLastResults() || restoreState);
                 } catch (e) {
                     pricesEl.textContent = 'Unable to load prices.';
                     console.warn('[PokeValutor] favorite prices preload error', e);
@@ -535,6 +533,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 selections[id] = { ...prevSel, pricesText: formatted, tradePercent: nextPct, holoType: prevSel.holoType || selectedVariant };
                                 saveLastResults({ ...prev, selections });
                             }
+
+                            updateFavoritesTotals(loadLastResults() || restoreState);
                             return;
                         }
                     }
@@ -566,6 +566,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             selections[id] = { ...prevSel, pricesText: formatted, tradePercent: nextPct, holoType: prevSel.holoType || selectedVariant };
                             saveLastResults({ ...prev, selections });
                         }
+
+                        updateFavoritesTotals(loadLastResults() || restoreState);
                     } catch (e) {
                         pricesEl.textContent = 'Unable to load prices.';
                         console.warn('[PokeValutor] favorite prices error', e);
@@ -580,6 +582,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             favoritesGrid.appendChild(col);
         }
+
+        updateFavoritesTotals(restoreState);
     }
 
     async function fetchJsonWithCache(url, ttlMs) {
@@ -705,6 +709,106 @@ document.addEventListener('DOMContentLoaded', function () {
         if (preferredLines.length) return preferredLines.join('\n');
         if (fallbackLines.length) return fallbackLines.join('\n');
         return 'No price data available.';
+    }
+
+    function formatUsd(amount) {
+        const n = typeof amount === 'number' ? amount : Number(amount);
+        if (!Number.isFinite(n)) return '$0.00';
+        return `$${n.toFixed(2)}`;
+    }
+
+    function normalizeConditionKeyForTotals(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '';
+        const upper = s.toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (upper === 'NM' || upper === 'LP' || upper === 'MP') return upper;
+        if (upper.startsWith('NM')) return 'NM';
+        if (upper.startsWith('LP')) return 'LP';
+        if (upper.startsWith('MP')) return 'MP';
+        if (upper === 'NEAR MINT') return 'NM';
+        if (upper === 'LIGHT PLAY' || upper === 'LIGHTLY PLAYED' || upper === 'LIGHT PLAYED') return 'LP';
+        if (upper === 'MODERATE PLAY' || upper === 'MODERATELY PLAYED' || upper === 'MID PLAY') return 'MP';
+        return upper;
+    }
+
+    function getMarketFromPricesForTotals(prices) {
+        if (!Array.isArray(prices) || prices.length === 0) return null;
+
+        /** @type {Record<string, number>} */
+        const bestByCondition = {};
+        /** @type {number|null} */
+        let bestAny = null;
+
+        for (const p of prices) {
+            if (!p || typeof p !== 'object') continue;
+            const marketRaw = (p?.market ?? p?.marketPrice ?? p?.market_price ?? null);
+            const market = typeof marketRaw === 'number' ? marketRaw : Number(marketRaw);
+            if (!Number.isFinite(market)) continue;
+
+            const key = normalizeConditionKeyForTotals(p?.condition);
+            if (key) {
+                const prev = bestByCondition[key];
+                if (prev == null || market > prev) bestByCondition[key] = market;
+            }
+            if (bestAny == null || market > bestAny) bestAny = market;
+        }
+
+        // Prefer NM, then LP, then MP.
+        if (bestByCondition.NM != null) return bestByCondition.NM;
+        if (bestByCondition.LP != null) return bestByCondition.LP;
+        if (bestByCondition.MP != null) return bestByCondition.MP;
+        return bestAny;
+    }
+
+    function getPricesForVariant(cardLike, variantName) {
+        const vars = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+        const match = findVariantByName(vars, variantName);
+        return Array.isArray(match?.prices) ? match.prices : null;
+    }
+
+    function updateFavoritesTotals(restoreState) {
+        if (!favoritesTotalsEl) return;
+
+        const totalCount = Array.isArray(favorites) ? favorites.length : 0;
+        if (totalCount === 0) {
+            favoritesTotalsEl.textContent = 'Total: $0.00 • Trade: $0.00';
+            return;
+        }
+
+        let pricedCount = 0;
+        let totalMarket = 0;
+        let totalTrade = 0;
+
+        for (const fav of favorites) {
+            const id = safeString(fav?.id, '');
+            if (!id) continue;
+
+            const selectedVariant = safeString(restoreState?.selections?.[id]?.holoType ?? fav?.selectedVariant, '');
+            const pct = getSavedTradePercentForId(id, restoreState);
+
+            const prices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
+            let market = getMarketFromPricesForTotals(prices);
+
+            // If we don't have structured prices yet, try using any stored formatted text
+            // (from lastResults/favorites snapshot) to derive a market value.
+            if (market == null) {
+                const text = safeString(restoreState?.selections?.[id]?.pricesText ?? fav?.pricesText, '');
+                const m = text.match(/market\s+\$([0-9]+(?:\.[0-9]+)?)/i);
+                if (m) {
+                    const parsed = Number(m[1]);
+                    if (Number.isFinite(parsed)) market = parsed;
+                }
+            }
+
+            if (market == null) continue;
+
+            pricedCount++;
+            totalMarket += market;
+            totalTrade += market * (Number(pct) / 100);
+        }
+
+        const coverage = pricedCount < totalCount ? ` • ${pricedCount}/${totalCount} priced` : '';
+        favoritesTotalsEl.textContent = `Total: ${formatUsd(totalMarket)} • Trade: ${formatUsd(totalTrade)}${coverage}`;
     }
 
     function renderCards(cards, restoreState) {
