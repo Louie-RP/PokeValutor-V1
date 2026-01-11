@@ -291,6 +291,18 @@ h1, h2, h3, h4, h5, h6,
     margin-left: 0 !important;
     margin-top: 0.25rem;
   }
+
+  /* Also stack Trade under Total and remove the bullet. */
+  #pv-favorites-totals .pv-totals__sep,
+  #pv-sealed-favorites-totals .pv-totals__sep {
+    display: none;
+  }
+
+  #pv-favorites-totals .pv-totals__trade,
+  #pv-sealed-favorites-totals .pv-totals__trade {
+    display: block;
+    margin-top: 0.15rem;
+  }
 }
 
 @media (max-width: 420px) {

@@ -766,12 +766,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return Array.isArray(match?.prices) ? match.prices : null;
     }
 
+    function setFavoritesTotalsText(totalText, tradeText) {
+        if (!favoritesTotalsEl) return;
+        favoritesTotalsEl.textContent = '';
+
+        const totalSpan = document.createElement('span');
+        totalSpan.className = 'pv-totals__total';
+        totalSpan.textContent = totalText;
+
+        const sepSpan = document.createElement('span');
+        sepSpan.className = 'pv-totals__sep';
+        sepSpan.textContent = ' • ';
+
+        const tradeSpan = document.createElement('span');
+        tradeSpan.className = 'pv-totals__trade';
+        tradeSpan.textContent = tradeText;
+
+        favoritesTotalsEl.appendChild(totalSpan);
+        favoritesTotalsEl.appendChild(sepSpan);
+        favoritesTotalsEl.appendChild(tradeSpan);
+    }
+
     function updateFavoritesTotals(restoreState) {
         if (!favoritesTotalsEl) return;
 
         const totalCount = Array.isArray(favorites) ? favorites.length : 0;
         if (totalCount === 0) {
-            favoritesTotalsEl.textContent = 'Total: $0.00 • Trade: $0.00';
+            setFavoritesTotalsText('Total: $0.00', 'Trade: $0.00');
             return;
         }
 
@@ -808,7 +829,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const coverage = pricedCount < totalCount ? ` • ${pricedCount}/${totalCount} priced` : '';
-        favoritesTotalsEl.textContent = `Total: ${formatUsd(totalMarket)} • Trade: ${formatUsd(totalTrade)}${coverage}`;
+        setFavoritesTotalsText(
+            `Total: ${formatUsd(totalMarket)}`,
+            `Trade: ${formatUsd(totalTrade)}${coverage}`
+        );
     }
 
     function renderCards(cards, restoreState) {

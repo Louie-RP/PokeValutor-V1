@@ -333,12 +333,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return `Market: ${marketText} • @${pct}% ${tradeText}`;
     }
 
+    function setFavoritesTotalsText(totalText, tradeText) {
+        if (!favoritesTotalsEl) return;
+        favoritesTotalsEl.textContent = '';
+
+        const totalSpan = document.createElement('span');
+        totalSpan.className = 'pv-totals__total';
+        totalSpan.textContent = totalText;
+
+        const sepSpan = document.createElement('span');
+        sepSpan.className = 'pv-totals__sep';
+        sepSpan.textContent = ' • ';
+
+        const tradeSpan = document.createElement('span');
+        tradeSpan.className = 'pv-totals__trade';
+        tradeSpan.textContent = tradeText;
+
+        favoritesTotalsEl.appendChild(totalSpan);
+        favoritesTotalsEl.appendChild(sepSpan);
+        favoritesTotalsEl.appendChild(tradeSpan);
+    }
+
     function updateFavoritesTotals(restoreState) {
         if (!favoritesTotalsEl) return;
 
         const totalCount = Array.isArray(favorites) ? favorites.length : 0;
         if (totalCount === 0) {
-            favoritesTotalsEl.textContent = 'Total: $0.00 • Trade: $0.00';
+            setFavoritesTotalsText('Total: $0.00', 'Trade: $0.00');
             return;
         }
 
@@ -365,11 +386,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const coverage = pricedCount < totalCount ? ` • ${pricedCount}/${totalCount} priced` : '';
         if (mixedCurrency) {
-            favoritesTotalsEl.textContent = `Total: N/A • Trade: N/A${coverage}`;
+            setFavoritesTotalsText('Total: N/A', `Trade: N/A${coverage}`);
             return;
         }
 
-        favoritesTotalsEl.textContent = `Total: ${formatCurrency(totalMarket, currency || 'USD')} • Trade: ${formatCurrency(totalTrade, currency || 'USD')}${coverage}`;
+        setFavoritesTotalsText(
+            `Total: ${formatCurrency(totalMarket, currency || 'USD')}`,
+            `Trade: ${formatCurrency(totalTrade, currency || 'USD')}${coverage}`
+        );
     }
 
     function renderFavorites(restoreState) {
