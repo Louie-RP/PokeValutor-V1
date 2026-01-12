@@ -1122,6 +1122,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const base = getWorkerBase();
 
+        // Number searches are high-collision (many sets share the same number),
+        // so show more results than name searches.
+        const RESULT_LIMIT = 10;
+
+        function normalizeSimpleDigits(raw) {
+            const s = String(raw || '').trim();
+            if (!/^\d+$/.test(s)) return s;
+            // Strip leading zeros but keep at least one digit.
+            return s.replace(/^0+(?=\d)/, '');
+        }
+
+        function padLeftZeros(value, width) {
+            const s = String(value || '').trim();
+            if (!/^\d+$/.test(s)) return s;
+            if (s.length >= width) return s;
+            return s.padStart(width, '0');
+        }
+
         function normalizeSimplePrintedFraction(raw) {
             // Handle common input like "109/094" by stripping leading zeros only
             // when both sides are purely numeric.
@@ -1136,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setStatus('Searching…');
         if (grid) {
             grid.innerHTML = '';
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < Math.min(RESULT_LIMIT, 10); i++) {
                 const col = document.createElement('div');
                 col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
@@ -1146,24 +1164,101 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             // Scrydex query: use printed_number:<value>
-            let matchedPn = pn;
-            let q = buildFieldQuery('printed_number', matchedPn);
-            let url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=5&lang=en`;
-            let data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-            let cards = Array.isArray(data?.data) ? data.data : [];
+            // NOTE: Some promos (e.g., svp-52 with printedNumber "052") are not discoverable via
+            // printed_number/printedNumber field queries.
+            // Empirically, promos are discoverable via: rarity:Promo number:<value>
 
-            // Some data sources store printed totals without leading zeros (e.g., 109/94).
-            // If the first attempt returns no results, retry a normalized form.
-            if (cards.length === 0) {
-                const normalized = normalizeSimplePrintedFraction(pn);
-                if (normalized && normalized !== pn) {
-                    matchedPn = normalized;
-                    q = buildFieldQuery('printed_number', matchedPn);
-                    url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=5&lang=en`;
-                    data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-                    cards = Array.isArray(data?.data) ? data.data : [];
+            function mergeUniqueById(target, next) {
+                if (!Array.isArray(next) || next.length === 0) return;
+                const seen = new Set(target.map((c) => String(c?.id || '')));
+                for (const c of next) {
+                    const id = String(c?.id || '');
+                    if (!id || seen.has(id)) continue;
+                    seen.add(id);
+                    target.push(c);
                 }
             }
+
+            const candidates = [];
+
+            // 1) Exact input first.
+            candidates.push(pn);
+
+            // 2) For common fractions like 109/094, retry without leading zeros.
+            const normalizedFraction = normalizeSimplePrintedFraction(pn);
+            if (normalizedFraction && normalizedFraction !== pn) candidates.push(normalizedFraction);
+
+            // 3) For promos (e.g., SVP 052), retry numeric forms with/without padding.
+            if (/^\d+$/.test(pn)) {
+                const stripped = normalizeSimpleDigits(pn);
+                if (stripped && stripped !== pn) candidates.push(stripped);
+
+                // Many promos use 3-digit printed numbers (e.g., 52 -> 052).
+                const padded3 = padLeftZeros(stripped || pn, 3);
+                if (padded3 && !candidates.includes(padded3)) candidates.push(padded3);
+            }
+
+            // De-duplicate while preserving order.
+            const tried = new Set();
+            const uniqueCandidates = candidates.filter((c) => {
+                const key = String(c || '').trim();
+                if (!key) return false;
+                if (tried.has(key)) return false;
+                tried.add(key);
+                return true;
+            });
+
+            /** @type {Array<any>} */
+            let cards = [];
+
+            const numberCandidate = (() => {
+                if (/^\d+$/.test(pn)) return normalizeSimpleDigits(pn);
+                return pn;
+            })();
+
+            // 1) Promo-first: promos are easy to crowd out by other sets sharing the same number.
+            // Use a larger page, sort, then merge into the top of results.
+            if (numberCandidate && !String(numberCandidate).includes('/')) {
+                const promoQ = `rarity:Promo ${buildFieldQuery('number', numberCandidate)}`;
+                const promoUrl = `${base}/cards/search?q=${encodeURIComponent(promoQ)}&page=1&pageSize=25&lang=en`;
+                const promoData = await fetchJsonWithCache(promoUrl, SEARCH_TTL_MS);
+                const promoFound = Array.isArray(promoData?.data) ? promoData.data : [];
+                promoFound.sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || '')));
+                mergeUniqueById(cards, promoFound);
+            }
+
+            // 2) printed_number search (works for most non-promo cards, and fractions).
+            let matchedPn = uniqueCandidates[0] || pn;
+            for (const attempt of uniqueCandidates) {
+                matchedPn = attempt;
+                const q = buildFieldQuery('printed_number', matchedPn);
+                const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=${RESULT_LIMIT}&lang=en`;
+                const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+                const found = Array.isArray(data?.data) ? data.data : [];
+                if (found.length) {
+                    mergeUniqueById(cards, found);
+                    break;
+                }
+            }
+
+            // 3) number:<value> (covers promo codes like SWSH020 and many regular sets).
+            if (cards.length < RESULT_LIMIT && numberCandidate && !String(numberCandidate).includes('/')) {
+                const numberQ = buildFieldQuery('number', numberCandidate);
+                const numberUrl = `${base}/cards/search?q=${encodeURIComponent(numberQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en`;
+                const numberData = await fetchJsonWithCache(numberUrl, SEARCH_TTL_MS);
+                mergeUniqueById(cards, Array.isArray(numberData?.data) ? numberData.data : []);
+            }
+
+            // 4) If the user pasted a card id (e.g., "mep-10"), try id:<value> directly.
+            if (cards.length < RESULT_LIMIT && /-/.test(pn) && /[A-Za-z]/.test(pn)) {
+                const idQ = buildFieldQuery('id', pn);
+                const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en`;
+                const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
+                mergeUniqueById(cards, Array.isArray(idData?.data) ? idData.data : []);
+            }
+
+            // Respect UI limit.
+            if (cards.length > RESULT_LIMIT) cards = cards.slice(0, RESULT_LIMIT);
             renderCards(cards);
             const matchedNote = matchedPn !== pn ? ` Matched as "${matchedPn}".` : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".${matchedNote}`;
