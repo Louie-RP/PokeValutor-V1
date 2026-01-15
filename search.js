@@ -623,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function formatPriceList(prices, tradePercent) {
-        if (!Array.isArray(prices) || prices.length === 0) return 'No price data available.';
+        if (!Array.isArray(prices) || prices.length === 0) return 'No prices available for this variant at this time';
 
         const pctRaw = tradePercent != null ? Number(tradePercent) : NaN;
         const pct = Number.isFinite(pctRaw) ? Math.max(0, Math.min(200, pctRaw)) : null;
@@ -708,7 +708,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (preferredLines.length) return preferredLines.join('\n');
         if (fallbackLines.length) return fallbackLines.join('\n');
-        return 'No price data available.';
+        return 'No prices available for this variant at this time';
     }
 
     function formatUsd(amount) {
