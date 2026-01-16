@@ -504,7 +504,7 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .pv-expansionCard__logo {
-  height: 72px;
+  height: 96px;
   border-radius: 12px;
   border: 1px solid rgba(255, 203, 5, 0.18);
   background:
@@ -514,7 +514,7 @@ h1, h2, h3, h4, h5, h6,
   display: grid;
   place-items: center;
   overflow: hidden;
-  padding: 0.35rem;
+  padding: 0.25rem;
 }
 
 .pv-expansionCard__logo img {
@@ -552,7 +552,7 @@ h1, h2, h3, h4, h5, h6,
 
   .pv-marquee__track { gap: 0.7rem; }
   .pv-expansionCard { width: 160px; padding: 0.75rem; }
-  .pv-expansionCard__logo { height: 66px; }
+  .pv-expansionCard__logo { height: 90px; }
 
   .pv-marquee::before,
   .pv-marquee::after {
