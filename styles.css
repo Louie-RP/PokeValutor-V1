@@ -457,8 +457,8 @@ h1, h2, h3, h4, h5, h6,
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0.85rem 0.75rem;
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 203, 5, 0.55) rgba(255, 255, 255, 0.06);
 }
@@ -487,6 +487,10 @@ h1, h2, h3, h4, h5, h6,
   align-items: stretch;
   gap: 0.85rem;
   width: max-content;
+}
+
+.pv-marquee__item {
+  flex: 0 0 auto;
 }
 
 .pv-expansionCard {
@@ -539,6 +543,25 @@ h1, h2, h3, h4, h5, h6,
 
 @media (max-width: 420px) {
   .pv-expansionCard { width: 170px; }
+}
+
+@media (max-width: 768px) {
+  /* Mobile: no auto-scroll, so snap feels better and avoids awkward stopping points. */
+  .pv-marquee__viewport { scroll-snap-type: x mandatory; }
+  .pv-marquee__item { scroll-snap-align: start; }
+
+  .pv-marquee__track { gap: 0.7rem; }
+  .pv-expansionCard { width: 160px; padding: 0.75rem; }
+  .pv-expansionCard__logo { height: 66px; }
+
+  .pv-marquee::before,
+  .pv-marquee::after {
+    width: 40px;
+  }
+}
+
+@media (max-width: 420px) {
+  .pv-expansionCard { width: 150px; }
 }
 
 /* Cards */
