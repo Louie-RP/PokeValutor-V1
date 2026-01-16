@@ -417,6 +417,130 @@ h1, h2, h3, h4, h5, h6,
   .pv-steps { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Home: latest expansions marquee                                             */
+/* -------------------------------------------------------------------------- */
+
+.pv-expansions__subtitle { margin: 0.25rem 0 1rem; color: var(--pv-muted); }
+
+.pv-marquee {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid var(--pv-border);
+  background: var(--pv-surface);
+  overflow: hidden;
+}
+
+/* Soft fade at edges so the loop feels smoother */
+.pv-marquee::before,
+.pv-marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  pointer-events: none;
+  z-index: 2;
+}
+.pv-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(10,10,10,0.98) 0%, rgba(10,10,10,0.0) 100%);
+}
+.pv-marquee::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(10,10,10,0.98) 0%, rgba(10,10,10,0.0) 100%);
+}
+
+.pv-marquee__viewport {
+  position: relative;
+  z-index: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.85rem 0.75rem;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 203, 5, 0.55) rgba(255, 255, 255, 0.06);
+}
+
+/* Keep it keyboard-focusable but not noisy */
+.pv-marquee__viewport:focus { outline: none; }
+.pv-marquee__viewport:focus-visible { outline: 3px solid var(--pv-focus); outline-offset: -3px; }
+
+.pv-marquee__viewport::-webkit-scrollbar { height: 10px; }
+.pv-marquee__viewport::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+.pv-marquee__viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 203, 5, 0.55);
+  border-radius: 999px;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+}
+.pv-marquee__viewport::-webkit-scrollbar-thumb:hover { background: rgba(255, 203, 5, 0.75); }
+
+.pv-marquee__track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: max-content;
+}
+
+.pv-expansionCard {
+  width: 190px;
+  border-radius: 14px;
+  border: 1px solid var(--pv-border);
+  background: var(--pv-surface-2);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pv-expansionCard__logo {
+  height: 72px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 203, 5, 0.18);
+  background:
+    radial-gradient(ellipse at 20% 15%, rgba(255, 203, 5, 0.18) 0%, rgba(255, 203, 5, 0) 55%),
+    radial-gradient(ellipse at 85% 50%, rgba(167, 139, 250, 0.12) 0%, rgba(167, 139, 250, 0) 60%),
+    rgba(0, 0, 0, 0.2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0.35rem;
+}
+
+.pv-expansionCard__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+
+.pv-expansionCard__name {
+  margin: 0;
+  font-weight: 850;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.pv-expansionCard__date {
+  margin: 0;
+  color: var(--pv-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 420px) {
+  .pv-expansionCard { width: 170px; }
+}
+
 /* Cards */
 .pv-card { background: #0a0a0a; border: 1px solid var(--pv-border); border-radius: 12px; overflow: hidden; }
 .pv-card__img { width: 100%; height: auto; display: block; }
