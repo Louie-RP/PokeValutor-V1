@@ -91,22 +91,6 @@
   const expansionsTrack = document.getElementById('pv-expansions-track');
   const expansionsViewport = document.getElementById('pv-expansions-marquee');
 
-  function shouldEnableExpansionsAutoScroll() {
-    if (!expansionsViewport || !expansionsTrack) return false;
-
-    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return false;
-
-    // Disable auto-scroll on mobile/touch/coarse pointers.
-    const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-    if (coarsePointer) return false;
-
-    const smallScreen = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-    if (smallScreen) return false;
-
-    return true;
-  }
-
   function getWorkerBase() {
     // Keep consistent with search/sealed pages.
     const defaultWorker = 'https://pokevalutor-v1.lreyperez18.workers.dev';
@@ -210,17 +194,6 @@
     }).join('');
 
     expansionsTrack.innerHTML = html;
-
-    // Duplicate items only when auto-scrolling (desktop) so mobile doesn't get an
-    // overly-long loop and can scroll to a natural end.
-    if (shouldEnableExpansionsAutoScroll()) {
-      const children = Array.from(expansionsTrack.children);
-      for (const child of children) {
-        const clone = child.cloneNode(true);
-        if (clone && clone.setAttribute) clone.setAttribute('aria-hidden', 'true');
-        expansionsTrack.appendChild(clone);
-      }
-    }
   }
 
   async function loadLatestEnglishExpansions() {
@@ -331,7 +304,7 @@
     }
   }
 
-  function enableAutoScroll() {
+  function setupExpansionsMarqueeScrolling() {
     if (!expansionsViewport || !expansionsTrack) return;
 
     // Prevent ending up in a blank area (especially on touch momentum scroll).
@@ -352,58 +325,19 @@
 
     // Make mouse wheel feel natural: when hovering the marquee, wheel scrolls horizontally.
     // (Trackpads already send deltaX; this mainly helps mouse users.)
-    const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-    if (!coarsePointer) {
-      expansionsViewport.addEventListener('wheel', (e) => {
-        if (!e) return;
-        const dx = Math.abs(Number(e.deltaX || 0));
-        const dy = Math.abs(Number(e.deltaY || 0));
-        if (dy > dx && dy > 0) {
-          e.preventDefault();
-          expansionsViewport.scrollLeft += e.deltaY;
-        }
-      }, { passive: false });
-    }
-
-    if (!shouldEnableExpansionsAutoScroll()) return;
-
-    let paused = false;
-    let lastTs = 0;
-    const speedPxPerSecond = 22;
-
-    function getLoopWidth() {
-      // After duplication, half the scrollWidth is the original content width.
-      const w = expansionsTrack.scrollWidth;
-      return w > 0 ? w / 2 : 0;
-    }
-
-    function onEnter() { paused = true; }
-    function onLeave() { paused = false; }
-
-    expansionsViewport.addEventListener('mouseenter', onEnter);
-    expansionsViewport.addEventListener('mouseleave', onLeave);
-    expansionsViewport.addEventListener('focusin', onEnter);
-    expansionsViewport.addEventListener('focusout', onLeave);
-
-    function tick(ts) {
-      if (!lastTs) lastTs = ts;
-      const dt = (ts - lastTs) / 1000;
-      lastTs = ts;
-
-      const loopWidth = getLoopWidth();
-      if (loopWidth > 0 && !paused) {
-        expansionsViewport.scrollLeft += speedPxPerSecond * dt;
-        while (expansionsViewport.scrollLeft >= loopWidth) {
-          expansionsViewport.scrollLeft -= loopWidth;
-        }
+    // Make mouse wheel feel natural: when hovering the marquee, wheel scrolls horizontally.
+    // (Trackpads already send deltaX; this mainly helps mouse users.)
+    expansionsViewport.addEventListener('wheel', (e) => {
+      if (!e) return;
+      const dx = Math.abs(Number(e.deltaX || 0));
+      const dy = Math.abs(Number(e.deltaY || 0));
+      if (dy > dx && dy > 0) {
+        e.preventDefault();
+        expansionsViewport.scrollLeft += e.deltaY;
       }
-
-      window.requestAnimationFrame(tick);
-    }
-
-    window.requestAnimationFrame(tick);
+    }, { passive: false });
   }
 
   loadLatestEnglishExpansions();
-  enableAutoScroll();
+  setupExpansionsMarqueeScrolling();
 })();
