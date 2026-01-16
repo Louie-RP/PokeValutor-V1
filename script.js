@@ -91,6 +91,22 @@
   const expansionsTrack = document.getElementById('pv-expansions-track');
   const expansionsViewport = document.getElementById('pv-expansions-marquee');
 
+  function shouldEnableExpansionsAutoScroll() {
+    if (!expansionsViewport || !expansionsTrack) return false;
+
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return false;
+
+    // Disable auto-scroll on mobile/touch/coarse pointers.
+    const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (coarsePointer) return false;
+
+    const smallScreen = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+    if (smallScreen) return false;
+
+    return true;
+  }
+
   function getWorkerBase() {
     // Keep consistent with search/sealed pages.
     const defaultWorker = 'https://pokevalutor-v1.lreyperez18.workers.dev';
@@ -195,12 +211,15 @@
 
     expansionsTrack.innerHTML = html;
 
-    // Duplicate items for smoother looping scroll.
-    const children = Array.from(expansionsTrack.children);
-    for (const child of children) {
-      const clone = child.cloneNode(true);
-      if (clone && clone.setAttribute) clone.setAttribute('aria-hidden', 'true');
-      expansionsTrack.appendChild(clone);
+    // Duplicate items only when auto-scrolling (desktop) so mobile doesn't get an
+    // overly-long loop and can scroll to a natural end.
+    if (shouldEnableExpansionsAutoScroll()) {
+      const children = Array.from(expansionsTrack.children);
+      for (const child of children) {
+        const clone = child.cloneNode(true);
+        if (clone && clone.setAttribute) clone.setAttribute('aria-hidden', 'true');
+        expansionsTrack.appendChild(clone);
+      }
     }
   }
 
@@ -315,24 +334,42 @@
   function enableAutoScroll() {
     if (!expansionsViewport || !expansionsTrack) return;
 
+    // Prevent ending up in a blank area (especially on touch momentum scroll).
+    function clampScrollLeft() {
+      const max = Math.max(0, expansionsViewport.scrollWidth - expansionsViewport.clientWidth);
+      const next = Math.max(0, Math.min(expansionsViewport.scrollLeft, max));
+      if (expansionsViewport.scrollLeft !== next) expansionsViewport.scrollLeft = next;
+    }
+
+    let clampRaf = 0;
+    expansionsViewport.addEventListener('scroll', () => {
+      if (clampRaf) return;
+      clampRaf = window.requestAnimationFrame(() => {
+        clampRaf = 0;
+        clampScrollLeft();
+      });
+    }, { passive: true });
+
     // Make mouse wheel feel natural: when hovering the marquee, wheel scrolls horizontally.
     // (Trackpads already send deltaX; this mainly helps mouse users.)
-    expansionsViewport.addEventListener('wheel', (e) => {
-      if (!e) return;
-      const dx = Math.abs(Number(e.deltaX || 0));
-      const dy = Math.abs(Number(e.deltaY || 0));
-      if (dy > dx && dy > 0) {
-        e.preventDefault();
-        expansionsViewport.scrollLeft += e.deltaY;
-      }
-    }, { passive: false });
+    const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    if (!coarsePointer) {
+      expansionsViewport.addEventListener('wheel', (e) => {
+        if (!e) return;
+        const dx = Math.abs(Number(e.deltaX || 0));
+        const dy = Math.abs(Number(e.deltaY || 0));
+        if (dy > dx && dy > 0) {
+          e.preventDefault();
+          expansionsViewport.scrollLeft += e.deltaY;
+        }
+      }, { passive: false });
+    }
 
-    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return;
+    if (!shouldEnableExpansionsAutoScroll()) return;
 
     let paused = false;
     let lastTs = 0;
-    const speedPxPerSecond = 28;
+    const speedPxPerSecond = 22;
 
     function getLoopWidth() {
       // After duplication, half the scrollWidth is the original content width.
