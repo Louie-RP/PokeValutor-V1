@@ -608,7 +608,24 @@ document.addEventListener('DOMContentLoaded', function () {
     async function fetchJsonWithCache(url, ttlMs) {
         const cacheKey = `${CACHE_PREFIX}url:${url}`;
         const cached = cacheGet(cacheKey);
-        if (cached) return cached;
+        if (cached) {
+            // If we previously cached a malformed card+prices response (e.g., missing `variants`),
+            // don't keep serving it forever. This can happen if the upstream API response shape
+            // changes and the Worker has been updated since.
+            const isCardWithPricesUrl = /\/cards\/.+/.test(url)
+                && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
+            if (isCardWithPricesUrl) {
+                const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
+                const variants = cardObj?.variants;
+                if (!Array.isArray(variants)) {
+                    try { localStorage.removeItem(cacheKey); } catch {}
+                } else {
+                    return cached;
+                }
+            } else {
+                return cached;
+            }
+        }
 
         const res = await fetch(url);
         const text = await res.text();
