@@ -206,8 +206,10 @@
     // Only run on pages that have the marquee.
     if (!expansionsTrack) return;
 
+    const LATEST_EXPANSIONS_COUNT = 20;
+
     // Bump this key when filtering/shape changes so old cached results don't linger.
-    const CACHE_KEY = 'pv:expansions:latestEnglish:v2';
+    const CACHE_KEY = 'pv:expansions:latestEnglish:v4';
     const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
     function isExcludedExpansion(x) {
@@ -229,6 +231,17 @@
       // Promo expansions.
       if (series.includes('promo') || name.includes('promo')) return true;
 
+      // McDonald's collections (e.g., mcd23, mcd24).
+      if (id.startsWith('mcd') || name.includes('mcdonald') || series.includes('mcdonald')) return true;
+
+      // Pokémon TCG Classic sets (e.g., clv, clc, clb).
+      if (id === 'clv' || id === 'clc' || id === 'clb') return true;
+      if (name.includes('tcg classic') || series.includes('tcg classic')) return true;
+
+      // Energy-only expansions (e.g., sve).
+      if (id === 'sve') return true;
+      if (name.includes('energies') || series.includes('energies')) return true;
+
       return false;
     }
 
@@ -248,7 +261,7 @@
           isOnlineOnly: x.isOnlineOnly ?? x.is_online_only,
         }))
         .filter((x) => x.name)
-        .slice(0, 6);
+        .slice(0, LATEST_EXPANSIONS_COUNT);
     }
 
     const cached = cacheGet(CACHE_KEY);
@@ -285,8 +298,9 @@
       // - Remove promo expansions
       // - Keep English only
       const q = 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket';
-      // Fetch more than 6 so we can filter client-side and still show 6.
-      const url = `${base}/expansions/search?q=${encodeURIComponent(q)}&orderBy=-release_date&page=1&pageSize=30&select=id,name,logo,release_date,is_online_only,series,language,language_code&casing=camel`;
+      // Fetch more than we need so we can filter client-side and still show the latest N.
+      const pageSize = Math.max(30, LATEST_EXPANSIONS_COUNT * 4);
+      const url = `${base}/expansions/search?q=${encodeURIComponent(q)}&orderBy=-release_date&page=1&pageSize=${pageSize}&select=id,name,logo,release_date,is_online_only,series,language,language_code&casing=camel`;
 
       const res = await fetch(url, { method: 'GET' });
       const text = await res.text();
