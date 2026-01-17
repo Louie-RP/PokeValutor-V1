@@ -538,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // If we have cached prices in the favorite snapshot, re-render without refetching.
                     if (selectedVariant) {
                         const cachedPrices = getPricesForVariant(fav, selectedVariant);
-                        if (cachedPrices) {
+                        if (Array.isArray(cachedPrices) && cachedPrices.length > 0) {
                             const formatted = formatPriceList(cachedPrices, nextPct);
                             pricesEl.textContent = formatted;
                             favorites = favorites.map((f) => (String(f?.id || '') === id ? { ...f, pricesText: formatted } : f));
@@ -1025,7 +1025,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // use them directly to avoid extra API credit usage.
                 const localMatch = findVariantByName(variantsFull, variantName);
                 const localPrices = Array.isArray(localMatch?.prices) ? localMatch.prices : null;
-                if (localPrices) {
+                // Scrydex may include `prices: []` as a placeholder when prices weren't actually included.
+                // Only short-circuit if we have non-empty prices.
+                if (localPrices && localPrices.length > 0) {
                     lastLoadedVariantName = variantName;
                     lastLoadedPrices = localPrices;
                     const formatted = formatPriceList(localPrices, getSelectedTradePercent());
