@@ -394,6 +394,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function purgeUrlCacheEntries(matchFn) {
+        try {
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith(`${CACHE_PREFIX}url:`)) keys.push(k);
+            }
+
+            for (const k of keys) {
+                const url = k.slice(`${CACHE_PREFIX}url:`.length);
+                if (matchFn(url)) {
+                    try { localStorage.removeItem(k); } catch {}
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
@@ -601,6 +620,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (!res.ok) {
             const msg = data?.error || data?.message || `API error ${res.status}`;
+            throw new Error(String(msg));
+        }
+
+        // Some APIs return HTTP 200 with an { ok:false } payload.
+        // Never cache those responses.
+        if (data && typeof data === 'object' && data.ok === false) {
+            const msg = data?.error || data?.message || 'API error';
             throw new Error(String(msg));
         }
         cacheSet(cacheKey, data, ttlMs);
@@ -856,7 +882,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const name = String(card?.name || 'Unknown');
             const rarity = String(card?.rarity || '');
             const imgUrl = sanitizeUrl(pickFrontMediumImage(card?.images));
-            const variants = Array.isArray(card?.variants) ? card.variants.map((v) => v?.name).filter(Boolean) : [];
+            const variantsFull = Array.isArray(card?.variants) ? card.variants : [];
+            const variants = variantsFull.map((v) => v?.name).filter(Boolean);
             const fav = isFavorite(id);
             const favSymbol = fav ? '★' : '☆';
             const favLabel = fav ? 'Remove from favorites' : 'Add to favorites';
@@ -976,6 +1003,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
                     return;
                 }
+
+                // If this card already has variant prices (e.g., from a cached/top list),
+                // use them directly to avoid extra API credit usage.
+                const localMatch = findVariantByName(variantsFull, variantName);
+                const localPrices = Array.isArray(localMatch?.prices) ? localMatch.prices : null;
+                if (localPrices) {
+                    lastLoadedVariantName = variantName;
+                    lastLoadedPrices = localPrices;
+                    const formatted = formatPriceList(localPrices, getSelectedTradePercent());
+                    pricesEl.textContent = formatted;
+                    persistSelection(variantName, formatted);
+                    return;
+                }
+
                 pricesEl.textContent = 'Loading prices…';
                 try {
                     const base = getWorkerBase();
@@ -1033,8 +1074,34 @@ document.addEventListener('DOMContentLoaded', function () {
                         selectEl.dispatchEvent(new Event('change'));
                     }
                 } else {
-                    // No previous selection, show default prompt
-                    pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
+                    // No previous selection.
+                    // If prices are already present in the card payload, pick the best-valued variant
+                    // and show it immediately (useful for top-by-expansion lists).
+                    let bestVariant = '';
+                    let bestMarket = null;
+                    for (const v of variantsFull) {
+                        const vName = String(v?.name || '');
+                        const vPrices = Array.isArray(v?.prices) ? v.prices : null;
+                        const market = getMarketFromPricesForTotals(vPrices);
+                        if (!vName || market == null) continue;
+                        if (bestMarket == null || market > bestMarket) {
+                            bestMarket = market;
+                            bestVariant = vName;
+                        }
+                    }
+
+                    if (bestVariant && variants.includes(bestVariant)) {
+                        selectEl.value = bestVariant;
+                        const match = findVariantByName(variantsFull, bestVariant);
+                        const p = Array.isArray(match?.prices) ? match.prices : [];
+                        lastLoadedVariantName = bestVariant;
+                        lastLoadedPrices = p;
+                        const formatted = formatPriceList(p, getSelectedTradePercent());
+                        pricesEl.textContent = formatted;
+                        persistSelection(bestVariant, formatted);
+                    } else {
+                        pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
+                    }
                 }
                 selectEl.addEventListener('change', showPricesForSelectedVariant);
             }
@@ -1282,6 +1349,61 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    async function searchTopByExpansion(expansionId, expansionName) {
+        const id = String(expansionId || '').trim();
+        const name = String(expansionName || '').trim();
+        if (!id) return;
+
+        const base = getWorkerBase();
+        const RESULT_LIMIT = 10;
+
+        setStatus(`Loading top cards for ${name || id}…`);
+
+        // Clear inputs so manual searching doesn't feel blocked.
+        clearSearchInputs();
+
+        if (grid) {
+            grid.innerHTML = '';
+            for (let i = 0; i < RESULT_LIMIT; i++) {
+                const col = document.createElement('div');
+                col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
+                grid.appendChild(col);
+            }
+        }
+
+        try {
+            // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
+            // to avoid repeated API credit usage.
+            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en`;
+            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const cards = Array.isArray(data?.data) ? data.data : [];
+            renderCards(cards);
+
+            const label = name || id;
+            const statusText = `${cards.length} top card${cards.length !== 1 ? 's' : ''} by market value for "${label}".`;
+            setStatus(statusText);
+
+            saveLastResults({
+                savedAt: Date.now(),
+                mode: 'expansion',
+                query: id,
+                cards,
+                statusText,
+                expansionId: id,
+                expansionName: name,
+                selections: (() => {
+                    const prev = loadLastResults();
+                    return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                })(),
+            });
+        } catch (e) {
+            console.warn('[PokeValutor] expansion top search error', e);
+            renderCards([]);
+            setStatus('Error retrieving expansion results. Please try again later.');
+        }
+    }
+
     if (form && input) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -1323,6 +1445,20 @@ document.addEventListener('DOMContentLoaded', function () {
             clearResultsUI();
             clearLastResults();
 
+            // If the page was deep-linked (top-by-expansion), also remove query params
+            // so a reload doesn't immediately re-run the expansion flow.
+            try {
+                if (window.location.search) {
+                    const nextUrl = window.location.pathname;
+                    window.history.replaceState(null, '', nextUrl);
+                }
+            } catch {
+                // ignore
+            }
+
+            // Also clear any cached top-by-expansion responses so a bad response can't linger.
+            purgeUrlCacheEntries((u) => String(u || '').includes('/cards/top-by-expansion'));
+
             clearSearchInputs();
         });
     }
@@ -1353,6 +1489,18 @@ document.addEventListener('DOMContentLoaded', function () {
         renderCards(restored.cards, restored);
         renderFavorites(restored);
         if (restored.statusText) setStatus(String(restored.statusText));
+    }
+
+    // Deep-link support: /search.html?expansionId=...&expansionName=...
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const expansionId = params.get('expansionId') || '';
+        const expansionName = params.get('expansionName') || '';
+        if (expansionId) {
+            void searchTopByExpansion(expansionId, expansionName);
+        }
+    } catch {
+        // ignore
     }
 
     if (scrollTopBtn) {

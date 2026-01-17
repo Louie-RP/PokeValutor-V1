@@ -493,6 +493,21 @@ h1, h2, h3, h4, h5, h6,
   flex: 0 0 auto;
 }
 
+.pv-expansionCardLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.pv-expansionCardLink:focus { outline: none; }
+.pv-expansionCardLink:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+.pv-expansionCardLink:hover .pv-expansionCard {
+  border-color: rgba(255, 203, 5, 0.5);
+}
+
 .pv-expansionCard {
   width: 190px;
   border-radius: 14px;
