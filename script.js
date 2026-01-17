@@ -176,20 +176,26 @@
     const list = Array.isArray(expansions) ? expansions : [];
 
     const html = list.map((x) => {
+      const id = String(x?.id || '').trim();
       const name = String(x?.name || '');
       const dateLabel = toDateLabel(x?.releaseDate || x?.release_date);
       const logoSrc = String(x?.logo || x?.logoSrc || '').trim();
       const src = logoSrc ? logoSrc : svgLogoDataUri(name || 'Expansion');
+      const href = id
+        ? `search.html?expansionId=${encodeURIComponent(id)}&expansionName=${encodeURIComponent(name)}`
+        : 'search.html';
 
       return `
         <li class="pv-marquee__item" role="listitem">
-          <article class="pv-expansionCard" aria-label="${escapeText(name)}">
-            <div class="pv-expansionCard__logo">
-              <img src="${escapeText(src)}" alt="${escapeText(name)} logo" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
-            </div>
-            <p class="pv-expansionCard__name">${escapeText(name)}</p>
-            <p class="pv-expansionCard__date">${escapeText(dateLabel)}</p>
-          </article>
+          <a class="pv-expansionCardLink" href="${escapeText(href)}" aria-label="View top cards for ${escapeText(name)}">
+            <article class="pv-expansionCard" aria-label="${escapeText(name)}">
+              <div class="pv-expansionCard__logo">
+                <img src="${escapeText(src)}" alt="${escapeText(name)} logo" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              </div>
+              <p class="pv-expansionCard__name">${escapeText(name)}</p>
+              <p class="pv-expansionCard__date">${escapeText(dateLabel)}</p>
+            </article>
+          </a>
         </li>`;
     }).join('');
 
