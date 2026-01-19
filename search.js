@@ -1090,10 +1090,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     } else {
                         // If pricesText is missing, trigger loading
-                        selectEl.dispatchEvent(new Event('change'));
+                        void showPricesForSelectedVariant();
                     }
                 } else {
                     // No previous selection.
+                    // If there is only one variant, select it automatically.
+                    if (variants.length === 1 && variants[0]) {
+                        selectEl.value = String(variants[0]);
+                        void showPricesForSelectedVariant();
+                    } else {
                     // If prices are already present in the card payload, pick the best-valued variant
                     // and show it immediately (useful for top-by-expansion lists).
                     let bestVariant = '';
@@ -1120,6 +1125,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         persistSelection(bestVariant, formatted);
                     } else {
                         pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
+                    }
                     }
                 }
                 selectEl.addEventListener('change', showPricesForSelectedVariant);
