@@ -23,6 +23,124 @@ Deploy to GitHub Pages
 3. Select branch main, folder /root.
 4. Save and open the provided Pages URL.
 
+## Security / secrets (read this)
+
+- Anything committed to this repo can be viewed on GitHub, and may be downloadable from the GitHub Pages site if someone guesses the filename (for example, `/README.md`).
+- The Firebase web config in [firebase-config.js](firebase-config.js) is expected to be public for browser apps. Security comes from Firebase Auth + Firestore rules, not from hiding the web config.
+- Never commit credentials or secret values such as:
+	- Service account JSON keys (e.g. `serviceAccountKey.json` / `firebase-adminsdk-*.json`)
+	- `.env*` files, Cloudflare Worker `.dev.vars`, or any API keys/tokens
+	- Private key/cert files like `*.pem`, `*.key`, `*.p12`, `*.pfx`
+
+If a real secret is ever committed (even briefly), rotate it immediately because git history can preserve it.
+
+## Firebase Accounts (Auth + Firestore)
+
+This repo now includes a simple Firebase Auth + Firestore integration designed to work on GitHub Pages (no build step).
+
+### 1) Create a Firebase project
+1. Firebase Console → Add project.
+2. Build → Authentication → Get started.
+3. Enable providers:
+	 - Email/Password
+	 - Google
+
+### 2) Create a Web App + paste config
+1. Firebase Console → Project settings → Your apps → Add app → Web.
+2. Copy the config values.
+3. Paste them into [firebase-config.js](firebase-config.js).
+
+### 3) Set up Firestore
+1. Firebase Console → Build → Firestore Database → Create database.
+2. Start in "production" mode.
+
+Suggested rules (users can only access their own data):
+
+```rules
+rules_version = '2';
+service cloud.firestore {
+	match /databases/{database}/documents {
+		match /users/{userId}/{document=**} {
+			allow read, write: if request.auth != null && request.auth.uid == userId;
+		}
+	}
+}
+```
+
+### 4) Use the Account page
+- Visit [account.html](account.html)
+- Sign up/sign in
+- When signed in, Favorites and Watchlist on Cards/Sealed will sync to Firestore (and still keep local storage as a fallback).
+
+Firestore subcollections used:
+- `users/{uid}/cardFavorites`
+- `users/{uid}/sealedFavorites`
+- `users/{uid}/cardWatchlist`
+- `users/{uid}/sealedWatchlist`
+
+## Cloudflare Worker: Auth-gated quotas
+
+The Worker is designed to enforce quotas server-side using a Firebase ID token.
+
+### Required Worker env vars
+- `SCRYDEX_API_KEY`
+- `SCRYDEX_TEAM_ID`
+
+### Auth + quota vars
+- `REQUIRE_AUTH` (set to `1` to require sign-in for all non-`/health` requests)
+- `ALLOW_ANON` (default `1` when `REQUIRE_AUTH=0`; allows anonymous access)
+- `ANON_DAILY_LIMIT` (default `10` when `ALLOW_ANON=1`)
+- `ANON_QUOTA_SALT` (optional secret; improves privacy for anonymous quota keys)
+- `FIREBASE_PROJECT_ID` (your Firebase project id)
+- `FREE_DAILY_LIMIT` (default `60`)
+- `PREMIUM_DAILY_LIMIT` (default `600`)
+
+### Strongly recommended for real quota enforcement
+Configure Upstash Redis so quota counters persist across Worker instances:
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+
+### Roles + limits
+The Worker supports custom-claim roles (from the Firebase ID token):
+- `role=basic`: uses `FREE_DAILY_LIMIT`
+- `role=premium`: uses `PREMIUM_DAILY_LIMIT`
+- `role=tester`: unlimited (no quota enforcement)
+- `role=admin`: unlimited (no quota enforcement)
+
+Backward compatibility:
+- If `role` is missing, the Worker falls back to `premium=true` or `tier=premium|pro` to treat the user as premium.
+
+The Worker also returns quota metadata headers to the frontend:
+- `x-pv-quota-tier`, `x-pv-quota-limit`, `x-pv-quota-used`, `x-pv-quota-remaining`
+
+Cards/Sealed pages display this as a small “daily allowance” banner.
+
+## Assigning roles (Firebase Functions)
+
+Client-side JS cannot securely assign roles. This repo includes a minimal Firebase Callable Function (admins only):
+- Source: [functions/index.js](functions/index.js)
+- Function name: `setUserRole`
+
+### Deploy
+1. Install the Firebase CLI and initialize Functions (once):
+	- `firebase init functions`
+	- Choose the same Firebase project you use for Auth.
+2. Install dependencies and deploy:
+	- `cd functions`
+	- `npm install`
+	- `firebase deploy --only functions`
+
+### Seed your first admin (one-time)
+You must seed an initial admin using a service account (or other Admin SDK environment), because the callable function is admin-only.
+
+Use the helper script:
+- [functions/scripts/set-initial-admin.js](functions/scripts/set-initial-admin.js)
+
+After seeding, sign out/in on [account.html](account.html) so your token refreshes and your admin tools appear.
+
+## CSP note
+Pages use a strict CSP. Firebase requires loading scripts from `https://www.gstatic.com` and connecting to Google APIs; those are now allowed in the CSP meta tags.
+
 Accessibility Notes
 - Keyboard navigation supported; visible focus states.
 - Skip link to jump to main content.
