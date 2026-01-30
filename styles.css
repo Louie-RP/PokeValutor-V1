@@ -138,6 +138,43 @@ body {
   .pv-nav { display: block !important; }
 }
 
+/* Account/Auth page */
+.pv-authGrid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .pv-authGrid { grid-template-columns: 1fr 1fr; }
+}
+
+.pv-authCard {
+  border: 1px solid var(--pv-border);
+  border-radius: 16px;
+  padding: 1rem;
+  background: var(--pv-surface);
+}
+
+.pv-authField { margin-bottom: 0.75rem; }
+
+.pv-authActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pv-authDivider {
+  height: 1px;
+  background: var(--pv-border);
+  margin: 0.9rem 0;
+}
+
+.pv-authSmall { color: var(--pv-muted); font-size: 0.95rem; }
+
 /* Hero */
 .pv-hero {
   max-width: 1100px;
@@ -177,6 +214,49 @@ body {
 .pv-hero__panel {
   position: relative;
   min-height: 220px;
+}
+
+/* Quota banner (Worker daily allowance UI) */
+.pv-quotaBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--pv-border);
+  background: rgba(255, 203, 5, 0.06);
+}
+
+.pv-quotaBanner__message {
+  color: var(--pv-text);
+  font-size: 0.98rem;
+}
+
+.pv-quotaBanner__cta {
+  flex: 0 0 auto;
+}
+
+.pv-quotaBanner--warn {
+  border-color: rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.10);
+}
+
+.pv-quotaBanner--error {
+  border-color: rgba(220, 38, 38, 0.8);
+  background: rgba(220, 38, 38, 0.10);
+}
+
+@media (max-width: 520px) {
+  .pv-quotaBanner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pv-quotaBanner__cta {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 .pv-heroGlow {
@@ -588,6 +668,13 @@ h1, h2, h3, h4, h5, h6,
 .pv-card__title { font-weight: 700; margin: 0 0 0.25rem; }
 .pv-card__text { color: var(--pv-muted); margin: 0; }
 
+.pv-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
 /* Favorites star */
 .pv-fav-btn {
   background: transparent;
@@ -599,6 +686,23 @@ h1, h2, h3, h4, h5, h6,
 }
 .pv-fav-btn:hover { color: var(--pv-primary-dark); }
 .pv-fav-btn:focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
+
+/* Watchlist toggle */
+.pv-watch-btn {
+  background: transparent;
+  border: 1px solid var(--pv-border);
+  color: var(--pv-text);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+.pv-watch-btn[aria-pressed="true"] {
+  border-color: var(--pv-primary);
+  color: var(--pv-primary);
+}
+.pv-watch-btn:hover { border-color: var(--pv-primary-dark); color: var(--pv-primary-dark); }
+.pv-watch-btn:focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 
 /* Scroll-to-top button */
 .pv-scroll-top {

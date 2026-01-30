@@ -2,6 +2,14 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-sealed-form');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-sealed-query'));
+    const PV_BUILD = '2026-01-29-1';
+    try {
+        if (localStorage.getItem('pv:debug') === '1') {
+            console.info('[PokeValutor] sealed.js build', PV_BUILD);
+        }
+    } catch {
+        // ignore
+    }
     const status = document.getElementById('pv-sealed-status');
     const grid = document.getElementById('pv-sealed-grid');
     const favoritesGrid = document.getElementById('pv-sealed-favorites-grid');
@@ -9,17 +17,56 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesToggle = document.getElementById('pv-sealed-favorites-toggle');
     const favoritesClearBtn = document.getElementById('pv-sealed-favorites-clear');
     const favoritesTotalsEl = document.getElementById('pv-sealed-favorites-totals');
+    const watchlistGrid = document.getElementById('pv-sealed-watchlist-grid');
+    const watchlistBody = document.getElementById('pv-sealed-watchlist-body');
+    const watchlistToggle = document.getElementById('pv-sealed-watchlist-toggle');
+    const watchlistClearBtn = document.getElementById('pv-sealed-watchlist-clear');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-sealed-clear');
+
+    const quotaBanner = document.getElementById('pv-quota-banner');
+    const quotaMessageEl = document.getElementById('pv-quota-message');
+    const quotaCtaEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-quota-cta'));
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const DEFAULT_TRADE_PERCENT = 80;
     const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
 
+    const QUOTA_STORAGE_KEY = 'pv:quota:last:v1';
+
+    // Hide quota banner by default; only show for signed-out users after auth resolves.
+    function forceHideQuotaBanner() {
+        if (quotaBanner) {
+            quotaBanner.hidden = true;
+            quotaBanner.setAttribute('hidden', '');
+            quotaBanner.style.setProperty('display', 'none', 'important');
+        }
+        if (quotaCtaEl) {
+            quotaCtaEl.hidden = true;
+            quotaCtaEl.setAttribute('hidden', '');
+            quotaCtaEl.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    function clearForcedHideQuotaBanner() {
+        if (quotaBanner) {
+            quotaBanner.style.removeProperty('display');
+            quotaBanner.removeAttribute('hidden');
+            quotaBanner.hidden = false;
+        }
+        if (quotaCtaEl) {
+            quotaCtaEl.style.removeProperty('display');
+        }
+    }
+
+    forceHideQuotaBanner();
+
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
     const FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+    const WATCHLIST_KEY = `${CACHE_PREFIX}watchlist:v1`;
+    const WATCHLIST_COLLAPSED_KEY = `${CACHE_PREFIX}watchlistCollapsed:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
 
     /** @type {Array<any>} */
@@ -29,13 +76,225 @@ document.addEventListener('DOMContentLoaded', function () {
         if (status) status.textContent = message;
     }
 
+    function isQuotaExceededError(err) {
+        return !!(err && typeof err === 'object' && (err.isQuotaExceeded === true || err.status === 429));
+    }
+
+    function safeParseIntOrNull(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function loadSavedQuota() {
+        try {
+            const raw = localStorage.getItem(QUOTA_STORAGE_KEY);
+            if (!raw) return null;
+            const parsed = safeParseJson(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return {
+                tier: typeof parsed.tier === 'string' ? parsed.tier : '',
+                limit: parsed.limit == null ? null : safeParseIntOrNull(parsed.limit),
+                used: parsed.used == null ? null : safeParseIntOrNull(parsed.used),
+                remaining: parsed.remaining == null ? null : safeParseIntOrNull(parsed.remaining),
+                savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : Date.now(),
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    function saveQuota(quota) {
+        try {
+            if (!quota || typeof quota !== 'object') return;
+            localStorage.setItem(QUOTA_STORAGE_KEY, JSON.stringify({ ...quota, savedAt: Date.now() }));
+        } catch {
+            // ignore
+        }
+    }
+
+    function renderQuotaBanner(quota) {
+        if (!quotaBanner || !quotaMessageEl) return;
+        const signedIn = Boolean(window?.PV_AUTH?.getUser && window.PV_AUTH.getUser());
+
+        // Requirement: don't show the quota / sign-in banner at all when signed in.
+        if (signedIn) {
+            forceHideQuotaBanner();
+            return;
+        }
+
+        if (!quota || typeof quota !== 'object') {
+            quotaBanner.hidden = true;
+            if (quotaCtaEl) quotaCtaEl.hidden = true;
+            return;
+        }
+
+        const tier = String(quota.tier || '').toLowerCase();
+        const limit = quota.limit;
+        const remaining = quota.remaining;
+
+        quotaBanner.classList.remove('pv-quotaBanner--warn', 'pv-quotaBanner--error');
+
+        const hasNumbers = remaining != null && limit != null;
+        const ratioText = hasNumbers ? `${remaining}/${limit} remaining` : 'Daily allowance';
+
+        let message = '';
+        let showCta = false;
+
+        if (tier === 'admin') {
+            message = 'Admin access: unlimited.';
+        } else if (tier === 'tester') {
+            message = 'Tester access: unlimited.';
+        } else if (tier === 'anon' || tier === 'guest') {
+            showCta = true;
+            if (remaining != null && remaining <= 0) {
+                quotaBanner.classList.add('pv-quotaBanner--error');
+                message = 'Daily guest allowance reached. Sign in to continue (and sync Favorites/Watchlist).';
+            } else if (remaining != null && remaining <= 2) {
+                quotaBanner.classList.add('pv-quotaBanner--warn');
+                message = `Guest allowance running low: ${ratioText}. Sign in to increase your daily limit.`;
+            } else {
+                message = `Guest allowance: ${ratioText}. Sign in to increase your daily limit.`;
+            }
+        } else if (tier === 'premium' || tier === 'pro') {
+            message = hasNumbers ? `Premium allowance: ${ratioText}.` : 'Premium allowance available.';
+        } else {
+            message = hasNumbers ? `Daily allowance: ${ratioText}.` : 'Daily allowance available.';
+        }
+
+        quotaMessageEl.textContent = message;
+        clearForcedHideQuotaBanner();
+        if (quotaCtaEl) {
+            quotaCtaEl.hidden = !showCta;
+            if (showCta) {
+                quotaCtaEl.style.removeProperty('display');
+                quotaCtaEl.removeAttribute('hidden');
+            } else {
+                quotaCtaEl.setAttribute('hidden', '');
+                quotaCtaEl.style.setProperty('display', 'none', 'important');
+            }
+        }
+    }
+
+    function updateQuotaFromResponse(res) {
+        try {
+            const tier = String(res?.headers?.get('x-pv-quota-tier') || '').trim();
+            const limitRaw = res?.headers?.get('x-pv-quota-limit');
+            const usedRaw = res?.headers?.get('x-pv-quota-used');
+            const remainingRaw = res?.headers?.get('x-pv-quota-remaining');
+
+            const limit = limitRaw != null ? safeParseIntOrNull(limitRaw) : null;
+            const used = usedRaw != null ? safeParseIntOrNull(usedRaw) : null;
+            const remaining = remainingRaw != null ? safeParseIntOrNull(remainingRaw) : null;
+
+            const hasAny = Boolean(tier) || limit != null || used != null || remaining != null;
+            if (!hasAny) return;
+
+            const quota = { tier, limit, used, remaining };
+            saveQuota(quota);
+            renderQuotaBanner(quota);
+        } catch {
+            // ignore
+        }
+    }
+
+    // Only show quota UI once we KNOW the user is signed out.
+    try {
+        const debug = (() => {
+            try { return localStorage.getItem('pv:debug') === '1'; } catch { return false; }
+        })();
+
+        if (window?.PV_AUTH?.onAuthStateChanged) {
+            window.PV_AUTH.onAuthStateChanged((user) => {
+                if (debug) console.info('[PokeValutor] auth state (sealed)', user ? 'signed-in' : 'signed-out');
+                if (user) {
+                    forceHideQuotaBanner();
+                } else {
+                    renderQuotaBanner(loadSavedQuota());
+                }
+            });
+        } else {
+            renderQuotaBanner(loadSavedQuota());
+        }
+    } catch {
+        renderQuotaBanner(loadSavedQuota());
+    }
+
+    function getRoleFromClaims(claims) {
+        const roleRaw = String(claims?.role || '').trim().toLowerCase();
+        if (roleRaw === 'admin' || roleRaw === 'tester' || roleRaw === 'premium' || roleRaw === 'basic') return roleRaw;
+
+        const adminRaw = claims?.admin;
+        if (adminRaw === true || String(adminRaw || '').toLowerCase() === 'true') return 'admin';
+
+        const testerRaw = claims?.tester;
+        if (testerRaw === true || String(testerRaw || '').toLowerCase() === 'true') return 'tester';
+
+        const premiumRaw = claims?.premium;
+        if (premiumRaw === true || String(premiumRaw || '').toLowerCase() === 'true') return 'premium';
+
+        const tierRaw = String(claims?.tier || '').trim().toLowerCase();
+        if (tierRaw === 'premium' || tierRaw === 'pro') return 'premium';
+
+        return 'basic';
+    }
+
+    async function refreshQuotaBannerForAuthState() {
+        try {
+            const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+            if (!user) {
+                renderQuotaBanner(loadSavedQuota());
+                return;
+            }
+
+            // Signed in: hide banner entirely.
+            quotaBanner.hidden = true;
+            if (quotaCtaEl) quotaCtaEl.hidden = true;
+        } catch {
+            // ignore
+        }
+    }
+
+    try {
+        if (window?.PV_AUTH?.onAuthStateChanged) {
+            window.PV_AUTH.onAuthStateChanged(() => { void refreshQuotaBannerForAuthState(); });
+        }
+    } catch {
+        // ignore
+    }
+
     function safeString(value, fallback) {
         const s = String(value ?? '');
         return s ? s : (fallback || '');
     }
 
+    function escapeHtml(value) {
+        const s = String(value ?? '');
+        return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value);
+    }
+
     function normalizeFavoriteProduct(product) {
         // Keep a minimal snapshot so Favorites can render without extra API calls.
+        return {
+            id: safeString(product?.id, ''),
+            name: safeString(product?.name, 'Unknown'),
+            type: safeString(product?.type, ''),
+            images: Array.isArray(product?.images) ? product.images : [],
+            expansion: (product?.expansion && typeof product.expansion === 'object') ? product.expansion : null,
+            variants: Array.isArray(product?.variants) ? product.variants : [],
+        };
+    }
+
+    function normalizeWatchlistProduct(product) {
+        // Keep a minimal snapshot so Watchlist can render without extra API calls.
         return {
             id: safeString(product?.id, ''),
             name: safeString(product?.name, 'Unknown'),
@@ -71,9 +330,97 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
+    function loadWatchlist() {
+        try {
+            const raw = localStorage.getItem(WATCHLIST_KEY);
+            if (!raw) return [];
+            const parsed = safeParseJson(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .filter((p) => p && typeof p === 'object' && p.id != null)
+                .map(normalizeWatchlistProduct);
+        } catch {
+            return [];
+        }
+    }
+
+    function saveWatchlist(list) {
+        try {
+            localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+        } catch {
+            // ignore
+        }
+    }
+
+    function clearWatchlist() {
+        watchlist = [];
+        try { localStorage.removeItem(WATCHLIST_KEY); } catch { }
+        renderWatchlist();
+
+        // Keep results buttons in sync.
+        renderProducts(currentResultsProducts);
+    }
+
+    /** @type {Array<any>} */
+    let watchlist = loadWatchlist();
+
+    // If the user signs in, prefer cloud favorites so they follow the account.
+    // Local storage remains as an offline fallback.
+    try {
+        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadFavorites) {
+            window.PV_AUTH.onAuthStateChanged((user) => {
+                if (!user) return;
+                Promise.resolve(window.PV_AUTH.loadFavorites('sealed'))
+                    .then((list) => {
+                        if (!Array.isArray(list)) return;
+                        favorites = list.map(normalizeFavoriteProduct);
+                        saveFavorites(favorites);
+                        renderFavorites();
+                        renderProducts(currentResultsProducts);
+                    })
+                    .catch(() => {
+                        // ignore
+                    });
+            });
+        }
+    } catch {
+        // ignore
+    }
+
+    // If the user signs in, prefer cloud watchlist.
+    try {
+        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
+            window.PV_AUTH.onAuthStateChanged((user) => {
+                if (!user) return;
+                Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
+                    .then((list) => {
+                        if (!Array.isArray(list)) return;
+                        watchlist = list.map(normalizeWatchlistProduct);
+                        saveWatchlist(watchlist);
+                        renderWatchlist();
+                        renderProducts(currentResultsProducts);
+                    })
+                    .catch(() => {
+                        // ignore
+                    });
+            });
+        }
+    } catch {
+        // ignore
+    }
+
     function loadFavoritesCollapsed() {
         try {
             const raw = localStorage.getItem(FAVORITES_COLLAPSED_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function loadWatchlistCollapsed() {
+        try {
+            const raw = localStorage.getItem(WATCHLIST_COLLAPSED_KEY);
             return raw === '1' || raw === 'true';
         } catch {
             return false;
@@ -88,6 +435,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function saveWatchlistCollapsed(isCollapsed) {
+        try {
+            localStorage.setItem(WATCHLIST_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+        } catch {
+            // ignore
+        }
+    }
+
     function setFavoritesCollapsed(isCollapsed) {
         if (favoritesBody) favoritesBody.hidden = !!isCollapsed;
         if (favoritesToggle) {
@@ -97,9 +452,55 @@ document.addEventListener('DOMContentLoaded', function () {
         saveFavoritesCollapsed(isCollapsed);
     }
 
+    function setWatchlistCollapsed(isCollapsed) {
+        if (watchlistBody) watchlistBody.hidden = !!isCollapsed;
+        if (watchlistToggle) {
+            watchlistToggle.textContent = isCollapsed ? 'Show' : 'Hide';
+            watchlistToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        saveWatchlistCollapsed(isCollapsed);
+    }
+
     function isFavorite(productId) {
         const id = String(productId || '');
         return favorites.some((p) => String(p?.id || '') === id);
+    }
+
+    function isWatchlisted(productId) {
+        const id = String(productId || '');
+        return watchlist.some((p) => String(p?.id || '') === id);
+    }
+
+    function toggleWatchlist(product) {
+        const id = safeString(product?.id, '');
+        if (!id) return;
+
+        if (isWatchlisted(id)) {
+            watchlist = watchlist.filter((p) => String(p?.id || '') !== id);
+            try {
+                if (window?.PV_AUTH?.removeWatchlistItem) {
+                    void window.PV_AUTH.removeWatchlistItem('sealed', id);
+                }
+            } catch {
+                // ignore
+            }
+        } else {
+            const item = normalizeWatchlistProduct(product);
+            watchlist = [...watchlist, item];
+            try {
+                if (window?.PV_AUTH?.saveWatchlistItem) {
+                    void window.PV_AUTH.saveWatchlistItem('sealed', item);
+                }
+            } catch {
+                // ignore
+            }
+        }
+
+        saveWatchlist(watchlist);
+        renderWatchlist();
+
+        // Keep results buttons in sync.
+        renderProducts(currentResultsProducts);
     }
 
     function toggleFavorite(product) {
@@ -108,8 +509,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (isFavorite(id)) {
             favorites = favorites.filter((p) => String(p?.id || '') !== id);
+            try {
+                if (window?.PV_AUTH?.removeFavorite) {
+                    void window.PV_AUTH.removeFavorite('sealed', id);
+                }
+            } catch {
+                // ignore
+            }
         } else {
-            favorites = [...favorites, normalizeFavoriteProduct(product)];
+            const favObj = normalizeFavoriteProduct(product);
+            favorites = [...favorites, favObj];
+            try {
+                if (window?.PV_AUTH?.saveFavorite) {
+                    void window.PV_AUTH.saveFavorite('sealed', favObj);
+                }
+            } catch {
+                // ignore
+            }
         }
         saveFavorites(favorites);
         renderFavorites();
@@ -125,6 +541,55 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Keep results stars in sync.
         renderProducts(currentResultsProducts);
+    }
+
+    function renderWatchlist() {
+        if (!watchlistGrid) return;
+        watchlistGrid.innerHTML = '';
+
+        if (!Array.isArray(watchlist) || watchlist.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'col-12';
+            empty.textContent = 'No watchlist items yet. Click Watch on a result card to save it here.';
+            watchlistGrid.appendChild(empty);
+            return;
+        }
+
+        for (const item of watchlist) {
+            const col = document.createElement('div');
+            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+
+            const id = safeString(item?.id, '');
+            const name = safeString(item?.name, 'Unknown');
+            const type = safeString(item?.type, '');
+            const imgUrl = pickFrontSmallImage(item?.images);
+
+            const idAttr = escapeAttr(id);
+            const nameHtml = escapeHtml(name);
+            const nameAttr = escapeAttr(name);
+            const typeHtml = escapeHtml(type);
+            const imgUrlAttr = escapeAttr(imgUrl);
+
+            col.innerHTML = `
+                <div class="pv-card h-100">
+                    ${imgUrl ? `<img class="pv-card__img pv-card__img--sealed" src="${imgUrlAttr}" alt="${nameAttr} product image"/>` : ''}
+                    <div class="pv-card__body">
+                        <div class="pv-card__header">
+                            <div class="pv-card__title">${nameHtml}</div>
+                            <div class="pv-card__actions">
+                                <button id="pv-watch-${idAttr}" class="pv-watch-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">Watching</button>
+                            </div>
+                        </div>
+                        <p class="pv-card__text">${type ? `Type: ${typeHtml}` : 'Type: n/a'}</p>
+                    </div>
+                </div>
+            `;
+
+            const btn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-watch-${CSS.escape(id)}`));
+            if (btn) btn.addEventListener('click', () => toggleWatchlist(item));
+
+            watchlistGrid.appendChild(col);
+        }
     }
 
     function getWorkerBase() {
@@ -194,7 +659,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const cached = cacheGet(cacheKey);
         if (cached) return cached;
 
-        const res = await fetch(url);
+        let headers;
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+            // Basic sanity: Firebase ID tokens are JWTs (3 dot-separated parts).
+            if (token && token.split('.').length === 3) {
+                headers = { Authorization: `Bearer ${token}` };
+            }
+        } catch {
+            // ignore
+        }
+
+        const res = await fetch(url, headers ? { headers } : undefined);
+        updateQuotaFromResponse(res);
         const text = await res.text();
 
         let data;
@@ -206,7 +684,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!res.ok) {
             const message = (data && typeof data === 'object' && (data.error || data.message)) ? (data.error || data.message) : `Request failed (${res.status})`;
-            throw new Error(String(message));
+            const err = new Error(String(message));
+            // @ts-ignore
+            err.status = res.status;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429;
+            throw err;
         }
 
         cacheSet(cacheKey, data, ttlMs);
@@ -540,8 +1023,22 @@ document.addEventListener('DOMContentLoaded', function () {
             favBtn.textContent = favored ? '★' : '☆';
             favBtn.addEventListener('click', () => toggleFavorite(p));
 
+            const watchBtn = document.createElement('button');
+            watchBtn.className = 'pv-watch-btn';
+            watchBtn.type = 'button';
+            const watching = isWatchlisted(p?.id);
+            watchBtn.setAttribute('aria-label', watching ? 'Remove from watchlist' : 'Add to watchlist');
+            watchBtn.setAttribute('aria-pressed', watching ? 'true' : 'false');
+            watchBtn.textContent = watching ? 'Watching' : 'Watch';
+            watchBtn.addEventListener('click', () => toggleWatchlist(p));
+
+            const actions = document.createElement('div');
+            actions.className = 'pv-card__actions';
+            actions.appendChild(watchBtn);
+            actions.appendChild(favBtn);
+
             header.appendChild(title);
-            header.appendChild(favBtn);
+            header.appendChild(actions);
 
             const expName = String(p?.expansion?.name || '');
             const expSeries = String(p?.expansion?.series || '');
@@ -626,7 +1123,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 savedAt: Date.now(),
             });
         } catch (e) {
-            setStatus(`Error: ${e?.message || 'Search failed.'}`);
+            if (isQuotaExceededError(e)) {
+                setStatus('Daily guest allowance reached. Sign in to continue.');
+            } else {
+                setStatus(`Error: ${e?.message || 'Search failed.'}`);
+            }
             if (grid) grid.innerHTML = '';
         }
     }
@@ -655,6 +1156,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Render Favorites immediately (persisted across refresh).
     renderFavorites();
 
+    // Render Watchlist immediately (persisted across refresh).
+    renderWatchlist();
+
     // Favorites collapsible behavior (persisted across refresh).
     if (favoritesToggle) {
         favoritesToggle.addEventListener('click', () => {
@@ -664,8 +1168,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     setFavoritesCollapsed(loadFavoritesCollapsed());
 
+    // Watchlist collapsible behavior (persisted across refresh).
+    if (watchlistToggle) {
+        watchlistToggle.addEventListener('click', () => {
+            const isCollapsed = watchlistBody ? !watchlistBody.hidden : false;
+            setWatchlistCollapsed(isCollapsed);
+        });
+    }
+    setWatchlistCollapsed(loadWatchlistCollapsed());
+
     if (favoritesClearBtn) {
         favoritesClearBtn.addEventListener('click', () => clearFavorites());
+    }
+
+    if (watchlistClearBtn) {
+        watchlistClearBtn.addEventListener('click', () => clearWatchlist());
     }
 
     // Restore last results after refresh.

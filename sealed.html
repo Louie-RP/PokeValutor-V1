@@ -8,7 +8,7 @@
     <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
     <meta property="og:image:alt" content="PokéValutor logo" />
     <title>PokéValutor • Sealed</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -33,6 +33,7 @@
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
                 </ul>
             </nav>
@@ -61,6 +62,10 @@
             <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
             <section id="pv-sealed-results" class="pv-section" aria-labelledby="pv-sealed-results-title">
                 <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
+                    <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
+                    <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
+                </div>
                 <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
             </section>
 
@@ -75,6 +80,20 @@
                 </div>
                 <div id="pv-sealed-favorites-body">
                     <div id="pv-sealed-favorites-grid" class="row g-3" aria-label="Sealed favorites grid"></div>
+                </div>
+            </section>
+
+            <section id="pv-sealed-watchlist" class="pv-section" aria-labelledby="pv-sealed-watchlist-title">
+                <div class="pv-section__header">
+                    <h2 id="pv-sealed-watchlist-title" class="pv-section__title">Watchlist</h2>
+                    <div>
+                        <button id="pv-sealed-watchlist-toggle" class="pv-button pv-button--primary btn" type="button"
+                            aria-controls="pv-sealed-watchlist-body" aria-expanded="true">Hide</button>
+                        <button id="pv-sealed-watchlist-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
+                    </div>
+                </div>
+                <div id="pv-sealed-watchlist-body">
+                    <div id="pv-sealed-watchlist-grid" class="row g-3" aria-label="Sealed watchlist grid"></div>
                 </div>
             </section>
         </section>
@@ -94,7 +113,16 @@
     <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
 
     <script src="script.js" defer></script>
-    <script src="sealed.js" defer></script>
+
+    <!-- Firebase CDN (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+
+    <script src="firebase-config.js" defer></script>
+    <script src="firebase.js" defer></script>
+
+    <script src="sealed.js?v=2026-01-29-1" defer></script>
 </body>
 
 </html>
