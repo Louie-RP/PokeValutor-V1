@@ -128,6 +128,19 @@
     try { return JSON.parse(text); } catch { return null; }
   }
 
+  function cacheGetStale(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = safeParseJson(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      if (!('value' in parsed)) return null;
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  }
+
   function cacheGet(key) {
     try {
       const raw = localStorage.getItem(key);
@@ -302,11 +315,32 @@
       const pageSize = Math.max(30, LATEST_EXPANSIONS_COUNT * 4);
       const url = `${base}/expansions/search?q=${encodeURIComponent(q)}&orderBy=-release_date&page=1&pageSize=${pageSize}&select=id,name,logo,release_date,is_online_only,series,language,language_code&casing=camel`;
 
-      const res = await fetch(url, { method: 'GET' });
+      /** @type {Record<string, string>|undefined} */
+      let headers;
+      try {
+        const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+        const token = String(tokenRaw || '').trim();
+        if (token) headers = { Authorization: `Bearer ${token}` };
+      } catch {
+        // ignore
+      }
+
+      const res = await fetch(url, { method: 'GET', headers });
       const text = await res.text();
       const data = safeParseJson(text);
 
       if (!res.ok) {
+        // If quota ever blocks this endpoint, fall back to last known cache so home never goes blank.
+        if (res.status === 429) {
+          const stale = cacheGetStale(CACHE_KEY);
+          if (Array.isArray(stale) && stale.length) {
+            const cleaned = normalizeExpansions(stale);
+            if (cleaned.length) {
+              renderExpansionsList(cleaned);
+              return;
+            }
+          }
+        }
         const msg = (data && typeof data === 'object' && (data.error || data.message)) ? (data.error || data.message) : `Request failed (${res.status})`;
         throw new Error(String(msg));
       }
@@ -320,7 +354,12 @@
         renderExpansionsList(normalized);
       }
     } catch {
-      // Keep the placeholder if the API fails.
+      // Keep the placeholder if the API fails, but prefer any stale cache.
+      const stale = cacheGetStale(CACHE_KEY);
+      if (Array.isArray(stale) && stale.length) {
+        const cleaned = normalizeExpansions(stale);
+        if (cleaned.length) renderExpansionsList(cleaned);
+      }
     }
   }
 
