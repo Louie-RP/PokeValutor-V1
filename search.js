@@ -222,17 +222,63 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
+    function mergeWatchlist(localList, cloudList) {
+        /** @type {Array<any>} */
+        const merged = [];
+        const seen = new Set();
+
+        /** @param {any} item */
+        function add(item) {
+            if (!item || typeof item !== 'object') return;
+            const normalized = normalizeFavoriteCard(item);
+            const id = String(normalized?.id || '').trim();
+            if (!id || seen.has(id)) return;
+            seen.add(id);
+            merged.push(normalized);
+        }
+
+        // Prefer cloud ordering/values first, then append anything local-only.
+        if (Array.isArray(cloudList)) {
+            for (const item of cloudList) add(item);
+        }
+        if (Array.isArray(localList)) {
+            for (const item of localList) add(item);
+        }
+        return merged;
+    }
+
     // If the user signs in, prefer cloud favorites so they follow the account.
     // Local storage remains as an offline fallback.
     try {
         if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) return;
+                const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
+
                 Promise.resolve(window.PV_AUTH.loadWatchlist('card'))
-                    .then((list) => {
-                        if (!Array.isArray(list)) return;
-                        favorites = list.map(normalizeFavoriteCard);
+                    .then((cloudList) => {
+                        if (!Array.isArray(cloudList)) return;
+
+                        // Merge cloud + local to avoid wiping local watchlist when cloud is empty
+                        // (common during first-time setup, permission issues, or temporary offline).
+                        favorites = mergeWatchlist(localSnapshot, cloudList);
                         saveFavorites(favorites);
+
+                        // Best-effort: push any local-only items into the cloud so it follows the account.
+                        try {
+                            if (window?.PV_AUTH?.saveWatchlistItem) {
+                                const cloudIds = new Set(cloudList.map((x) => String(x?.id || '').trim()).filter(Boolean));
+                                const toSync = localSnapshot
+                                    .map(normalizeFavoriteCard)
+                                    .filter((x) => x && x.id && !cloudIds.has(String(x.id)));
+                                if (toSync.length) {
+                                    void Promise.allSettled(toSync.map((x) => window.PV_AUTH.saveWatchlistItem('card', x)));
+                                }
+                            }
+                        } catch {
+                            // ignore
+                        }
+
                         const restoredState = loadLastResults();
                         renderFavorites(restoredState || undefined);
                         renderCards(currentResultsCards, restoredState || undefined);

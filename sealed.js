@@ -343,17 +343,61 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
+    function mergeWatchlist(localList, cloudList) {
+        /** @type {Array<any>} */
+        const merged = [];
+        const seen = new Set();
+
+        /** @param {any} item */
+        function add(item) {
+            if (!item || typeof item !== 'object') return;
+            const normalized = normalizeFavoriteProduct(item);
+            const id = String(normalized?.id || '').trim();
+            if (!id || seen.has(id)) return;
+            seen.add(id);
+            merged.push(normalized);
+        }
+
+        // Prefer cloud ordering/values first, then append anything local-only.
+        if (Array.isArray(cloudList)) {
+            for (const item of cloudList) add(item);
+        }
+        if (Array.isArray(localList)) {
+            for (const item of localList) add(item);
+        }
+        return merged;
+    }
+
     // If the user signs in, prefer cloud watchlist so it follows the account.
     // Local storage remains as an offline fallback.
     try {
         if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) return;
+                const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
+
                 Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
-                    .then((list) => {
-                        if (!Array.isArray(list)) return;
-                        favorites = list.map(normalizeFavoriteProduct);
+                    .then((cloudList) => {
+                        if (!Array.isArray(cloudList)) return;
+
+                        favorites = mergeWatchlist(localSnapshot, cloudList);
                         saveFavorites(favorites);
+
+                        // Best-effort: push any local-only items into the cloud.
+                        try {
+                            if (window?.PV_AUTH?.saveWatchlistItem) {
+                                const cloudIds = new Set(cloudList.map((x) => String(x?.id || '').trim()).filter(Boolean));
+                                const toSync = localSnapshot
+                                    .map(normalizeFavoriteProduct)
+                                    .filter((x) => x && x.id && !cloudIds.has(String(x.id)));
+                                if (toSync.length) {
+                                    void Promise.allSettled(toSync.map((x) => window.PV_AUTH.saveWatchlistItem('sealed', x)));
+                                }
+                            }
+                        } catch {
+                            // ignore
+                        }
+
                         renderFavorites();
                         renderProducts(currentResultsProducts);
                     })
