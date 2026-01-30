@@ -10,10 +10,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesToggle = document.getElementById('pv-favorites-toggle');
     const favoritesClearBtn = document.getElementById('pv-favorites-clear');
     const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
-    const watchlistGrid = document.getElementById('pv-watchlist-grid');
-    const watchlistBody = document.getElementById('pv-watchlist-body');
-    const watchlistToggle = document.getElementById('pv-watchlist-toggle');
-    const watchlistClearBtn = document.getElementById('pv-watchlist-clear');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
 
@@ -59,10 +55,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
 
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
-    const FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
-    const FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+    // Single saved-items list is now the Watchlist.
+    // Migrate legacy Favorites storage into Watchlist to avoid data loss.
     const WATCHLIST_KEY = `${CACHE_PREFIX}watchlist:v1`;
     const WATCHLIST_COLLAPSED_KEY = `${CACHE_PREFIX}watchlistCollapsed:v1`;
+    const LEGACY_FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
+    const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
 
     const PV_BUILD = '2026-01-29-1';
@@ -141,18 +139,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function normalizeFavoriteCard(card) {
-        // Keep a minimal snapshot so Favorites can render without extra API calls.
-        return {
-            id: safeString(card?.id, ''),
-            name: safeString(card?.name, 'Unknown'),
-            rarity: safeString(card?.rarity, ''),
-            variants: Array.isArray(card?.variants) ? card.variants : [],
-            selectedVariant: safeString(card?.selectedVariant, ''),
-            pricesText: safeString(card?.pricesText, ''),
-        };
-    }
-
-    function normalizeWatchlistCard(card) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
         return {
             id: safeString(card?.id, ''),
@@ -160,18 +146,53 @@ document.addEventListener('DOMContentLoaded', function () {
             rarity: safeString(card?.rarity, ''),
             images: Array.isArray(card?.images) ? card.images : [],
             variants: Array.isArray(card?.variants) ? card.variants : [],
+            selectedVariant: safeString(card?.selectedVariant, ''),
+            pricesText: safeString(card?.pricesText, ''),
         };
     }
 
     function loadFavorites() {
+        /** @type {Array<any>} */
+        const out = [];
+        const seen = new Set();
+
+        /** @param {any[]} list */
+        function addList(list) {
+            if (!Array.isArray(list)) return;
+            for (const item of list) {
+                if (!item || typeof item !== 'object' || item.id == null) continue;
+                const normalized = normalizeFavoriteCard(item);
+                const id = String(normalized.id || '');
+                if (!id || seen.has(id)) continue;
+                seen.add(id);
+                out.push(normalized);
+            }
+        }
+
         try {
-            const raw = localStorage.getItem(FAVORITES_KEY);
-            if (!raw) return [];
-            const parsed = safeParseJson(raw);
-            if (!Array.isArray(parsed)) return [];
-            return parsed
-                .filter((c) => c && typeof c === 'object' && c.id != null)
-                .map(normalizeFavoriteCard);
+            const watchRaw = localStorage.getItem(WATCHLIST_KEY);
+            if (watchRaw) {
+                const watchParsed = safeParseJson(watchRaw);
+                addList(watchParsed);
+            }
+
+            const legacyRaw = localStorage.getItem(LEGACY_FAVORITES_KEY);
+            if (legacyRaw) {
+                const legacyParsed = safeParseJson(legacyRaw);
+                addList(legacyParsed);
+            }
+
+            // Migrate/normalize into the Watchlist key.
+            try {
+                localStorage.setItem(WATCHLIST_KEY, JSON.stringify(out));
+                if (localStorage.getItem(LEGACY_FAVORITES_KEY)) {
+                    localStorage.removeItem(LEGACY_FAVORITES_KEY);
+                }
+            } catch {
+                // ignore
+            }
+
+            return out;
         } catch {
             return [];
         }
@@ -179,7 +200,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveFavorites(list) {
         try {
-            localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+            localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+            // Best-effort cleanup of legacy key.
+            try { localStorage.removeItem(LEGACY_FAVORITES_KEY); } catch {}
         } catch {
             // ignore
         }
@@ -187,7 +210,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearFavorites() {
         favorites = [];
-        try { localStorage.removeItem(FAVORITES_KEY); } catch {}
+        try { localStorage.removeItem(WATCHLIST_KEY); } catch {}
+        try { localStorage.removeItem(LEGACY_FAVORITES_KEY); } catch {}
         const restoredState = loadLastResults();
         renderFavorites(restoredState || undefined);
 
@@ -198,48 +222,13 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
-    function loadWatchlist() {
-        try {
-            const raw = localStorage.getItem(WATCHLIST_KEY);
-            if (!raw) return [];
-            const parsed = safeParseJson(raw);
-            if (!Array.isArray(parsed)) return [];
-            return parsed
-                .filter((c) => c && typeof c === 'object' && c.id != null)
-                .map(normalizeWatchlistCard);
-        } catch {
-            return [];
-        }
-    }
-
-    function saveWatchlist(list) {
-        try {
-            localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(list) ? list : []));
-        } catch {
-            // ignore
-        }
-    }
-
-    function clearWatchlist() {
-        watchlist = [];
-        try { localStorage.removeItem(WATCHLIST_KEY); } catch {}
-        renderWatchlist();
-
-        // Keep results buttons in sync.
-        const restoredState = loadLastResults();
-        renderCards(currentResultsCards, restoredState || undefined);
-    }
-
-    /** @type {Array<any>} */
-    let watchlist = loadWatchlist();
-
     // If the user signs in, prefer cloud favorites so they follow the account.
     // Local storage remains as an offline fallback.
     try {
-        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadFavorites) {
+        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) return;
-                Promise.resolve(window.PV_AUTH.loadFavorites('card'))
+                Promise.resolve(window.PV_AUTH.loadWatchlist('card'))
                     .then((list) => {
                         if (!Array.isArray(list)) return;
                         favorites = list.map(normalizeFavoriteCard);
@@ -257,41 +246,21 @@ document.addEventListener('DOMContentLoaded', function () {
         // ignore
     }
 
-    // If the user signs in, prefer cloud watchlist.
-    try {
-        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
-            window.PV_AUTH.onAuthStateChanged((user) => {
-                if (!user) return;
-                Promise.resolve(window.PV_AUTH.loadWatchlist('card'))
-                    .then((list) => {
-                        if (!Array.isArray(list)) return;
-                        watchlist = list.map(normalizeWatchlistCard);
-                        saveWatchlist(watchlist);
-                        renderWatchlist();
-                        const restoredState = loadLastResults();
-                        renderCards(currentResultsCards, restoredState || undefined);
-                    })
-                    .catch(() => {
-                        // ignore
-                    });
-            });
-        }
-    } catch {
-        // ignore
-    }
-
     function loadFavoritesCollapsed() {
         try {
-            const raw = localStorage.getItem(FAVORITES_COLLAPSED_KEY);
-            return raw === '1' || raw === 'true';
-        } catch {
-            return false;
-        }
-    }
-
-    function loadWatchlistCollapsed() {
-        try {
             const raw = localStorage.getItem(WATCHLIST_COLLAPSED_KEY);
+            if (raw == null) {
+                const legacy = localStorage.getItem(LEGACY_FAVORITES_COLLAPSED_KEY);
+                if (legacy != null) {
+                    try {
+                        localStorage.setItem(WATCHLIST_COLLAPSED_KEY, legacy);
+                        localStorage.removeItem(LEGACY_FAVORITES_COLLAPSED_KEY);
+                    } catch {
+                        // ignore
+                    }
+                    return legacy === '1' || legacy === 'true';
+                }
+            }
             return raw === '1' || raw === 'true';
         } catch {
             return false;
@@ -300,15 +269,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveFavoritesCollapsed(isCollapsed) {
         try {
-            localStorage.setItem(FAVORITES_COLLAPSED_KEY, isCollapsed ? '1' : '0');
-        } catch {
-            // ignore
-        }
-    }
-
-    function saveWatchlistCollapsed(isCollapsed) {
-        try {
             localStorage.setItem(WATCHLIST_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+            try { localStorage.removeItem(LEGACY_FAVORITES_COLLAPSED_KEY); } catch {}
         } catch {
             // ignore
         }
@@ -323,56 +285,9 @@ document.addEventListener('DOMContentLoaded', function () {
         saveFavoritesCollapsed(isCollapsed);
     }
 
-    function setWatchlistCollapsed(isCollapsed) {
-        if (watchlistBody) watchlistBody.hidden = !!isCollapsed;
-        if (watchlistToggle) {
-            watchlistToggle.textContent = isCollapsed ? 'Show' : 'Hide';
-            watchlistToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-        }
-        saveWatchlistCollapsed(isCollapsed);
-    }
-
     function isFavorite(cardId) {
         const id = String(cardId || '');
         return favorites.some((c) => String(c?.id || '') === id);
-    }
-
-    function isWatchlisted(cardId) {
-        const id = String(cardId || '');
-        return watchlist.some((c) => String(c?.id || '') === id);
-    }
-
-    function toggleWatchlist(card) {
-        const id = safeString(card?.id, '');
-        if (!id) return;
-
-        if (isWatchlisted(id)) {
-            watchlist = watchlist.filter((c) => String(c?.id || '') !== id);
-            try {
-                if (window?.PV_AUTH?.removeWatchlistItem) {
-                    void window.PV_AUTH.removeWatchlistItem('card', id);
-                }
-            } catch {
-                // ignore
-            }
-        } else {
-            const item = normalizeWatchlistCard(card);
-            watchlist = [...watchlist, item];
-            try {
-                if (window?.PV_AUTH?.saveWatchlistItem) {
-                    void window.PV_AUTH.saveWatchlistItem('card', item);
-                }
-            } catch {
-                // ignore
-            }
-        }
-
-        saveWatchlist(watchlist);
-        renderWatchlist();
-
-        // Keep result buttons in sync.
-        const restoredState = loadLastResults();
-        renderCards(currentResultsCards, restoredState || undefined);
     }
 
     function toggleFavorite(card) {
@@ -382,8 +297,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isFavorite(id)) {
             favorites = favorites.filter((c) => String(c?.id || '') !== id);
             try {
-                if (window?.PV_AUTH?.removeFavorite) {
-                    void window.PV_AUTH.removeFavorite('card', id);
+                if (window?.PV_AUTH?.removeWatchlistItem) {
+                    void window.PV_AUTH.removeWatchlistItem('card', id);
                 }
             } catch {
                 // ignore
@@ -447,8 +362,8 @@ document.addEventListener('DOMContentLoaded', function () {
             favorites = [...favorites, favObj];
 
             try {
-                if (window?.PV_AUTH?.saveFavorite) {
-                    void window.PV_AUTH.saveFavorite('card', favObj);
+                if (window?.PV_AUTH?.saveWatchlistItem) {
+                    void window.PV_AUTH.saveWatchlistItem('card', favObj);
                 }
             } catch {
                 // ignore
@@ -539,7 +454,7 @@ document.addEventListener('DOMContentLoaded', function () {
             showCta = true;
             if (remaining != null && remaining <= 0) {
                 quotaBanner.classList.add('pv-quotaBanner--error');
-                message = 'Daily guest allowance reached. Sign in to continue (and sync Favorites/Watchlist).';
+                message = 'Daily guest allowance reached. Sign in to continue (and sync your Watchlist).';
             } else if (remaining != null && remaining <= 2) {
                 quotaBanner.classList.add('pv-quotaBanner--warn');
                 message = `Guest allowance running low: ${ratioText}. Sign in to increase your daily limit.`;
@@ -831,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!Array.isArray(favorites) || favorites.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'col-12';
-            empty.textContent = 'No favorites yet. Click ☆ on a result card to save it here.';
+            empty.textContent = 'No watchlist items yet. Click ☆ on a result card to save it here.';
             favoritesGrid.appendChild(empty);
             updateFavoritesTotals(restoreState);
             return;
@@ -870,7 +785,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="pv-card__body">
                         <div class="pv-card__header">
                             <div class="pv-card__title">${nameHtml}</div>
-                            <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from favorites" aria-pressed="true" title="Unfavorite">★</button>
+                            <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
                         </div>
                         <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
                         ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariantHtml}</p>` : ''}
@@ -1014,57 +929,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         updateFavoritesTotals(restoreState);
-    }
-
-    function renderWatchlist() {
-        if (!watchlistGrid) return;
-        watchlistGrid.innerHTML = '';
-
-        if (!Array.isArray(watchlist) || watchlist.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'col-12';
-            empty.textContent = 'No watchlist items yet. Click Watch on a result card to save it here.';
-            watchlistGrid.appendChild(empty);
-            return;
-        }
-
-        for (const item of watchlist) {
-            const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
-
-            const id = safeString(item?.id, '');
-            const name = safeString(item?.name, 'Unknown');
-            const rarity = safeString(item?.rarity, '');
-            const imgUrl = sanitizeUrl(pickFrontMediumImage(item?.images));
-
-            const idAttr = escapeAttr(id);
-            const nameHtml = escapeHtml(name);
-            const nameAttr = escapeAttr(name);
-            const rarityHtml = escapeHtml(rarity);
-            const imgUrlAttr = escapeAttr(imgUrl);
-
-            col.innerHTML = `
-                <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/>` : ''}
-                    <div class="pv-card__body">
-                        <div class="pv-card__header">
-                            <div class="pv-card__title">${nameHtml}</div>
-                            <div class="pv-card__actions">
-                                <button id="pv-watch-${idAttr}" class="pv-watch-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">Watching</button>
-                            </div>
-                        </div>
-                        <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
-                    </div>
-                </div>
-            `;
-
-            const btn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-watch-${CSS.escape(id)}`));
-            if (btn) {
-                btn.addEventListener('click', () => toggleWatchlist(item));
-            }
-
-            watchlistGrid.appendChild(col);
-        }
     }
 
     async function fetchJsonWithCache(url, ttlMs) {
@@ -1387,11 +1251,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const variantsFull = Array.isArray(card?.variants) ? card.variants : [];
             const variants = variantsFull.map((v) => v?.name).filter(Boolean);
             const fav = isFavorite(id);
-            const watching = isWatchlisted(id);
             const favSymbol = fav ? '★' : '☆';
-            const favLabel = fav ? 'Remove from favorites' : 'Add to favorites';
-            const watchText = watching ? 'Watching' : 'Watch';
-            const watchLabel = watching ? 'Remove from watchlist' : 'Add to watchlist';
+            const favLabel = fav ? 'Remove from watchlist' : 'Add to watchlist';
 
             const variantOptions = variants.length
                 ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
@@ -1411,7 +1272,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const nameAttr = escapeAttr(name);
             const rarityHtml = escapeHtml(rarity);
             const favLabelAttr = escapeAttr(favLabel);
-            const watchLabelAttr = escapeAttr(watchLabel);
             const imgUrlAttr = escapeAttr(imgUrl);
 
             col.innerHTML = `
@@ -1421,7 +1281,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="pv-card__header">
                             <div class="pv-card__title">${nameHtml}</div>
                             <div class="pv-card__actions">
-                                <button id="pv-watch-${idAttr}" class="pv-watch-btn" type="button" aria-label="${watchLabelAttr}" aria-pressed="${watching ? 'true' : 'false'}" title="${watchLabelAttr}">${watchText}</button>
                                 <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
                             </div>
                         </div>
@@ -1448,12 +1307,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
-            const watchBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-watch-${CSS.escape(id)}`));
             if (favBtn) {
                 favBtn.addEventListener('click', () => toggleFavorite(card));
-            }
-            if (watchBtn) {
-                watchBtn.addEventListener('click', () => toggleWatchlist(card));
             }
 
             let lastLoadedVariantName = '';
@@ -2008,9 +1863,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // Render Favorites immediately (persisted across refresh).
     renderFavorites(loadLastResults() || undefined);
 
-    // Render Watchlist immediately (persisted across refresh).
-    renderWatchlist();
-
     // Favorites collapsible behavior (persisted across refresh).
     if (favoritesToggle) {
         favoritesToggle.addEventListener('click', () => {
@@ -2020,24 +1872,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     setFavoritesCollapsed(loadFavoritesCollapsed());
 
-    // Watchlist collapsible behavior (persisted across refresh).
-    if (watchlistToggle) {
-        watchlistToggle.addEventListener('click', () => {
-            const currentlyCollapsed = !!watchlistBody?.hidden;
-            setWatchlistCollapsed(!currentlyCollapsed);
-        });
-    }
-    setWatchlistCollapsed(loadWatchlistCollapsed());
-
     if (favoritesClearBtn) {
         favoritesClearBtn.addEventListener('click', () => {
             clearFavorites();
-        });
-    }
-
-    if (watchlistClearBtn) {
-        watchlistClearBtn.addEventListener('click', () => {
-            clearWatchlist();
         });
     }
 

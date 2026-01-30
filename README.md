@@ -70,13 +70,15 @@ service cloud.firestore {
 ### 4) Use the Account page
 - Visit [account.html](account.html)
 - Sign up/sign in
-- When signed in, Favorites and Watchlist on Cards/Sealed will sync to Firestore (and still keep local storage as a fallback).
+- When signed in, your Watchlist on Cards/Sealed will sync to Firestore (and still keep local storage as a fallback).
 
 Firestore subcollections used:
-- `users/{uid}/cardFavorites`
-- `users/{uid}/sealedFavorites`
 - `users/{uid}/cardWatchlist`
 - `users/{uid}/sealedWatchlist`
+
+Legacy (migration only): older accounts may still have data in these collections:
+- `users/{uid}/cardFavorites`
+- `users/{uid}/sealedFavorites`
 
 ## Cloudflare Worker: Auth-gated quotas
 

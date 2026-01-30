@@ -151,10 +151,7 @@
         return root.collection(subcollectionName(kind, 'watchlist'));
     }
 
-    async function loadFavorites(kind) {
-        const user = getUser();
-        if (!user || !db) return [];
-        const ref = favoritesCollectionRef(user.uid, kind);
+    async function readCollection(ref) {
         if (!ref) return [];
         try {
             const snap = await ref.get();
@@ -167,6 +164,13 @@
         } catch {
             return [];
         }
+    }
+
+    async function loadFavorites(kind) {
+        const user = getUser();
+        if (!user || !db) return [];
+        const ref = favoritesCollectionRef(user.uid, kind);
+        return readCollection(ref);
     }
 
     async function saveFavorite(kind, item) {
@@ -197,19 +201,42 @@
     async function loadWatchlist(kind) {
         const user = getUser();
         if (!user || !db) return [];
-        const ref = watchlistCollectionRef(user.uid, kind);
-        if (!ref) return [];
-        try {
-            const snap = await ref.get();
-            const out = [];
-            snap.forEach((doc) => {
-                const data = doc.data();
-                if (data && typeof data === 'object') out.push(data);
-            });
-            return out;
-        } catch {
-            return [];
+        const watchRef = watchlistCollectionRef(user.uid, kind);
+        if (!watchRef) return [];
+
+        // Migration behavior: when Watchlist is requested, also read legacy Favorites
+        // and merge any missing items into Watchlist. This prevents data loss for
+        // existing users while the UI and localStorage are renamed.
+        const favRef = favoritesCollectionRef(user.uid, kind);
+        const [watchItems, legacyItems] = await Promise.all([
+            readCollection(watchRef),
+            readCollection(favRef),
+        ]);
+
+        const byId = new Map();
+        for (const item of watchItems) {
+            const id = String(item?.id || '').trim();
+            if (!id) continue;
+            byId.set(id, item);
         }
+
+        /** @type {Array<any>} */
+        const toMigrate = [];
+        for (const item of legacyItems) {
+            const id = String(item?.id || '').trim();
+            if (!id) continue;
+            if (!byId.has(id)) {
+                byId.set(id, item);
+                toMigrate.push(item);
+            }
+        }
+
+        if (toMigrate.length) {
+            // Best-effort copy into Watchlist; keep legacy Favorites intact.
+            await Promise.allSettled(toMigrate.map((item) => saveWatchlistItem(kind, item)));
+        }
+
+        return Array.from(byId.values());
     }
 
     async function saveWatchlistItem(kind, item) {
@@ -230,11 +257,19 @@
     async function removeWatchlistItem(kind, id) {
         const user = getUser();
         if (!user || !db) return;
-        const ref = watchlistCollectionRef(user.uid, kind);
-        if (!ref) return;
         const docId = String(id || '').trim();
         if (!docId) return;
-        await ref.doc(docId).delete();
+        const watchRef = watchlistCollectionRef(user.uid, kind);
+        if (watchRef) {
+            try { await watchRef.doc(docId).delete(); } catch { /* ignore */ }
+        }
+
+        // Also remove from legacy Favorites so deleted items don't reappear
+        // during Watchlist migration/merge.
+        const favRef = favoritesCollectionRef(user.uid, kind);
+        if (favRef) {
+            try { await favRef.doc(docId).delete(); } catch { /* ignore */ }
+        }
     }
 
     window.PV_AUTH = {

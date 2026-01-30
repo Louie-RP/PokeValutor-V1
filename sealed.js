@@ -17,10 +17,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesToggle = document.getElementById('pv-sealed-favorites-toggle');
     const favoritesClearBtn = document.getElementById('pv-sealed-favorites-clear');
     const favoritesTotalsEl = document.getElementById('pv-sealed-favorites-totals');
-    const watchlistGrid = document.getElementById('pv-sealed-watchlist-grid');
-    const watchlistBody = document.getElementById('pv-sealed-watchlist-body');
-    const watchlistToggle = document.getElementById('pv-sealed-watchlist-toggle');
-    const watchlistClearBtn = document.getElementById('pv-sealed-watchlist-clear');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-sealed-clear');
 
@@ -63,10 +59,12 @@ document.addEventListener('DOMContentLoaded', function () {
     forceHideQuotaBanner();
 
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
-    const FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
-    const FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+    // Single saved-items list is now the Watchlist.
+    // Migrate legacy Favorites storage into Watchlist to avoid data loss.
     const WATCHLIST_KEY = `${CACHE_PREFIX}watchlist:v1`;
     const WATCHLIST_COLLAPSED_KEY = `${CACHE_PREFIX}watchlistCollapsed:v1`;
+    const LEGACY_FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
+    const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
 
     /** @type {Array<any>} */
@@ -148,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
             showCta = true;
             if (remaining != null && remaining <= 0) {
                 quotaBanner.classList.add('pv-quotaBanner--error');
-                message = 'Daily guest allowance reached. Sign in to continue (and sync Favorites/Watchlist).';
+                message = 'Daily guest allowance reached. Sign in to continue (and sync your Watchlist).';
             } else if (remaining != null && remaining <= 2) {
                 quotaBanner.classList.add('pv-quotaBanner--warn');
                 message = `Guest allowance running low: ${ratioText}. Sign in to increase your daily limit.`;
@@ -282,18 +280,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function normalizeFavoriteProduct(product) {
-        // Keep a minimal snapshot so Favorites can render without extra API calls.
-        return {
-            id: safeString(product?.id, ''),
-            name: safeString(product?.name, 'Unknown'),
-            type: safeString(product?.type, ''),
-            images: Array.isArray(product?.images) ? product.images : [],
-            expansion: (product?.expansion && typeof product.expansion === 'object') ? product.expansion : null,
-            variants: Array.isArray(product?.variants) ? product.variants : [],
-        };
-    }
-
-    function normalizeWatchlistProduct(product) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
         return {
             id: safeString(product?.id, ''),
@@ -307,13 +293,38 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function loadFavorites() {
         try {
-            const raw = localStorage.getItem(FAVORITES_KEY);
-            if (!raw) return [];
-            const parsed = safeParseJson(raw);
-            if (!Array.isArray(parsed)) return [];
-            return parsed
-                .filter((p) => p && typeof p === 'object' && p.id != null)
-                .map(normalizeFavoriteProduct);
+            /** @type {Array<any>} */
+            const out = [];
+            const seen = new Set();
+
+            /** @param {any} list */
+            function addList(list) {
+                if (!Array.isArray(list)) return;
+                for (const item of list) {
+                    if (!item || typeof item !== 'object' || item.id == null) continue;
+                    const normalized = normalizeFavoriteProduct(item);
+                    const id = String(normalized.id || '');
+                    if (!id || seen.has(id)) continue;
+                    seen.add(id);
+                    out.push(normalized);
+                }
+            }
+
+            const watchRaw = localStorage.getItem(WATCHLIST_KEY);
+            if (watchRaw) addList(safeParseJson(watchRaw));
+
+            const legacyRaw = localStorage.getItem(LEGACY_FAVORITES_KEY);
+            if (legacyRaw) addList(safeParseJson(legacyRaw));
+
+            // Migrate/normalize into the Watchlist key.
+            try {
+                localStorage.setItem(WATCHLIST_KEY, JSON.stringify(out));
+                localStorage.removeItem(LEGACY_FAVORITES_KEY);
+            } catch {
+                // ignore
+            }
+
+            return out;
         } catch {
             return [];
         }
@@ -321,7 +332,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveFavorites(list) {
         try {
-            localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+            localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(list) ? list : []));
+            // Best-effort cleanup of legacy key.
+            try { localStorage.removeItem(LEGACY_FAVORITES_KEY); } catch {}
         } catch {
             // ignore
         }
@@ -330,47 +343,13 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
-    function loadWatchlist() {
-        try {
-            const raw = localStorage.getItem(WATCHLIST_KEY);
-            if (!raw) return [];
-            const parsed = safeParseJson(raw);
-            if (!Array.isArray(parsed)) return [];
-            return parsed
-                .filter((p) => p && typeof p === 'object' && p.id != null)
-                .map(normalizeWatchlistProduct);
-        } catch {
-            return [];
-        }
-    }
-
-    function saveWatchlist(list) {
-        try {
-            localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(list) ? list : []));
-        } catch {
-            // ignore
-        }
-    }
-
-    function clearWatchlist() {
-        watchlist = [];
-        try { localStorage.removeItem(WATCHLIST_KEY); } catch { }
-        renderWatchlist();
-
-        // Keep results buttons in sync.
-        renderProducts(currentResultsProducts);
-    }
-
-    /** @type {Array<any>} */
-    let watchlist = loadWatchlist();
-
-    // If the user signs in, prefer cloud favorites so they follow the account.
+    // If the user signs in, prefer cloud watchlist so it follows the account.
     // Local storage remains as an offline fallback.
     try {
-        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadFavorites) {
+        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) return;
-                Promise.resolve(window.PV_AUTH.loadFavorites('sealed'))
+                Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
                     .then((list) => {
                         if (!Array.isArray(list)) return;
                         favorites = list.map(normalizeFavoriteProduct);
@@ -387,40 +366,21 @@ document.addEventListener('DOMContentLoaded', function () {
         // ignore
     }
 
-    // If the user signs in, prefer cloud watchlist.
-    try {
-        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
-            window.PV_AUTH.onAuthStateChanged((user) => {
-                if (!user) return;
-                Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
-                    .then((list) => {
-                        if (!Array.isArray(list)) return;
-                        watchlist = list.map(normalizeWatchlistProduct);
-                        saveWatchlist(watchlist);
-                        renderWatchlist();
-                        renderProducts(currentResultsProducts);
-                    })
-                    .catch(() => {
-                        // ignore
-                    });
-            });
-        }
-    } catch {
-        // ignore
-    }
-
     function loadFavoritesCollapsed() {
         try {
-            const raw = localStorage.getItem(FAVORITES_COLLAPSED_KEY);
-            return raw === '1' || raw === 'true';
-        } catch {
-            return false;
-        }
-    }
-
-    function loadWatchlistCollapsed() {
-        try {
             const raw = localStorage.getItem(WATCHLIST_COLLAPSED_KEY);
+            if (raw == null) {
+                const legacy = localStorage.getItem(LEGACY_FAVORITES_COLLAPSED_KEY);
+                if (legacy != null) {
+                    try {
+                        localStorage.setItem(WATCHLIST_COLLAPSED_KEY, legacy);
+                        localStorage.removeItem(LEGACY_FAVORITES_COLLAPSED_KEY);
+                    } catch {
+                        // ignore
+                    }
+                    return legacy === '1' || legacy === 'true';
+                }
+            }
             return raw === '1' || raw === 'true';
         } catch {
             return false;
@@ -429,15 +389,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveFavoritesCollapsed(isCollapsed) {
         try {
-            localStorage.setItem(FAVORITES_COLLAPSED_KEY, isCollapsed ? '1' : '0');
-        } catch {
-            // ignore
-        }
-    }
-
-    function saveWatchlistCollapsed(isCollapsed) {
-        try {
             localStorage.setItem(WATCHLIST_COLLAPSED_KEY, isCollapsed ? '1' : '0');
+            try { localStorage.removeItem(LEGACY_FAVORITES_COLLAPSED_KEY); } catch {}
         } catch {
             // ignore
         }
@@ -452,55 +405,9 @@ document.addEventListener('DOMContentLoaded', function () {
         saveFavoritesCollapsed(isCollapsed);
     }
 
-    function setWatchlistCollapsed(isCollapsed) {
-        if (watchlistBody) watchlistBody.hidden = !!isCollapsed;
-        if (watchlistToggle) {
-            watchlistToggle.textContent = isCollapsed ? 'Show' : 'Hide';
-            watchlistToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
-        }
-        saveWatchlistCollapsed(isCollapsed);
-    }
-
     function isFavorite(productId) {
         const id = String(productId || '');
         return favorites.some((p) => String(p?.id || '') === id);
-    }
-
-    function isWatchlisted(productId) {
-        const id = String(productId || '');
-        return watchlist.some((p) => String(p?.id || '') === id);
-    }
-
-    function toggleWatchlist(product) {
-        const id = safeString(product?.id, '');
-        if (!id) return;
-
-        if (isWatchlisted(id)) {
-            watchlist = watchlist.filter((p) => String(p?.id || '') !== id);
-            try {
-                if (window?.PV_AUTH?.removeWatchlistItem) {
-                    void window.PV_AUTH.removeWatchlistItem('sealed', id);
-                }
-            } catch {
-                // ignore
-            }
-        } else {
-            const item = normalizeWatchlistProduct(product);
-            watchlist = [...watchlist, item];
-            try {
-                if (window?.PV_AUTH?.saveWatchlistItem) {
-                    void window.PV_AUTH.saveWatchlistItem('sealed', item);
-                }
-            } catch {
-                // ignore
-            }
-        }
-
-        saveWatchlist(watchlist);
-        renderWatchlist();
-
-        // Keep results buttons in sync.
-        renderProducts(currentResultsProducts);
     }
 
     function toggleFavorite(product) {
@@ -510,8 +417,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isFavorite(id)) {
             favorites = favorites.filter((p) => String(p?.id || '') !== id);
             try {
-                if (window?.PV_AUTH?.removeFavorite) {
-                    void window.PV_AUTH.removeFavorite('sealed', id);
+                if (window?.PV_AUTH?.removeWatchlistItem) {
+                    void window.PV_AUTH.removeWatchlistItem('sealed', id);
                 }
             } catch {
                 // ignore
@@ -520,8 +427,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const favObj = normalizeFavoriteProduct(product);
             favorites = [...favorites, favObj];
             try {
-                if (window?.PV_AUTH?.saveFavorite) {
-                    void window.PV_AUTH.saveFavorite('sealed', favObj);
+                if (window?.PV_AUTH?.saveWatchlistItem) {
+                    void window.PV_AUTH.saveWatchlistItem('sealed', favObj);
                 }
             } catch {
                 // ignore
@@ -536,60 +443,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearFavorites() {
         favorites = [];
-        try { localStorage.removeItem(FAVORITES_KEY); } catch {}
+        try { localStorage.removeItem(WATCHLIST_KEY); } catch {}
+        try { localStorage.removeItem(LEGACY_FAVORITES_KEY); } catch {}
         renderFavorites();
 
         // Keep results stars in sync.
         renderProducts(currentResultsProducts);
-    }
-
-    function renderWatchlist() {
-        if (!watchlistGrid) return;
-        watchlistGrid.innerHTML = '';
-
-        if (!Array.isArray(watchlist) || watchlist.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'col-12';
-            empty.textContent = 'No watchlist items yet. Click Watch on a result card to save it here.';
-            watchlistGrid.appendChild(empty);
-            return;
-        }
-
-        for (const item of watchlist) {
-            const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
-
-            const id = safeString(item?.id, '');
-            const name = safeString(item?.name, 'Unknown');
-            const type = safeString(item?.type, '');
-            const imgUrl = pickFrontSmallImage(item?.images);
-
-            const idAttr = escapeAttr(id);
-            const nameHtml = escapeHtml(name);
-            const nameAttr = escapeAttr(name);
-            const typeHtml = escapeHtml(type);
-            const imgUrlAttr = escapeAttr(imgUrl);
-
-            col.innerHTML = `
-                <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img pv-card__img--sealed" src="${imgUrlAttr}" alt="${nameAttr} product image"/>` : ''}
-                    <div class="pv-card__body">
-                        <div class="pv-card__header">
-                            <div class="pv-card__title">${nameHtml}</div>
-                            <div class="pv-card__actions">
-                                <button id="pv-watch-${idAttr}" class="pv-watch-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">Watching</button>
-                            </div>
-                        </div>
-                        <p class="pv-card__text">${type ? `Type: ${typeHtml}` : 'Type: n/a'}</p>
-                    </div>
-                </div>
-            `;
-
-            const btn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-watch-${CSS.escape(id)}`));
-            if (btn) btn.addEventListener('click', () => toggleWatchlist(item));
-
-            watchlistGrid.appendChild(col);
-        }
     }
 
     function getWorkerBase() {
@@ -884,7 +743,7 @@ document.addEventListener('DOMContentLoaded', function () {
         favoritesGrid.innerHTML = '';
 
         if (!Array.isArray(favorites) || favorites.length === 0) {
-            favoritesGrid.innerHTML = '<div class="col-12"><p class="pv-section__text">No favorites yet.</p></div>';
+            favoritesGrid.innerHTML = '<div class="col-12"><p class="pv-section__text">No watchlist items yet.</p></div>';
             updateFavoritesTotals(restoreState);
             return;
         }
@@ -919,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const favBtn = document.createElement('button');
             favBtn.className = 'pv-fav-btn';
             favBtn.type = 'button';
-            favBtn.setAttribute('aria-label', 'Remove from favorites');
+            favBtn.setAttribute('aria-label', 'Remove from watchlist');
             favBtn.textContent = '★';
             favBtn.addEventListener('click', () => toggleFavorite(fav));
 
@@ -1019,22 +878,12 @@ document.addEventListener('DOMContentLoaded', function () {
             favBtn.className = 'pv-fav-btn';
             favBtn.type = 'button';
             const favored = isFavorite(p?.id);
-            favBtn.setAttribute('aria-label', favored ? 'Remove from favorites' : 'Add to favorites');
+            favBtn.setAttribute('aria-label', favored ? 'Remove from watchlist' : 'Add to watchlist');
             favBtn.textContent = favored ? '★' : '☆';
             favBtn.addEventListener('click', () => toggleFavorite(p));
 
-            const watchBtn = document.createElement('button');
-            watchBtn.className = 'pv-watch-btn';
-            watchBtn.type = 'button';
-            const watching = isWatchlisted(p?.id);
-            watchBtn.setAttribute('aria-label', watching ? 'Remove from watchlist' : 'Add to watchlist');
-            watchBtn.setAttribute('aria-pressed', watching ? 'true' : 'false');
-            watchBtn.textContent = watching ? 'Watching' : 'Watch';
-            watchBtn.addEventListener('click', () => toggleWatchlist(p));
-
             const actions = document.createElement('div');
             actions.className = 'pv-card__actions';
-            actions.appendChild(watchBtn);
             actions.appendChild(favBtn);
 
             header.appendChild(title);
@@ -1156,9 +1005,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // Render Favorites immediately (persisted across refresh).
     renderFavorites();
 
-    // Render Watchlist immediately (persisted across refresh).
-    renderWatchlist();
-
     // Favorites collapsible behavior (persisted across refresh).
     if (favoritesToggle) {
         favoritesToggle.addEventListener('click', () => {
@@ -1168,21 +1014,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     setFavoritesCollapsed(loadFavoritesCollapsed());
 
-    // Watchlist collapsible behavior (persisted across refresh).
-    if (watchlistToggle) {
-        watchlistToggle.addEventListener('click', () => {
-            const isCollapsed = watchlistBody ? !watchlistBody.hidden : false;
-            setWatchlistCollapsed(isCollapsed);
-        });
-    }
-    setWatchlistCollapsed(loadWatchlistCollapsed());
-
     if (favoritesClearBtn) {
         favoritesClearBtn.addEventListener('click', () => clearFavorites());
-    }
-
-    if (watchlistClearBtn) {
-        watchlistClearBtn.addEventListener('click', () => clearWatchlist());
     }
 
     // Restore last results after refresh.
