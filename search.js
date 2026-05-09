@@ -235,12 +235,22 @@ document.addEventListener('DOMContentLoaded', function () {
         return '';
     }
 
+    function getCardSetName(cardLike) {
+        const expansionName = safeString(cardLike?.expansion?.name, '');
+        const setName = safeString(cardLike?.set?.name, '');
+        const directExpansionName = safeString(cardLike?.expansionName, '');
+        const directSetName = safeString(cardLike?.setName, '');
+        return expansionName || setName || directExpansionName || directSetName || 'n/a';
+    }
+
     function normalizeFavoriteCard(card) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
         return {
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
             rarity: safeString(card?.rarity, ''),
+            expansion: (card?.expansion && typeof card.expansion === 'object') ? card.expansion : null,
+            set: (card?.set && typeof card.set === 'object') ? card.set : null,
             images: Array.isArray(card?.images) ? card.images : [],
             variants: Array.isArray(card?.variants) ? card.variants : [],
             selectedVariant: safeString(card?.selectedVariant, ''),
@@ -902,6 +912,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = safeString(fav?.id, '');
             const name = safeString(fav?.name, 'Unknown');
             const rarity = safeString(fav?.rarity, '');
+            const setName = getCardSetName(fav);
             const imgUrl = sanitizeUrl(pickFrontMediumImage(fav?.images));
             const selectedVariant = safeString(restoreState?.selections?.[id]?.holoType ?? fav?.selectedVariant, '');
             const pct = getSavedTradePercentForId(id, restoreState);
@@ -912,6 +923,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const nameHtml = escapeHtml(name);
             const nameAttr = escapeAttr(name);
             const rarityHtml = escapeHtml(rarity);
+            const setNameHtml = escapeHtml(setName);
             const selectedVariantHtml = escapeHtml(selectedVariant);
             const imgUrlAttr = escapeAttr(imgUrl);
 
@@ -930,6 +942,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="pv-card__title">${nameHtml}</div>
                             <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
                         </div>
+                        <p class="pv-card__text">Set: ${setNameHtml}</p>
                         <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
                         ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariantHtml}</p>` : ''}
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
@@ -1359,6 +1372,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = String(card?.id || '');
             const name = String(card?.name || 'Unknown');
             const rarity = String(card?.rarity || '');
+            const setName = getCardSetName(card);
             const imgUrl = sanitizeUrl(pickFrontMediumImage(card?.images));
             const variantsFull = Array.isArray(card?.variants) ? card.variants : [];
             const variants = variantsFull.map((v) => v?.name).filter(Boolean);
@@ -1383,6 +1397,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const nameHtml = escapeHtml(name);
             const nameAttr = escapeAttr(name);
             const rarityHtml = escapeHtml(rarity);
+            const setNameHtml = escapeHtml(setName);
             const favLabelAttr = escapeAttr(favLabel);
             const imgUrlAttr = escapeAttr(imgUrl);
 
@@ -1396,6 +1411,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
                             </div>
                         </div>
+                        <p class="pv-card__text">Set: ${setNameHtml}</p>
                         <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
