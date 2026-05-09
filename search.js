@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
+    const conditionSummaryEl = document.getElementById('pv-condition-summary');
+    const conditionCheckboxEls = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('input[name="pv-condition-filter"]')));
 
     const quotaBanner = document.getElementById('pv-quota-banner');
     const quotaMessageEl = document.getElementById('pv-quota-message');
@@ -62,8 +64,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
+    const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
 
-    const PV_BUILD = '2026-01-29-1';
+    const CONDITION_FILTER_KEYS = ['NM', 'LP', 'MP', 'OTHER'];
+    const DEFAULT_CONDITION_FILTERS = ['NM'];
+
+    const PV_BUILD = '2026-05-08-1';
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] search.js build', PV_BUILD);
@@ -77,6 +83,97 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {'name' | 'number' | null} */
     let lastEditedSearchField = null;
+
+    /** @type {Set<string>} */
+    let selectedConditionFilters = loadConditionFilterSet();
+
+    function normalizeConditionKey(raw) {
+        const s = String(raw || '').trim();
+        if (!s) return '';
+        // Normalize common separators so values like "near_mint" / "NM-MT" match.
+        const upper = s.toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (upper === 'NM' || upper === 'LP' || upper === 'MP') return upper;
+        // Common abbreviated prefixes.
+        if (upper.startsWith('NM')) return 'NM';
+        if (upper.startsWith('LP')) return 'LP';
+        if (upper.startsWith('MP')) return 'MP';
+        if (upper === 'NEAR MINT') return 'NM';
+        if (upper === 'NEAR MINT MINT' || upper === 'NEAR MINT MINT CONDITION') return 'NM';
+        if (upper === 'LIGHT PLAY' || upper === 'LIGHTLY PLAYED') return 'LP';
+        if (upper === 'LIGHT PLAYED') return 'LP';
+        if (upper === 'MODERATE PLAY' || upper === 'MODERATELY PLAYED' || upper === 'MID PLAY') return 'MP';
+        if (upper === 'DM' || upper === 'DAMAGED') return 'DM';
+        return upper;
+    }
+
+    function toConditionFilterKey(conditionKey) {
+        const key = String(conditionKey || '').trim().toUpperCase();
+        if (key === 'NM' || key === 'LP' || key === 'MP') return key;
+        return 'OTHER';
+    }
+
+    function loadConditionFilterSet() {
+        try {
+            const raw = localStorage.getItem(CONDITION_FILTER_KEY);
+            if (!raw) return new Set(DEFAULT_CONDITION_FILTERS);
+            const parsed = safeParseJson(raw);
+            if (!Array.isArray(parsed)) return new Set(DEFAULT_CONDITION_FILTERS);
+
+            const normalized = parsed
+                .map((v) => String(v || '').trim().toUpperCase())
+                .filter((v) => CONDITION_FILTER_KEYS.includes(v));
+
+            return normalized.length ? new Set(normalized) : new Set(DEFAULT_CONDITION_FILTERS);
+        } catch {
+            return new Set(DEFAULT_CONDITION_FILTERS);
+        }
+    }
+
+    function saveConditionFilterSet(nextSet) {
+        try {
+            localStorage.setItem(CONDITION_FILTER_KEY, JSON.stringify(Array.from(nextSet)));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getConditionSummaryText() {
+        const labels = CONDITION_FILTER_KEYS
+            .filter((k) => selectedConditionFilters.has(k))
+            .map((k) => (k === 'OTHER' ? 'Other' : k));
+        if (!labels.length) return 'NM';
+
+        const isMobile = window.matchMedia('(max-width: 575.98px)').matches;
+        const maxVisible = isMobile ? 1 : 3;
+
+        if (labels.length <= maxVisible) {
+            return labels.join(', ');
+        }
+
+        return `${labels.slice(0, maxVisible).join(', ')}, ...`;
+    }
+
+    function syncConditionFilterUI() {
+        if (conditionSummaryEl) {
+            conditionSummaryEl.textContent = getConditionSummaryText();
+        }
+
+        for (const cb of conditionCheckboxEls) {
+            const key = String(cb.value || '').trim().toUpperCase();
+            cb.checked = selectedConditionFilters.has(key);
+        }
+    }
+
+    function passesConditionFilter(conditionKey) {
+        const filterKey = toConditionFilterKey(conditionKey);
+        return selectedConditionFilters.has(filterKey);
+    }
+
+    function applyConditionFilterToVisibleCards() {
+        const restoredState = loadLastResults();
+        renderCards(currentResultsCards, restoredState || undefined);
+        renderFavorites(restoredState || undefined);
+    }
 
     function clearSearchInputs() {
         if (input) input.value = '';
@@ -1074,31 +1171,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return `${moneySymbol}${n.toFixed(2)}`;
         }
 
-        function normalizeConditionKey(raw) {
-            const s = String(raw || '').trim();
-            if (!s) return '';
-            // Normalize common separators so values like "near_mint" / "NM-MT" match.
-            const upper = s.toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
-            if (upper === 'NM' || upper === 'LP' || upper === 'MP') return upper;
-            // Common abbreviated prefixes.
-            if (upper.startsWith('NM')) return 'NM';
-            if (upper.startsWith('LP')) return 'LP';
-            if (upper.startsWith('MP')) return 'MP';
-            if (upper === 'NEAR MINT') return 'NM';
-            if (upper === 'NEAR MINT MINT' || upper === 'NEAR MINT MINT CONDITION') return 'NM';
-            if (upper === 'LIGHT PLAY' || upper === 'LIGHTLY PLAYED') return 'LP';
-            if (upper === 'LIGHT PLAYED') return 'LP';
-            if (upper === 'MODERATE PLAY' || upper === 'MODERATELY PLAYED' || upper === 'MID PLAY') return 'MP';
-            if (upper === 'DM' || upper === 'DAMAGED') return 'DM';
-            return upper;
-        }
-
-        const allowedConditions = new Set(['NM', 'LP', 'MP']);
-
-        /** @type {string[]} */
-        const preferredLines = [];
-        /** @type {string[]} */
-        const fallbackLines = [];
+        /** @type {Array<{rank: number, line: string}>} */
+        const lines = [];
         for (const p of prices) {
             if (!p || typeof p !== 'object') continue;
             const condition = p?.condition != null ? String(p.condition) : '';
@@ -1108,6 +1182,14 @@ document.addEventListener('DOMContentLoaded', function () {
             // const low = p?.low ?? null; // intentionally hidden (market only)
 
             const conditionKey = normalizeConditionKey(condition);
+            if (!passesConditionFilter(conditionKey)) continue;
+            const rank = conditionKey === 'NM'
+                ? 0
+                : conditionKey === 'LP'
+                    ? 1
+                    : conditionKey === 'MP'
+                        ? 2
+                        : 3;
 
             const marketText = market != null ? formatMoney(currency, market) : null;
             const tradeText = (pct != null && marketText)
@@ -1124,11 +1206,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? (type ? `${conditionKey} (${type})` : conditionKey)
                     : (type ? `(${type})` : '');
                 const line = prefix ? `${prefix}: ${bits.join(' • ')}` : bits.join(' • ');
-                if (allowedConditions.has(conditionKey)) {
-                    preferredLines.push(line);
-                } else {
-                    fallbackLines.push(line);
-                }
+                lines.push({ rank, line });
                 continue;
             }
             const entries = Object.entries(p)
@@ -1137,16 +1215,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 .map(([k, v]) => `${k} ${v}`);
             if (entries.length) {
                 const line = entries.join(' • ');
-                if (allowedConditions.has(conditionKey)) {
-                    preferredLines.push(line);
-                } else {
-                    fallbackLines.push(line);
-                }
+                lines.push({ rank, line });
             }
         }
-        if (preferredLines.length) return preferredLines.join('\n');
-        if (fallbackLines.length) return fallbackLines.join('\n');
-        return 'No prices available for this variant at this time';
+        if (lines.length) {
+            lines.sort((a, b) => a.rank - b.rank);
+            return lines.map((x) => x.line).join('\n');
+        }
+        return 'No prices available for the selected conditions';
     }
 
     function formatUsd(amount) {
@@ -1156,17 +1232,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function normalizeConditionKeyForTotals(raw) {
-        const s = String(raw || '').trim();
-        if (!s) return '';
-        const upper = s.toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
-        if (upper === 'NM' || upper === 'LP' || upper === 'MP') return upper;
-        if (upper.startsWith('NM')) return 'NM';
-        if (upper.startsWith('LP')) return 'LP';
-        if (upper.startsWith('MP')) return 'MP';
-        if (upper === 'NEAR MINT') return 'NM';
-        if (upper === 'LIGHT PLAY' || upper === 'LIGHTLY PLAYED' || upper === 'LIGHT PLAYED') return 'LP';
-        if (upper === 'MODERATE PLAY' || upper === 'MODERATELY PLAYED' || upper === 'MID PLAY') return 'MP';
-        return upper;
+        return normalizeConditionKey(raw);
     }
 
     function getMarketFromPricesForTotals(prices) {
@@ -1474,13 +1540,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Restore previously selected holo type and prices if available
                 if (restoredSelection?.holoType && variants.includes(restoredSelection.holoType)) {
                     selectEl.value = restoredSelection.holoType;
-                    if (restoredSelection.pricesText) {
+                    const restoredVariant = String(restoredSelection.holoType);
+                    const restoredMatch = findVariantByName(variantsFull, restoredVariant);
+                    const restoredPrices = Array.isArray(restoredMatch?.prices) ? restoredMatch.prices : [];
+                    if (restoredPrices.length > 0) {
+                        lastLoadedVariantName = restoredVariant;
+                        lastLoadedPrices = restoredPrices;
+                        const formatted = formatPriceList(restoredPrices, getSelectedTradePercent());
+                        pricesEl.textContent = formatted;
+                        persistSelection(restoredVariant, formatted);
+                    } else if (restoredSelection.pricesText) {
                         pricesEl.textContent = String(restoredSelection.pricesText);
-                        lastLoadedVariantName = String(restoredSelection.holoType);
+                        lastLoadedVariantName = restoredVariant;
 
                         // Keep the in-memory card snapshot aligned with restored state.
                         try {
-                            card.selectedVariant = String(restoredSelection.holoType);
+                            card.selectedVariant = restoredVariant;
                             card.pricesText = String(restoredSelection.pricesText);
                         } catch {
                             // ignore
@@ -1881,6 +1956,39 @@ document.addEventListener('DOMContentLoaded', function () {
         if (grid) grid.innerHTML = '';
         if (status) status.textContent = '';
         currentResultsCards = [];
+    }
+
+    if (conditionCheckboxEls.length) {
+        syncConditionFilterUI();
+
+        window.addEventListener('resize', () => {
+            syncConditionFilterUI();
+        });
+
+        for (const cb of conditionCheckboxEls) {
+            cb.addEventListener('change', (event) => {
+                const target = /** @type {HTMLInputElement|null} */ (event.currentTarget);
+                if (!target) return;
+
+                const key = String(target.value || '').trim().toUpperCase();
+                if (!CONDITION_FILTER_KEYS.includes(key)) return;
+
+                if (target.checked) {
+                    selectedConditionFilters.add(key);
+                } else {
+                    selectedConditionFilters.delete(key);
+                }
+
+                // Always keep at least one option selected.
+                if (selectedConditionFilters.size === 0) {
+                    selectedConditionFilters.add('NM');
+                }
+
+                saveConditionFilterSet(selectedConditionFilters);
+                syncConditionFilterUI();
+                applyConditionFilterToVisibleCards();
+            });
+        }
     }
 
     if (clearBtn) {

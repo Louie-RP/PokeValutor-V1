@@ -743,6 +743,112 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-search-query { background: #ffffff; color: #0b0b0b; border-color: var(--pv-primary); }
 #pv-search-query::placeholder { color: #6b7280; }
 
+.pv-search-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+}
+
+.pv-search-actions .ms-2 {
+  margin-left: 0 !important;
+}
+
+.pv-search-actions .pv-conditionFilter {
+  margin-left: 0.35rem;
+  flex: 0 0 auto;
+}
+
+/* Search condition filter dropdown */
+.pv-conditionFilter {
+  width: min(100%, 250px);
+  border: 1px solid var(--pv-primary);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0b0b0b;
+}
+
+.pv-conditionFilter[open] {
+  border-color: var(--pv-primary-dark);
+}
+
+.pv-conditionFilter__summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  font-weight: 600;
+}
+
+.pv-conditionFilter__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pv-conditionFilter__summary::after {
+  content: '▾';
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.pv-conditionFilter[open] .pv-conditionFilter__summary::after {
+  content: '▴';
+}
+
+.pv-conditionFilter__summary:focus {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 2px;
+}
+
+.pv-conditionFilter__menu {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.55rem 0.75rem 0.65rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.pv-conditionFilter__option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.pv-conditionFilter__option input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #1f2937;
+}
+
+@media (max-width: 575.98px) {
+  .pv-search-actions {
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .pv-search-actions .btn {
+    padding: 0.42rem 0.55rem;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+
+  .pv-search-actions .pv-conditionFilter {
+    width: 148px;
+    min-height: 40px;
+    margin-left: 0;
+  }
+
+  .pv-conditionFilter__summary {
+    font-size: 0.88rem;
+    padding: 0.56rem 0.62rem;
+    gap: 0.35rem;
+    line-height: 1.2;
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Bootstrap-compatible utilities (minimal)                                    */
 /* -------------------------------------------------------------------------- */

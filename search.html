@@ -57,9 +57,33 @@
                     <input id="pv-search-number" name="pv-search-number" type="search" class="form-control"
                         placeholder="e.g., 87/160 or SWSH101" aria-controls="pv-search-results" />
                 </div>
-                <div class="col-12">
+                <div class="col-12 pv-search-actions">
                     <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
                     <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                    <details id="pv-condition-filter" class="pv-conditionFilter">
+                        <summary id="pv-condition-toggle" class="pv-conditionFilter__summary">
+                            <span>Conditions:</span>
+                            <span id="pv-condition-summary">NM</span>
+                        </summary>
+                        <div id="pv-condition-menu" class="pv-conditionFilter__menu" role="group" aria-label="Card conditions to display in price lines">
+                            <label class="pv-conditionFilter__option">
+                                <input type="checkbox" name="pv-condition-filter" value="NM" checked />
+                                NM (Near Mint)
+                            </label>
+                            <label class="pv-conditionFilter__option">
+                                <input type="checkbox" name="pv-condition-filter" value="LP" />
+                                LP (Lightly Played)
+                            </label>
+                            <label class="pv-conditionFilter__option">
+                                <input type="checkbox" name="pv-condition-filter" value="MP" />
+                                MP (Moderately Played)
+                            </label>
+                            <label class="pv-conditionFilter__option">
+                                <input type="checkbox" name="pv-condition-filter" value="OTHER" />
+                                Other Conditions
+                            </label>
+                        </div>
+                    </details>
                 </div>
             </form>
 
@@ -118,7 +142,7 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="search.js?v=2026-01-29-1" defer></script>
+    <script src="search.js?v=2026-05-08-1" defer></script>
 </body>
 
 </html>
