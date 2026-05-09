@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const emailEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-auth-email'));
     const passEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-auth-password'));
     const statusEl = document.getElementById('pv-auth-status');
+    const selfCheckEl = document.getElementById('pv-auth-selfcheck');
     const roleEl = document.getElementById('pv-auth-role');
 
     const adminDivider = document.getElementById('pv-admin-panel');
@@ -18,8 +19,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const googleBtn = document.getElementById('pv-auth-google');
     const signOutBtn = document.getElementById('pv-auth-signout');
 
+    // Temporary diagnostics helper for startup/auth setup issues.
+    const ENABLE_AUTH_SELF_CHECK = true;
+
     function setStatus(msg) {
         if (statusEl) statusEl.textContent = String(msg || '');
+    }
+
+    function setSelfCheck(msg) {
+        if (!ENABLE_AUTH_SELF_CHECK || !selfCheckEl) return;
+        const text = String(msg || '').trim();
+        selfCheckEl.hidden = text.length === 0;
+        selfCheckEl.textContent = text;
+    }
+
+    function clearSelfCheck() {
+        if (!selfCheckEl) return;
+        selfCheckEl.hidden = true;
+        selfCheckEl.textContent = '';
     }
 
     function setRoleText(msg) {
@@ -52,18 +69,71 @@ document.addEventListener('DOMContentLoaded', function () {
         return { email, password };
     }
 
+    function getAuthTroubleshootMessage(error) {
+        if (!ENABLE_AUTH_SELF_CHECK) return '';
+        const code = String(error?.code || '').trim().toLowerCase();
+        if (!code) return '';
+
+        if (code === 'auth/operation-not-allowed') {
+            return 'Setup check: Enable Email/Password in Firebase Console -> Authentication -> Sign-in method.';
+        }
+
+        if (code === 'auth/app-not-authorized' || code === 'auth/unauthorized-domain') {
+            return 'Setup check: Add this host to Firebase Auth authorized domains, then retry sign-in.';
+        }
+
+        if (code === 'auth/invalid-api-key' || code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') {
+            return 'Setup check: Firebase web config appears invalid. Verify apiKey/authDomain/projectId/appId values.';
+        }
+
+        if (code === 'auth/network-request-failed') {
+            return 'Setup check: Network/CSP blocked Firebase. Confirm internet access and CSP allows gstatic/googleapis.';
+        }
+
+        return '';
+    }
+
+    function runStartupChecks() {
+        if (!ENABLE_AUTH_SELF_CHECK) return;
+
+        if (window.location.protocol === 'file:') {
+            setSelfCheck('Setup check: Open this site via http://localhost (not file://) so Firebase Auth can run correctly.');
+            return;
+        }
+
+        const config = window.PV_FIREBASE_CONFIG;
+        const hasPlaceholderKey = String(config?.apiKey || '').trim() === 'YOUR_API_KEY';
+        if (!config || !config.apiKey || hasPlaceholderKey) {
+            setSelfCheck('Setup check: Firebase config is missing or placeholder. Use firebase-config.local.js (local) or GitHub Secrets (Pages).');
+            return;
+        }
+
+        if (!window.firebase || !window.firebase.auth) {
+            setSelfCheck('Setup check: Firebase SDK not loaded. Verify script tags and CSP script-src for www.gstatic.com.');
+            return;
+        }
+
+        clearSelfCheck();
+    }
+
     async function run(action) {
         try {
             setStatus('Working…');
             await action();
+            clearSelfCheck();
         } catch (e) {
             const message = (e && typeof e === 'object' && 'message' in e) ? String(e.message) : 'Something went wrong.';
             setStatus(message);
+            const troubleshoot = getAuthTroubleshootMessage(e);
+            if (troubleshoot) setSelfCheck(troubleshoot);
         }
     }
 
+    runStartupChecks();
+
     if (!window.PV_AUTH || !window.PV_AUTH.onAuthStateChanged) {
         setStatus('Firebase not loaded. Check CSP + firebase-config.js');
+        setSelfCheck('Setup check: firebase.js did not initialize. Confirm valid config and Firebase scripts are loading.');
         return;
     }
 
@@ -78,6 +148,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const uid = String(user.uid || '');
 
         setStatus(`Signed in as ${email || 'user'} (${uid.slice(0, 8)}…)`);
+        clearSelfCheck();
 
         // Fetch/refresh custom claims for role display + admin gating.
         Promise.resolve(window.PV_AUTH.getIdTokenResult ? window.PV_AUTH.getIdTokenResult(true) : null)

@@ -19,20 +19,35 @@ python -m http.server 8080
 
 Deploy to GitHub Pages
 1. Commit and push to main.
-2. In GitHub, Settings → Pages → Source: Deploy from a branch.
-3. Select branch main, folder /root.
-4. Save and open the provided Pages URL.
+2. In GitHub, Settings → Pages → Source: **GitHub Actions**.
+3. Add the Firebase secrets listed below.
+4. Push again and open the provided Pages URL.
 
 ## Security / secrets (read this)
 
 - Anything committed to this repo can be viewed on GitHub, and may be downloadable from the GitHub Pages site if someone guesses the filename (for example, `/README.md`).
-- The Firebase web config in [firebase-config.js](firebase-config.js) is expected to be public for browser apps. Security comes from Firebase Auth + Firestore rules, not from hiding the web config.
+- Firebase web apps do have a *public* config, but committing a real Google API key to a public repo is still a bad idea: GitHub is scanned and keys get harvested/abused.
+- If a key is ever committed (even briefly), rotate/revoke it immediately because git history can preserve it.
+- Always restrict any Google API key in Google Cloud Console (HTTP referrers + API restrictions).
 - Never commit credentials or secret values such as:
 	- Service account JSON keys (e.g. `serviceAccountKey.json` / `firebase-adminsdk-*.json`)
 	- `.env*` files, Cloudflare Worker `.dev.vars`, or any API keys/tokens
 	- Private key/cert files like `*.pem`, `*.key`, `*.p12`, `*.pfx`
 
 If a real secret is ever committed (even briefly), rotate it immediately because git history can preserve it.
+
+### GitHub Pages: deploy without committing Firebase keys
+This repo includes a GitHub Actions workflow that deploys Pages and **generates** `firebase-config.js` from GitHub Secrets at deploy time:
+- Workflow: [.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)
+- GitHub repo settings: Settings → Pages → Source: **GitHub Actions**
+
+Create these GitHub Secrets (Settings → Secrets and variables → Actions):
+- `FIREBASE_API_KEY`
+- `FIREBASE_AUTH_DOMAIN`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_APP_ID`
+- `FIREBASE_STORAGE_BUCKET`
+- `FIREBASE_MESSAGING_SENDER_ID` (optional)
 
 ## Firebase Accounts (Auth + Firestore)
 
@@ -48,7 +63,9 @@ This repo now includes a simple Firebase Auth + Firestore integration designed t
 ### 2) Create a Web App + paste config
 1. Firebase Console → Project settings → Your apps → Add app → Web.
 2. Copy the config values.
-3. Paste them into [firebase-config.js](firebase-config.js).
+3. Put them in GitHub Secrets (recommended) so they are injected at deploy time.
+
+For local development, copy [firebase-config.local.example.js](firebase-config.local.example.js) to `firebase-config.local.js` and paste values there.
 
 ### 3) Set up Firestore
 1. Firebase Console → Build → Firestore Database → Create database.

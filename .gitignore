@@ -1,6 +1,7 @@
 # Ignore local secrets
 secrets.js
 scrydex-worker.js
+firebase-config.local.js
 
 # Credential/key files (never commit)
 serviceAccountKey.json

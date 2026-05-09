@@ -73,6 +73,7 @@
                 <article class="pv-authCard" aria-label="Your session">
                     <h2 class="pv-section__title">Session</h2>
                     <p id="pv-auth-status" class="pv-section__text" role="status" aria-live="polite">Loading…</p>
+                    <p id="pv-auth-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
                     <p id="pv-auth-role" class="pv-section__text pv-authSmall" aria-live="polite"></p>
                     <div class="pv-authActions">
                         <button id="pv-auth-signout" class="pv-button pv-button--secondary btn" type="button">Sign
@@ -108,7 +109,8 @@
             </div>
 
             <p class="pv-section__text pv-authSmall">
-                First-time setup: open <strong>firebase-config.js</strong> and paste your Firebase web app config.
+                First-time setup: for local dev, create <strong>firebase-config.local.js</strong> (see <strong>firebase-config.local.example.js</strong>).
+                For GitHub Pages, inject config via GitHub Secrets (see README).
             </p>
         </section>
     </main>
@@ -133,7 +135,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-functions-compat.js" defer></script>
 
+    <!-- Load default config first, then local override (if present). -->
     <script src="firebase-config.js" defer></script>
+    <!-- Optional local-only Firebase config (ignored by git). 404 is OK in production. -->
+    <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
     <script src="account.js" defer></script>
 </body>
