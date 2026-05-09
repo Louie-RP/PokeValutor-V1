@@ -109,7 +109,22 @@
 
     async function signInWithGoogle() {
         const provider = new window.firebase.auth.GoogleAuthProvider();
-        return auth.signInWithPopup(provider);
+        try {
+            return await auth.signInWithPopup(provider);
+        } catch (error) {
+            const code = String(error?.code || '').toLowerCase();
+            const shouldFallbackToRedirect =
+                code === 'auth/popup-blocked' ||
+                code === 'auth/popup-closed-by-user' ||
+                code === 'auth/cancelled-popup-request' ||
+                code === 'auth/internal-error';
+
+            if (!shouldFallbackToRedirect) throw error;
+
+            // Fallback for browsers/policies that interfere with popup messaging.
+            await auth.signInWithRedirect(provider);
+            return null;
+        }
     }
 
     async function signUpWithEmail(email, password) {

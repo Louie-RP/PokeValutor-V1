@@ -90,6 +90,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return 'Setup check: Network/CSP blocked Firebase. Confirm internet access and CSP allows gstatic/googleapis.';
         }
 
+        if (code === 'auth/internal-error') {
+            return 'Setup check: Google auth popup failed. Verify Firebase authorized domains, allow apis.google.com in CSP script-src, and retry.';
+        }
+
         return '';
     }
 
