@@ -961,6 +961,8 @@
                 image: pickFrontMediumImage(setCard?.images),
                 collectedVariants: split.collectedVariants,
                 missingVariants: split.missingVariants,
+                collectedVariantCount: split.collectedVariants.length,
+                requiredVariantCount: split.requiredVariants.length,
             };
 
             if (split.collectedVariants.length) {
@@ -1062,6 +1064,9 @@
             const name = escapeHtml(safeString(item?.name, 'Unknown'));
             const number = escapeHtml(safeString(item?.number, ''));
             const img = escapeAttr(safeString(item?.image, ''));
+            const collectedCount = Math.max(0, Math.floor(Number(item?.collectedVariantCount || 0)));
+            const requiredCount = Math.max(0, Math.floor(Number(item?.requiredVariantCount || 0)));
+            const badge = `${collectedCount}/${requiredCount}`;
             const variants = mode === 'collected'
                 ? (Array.isArray(item?.collectedVariants) ? item.collectedVariants : [])
                 : (Array.isArray(item?.missingVariants) ? item.missingVariants : []);
@@ -1074,7 +1079,10 @@
                 <article class="pv-masterSetDetailCard">
                     ${img ? `<img class="pv-masterSetDetailCard__image" src="${img}" alt="${name} card image" loading="lazy"/>` : ''}
                     <div class="pv-masterSetDetailCard__content">
-                        <h3 class="pv-masterSetDetailCard__title">${name}${number ? ` <span class="pv-masterSetDetailCard__number">#${number}</span>` : ''}</h3>
+                        <div class="pv-masterSetDetailCard__titleRow">
+                            <h3 class="pv-masterSetDetailCard__title">${name}${number ? ` <span class="pv-masterSetDetailCard__number">#${number}</span>` : ''}</h3>
+                            <span class="pv-variantProgressBadge" aria-label="Collected variants ${badge}">${badge}</span>
+                        </div>
                         <p class="pv-masterSetDetailCard__meta">${heading}</p>
                         <div class="pv-variantTagList">${variantTags}</div>
                     </div>

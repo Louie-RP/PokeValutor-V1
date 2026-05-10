@@ -542,6 +542,16 @@ document.addEventListener('DOMContentLoaded', function () {
         return DEX_CARD_CONDITIONS.includes(upper) ? upper : '';
     }
 
+    function getDexConditionLabel(code) {
+        const normalized = normalizeDexConditionCode(code);
+        if (normalized === 'NM') return 'Near Mint (NM)';
+        if (normalized === 'LP') return 'Lightly Played (LP)';
+        if (normalized === 'MP') return 'Moderately Played (MP)';
+        if (normalized === 'HP') return 'Heavily Played (HP)';
+        if (normalized === 'DM') return 'Damaged (DM)';
+        return normalized || 'Unknown condition';
+    }
+
     function normalizeConditionQuantities(rawMap, fallbackCondition) {
         /** @type {Record<string, number>} */
         const out = {};
@@ -843,6 +853,107 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         return { removedCollection, removedMasterSet, expansionNames };
+    }
+
+    function removeDexCardCopyFromTrackers(cardOrId, conditionCode, variantName) {
+        const id = safeString(cardOrId?.id ?? cardOrId, '');
+        if (!id) {
+            return { removedCopy: false, removedCard: false, reason: 'invalidId' };
+        }
+
+        const code = normalizeDexConditionCode(conditionCode);
+        if (!code) {
+            return { removedCopy: false, removedCard: false, reason: 'conditionRequired' };
+        }
+
+        const collection = loadDexCollection();
+        const idx = collection.findIndex((x) => safeString(x?.id, '') === id);
+        if (idx < 0) {
+            return { removedCopy: false, removedCard: false, reason: 'notTracked' };
+        }
+
+        const existing = normalizeDexCollectionCard(collection[idx]);
+        const hasVariants = Array.isArray(existing?.variants) && existing.variants.length > 0;
+        const wantedVariant = safeString(variantName, '').trim() || getDexDefaultVariantForCard(existing);
+        if (hasVariants && !wantedVariant) {
+            return { removedCopy: false, removedCard: false, reason: 'variantRequired' };
+        }
+
+        const conditionMap = normalizeConditionQuantities(existing?.conditionQuantities, existing?.selectedCondition);
+        const totalBefore = getTotalDexConditionCopies(conditionMap, existing?.selectedCondition);
+        const variantMap = normalizeVariantQuantities(existing?.variantQuantities, existing?.selectedVariant, totalBefore);
+
+        const conditionQty = Math.floor(Number(conditionMap[code] || 0));
+        if (!Number.isFinite(conditionQty) || conditionQty <= 0) {
+            return {
+                removedCopy: false,
+                removedCard: false,
+                reason: 'conditionNotTracked',
+                removedCondition: code,
+                removedVariant: wantedVariant,
+            };
+        }
+
+        const variantQty = Math.floor(Number(variantMap[wantedVariant] || 0));
+        if (!Number.isFinite(variantQty) || variantQty <= 0) {
+            return {
+                removedCopy: false,
+                removedCard: false,
+                reason: 'variantNotTracked',
+                removedCondition: code,
+                removedVariant: wantedVariant,
+            };
+        }
+
+        const nextConditionQty = Math.max(0, conditionQty - 1);
+        if (nextConditionQty > 0) {
+            conditionMap[code] = nextConditionQty;
+        } else {
+            delete conditionMap[code];
+        }
+
+        const nextVariantQty = Math.max(0, variantQty - 1);
+        if (nextVariantQty > 0) {
+            variantMap[wantedVariant] = nextVariantQty;
+        } else {
+            delete variantMap[wantedVariant];
+        }
+
+        const remainingCopies = getTotalDexConditionCopies(conditionMap, '');
+        if (remainingCopies <= 0) {
+            const removed = removeDexCardFromTrackers(id);
+            return {
+                removedCopy: removed.removedCollection || removed.removedMasterSet,
+                removedCard: true,
+                reason: '',
+                removedCondition: code,
+                removedVariant: wantedVariant,
+                ...removed,
+                remainingCopies: 0,
+            };
+        }
+
+        collection[idx] = {
+            ...existing,
+            conditionQuantities: conditionMap,
+            selectedCondition: getPrimaryConditionCode(conditionMap),
+            variantQuantities: variantMap,
+            selectedVariant: getPrimaryVariantName(variantMap, getDexDefaultVariantForCard(existing)),
+            updatedAt: Date.now(),
+        };
+        saveDexCollection(collection);
+
+        return {
+            removedCopy: true,
+            removedCard: false,
+            reason: '',
+            removedCondition: code,
+            removedVariant: wantedVariant,
+            removedCollection: true,
+            removedMasterSet: false,
+            expansionNames: [getDexExpansionInfo(existing).name].filter(Boolean),
+            remainingCopies,
+        };
     }
 
     function toggleDexCardInTrackers(card) {
@@ -2100,6 +2211,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const favLabel = isDexPage
                 ? (inDexCollection ? `Add another copy to collection${trackedCopyLabel}` : 'Add to collection and master set tracker')
                 : (fav ? 'Remove from watchlist' : 'Add to watchlist');
+            const removeLabel = isDexPage
+                ? (inDexCollection ? `Remove one tracked copy${trackedCopyLabel}` : 'No tracked copies to remove')
+                : '';
 
             const variantOptions = variants.length
                 ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
@@ -2160,6 +2274,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const rarityHtml = escapeHtml(rarity);
             const setNameHtml = escapeHtml(setName);
             const favLabelAttr = escapeAttr(favLabel);
+            const removeLabelAttr = escapeAttr(removeLabel);
             const imgUrlAttr = escapeAttr(imgUrl);
 
             col.innerHTML = `
@@ -2170,6 +2285,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="pv-card__title">${nameHtml}</div>
                             <div class="pv-card__actions">
                                 <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
+                                ${isDexPage
+                                    ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}>−</button>`
+                                    : ''}
                             </div>
                         </div>
                         <p class="pv-card__text">Set: ${setNameHtml}</p>
@@ -2193,6 +2311,36 @@ document.addEventListener('DOMContentLoaded', function () {
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
+            const removeBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-remove-${CSS.escape(id)}`));
+
+            function updateDexButtonStateFromStorage() {
+                if (!isDexPage || !favBtn) return;
+
+                const trackedEntry = loadDexCollection().find((x) => safeString(x?.id, '') === id) || null;
+                const nowTracked = !!trackedEntry;
+                const nowCopies = nowTracked
+                    ? getTotalDexConditionCopies(trackedEntry?.conditionQuantities, trackedEntry?.selectedCondition)
+                    : 0;
+                const copyLabel = nowCopies > 0 ? ` (${nowCopies} cop${nowCopies === 1 ? 'y' : 'ies'})` : '';
+
+                const addLabel = nowTracked
+                    ? `Add another copy to collection${copyLabel}`
+                    : 'Add to collection and master set tracker';
+                favBtn.textContent = nowTracked ? '✓' : '+';
+                favBtn.setAttribute('aria-label', addLabel);
+                favBtn.setAttribute('title', addLabel);
+                favBtn.setAttribute('aria-pressed', nowTracked ? 'true' : 'false');
+
+                if (removeBtn) {
+                    const rmLabel = nowTracked
+                        ? `Remove one tracked copy${copyLabel}`
+                        : 'No tracked copies to remove';
+                    removeBtn.disabled = !nowTracked;
+                    removeBtn.setAttribute('aria-label', rmLabel);
+                    removeBtn.setAttribute('title', rmLabel);
+                }
+            }
+
             if (favBtn) {
                 if (isDexPage) {
                     favBtn.setAttribute('aria-pressed', inDexCollection ? 'true' : 'false');
@@ -2222,26 +2370,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         const result = toggleDexCardInTrackers(card);
-                        const nowTracked = isInDexCollection(id);
-                        const nowTrackedEntry = nowTracked
-                            ? loadDexCollection().find((x) => safeString(x?.id, '') === id)
-                            : null;
-                        const nextCopies = nowTracked
-                            ? getTotalDexConditionCopies(nowTrackedEntry?.conditionQuantities, nowTrackedEntry?.selectedCondition)
-                            : 0;
-                        const nextCopyLabel = nextCopies > 0 ? ` (${nextCopies} cop${nextCopies === 1 ? 'y' : 'ies'})` : '';
-                        const nextLabel = nowTracked
-                            ? `Add another copy to collection${nextCopyLabel}`
-                            : 'Add to collection and master set tracker';
-                        favBtn.textContent = nowTracked ? '✓' : '+';
-                        favBtn.setAttribute('aria-label', nextLabel);
-                        favBtn.setAttribute('title', nextLabel);
-                        favBtn.setAttribute('aria-pressed', nowTracked ? 'true' : 'false');
+                        updateDexButtonStateFromStorage();
+
+                        const addedConditionLabel = getDexConditionLabel(selectedCondition);
+                        const addedVariantRaw = safeString(selectedVariant || getDexDefaultVariantForCard(card), '').trim();
+                        const addedVariantLabel = addedVariantRaw || 'Standard';
+                        const addedDetail = `${addedConditionLabel} • ${addedVariantLabel}`;
 
                         if (result.action === 'added' && (result.addedCollection || result.addedMasterSet)) {
                             const setSuffix = result.expansionName ? ` (${result.expansionName})` : '';
                             const prefix = currentlyTracked ? 'Added another copy to Collection and Master Sets' : 'Added to Collection and Master Sets';
-                            setStatus(`${prefix}${setSuffix}.`);
+                            setStatus(`${prefix} (${addedDetail})${setSuffix}.`);
                         } else if (result.action === 'removed' && (result.removedCollection || result.removedMasterSet)) {
                             const firstSet = Array.isArray(result.expansionNames) && result.expansionNames.length
                                 ? ` (${result.expansionNames[0]})`
@@ -2256,6 +2395,61 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     favBtn.addEventListener('click', () => toggleFavorite(card));
                 }
+            }
+
+            if (isDexPage && removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    if (!isInDexCollection(id)) {
+                        setStatus('No tracked copies to remove for this card.');
+                        return;
+                    }
+
+                    const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
+                    if (!selectedCondition) {
+                        setStatus('Select the condition of the copy you want to remove.');
+                        if (conditionEl) conditionEl.focus();
+                        return;
+                    }
+
+                    const selectedVariant = safeString(selectEl?.value, '');
+                    if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
+                        setStatus('Select the variant you want to remove.');
+                        if (selectEl) selectEl.focus();
+                        return;
+                    }
+
+                    const removed = removeDexCardCopyFromTrackers(card, selectedCondition, selectedVariant);
+                    updateDexButtonStateFromStorage();
+
+                    const removedConditionCode = normalizeDexConditionCode(removed?.removedCondition || selectedCondition);
+                    const removedConditionLabel = getDexConditionLabel(removedConditionCode);
+                    const removedVariantRaw = safeString(removed?.removedVariant || selectedVariant || getDexDefaultVariantForCard(card), '').trim();
+                    const removedVariantLabel = removedVariantRaw || 'Standard';
+                    const removedDetail = `${removedConditionLabel} • ${removedVariantLabel}`;
+
+                    if (!removed.removedCopy) {
+                        if (removed.reason === 'conditionNotTracked') {
+                            setStatus(`No tracked copy exists for ${removedDetail} on this card.`);
+                        } else if (removed.reason === 'variantNotTracked') {
+                            setStatus(`No tracked copy exists for ${removedDetail} on this card.`);
+                        } else if (removed.reason === 'variantRequired') {
+                            setStatus('Select the variant you want to remove.');
+                            if (selectEl) selectEl.focus();
+                        } else {
+                            setStatus('Unable to remove a copy for this card right now.');
+                        }
+                        return;
+                    }
+
+                    const setSuffix = Array.isArray(removed.expansionNames) && removed.expansionNames.length
+                        ? ` (${removed.expansionNames[0]})`
+                        : '';
+                    if (removed.removedCard) {
+                        setStatus(`Removed last tracked copy (${removedDetail}) from Collection and Master Sets${setSuffix}.`);
+                    } else {
+                        setStatus(`Removed one tracked copy (${removedDetail}) from Collection${setSuffix}.`);
+                    }
+                });
             }
 
             if (isDexPage && selectEl && selectedDexVariant && variants.includes(selectedDexVariant)) {

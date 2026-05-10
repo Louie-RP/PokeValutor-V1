@@ -687,6 +687,37 @@ h1, h2, h3, h4, h5, h6,
 .pv-fav-btn:hover { color: var(--pv-primary-dark); }
 .pv-fav-btn:focus-visible { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 
+.pv-dex-remove-btn {
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.7);
+  color: #fca5a5;
+  border-radius: 999px;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.pv-dex-remove-btn:hover,
+.pv-dex-remove-btn:focus-visible {
+  border-color: rgba(248, 113, 113, 0.95);
+  color: #fecaca;
+}
+
+.pv-dex-remove-btn:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 2px;
+}
+
+.pv-dex-remove-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Watchlist toggle */
 .pv-watch-btn {
   background: transparent;
@@ -1081,6 +1112,30 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin: 0;
   font-size: 0.98rem;
   color: #ffffff;
+}
+
+.pv-masterSetDetailCard__titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.pv-variantProgressBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.45rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.45);
+  background: rgba(255, 203, 5, 0.11);
+  color: #ffe588;
+  font-size: 0.76rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex: 0 0 auto;
 }
 
 .pv-masterSetDetailCard__number {
