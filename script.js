@@ -2,6 +2,7 @@
 (function () {
   const year = document.getElementById('pv-year');
   const form = document.getElementById('pv-contactForm');
+  const scrollTopBtn = document.getElementById('pv-scroll-top');
 
   // Update year in footer
   if (year) {
@@ -20,6 +21,14 @@
       const nav = document.getElementById(targetId);
       if (!nav) return;
       nav.setAttribute('aria-expanded', String(!expanded));
+    });
+  }
+
+  // Shared scroll-to-top behavior for pages that include the floating button.
+  if (scrollTopBtn && scrollTopBtn.getAttribute('data-bound') !== '1') {
+    scrollTopBtn.setAttribute('data-bound', '1');
+    scrollTopBtn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
 

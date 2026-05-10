@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const DEFAULT_TRADE_PERCENT = 80;
     const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
+    const DEX_CARD_CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DM'];
 
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     // Single saved-items list is now the Watchlist.
@@ -525,7 +526,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return s ? s : (fallback || '');
     }
 
+    function normalizeDexConditionCode(raw) {
+        const upper = String(raw || '')
+            .trim()
+            .toUpperCase()
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ');
+        if (!upper) return '';
+        if (upper === 'NM' || upper.startsWith('NEAR MINT')) return 'NM';
+        if (upper === 'LP' || upper.startsWith('LIGHT PLAY')) return 'LP';
+        if (upper === 'MP' || upper.startsWith('MODERATE PLAY') || upper.startsWith('MID PLAY')) return 'MP';
+        if (upper === 'HP' || upper.startsWith('HEAVY PLAY')) return 'HP';
+        if (upper === 'DM' || upper.startsWith('DAMAGE')) return 'DM';
+        return DEX_CARD_CONDITIONS.includes(upper) ? upper : '';
+    }
+
     function normalizeDexCollectionCard(card) {
+        const normalizedCondition = normalizeDexConditionCode(card?.selectedCondition);
         return {
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -535,6 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
             images: Array.isArray(card?.images) ? card.images : [],
             variants: Array.isArray(card?.variants) ? card.variants : [],
             selectedVariant: safeString(card?.selectedVariant, ''),
+            selectedCondition: normalizedCondition,
             pricesText: safeString(card?.pricesText, ''),
             addedAt: Date.now(),
         };
@@ -1921,6 +1939,10 @@ document.addEventListener('DOMContentLoaded', function () {
         currentResultsCards = Array.isArray(cards) ? cards : [];
         grid.innerHTML = '';
 
+        const dexCollectionById = isDexPage
+            ? new Map(loadDexCollection().map((x) => [safeString(x?.id, ''), x]))
+            : null;
+
         if (!Array.isArray(cards) || cards.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'col-12';
@@ -1940,8 +1962,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const imgUrl = sanitizeUrl(pickFrontMediumImage(card?.images));
             const variantsFull = Array.isArray(card?.variants) ? card.variants : [];
             const variants = variantsFull.map((v) => v?.name).filter(Boolean);
+            const dexTracked = (isDexPage && dexCollectionById)
+                ? dexCollectionById.get(id)
+                : null;
             const fav = isFavorite(id);
-            const inDexCollection = isDexPage ? isInDexCollection(id) : false;
+            const inDexCollection = isDexPage ? !!dexTracked : false;
             const favSymbol = isDexPage ? (inDexCollection ? '✓' : '+') : (fav ? '★' : '☆');
             const favLabel = isDexPage
                 ? (inDexCollection ? 'Already in collection' : 'Add to collection and master set tracker')
@@ -1956,11 +1981,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const restoredSelection = restoreState?.selections?.[id];
             const restoredTradePercent = getSavedTradePercentForId(id, restoreState);
-            const tradePercentOptions = TRADE_PERCENT_CHOICES
-                .map((p) => `<option value="${p}" ${p === restoredTradePercent ? 'selected' : ''}>${p}%</option>`)
-                .join('');
-
             const idAttr = escapeAttr(id);
+            const tradePercentOptions = isDexPage
+                ? ''
+                : TRADE_PERCENT_CHOICES
+                    .map((p) => `<option value="${p}" ${p === restoredTradePercent ? 'selected' : ''}>${p}%</option>`)
+                    .join('');
+
+            const selectedDexCondition = normalizeDexConditionCode(dexTracked?.selectedCondition);
+            const conditionOptions = ['<option value="">Select condition</option>', ...DEX_CARD_CONDITIONS.map((c) => {
+                const label = c === 'NM'
+                    ? 'Near Mint (NM)'
+                    : c === 'LP'
+                        ? 'Lightly Played (LP)'
+                        : c === 'MP'
+                            ? 'Moderately Played (MP)'
+                            : c === 'HP'
+                                ? 'Heavily Played (HP)'
+                                : 'Damaged (DM)';
+                const selected = selectedDexCondition === c ? 'selected' : '';
+                return `<option value="${c}" ${selected}>${escapeHtml(label)}</option>`;
+            })].join('');
+
+            const tradeFieldHtml = isDexPage
+                ? ''
+                : `
+                        <div class="pv-form__field" style="margin-bottom:0.5rem">
+                            <label class="form-label" for="pv-trade-${idAttr}">Trade %</label>
+                            <select class="form-select" id="pv-trade-${idAttr}">
+                                ${tradePercentOptions}
+                            </select>
+                        </div>
+                `;
+
+            const conditionFieldHtml = isDexPage
+                ? `
+                        <div class="pv-form__field" style="margin-bottom:0.5rem">
+                            <label class="form-label" for="pv-condition-${idAttr}">Condition</label>
+                            <select class="form-select" id="pv-condition-${idAttr}">
+                                ${conditionOptions}
+                            </select>
+                        </div>
+                `
+                : '';
+
             const nameHtml = escapeHtml(name);
             const nameAttr = escapeAttr(name);
             const rarityHtml = escapeHtml(rarity);
@@ -1986,12 +2050,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 ${variantOptions}
                             </select>
                         </div>
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-trade-${idAttr}">Trade %</label>
-                            <select class="form-select" id="pv-trade-${idAttr}">
-                                ${tradePercentOptions}
-                            </select>
-                        </div>
+                        ${conditionFieldHtml}
+                        ${tradeFieldHtml}
                         <pre class="pv-card__text" id="pv-prices-${idAttr}" style="white-space:pre-wrap;margin:0"></pre>
                     </div>
                 </div>
@@ -1999,6 +2059,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Declare these after col.innerHTML so the elements exist
             const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
+            const conditionEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-condition-${CSS.escape(id)}`));
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
@@ -2008,6 +2069,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 if (isDexPage) {
                     favBtn.addEventListener('click', () => {
+                        const currentlyTracked = isInDexCollection(id);
+                        if (!currentlyTracked) {
+                            const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
+                            if (!selectedCondition) {
+                                setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
+                                if (conditionEl) conditionEl.focus();
+                                return;
+                            }
+
+                            const selectedVariant = safeString(selectEl?.value, '');
+                            if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
+                                setStatus('Select a card type (variant) before adding to your Collection.');
+                                if (selectEl) selectEl.focus();
+                                return;
+                            }
+
+                            try {
+                                card.selectedCondition = selectedCondition;
+                                card.selectedVariant = selectedVariant;
+                            } catch {
+                                // ignore
+                            }
+                        }
+
                         const result = toggleDexCardInTrackers(card);
                         const nowTracked = isInDexCollection(id);
                         const nextLabel = nowTracked ? 'Already in collection' : 'Add to collection and master set tracker';
@@ -2040,6 +2125,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let lastLoadedPrices = null;
 
             function getSelectedTradePercent() {
+                if (isDexPage) return null;
                 const raw = tradeEl?.value;
                 const n = Number(raw);
                 return Number.isFinite(n) ? n : DEFAULT_TRADE_PERCENT;
@@ -2058,12 +2144,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 const prev = loadLastResults();
                 if (prev && Array.isArray(prev.cards)) {
                     const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
-                    selections[id] = { holoType: variantName, pricesText: formatted, tradePercent: getSelectedTradePercent() };
+                    const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+                    const nextTradePercent = getSelectedTradePercent();
+                    selections[id] = isDexPage
+                        ? { ...prevSel, holoType: variantName, pricesText: formatted }
+                        : { ...prevSel, holoType: variantName, pricesText: formatted, tradePercent: nextTradePercent };
                     saveLastResults({ ...prev, selections });
                 }
 
                 // Also persist trade percent independently so it survives lastResults clearing.
-                persistTradePercent(id, getSelectedTradePercent());
+                if (!isDexPage) {
+                    persistTradePercent(id, getSelectedTradePercent());
+                }
 
                 // If this card is favorited, keep the Favorites price display in sync.
                 if (isFavorite(id)) {
@@ -2161,7 +2253,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const formatted = formatPriceList(restoredPrices, getSelectedTradePercent());
                         pricesEl.textContent = formatted;
                         persistSelection(restoredVariant, formatted);
-                    } else if (restoredSelection.pricesText) {
+                    } else if (restoredSelection.pricesText && !isDexPage) {
                         pricesEl.textContent = String(restoredSelection.pricesText);
                         lastLoadedVariantName = restoredVariant;
 

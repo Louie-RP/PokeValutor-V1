@@ -3,6 +3,9 @@
     const CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
+    const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
+    const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
 
     function safeParseJson(raw) {
         try {
@@ -25,6 +28,245 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(value) {
+        return escapeHtml(value);
+    }
+
+    function formatUsd(amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n)) return '$0.00';
+        return `$${n.toFixed(2)}`;
+    }
+
+    function getWorkerBase() {
+        const defaultWorker = 'https://pokevalutor-v1.lreyperez18.workers.dev';
+        return (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
+    }
+
+    function normalizeVariantNameForCompare(name) {
+        return String(name ?? '').trim().toLowerCase();
+    }
+
+    function findVariantByName(variants, variantName) {
+        if (!Array.isArray(variants)) return null;
+        const want = normalizeVariantNameForCompare(variantName);
+        if (!want) return null;
+        return variants.find((v) => normalizeVariantNameForCompare(v?.name) === want) || null;
+    }
+
+    function normalizeDexConditionCode(raw) {
+        const upper = String(raw || '')
+            .trim()
+            .toUpperCase()
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ');
+        if (!upper) return '';
+        if (upper === 'NM' || upper.startsWith('NEAR MINT')) return 'NM';
+        if (upper === 'LP' || upper.startsWith('LIGHT PLAY')) return 'LP';
+        if (upper === 'MP' || upper.startsWith('MODERATE PLAY') || upper.startsWith('MID PLAY')) return 'MP';
+        if (upper === 'HP' || upper.startsWith('HEAVY PLAY')) return 'HP';
+        if (upper === 'DM' || upper.startsWith('DAMAGE')) return 'DM';
+        return DEX_CONDITION_CODES.includes(upper) ? upper : '';
+    }
+
+    function getConditionLabel(code) {
+        const key = normalizeDexConditionCode(code);
+        if (key === 'NM') return 'Near Mint (NM)';
+        if (key === 'LP') return 'Lightly Played (LP)';
+        if (key === 'MP') return 'Moderately Played (MP)';
+        if (key === 'HP') return 'Heavily Played (HP)';
+        if (key === 'DM') return 'Damaged (DM)';
+        return 'n/a';
+    }
+
+    function readValueCache() {
+        try {
+            const raw = localStorage.getItem(VALUE_CACHE_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function writeValueCache(next) {
+        try {
+            const safe = (next && typeof next === 'object') ? next : {};
+            localStorage.setItem(VALUE_CACHE_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getCachedValue(cacheKey) {
+        const map = readValueCache();
+        const hit = map[cacheKey];
+        if (!hit || typeof hit !== 'object') return null;
+
+        const savedAt = Number(hit.savedAt || 0);
+        const market = Number(hit.market);
+        if (!Number.isFinite(savedAt) || !Number.isFinite(market)) return null;
+        if ((Date.now() - savedAt) > VALUE_CACHE_TTL_MS) return null;
+
+        return {
+            market,
+            variantUsed: safeString(hit.variantUsed, ''),
+        };
+    }
+
+    function setCachedValue(cacheKey, market, variantUsed) {
+        const map = readValueCache();
+        map[cacheKey] = {
+            market: Number(market),
+            variantUsed: safeString(variantUsed, ''),
+            savedAt: Date.now(),
+        };
+        writeValueCache(map);
+    }
+
+    function getMarketForCondition(prices, conditionCode) {
+        if (!Array.isArray(prices)) return null;
+        const wanted = normalizeDexConditionCode(conditionCode);
+        if (!wanted) return null;
+
+        let best = null;
+        for (const p of prices) {
+            if (!p || typeof p !== 'object') continue;
+            const got = normalizeDexConditionCode(p?.condition);
+            if (got !== wanted) continue;
+
+            const marketRaw = (p?.market ?? p?.marketPrice ?? p?.market_price ?? null);
+            const market = typeof marketRaw === 'number' ? marketRaw : Number(marketRaw);
+            if (!Number.isFinite(market)) continue;
+            if (best == null || market > best) best = market;
+        }
+        return best;
+    }
+
+    function getBestVariantMarket(variants, selectedVariant, conditionCode) {
+        if (!Array.isArray(variants) || !variants.length) return null;
+
+        const chosenName = safeString(selectedVariant, '');
+        if (chosenName) {
+            const match = findVariantByName(variants, chosenName);
+            const market = getMarketForCondition(match?.prices, conditionCode);
+            if (market != null) {
+                return { market, variantUsed: safeString(match?.name, chosenName) };
+            }
+        }
+
+        let best = null;
+        for (const variant of variants) {
+            const market = getMarketForCondition(variant?.prices, conditionCode);
+            if (market == null) continue;
+            if (!best || market > best.market) {
+                best = {
+                    market,
+                    variantUsed: safeString(variant?.name, ''),
+                };
+            }
+        }
+        return best;
+    }
+
+    async function fetchCardWithPrices(cardId) {
+        const id = safeString(cardId, '');
+        if (!id) return null;
+
+        try {
+            let headers;
+            try {
+                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                const token = String(tokenRaw || '').trim();
+                if (token) headers = { Authorization: `Bearer ${token}` };
+            } catch {
+                // ignore
+            }
+
+            const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+            const res = await fetch(url, headers ? { headers } : undefined);
+            if (!res.ok) return null;
+
+            const text = await res.text();
+            const parsed = safeParseJson(text);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return parsed?.data || parsed;
+        } catch {
+            return null;
+        }
+    }
+
+    async function getCurrentCardValue(item) {
+        const id = safeString(item?.id, '');
+        const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
+        if (!id || !conditionCode) return null;
+
+        const selectedVariant = safeString(item?.selectedVariant, '');
+        const cacheKey = `${id}|${selectedVariant}|${conditionCode}`;
+        const cached = getCachedValue(cacheKey);
+        if (cached && Number.isFinite(cached.market)) {
+            return cached;
+        }
+
+        const fetched = await fetchCardWithPrices(id);
+        const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
+        const fallbackVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
+
+        const best = getBestVariantMarket(sourceVariants, selectedVariant, conditionCode);
+        if (!best || !Number.isFinite(best.market)) return null;
+
+        setCachedValue(cacheKey, best.market, best.variantUsed);
+        return best;
+    }
+
+    async function refreshCollectionValues(items, totalEl) {
+        if (!totalEl) return;
+
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) {
+            totalEl.textContent = 'Collection Value: $0.00';
+            return;
+        }
+
+        totalEl.textContent = 'Collection Value: Loading...';
+
+        let total = 0;
+        let pricedCount = 0;
+
+        await Promise.all(list.map(async (item) => {
+            const id = safeString(item?.id, '');
+            if (!id) return;
+
+            const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
+            const valueEl = document.getElementById(valueElId);
+            const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
+            const conditionLabel = getConditionLabel(conditionCode);
+
+            if (valueEl) {
+                valueEl.textContent = conditionCode ? `Value (${conditionLabel}): Loading...` : 'Value: n/a';
+            }
+
+            if (!conditionCode) return;
+
+            const valueInfo = await getCurrentCardValue(item);
+            if (!valueInfo || !Number.isFinite(valueInfo.market)) {
+                if (valueEl) valueEl.textContent = `Value (${conditionLabel}): n/a`;
+                return;
+            }
+
+            pricedCount++;
+            total += valueInfo.market;
+            if (valueEl) {
+                valueEl.textContent = `Value (${conditionLabel}): ${formatUsd(valueInfo.market)}`;
+            }
+        }));
+
+        const coverage = pricedCount < list.length ? ` (${pricedCount}/${list.length} priced)` : '';
+        totalEl.textContent = `Collection Value: ${formatUsd(total)}${coverage}`;
     }
 
     function pickFrontMediumImage(images) {
@@ -136,13 +378,15 @@
     function renderCollectionPage() {
         const grid = document.getElementById('pv-collection-grid');
         const summary = document.getElementById('pv-collection-summary');
+        const totalEl = document.getElementById('pv-collection-total');
         const clearBtn = document.getElementById('pv-collection-clear');
-        if (!grid || !summary) return;
+        if (!grid || !summary || !totalEl) return;
 
         const items = readCollection().slice().sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
         summary.textContent = `${items.length} card${items.length === 1 ? '' : 's'} tracked in your collection.`;
 
         if (!items.length) {
+            totalEl.textContent = 'Collection Value: $0.00';
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Open Dex, browse a set, and press + on cards you own.</div></div>';
         } else {
             const rows = items.map((item) => {
@@ -150,8 +394,12 @@
                 const name = escapeHtml(safeString(item?.name, 'Unknown'));
                 const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
                 const setName = escapeHtml(getCardSetName(item));
+                const variantName = escapeHtml(safeString(item?.selectedVariant, 'n/a'));
+                const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
+                const conditionLabel = escapeHtml(getConditionLabel(conditionCode));
                 const addedAt = escapeHtml(formatDate(item?.addedAt));
                 const img = escapeHtml(pickFrontMediumImage(item?.images));
+                const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
 
                 return `
                     <div class="col-12 col-sm-6 col-md-4 col-lg-3">
@@ -161,8 +409,11 @@
                                 <h3 class="pv-card__title">${name}</h3>
                                 <p class="pv-card__text">Set: ${setName}</p>
                                 <p class="pv-card__text">Rarity: ${rarity}</p>
+                                <p class="pv-card__text">Type: ${variantName}</p>
+                                <p class="pv-card__text">Condition: ${conditionLabel}</p>
                                 <p class="pv-card__text">Card ID: ${escapeHtml(id || 'n/a')}</p>
                                 <p class="pv-card__text">Added: ${addedAt || 'n/a'}</p>
+                                <p class="pv-card__text" id="${escapeAttr(valueElId)}">Value: ${conditionCode ? `Loading...` : 'n/a'}</p>
                                 <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-card-id="${escapeHtml(id)}">Remove Card</button>
                             </div>
                         </article>
@@ -183,6 +434,8 @@
                     renderActivePage();
                 });
             }
+
+            void refreshCollectionValues(items, totalEl);
         }
 
         if (clearBtn) {
@@ -241,7 +494,7 @@
                     ? `<ul class="pv-masterSetCardList">${cardIds.map((id) => {
                         const card = cardsById[id];
                         const label = card
-                            ? `${safeString(card?.name, 'Unknown')} (${getCardSetName(card)})`
+                            ? `${safeString(card?.name, 'Unknown')} • ${safeString(card?.selectedVariant, 'Type n/a')} • ${getConditionLabel(card?.selectedCondition)} (${getCardSetName(card)})`
                             : id;
                         return `<li class="pv-masterSetCardList__item"><span>${escapeHtml(label)}</span><button class="pv-button btn pv-removeCardBtn pv-removeCardBtn--small" type="button" data-remove-card-id="${escapeHtml(id)}">Remove</button></li>`;
                     }).join('')}</ul>`

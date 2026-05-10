@@ -807,6 +807,12 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   padding: 1rem;
 }
 
+.pv-collectionTotal {
+  margin: 0.15rem 0 0.35rem;
+  color: #ffffff;
+  font-weight: 800;
+}
+
 .pv-masterSetsGrid {
   display: grid;
   grid-template-columns: 1fr;
