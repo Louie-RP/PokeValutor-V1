@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEFAULT_TRADE_PERCENT = 80;
     const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
     const DEX_CARD_CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DM'];
+    const DEX_DEFAULT_VARIANT_NAME = 'Standard';
 
     const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     // Single saved-items list is now the Watchlist.
@@ -585,9 +586,55 @@ document.addEventListener('DOMContentLoaded', function () {
         return total;
     }
 
+    function getDexDefaultVariantForCard(cardLike) {
+        const selected = safeString(cardLike?.selectedVariant, '').trim();
+        if (selected) return selected;
+
+        const variants = Array.isArray(cardLike?.variants)
+            ? cardLike.variants.map((v) => safeString(v?.name, '').trim()).filter(Boolean)
+            : [];
+        if (variants.length) return '';
+        return DEX_DEFAULT_VARIANT_NAME;
+    }
+
+    function normalizeVariantQuantities(rawMap, fallbackVariant, fallbackCopies) {
+        /** @type {Record<string, number>} */
+        const out = {};
+
+        if (rawMap && typeof rawMap === 'object') {
+            for (const [rawName, rawQty] of Object.entries(rawMap)) {
+                const name = safeString(rawName, '').trim();
+                const qty = Math.floor(Number(rawQty));
+                if (!name || !Number.isFinite(qty) || qty <= 0) continue;
+                out[name] = (out[name] || 0) + qty;
+            }
+        }
+
+        if (Object.keys(out).length === 0) {
+            const baseName = safeString(fallbackVariant, '').trim();
+            const copies = Math.max(1, Math.floor(Number(fallbackCopies) || 0));
+            if (baseName) {
+                out[baseName] = copies;
+            }
+        }
+
+        return out;
+    }
+
+    function getPrimaryVariantName(variantQuantities, fallbackVariant) {
+        const map = normalizeVariantQuantities(variantQuantities, fallbackVariant, 1);
+        const keys = Object.keys(map);
+        if (!keys.length) return safeString(fallbackVariant, '');
+        return keys[0];
+    }
+
     function normalizeDexCollectionCard(card) {
         const conditionQuantities = normalizeConditionQuantities(card?.conditionQuantities, card?.selectedCondition);
         const selectedCondition = getPrimaryConditionCode(conditionQuantities);
+        const totalCopies = getTotalDexConditionCopies(conditionQuantities, selectedCondition);
+        const fallbackVariant = getDexDefaultVariantForCard(card);
+        const variantQuantities = normalizeVariantQuantities(card?.variantQuantities, fallbackVariant, totalCopies);
+        const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
         const addedAtRaw = Number(card?.addedAt || 0);
         const updatedAtRaw = Number(card?.updatedAt || 0);
         return {
@@ -598,7 +645,8 @@ document.addEventListener('DOMContentLoaded', function () {
             set: (card?.set && typeof card.set === 'object') ? card.set : null,
             images: Array.isArray(card?.images) ? card.images : [],
             variants: Array.isArray(card?.variants) ? card.variants : [],
-            selectedVariant: safeString(card?.selectedVariant, ''),
+            selectedVariant,
+            variantQuantities,
             selectedCondition,
             conditionQuantities,
             pricesText: safeString(card?.pricesText, ''),
@@ -659,6 +707,7 @@ document.addEventListener('DOMContentLoaded', function () {
             series: safeString(ex?.series, ''),
             printedTotal: Number(ex?.printed_total ?? ex?.printedTotal ?? 0) || 0,
             total: Number(ex?.total ?? 0) || 0,
+            image: safeString(ex?.logo ?? ex?.symbol ?? ex?.image ?? ex?.images?.logo ?? ex?.images?.symbol, ''),
         };
     }
 
@@ -677,24 +726,35 @@ document.addEventListener('DOMContentLoaded', function () {
         const collection = loadDexCollection();
         const existingIndex = collection.findIndex((x) => safeString(x?.id, '') === id);
         const existsInCollection = existingIndex >= 0;
+        const addVariantName = safeString(normalized?.selectedVariant, '').trim() || getDexDefaultVariantForCard(normalized);
         if (!existsInCollection) {
             collection.push(normalized);
             saveDexCollection(collection);
         } else {
             const existing = normalizeDexCollectionCard(collection[existingIndex]);
             const nextMap = normalizeConditionQuantities(existing?.conditionQuantities, existing?.selectedCondition);
+            const nextVariantMap = normalizeVariantQuantities(existing?.variantQuantities, existing?.selectedVariant, getTotalDexConditionCopies(nextMap, existing?.selectedCondition));
             const addCode = normalizeDexConditionCode(normalized?.selectedCondition);
 
             if (addCode) {
                 nextMap[addCode] = (nextMap[addCode] || 0) + 1;
             }
 
+            if (addVariantName) {
+                nextVariantMap[addVariantName] = (nextVariantMap[addVariantName] || 0) + 1;
+            }
+
+            const nextSelectedCondition = getPrimaryConditionCode(nextMap);
+            const nextSelectedVariant = getPrimaryVariantName(nextVariantMap, addVariantName);
+
             collection[existingIndex] = {
                 ...existing,
                 ...normalized,
                 addedAt: existing.addedAt,
+                selectedVariant: nextSelectedVariant,
+                variantQuantities: nextVariantMap,
                 conditionQuantities: nextMap,
-                selectedCondition: getPrimaryConditionCode(nextMap),
+                selectedCondition: nextSelectedCondition,
                 updatedAt: Date.now(),
             };
             saveDexCollection(collection);
@@ -715,6 +775,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 expansionId: expansion.id,
                 expansionName: expansion.name,
                 series: expansion.series,
+                setImage: expansion.image,
                 targetCount: expansion.printedTotal || expansion.total || null,
                 cardIds: nextCardIds,
                 count: nextCardIds.length,
@@ -795,17 +856,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 removedMasterSet: false,
                 expansionName: '',
                 expansionNames: [],
-            };
-        }
-
-        if (isInDexCollection(id)) {
-            const removed = removeDexCardFromTrackers(card);
-            return {
-                action: 'removed',
-                ...removed,
-                addedCollection: false,
-                addedMasterSet: false,
-                expansionName: '',
             };
         }
 
@@ -2048,7 +2098,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const trackedCopyLabel = trackedCopies > 0 ? ` (${trackedCopies} cop${trackedCopies === 1 ? 'y' : 'ies'})` : '';
             const favSymbol = isDexPage ? (inDexCollection ? '✓' : '+') : (fav ? '★' : '☆');
             const favLabel = isDexPage
-                ? (inDexCollection ? `Already in collection${trackedCopyLabel}` : 'Add to collection and master set tracker')
+                ? (inDexCollection ? `Add another copy to collection${trackedCopyLabel}` : 'Add to collection and master set tracker')
                 : (fav ? 'Remove from watchlist' : 'Add to watchlist');
 
             const variantOptions = variants.length
@@ -2068,6 +2118,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     .join('');
 
             const selectedDexCondition = normalizeDexConditionCode(dexTracked?.selectedCondition);
+            const selectedDexVariant = safeString(dexTracked?.selectedVariant, '');
             const conditionOptions = ['<option value="">Select condition</option>', ...DEX_CARD_CONDITIONS.map((c) => {
                 const label = c === 'NM'
                     ? 'Near Mint (NM)'
@@ -2149,27 +2200,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (isDexPage) {
                     favBtn.addEventListener('click', () => {
                         const currentlyTracked = isInDexCollection(id);
-                        if (!currentlyTracked) {
-                            const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
-                            if (!selectedCondition) {
-                                setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
-                                if (conditionEl) conditionEl.focus();
-                                return;
-                            }
+                        const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
+                        if (!selectedCondition) {
+                            setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
+                            if (conditionEl) conditionEl.focus();
+                            return;
+                        }
 
-                            const selectedVariant = safeString(selectEl?.value, '');
-                            if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
-                                setStatus('Select a card type (variant) before adding to your Collection.');
-                                if (selectEl) selectEl.focus();
-                                return;
-                            }
+                        const selectedVariant = safeString(selectEl?.value, '');
+                        if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
+                            setStatus('Select a card type (variant) before adding to your Collection.');
+                            if (selectEl) selectEl.focus();
+                            return;
+                        }
 
-                            try {
-                                card.selectedCondition = selectedCondition;
-                                card.selectedVariant = selectedVariant;
-                            } catch {
-                                // ignore
-                            }
+                        try {
+                            card.selectedCondition = selectedCondition;
+                            card.selectedVariant = selectedVariant;
+                        } catch {
+                            // ignore
                         }
 
                         const result = toggleDexCardInTrackers(card);
@@ -2182,7 +2231,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             : 0;
                         const nextCopyLabel = nextCopies > 0 ? ` (${nextCopies} cop${nextCopies === 1 ? 'y' : 'ies'})` : '';
                         const nextLabel = nowTracked
-                            ? `Already in collection${nextCopyLabel}`
+                            ? `Add another copy to collection${nextCopyLabel}`
                             : 'Add to collection and master set tracker';
                         favBtn.textContent = nowTracked ? '✓' : '+';
                         favBtn.setAttribute('aria-label', nextLabel);
@@ -2191,7 +2240,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         if (result.action === 'added' && (result.addedCollection || result.addedMasterSet)) {
                             const setSuffix = result.expansionName ? ` (${result.expansionName})` : '';
-                            setStatus(`Added to Collection and Master Sets${setSuffix}.`);
+                            const prefix = currentlyTracked ? 'Added another copy to Collection and Master Sets' : 'Added to Collection and Master Sets';
+                            setStatus(`${prefix}${setSuffix}.`);
                         } else if (result.action === 'removed' && (result.removedCollection || result.removedMasterSet)) {
                             const firstSet = Array.isArray(result.expansionNames) && result.expansionNames.length
                                 ? ` (${result.expansionNames[0]})`
@@ -2206,6 +2256,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     favBtn.addEventListener('click', () => toggleFavorite(card));
                 }
+            }
+
+            if (isDexPage && selectEl && selectedDexVariant && variants.includes(selectedDexVariant)) {
+                selectEl.value = selectedDexVariant;
             }
 
             let lastLoadedVariantName = '';

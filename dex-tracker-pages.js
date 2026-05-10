@@ -4,8 +4,13 @@
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
+    const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
+    const SET_CARDS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+    const SET_SEARCH_PAGE_SIZE = 100;
+    const SET_SEARCH_MAX_PAGES = 12;
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
+    const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -158,6 +163,71 @@
         return String(name ?? '').trim().toLowerCase();
     }
 
+    function getDefaultVariantNameForCard(cardLike) {
+        const selected = safeString(cardLike?.selectedVariant, '').trim();
+        if (selected) return selected;
+
+        const variantNames = Array.isArray(cardLike?.variants)
+            ? cardLike.variants.map((v) => safeString(v?.name, '').trim()).filter(Boolean)
+            : [];
+        if (variantNames.length) return '';
+        return MASTER_DEFAULT_VARIANT_NAME;
+    }
+
+    function normalizeVariantQuantities(rawMap, fallbackVariant, fallbackCopies) {
+        /** @type {Record<string, number>} */
+        const out = {};
+
+        if (rawMap && typeof rawMap === 'object') {
+            for (const [rawName, rawQty] of Object.entries(rawMap)) {
+                const name = safeString(rawName, '').trim();
+                const qty = Math.floor(Number(rawQty));
+                if (!name || !Number.isFinite(qty) || qty <= 0) continue;
+                out[name] = (out[name] || 0) + qty;
+            }
+        }
+
+        if (Object.keys(out).length === 0) {
+            const fallbackName = safeString(fallbackVariant, '').trim();
+            const copies = Math.max(1, Math.floor(Number(fallbackCopies) || 0));
+            if (fallbackName) {
+                out[fallbackName] = copies;
+            }
+        }
+
+        return out;
+    }
+
+    function getPrimaryVariantName(variantQuantities, fallbackVariant) {
+        const map = normalizeVariantQuantities(variantQuantities, fallbackVariant, 1);
+        const keys = Object.keys(map);
+        if (!keys.length) return safeString(fallbackVariant, '');
+        return keys[0];
+    }
+
+    function getOwnedVariantNames(cardLike) {
+        const fallbackVariant = getDefaultVariantNameForCard(cardLike);
+        const totalCopies = getTotalCopiesFromConditionMap(cardLike?.conditionQuantities, cardLike?.selectedCondition);
+        const map = normalizeVariantQuantities(cardLike?.variantQuantities, fallbackVariant, totalCopies);
+        return Object.entries(map)
+            .filter(([, qty]) => Math.floor(Number(qty)) > 0)
+            .map(([name]) => safeString(name, '').trim())
+            .filter(Boolean);
+    }
+
+    function getRequiredVariantNames(cardLike) {
+        const variantNames = Array.isArray(cardLike?.variants)
+            ? cardLike.variants
+                .map((v) => safeString(v?.name, '').trim())
+                .filter(Boolean)
+            : [];
+
+        if (variantNames.length) {
+            return Array.from(new Set(variantNames));
+        }
+        return [MASTER_DEFAULT_VARIANT_NAME];
+    }
+
     function findVariantByName(variants, variantName) {
         if (!Array.isArray(variants)) return null;
         const want = normalizeVariantNameForCompare(variantName);
@@ -305,6 +375,146 @@
             savedAt: Date.now(),
         };
         writeValueCache(map);
+    }
+
+    function readSetCardsCache() {
+        try {
+            const raw = localStorage.getItem(SET_CARDS_CACHE_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function writeSetCardsCache(next) {
+        try {
+            const safe = (next && typeof next === 'object') ? next : {};
+            localStorage.setItem(SET_CARDS_CACHE_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getCachedSetCards(expansionId) {
+        const id = safeString(expansionId, '').trim();
+        if (!id) return null;
+
+        const map = readSetCardsCache();
+        const hit = map[id];
+        if (!hit || typeof hit !== 'object') return null;
+
+        const savedAt = Number(hit.savedAt || 0);
+        const cards = Array.isArray(hit.cards) ? hit.cards : [];
+        if (!Number.isFinite(savedAt) || savedAt <= 0) return null;
+        if ((Date.now() - savedAt) > SET_CARDS_CACHE_TTL_MS) return null;
+        return cards;
+    }
+
+    function setCachedSetCards(expansionId, cards) {
+        const id = safeString(expansionId, '').trim();
+        if (!id) return;
+
+        const map = readSetCardsCache();
+        map[id] = {
+            savedAt: Date.now(),
+            cards: Array.isArray(cards) ? cards : [],
+        };
+        writeSetCardsCache(map);
+    }
+
+    async function fetchJsonWithAuth(url) {
+        let headers;
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+            if (token && token.split('.').length === 3) {
+                headers = { Authorization: `Bearer ${token}` };
+            }
+        } catch {
+            // ignore
+        }
+
+        const res = await fetch(url, headers ? { headers } : undefined);
+        const text = await res.text();
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(`Non-JSON response (${res.status})`);
+        }
+
+        if (!res.ok || (data && typeof data === 'object' && data.ok === false)) {
+            const msg = data?.error || data?.message || `API error ${res.status}`;
+            throw new Error(String(msg));
+        }
+
+        return data;
+    }
+
+    function mergeUniqueCardsById(target, next) {
+        const out = Array.isArray(target) ? target.slice() : [];
+        const seen = new Set(out.map((c) => safeString(c?.id, '')));
+        for (const card of (Array.isArray(next) ? next : [])) {
+            const id = safeString(card?.id, '');
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            out.push(card);
+        }
+        return out;
+    }
+
+    async function fetchCardsSearchPage(base, query, page, pageSize) {
+        const url = `${base}/cards/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}&lang=en`;
+        const data = await fetchJsonWithAuth(url);
+        const cards = Array.isArray(data?.data) ? data.data : [];
+        const totalCount = Number(data?.totalCount || cards.length);
+        const pageNum = Number(data?.page || page);
+        const pageSizeNum = Number(data?.pageSize || pageSize);
+        const hasMore = Number.isFinite(totalCount)
+            ? (pageNum * pageSizeNum) < totalCount
+            : cards.length >= pageSize;
+
+        return { cards, hasMore };
+    }
+
+    async function fetchSetCardsByExpansion(expansionId) {
+        const id = safeString(expansionId, '').trim();
+        if (!id) return [];
+
+        const cached = getCachedSetCards(id);
+        if (cached) return cached;
+
+        const base = getWorkerBase();
+        const queryCandidates = [
+            `expansion.id:${id}`,
+            `expansion_id:${id}`,
+            `expansion:${id}`,
+        ];
+
+        let merged = [];
+        for (const query of queryCandidates) {
+            let page = 1;
+            let hasMore = true;
+            let hitForQuery = false;
+
+            while (hasMore && page <= SET_SEARCH_MAX_PAGES) {
+                const pageData = await fetchCardsSearchPage(base, query, page, SET_SEARCH_PAGE_SIZE);
+                if (pageData.cards.length) {
+                    hitForQuery = true;
+                    merged = mergeUniqueCardsById(merged, pageData.cards);
+                }
+                hasMore = pageData.hasMore;
+                page += 1;
+            }
+
+            if (hitForQuery) break;
+        }
+
+        setCachedSetCards(id, merged);
+        return merged;
     }
 
     function getMarketForCondition(prices, conditionCode) {
@@ -509,6 +719,11 @@
                 .filter((x) => x && typeof x === 'object' && x.id)
                 .map((x) => {
                     const conditionQuantities = normalizeConditionQuantities(x?.conditionQuantities, x?.selectedCondition);
+                    const selectedCondition = getPrimaryConditionCode(conditionQuantities);
+                    const totalCopies = getTotalCopiesFromConditionMap(conditionQuantities, selectedCondition);
+                    const fallbackVariant = getDefaultVariantNameForCard(x);
+                    const variantQuantities = normalizeVariantQuantities(x?.variantQuantities, fallbackVariant, totalCopies);
+                    const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
                     const addedAt = Number(x?.addedAt || 0);
                     const updatedAt = Number(x?.updatedAt || 0);
                     return {
@@ -519,8 +734,9 @@
                         set: (x?.set && typeof x.set === 'object') ? x.set : null,
                         images: Array.isArray(x?.images) ? x.images : [],
                         variants: Array.isArray(x?.variants) ? x.variants : [],
-                        selectedVariant: safeString(x?.selectedVariant, ''),
-                        selectedCondition: getPrimaryConditionCode(conditionQuantities),
+                        selectedVariant,
+                        variantQuantities,
+                        selectedCondition,
                         conditionQuantities,
                         pricesText: safeString(x?.pricesText, ''),
                         addedAt: Number.isFinite(addedAt) && addedAt > 0 ? addedAt : Date.now(),
@@ -657,14 +873,216 @@
         return removedCollection || removedMaster;
     }
 
-    function formatDate(ts) {
-        const n = Number(ts);
-        if (!Number.isFinite(n) || n <= 0) return '';
-        try {
-            return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: '2-digit' }).format(new Date(n));
-        } catch {
-            return '';
+    function buildMasterSetDetailUrl(expansionId, expansionName) {
+        const id = safeString(expansionId, '').trim();
+        const name = safeString(expansionName, '').trim();
+        if (!id) return 'master-set.html';
+
+        const params = new URLSearchParams();
+        params.set('expansionId', id);
+        if (name) params.set('expansionName', name);
+        return `master-set.html?${params.toString()}`;
+    }
+
+    function buildCollectionIndexById(collection) {
+        /** @type {Record<string, any>} */
+        const out = {};
+        for (const item of (Array.isArray(collection) ? collection : [])) {
+            const id = safeString(item?.id, '');
+            if (!id) continue;
+            out[id] = item;
         }
+        return out;
+    }
+
+    function getCardDisplayNumber(cardLike) {
+        const cardNo = safeString(cardLike?.card_no, '');
+        if (cardNo) return cardNo;
+        const number = safeString(cardLike?.number, '');
+        return number;
+    }
+
+    function splitCardVariants(setCard, collectedCard) {
+        const requiredVariants = getRequiredVariantNames(setCard);
+        const requiredKeys = requiredVariants.map((v) => normalizeVariantNameForCompare(v));
+        const defaultKey = normalizeVariantNameForCompare(MASTER_DEFAULT_VARIANT_NAME);
+        const totalCopies = getTotalCopiesFromConditionMap(collectedCard?.conditionQuantities, collectedCard?.selectedCondition);
+
+        if (requiredKeys.length === 1 && requiredKeys[0] === defaultKey) {
+            return {
+                requiredVariants,
+                collectedVariants: totalCopies > 0 ? requiredVariants.slice() : [],
+                missingVariants: totalCopies > 0 ? [] : requiredVariants.slice(),
+            };
+        }
+
+        const ownedVariantKeys = new Set(
+            getOwnedVariantNames(collectedCard).map((name) => normalizeVariantNameForCompare(name)).filter(Boolean)
+        );
+
+        /** @type {Array<string>} */
+        const collectedVariants = [];
+        /** @type {Array<string>} */
+        const missingVariants = [];
+
+        for (const required of requiredVariants) {
+            const key = normalizeVariantNameForCompare(required);
+            if (ownedVariantKeys.has(key)) {
+                collectedVariants.push(required);
+            } else {
+                missingVariants.push(required);
+            }
+        }
+
+        return { requiredVariants, collectedVariants, missingVariants };
+    }
+
+    function computeSetVariantProgress(setCards, cardsById) {
+        /** @type {Array<any>} */
+        const collectedCards = [];
+        /** @type {Array<any>} */
+        const missingCards = [];
+        let collectedUnits = 0;
+        let requiredUnits = 0;
+
+        for (const setCard of (Array.isArray(setCards) ? setCards : [])) {
+            const id = safeString(setCard?.id, '');
+            if (!id) continue;
+
+            const collectedCard = cardsById[id];
+            const split = splitCardVariants(setCard, collectedCard);
+            requiredUnits += split.requiredVariants.length;
+            collectedUnits += split.collectedVariants.length;
+
+            const item = {
+                id,
+                name: safeString(setCard?.name, 'Unknown'),
+                number: getCardDisplayNumber(setCard),
+                image: pickFrontMediumImage(setCard?.images),
+                collectedVariants: split.collectedVariants,
+                missingVariants: split.missingVariants,
+            };
+
+            if (split.collectedVariants.length) {
+                collectedCards.push(item);
+            }
+            if (split.missingVariants.length) {
+                missingCards.push(item);
+            }
+        }
+
+        const ratio = requiredUnits > 0 ? Math.min(100, (collectedUnits / requiredUnits) * 100) : 0;
+        return {
+            collectedCards,
+            missingCards,
+            collectedUnits,
+            requiredUnits,
+            ratio,
+            ratioLabel: ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`,
+        };
+    }
+
+    function getSetImageFromData(entry, setCards, cardsById) {
+        let image = safeString(entry?.setImage, '');
+        if (image) return image;
+
+        const firstSetCard = Array.isArray(setCards) && setCards.length ? setCards[0] : null;
+        image = safeString(
+            firstSetCard?.expansion?.logo
+            || firstSetCard?.expansion?.symbol
+            || firstSetCard?.set?.logo
+            || firstSetCard?.set?.symbol,
+            ''
+        );
+        if (image) return image;
+
+        if (firstSetCard) {
+            image = pickFrontMediumImage(firstSetCard?.images);
+            if (image) return image;
+        }
+
+        const cardIds = Array.isArray(entry?.cardIds)
+            ? entry.cardIds.map((x) => safeString(x, '')).filter(Boolean)
+            : [];
+        const firstCollected = cardIds.length ? cardsById[cardIds[0]] : null;
+        return pickFrontMediumImage(firstCollected?.images);
+    }
+
+    async function hydrateMasterSetCardsWithVariantProgress(entries, cardsById, grid) {
+        await Promise.all(entries.map(async (entry) => {
+            const expansionId = safeString(entry?.expansionId, '').trim();
+            if (!expansionId) return;
+
+            const article = grid.querySelector(`[data-master-set-id="${CSS.escape(expansionId)}"]`);
+            if (!(article instanceof HTMLElement)) return;
+
+            try {
+                const setCards = await fetchSetCardsByExpansion(expansionId);
+                if (!setCards.length) return;
+
+                const progress = computeSetVariantProgress(setCards, cardsById);
+                const countEl = article.querySelector('[data-master-count]');
+                const barEl = article.querySelector('[data-master-progressbar]');
+                const fillEl = article.querySelector('[data-master-progress-fill]');
+                const ratioEl = article.querySelector('[data-master-ratio]');
+                const imageEl = article.querySelector('[data-master-image]');
+
+                if (countEl) {
+                    countEl.textContent = `Collected: ${progress.collectedUnits}/${progress.requiredUnits} master variants`;
+                }
+                if (barEl instanceof HTMLElement) {
+                    barEl.setAttribute('aria-valuenow', String(Math.round(progress.ratio)));
+                }
+                if (fillEl instanceof HTMLElement) {
+                    fillEl.style.width = `${progress.ratio}%`;
+                }
+                if (ratioEl) {
+                    ratioEl.textContent = `Progress: ${progress.ratioLabel}`;
+                }
+
+                if (imageEl instanceof HTMLImageElement) {
+                    const image = getSetImageFromData(entry, setCards, cardsById);
+                    if (image) {
+                        imageEl.src = image;
+                        imageEl.hidden = false;
+                    }
+                }
+            } catch {
+                // Keep fallback progress if fetch fails.
+            }
+        }));
+    }
+
+    function renderMasterSetDetailCards(list, mode) {
+        if (!Array.isArray(list) || !list.length) {
+            return `<div class="pv-emptyState">No ${mode} cards in this set.</div>`;
+        }
+
+        const rows = list.map((item) => {
+            const name = escapeHtml(safeString(item?.name, 'Unknown'));
+            const number = escapeHtml(safeString(item?.number, ''));
+            const img = escapeAttr(safeString(item?.image, ''));
+            const variants = mode === 'collected'
+                ? (Array.isArray(item?.collectedVariants) ? item.collectedVariants : [])
+                : (Array.isArray(item?.missingVariants) ? item.missingVariants : []);
+            const heading = mode === 'collected' ? 'Collected variants' : 'Missing variants';
+            const variantTags = variants.length
+                ? variants.map((name) => `<span class="pv-variantTag ${mode === 'missing' ? 'pv-variantTag--missing' : ''}">${escapeHtml(name)}</span>`).join('')
+                : '<span class="pv-masterSetDetailCard__meta">None</span>';
+
+            return `
+                <article class="pv-masterSetDetailCard">
+                    ${img ? `<img class="pv-masterSetDetailCard__image" src="${img}" alt="${name} card image" loading="lazy"/>` : ''}
+                    <div class="pv-masterSetDetailCard__content">
+                        <h3 class="pv-masterSetDetailCard__title">${name}${number ? ` <span class="pv-masterSetDetailCard__number">#${number}</span>` : ''}</h3>
+                        <p class="pv-masterSetDetailCard__meta">${heading}</p>
+                        <div class="pv-variantTagList">${variantTags}</div>
+                    </div>
+                </article>
+            `;
+        }).join('');
+
+        return `<div class="pv-masterSetDetailGrid">${rows}</div>`;
     }
 
     function renderCollectionPage() {
@@ -848,66 +1266,44 @@
             grid.innerHTML = '<div class="pv-emptyState">No master set progress yet. Add cards from Dex to start tracking.</div>';
         } else {
             const collection = readCollection();
-            /** @type {Record<string, any>} */
-            const cardsById = {};
-            for (const item of collection) {
-                const id = safeString(item?.id, '');
-                if (!id) continue;
-                cardsById[id] = item;
-            }
+            const cardsById = buildCollectionIndexById(collection);
 
             const rows = entries.map((entry) => {
                 const setName = escapeHtml(safeString(entry?.expansionName, 'Unknown Set'));
+                const setNameRaw = safeString(entry?.expansionName, 'Unknown Set');
                 const series = escapeHtml(safeString(entry?.series, ''));
                 const count = Number(entry?.count || (Array.isArray(entry?.cardIds) ? entry.cardIds.length : 0) || 0);
                 const target = Number(entry?.targetCount || 0);
                 const ratio = target > 0 ? Math.min(100, (count / target) * 100) : 0;
                 const ratioLabel = ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`;
-                const updated = escapeHtml(formatDate(entry?.updatedAt));
                 const countText = target > 0 ? `${count}/${target}` : `${count}`;
                 const cardIds = Array.isArray(entry?.cardIds)
                     ? entry.cardIds.map((x) => safeString(x, '')).filter(Boolean)
                     : [];
-
-                const cardListHtml = cardIds.length
-                    ? `<ul class="pv-masterSetCardList">${cardIds.map((id) => {
-                        const card = cardsById[id];
-                        const conditionSummary = formatConditionSummary(card?.conditionQuantities, card?.selectedCondition);
-                        const label = card
-                            ? `${safeString(card?.name, 'Unknown')} • ${safeString(card?.selectedVariant, 'Type n/a')} • ${conditionSummary} (${getCardSetName(card)})`
-                            : id;
-                        return `<li class="pv-masterSetCardList__item"><span>${escapeHtml(label)}</span><button class="pv-button btn pv-removeCardBtn pv-removeCardBtn--small" type="button" data-remove-card-id="${escapeHtml(id)}">Remove</button></li>`;
-                    }).join('')}</ul>`
-                    : '<p class="pv-masterSetCard__meta">No tracked cards in this set.</p>';
+                const expansionId = safeString(entry?.expansionId, '');
+                const detailUrl = escapeAttr(buildMasterSetDetailUrl(expansionId, setNameRaw));
+                const firstCard = cardIds.length ? cardsById[cardIds[0]] : null;
+                const imageSrc = safeString(entry?.setImage, '') || pickFrontMediumImage(firstCard?.images);
+                const imageHtml = imageSrc
+                    ? `<img class="pv-masterSetCard__image" src="${escapeAttr(imageSrc)}" alt="${setName} set image" loading="lazy" data-master-image="1"/>`
+                    : '<img class="pv-masterSetCard__image" alt="" hidden data-master-image="1"/>';
 
                 return `
-                    <article class="pv-masterSetCard">
-                        <h3 class="pv-masterSetCard__title">${setName}</h3>
+                    <article class="pv-masterSetCard" data-master-set-id="${escapeAttr(expansionId)}">
+                        ${imageHtml}
+                        <h3 class="pv-masterSetCard__title"><a class="pv-masterSetCard__titleLink" href="${detailUrl}">${setName}</a></h3>
                         <p class="pv-masterSetCard__meta">${series || 'Series n/a'}</p>
-                        <p class="pv-masterSetCard__meta">Collected: ${escapeHtml(countText)} cards</p>
-                        <div class="pv-masterSetProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(ratio)}">
-                            <span style="width:${ratio}%"></span>
+                        <p class="pv-masterSetCard__meta" data-master-count>Collected: ${escapeHtml(countText)} cards</p>
+                        <div class="pv-masterSetProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(ratio)}" data-master-progressbar>
+                            <span style="width:${ratio}%" data-master-progress-fill></span>
                         </div>
-                        <p class="pv-masterSetCard__meta">Progress: ${ratioLabel}</p>
-                        <p class="pv-masterSetCard__meta">Updated: ${updated || 'n/a'}</p>
-                        ${cardListHtml}
+                        <p class="pv-masterSetCard__meta" data-master-ratio>Progress: ${ratioLabel}</p>
                     </article>
                 `;
             }).join('');
 
             grid.innerHTML = rows;
-
-            const removeButtons = Array.from(grid.querySelectorAll('[data-remove-card-id]'));
-            for (const btn of removeButtons) {
-                btn.addEventListener('click', () => {
-                    const id = safeString(btn.getAttribute('data-remove-card-id'), '');
-                    if (!id) return;
-                    const ok = window.confirm('Remove this card from Collection and Master Sets?');
-                    if (!ok) return;
-                    removeCardFromTrackers(id);
-                    renderActivePage();
-                });
-            }
+            void hydrateMasterSetCardsWithVariantProgress(entries, cardsById, grid);
         }
 
         if (clearBtn) {
@@ -920,9 +1316,102 @@
         }
     }
 
+    async function renderMasterSetDetailPage() {
+        const titleEl = document.getElementById('pv-master-set-detail-title');
+        const seriesEl = document.getElementById('pv-master-set-detail-series');
+        const imageEl = document.getElementById('pv-master-set-detail-image');
+        const countEl = document.getElementById('pv-master-set-detail-count');
+        const ratioEl = document.getElementById('pv-master-set-detail-ratio');
+        const progressBar = document.getElementById('pv-master-set-detail-progress');
+        const progressFill = document.getElementById('pv-master-set-detail-progress-fill');
+        const statusEl = document.getElementById('pv-master-set-detail-status');
+        const collectedCountEl = document.getElementById('pv-master-set-collected-count');
+        const missingCountEl = document.getElementById('pv-master-set-missing-count');
+        const collectedListEl = document.getElementById('pv-master-set-collected-list');
+        const missingListEl = document.getElementById('pv-master-set-missing-list');
+
+        if (!titleEl || !seriesEl || !countEl || !ratioEl || !progressBar || !progressFill || !statusEl || !collectedCountEl || !missingCountEl || !collectedListEl || !missingListEl) {
+            return;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const expansionId = safeString(params.get('expansionId'), '').trim();
+        const expansionNameFromQuery = safeString(params.get('expansionName'), '').trim();
+
+        if (!expansionId) {
+            titleEl.textContent = expansionNameFromQuery || 'Master Set';
+            statusEl.textContent = 'No set selected. Return to Master Sets and pick a set.';
+            collectedListEl.innerHTML = '<div class="pv-emptyState">No set selected.</div>';
+            missingListEl.innerHTML = '<div class="pv-emptyState">No set selected.</div>';
+            return;
+        }
+
+        const masterMap = readMasterSets();
+        const entry = masterMap[expansionId] && typeof masterMap[expansionId] === 'object'
+            ? masterMap[expansionId]
+            : null;
+
+        const setName = safeString(entry?.expansionName, expansionNameFromQuery || 'Unknown Set');
+        const series = safeString(entry?.series, '');
+        titleEl.textContent = setName;
+        seriesEl.textContent = series || 'Series n/a';
+        statusEl.textContent = 'Loading set cards...';
+
+        const collection = readCollection();
+        const cardsById = buildCollectionIndexById(collection);
+
+        try {
+            const setCards = await fetchSetCardsByExpansion(expansionId);
+            if (!setCards.length) {
+                countEl.textContent = 'Collected: 0/0 master variants';
+                ratioEl.textContent = 'Progress: 0.0%';
+                progressBar.setAttribute('aria-valuenow', '0');
+                progressFill.style.width = '0%';
+                collectedCountEl.textContent = '0 cards';
+                missingCountEl.textContent = '0 cards';
+                collectedListEl.innerHTML = '<div class="pv-emptyState">No cards loaded for this set yet.</div>';
+                missingListEl.innerHTML = '<div class="pv-emptyState">No missing cards to show.</div>';
+                statusEl.textContent = 'Unable to load this set right now. Try again in a moment.';
+                return;
+            }
+
+            const progress = computeSetVariantProgress(setCards, cardsById);
+            countEl.textContent = `Collected: ${progress.collectedUnits}/${progress.requiredUnits} master variants`;
+            ratioEl.textContent = `Progress: ${progress.ratioLabel}`;
+            progressBar.setAttribute('aria-valuenow', String(Math.round(progress.ratio)));
+            progressFill.style.width = `${progress.ratio}%`;
+            collectedCountEl.textContent = `${progress.collectedCards.length} cards`;
+            missingCountEl.textContent = `${progress.missingCards.length} cards`;
+            collectedListEl.innerHTML = renderMasterSetDetailCards(progress.collectedCards, 'collected');
+            missingListEl.innerHTML = renderMasterSetDetailCards(progress.missingCards, 'missing');
+
+            if (imageEl instanceof HTMLImageElement) {
+                const setImage = getSetImageFromData(entry, setCards, cardsById);
+                if (setImage) {
+                    imageEl.src = setImage;
+                    imageEl.alt = `${escapeHtml(setName)} set image`;
+                    imageEl.hidden = false;
+                }
+            }
+
+            statusEl.textContent = `${setCards.length} card${setCards.length === 1 ? '' : 's'} loaded for this set.`;
+        } catch {
+            countEl.textContent = 'Collected: 0/0 master variants';
+            ratioEl.textContent = 'Progress: 0.0%';
+            progressBar.setAttribute('aria-valuenow', '0');
+            progressFill.style.width = '0%';
+            collectedCountEl.textContent = '0 cards';
+            missingCountEl.textContent = '0 cards';
+            collectedListEl.innerHTML = '<div class="pv-emptyState">Unable to load collected cards right now.</div>';
+            missingListEl.innerHTML = '<div class="pv-emptyState">Unable to load missing cards right now.</div>';
+            statusEl.textContent = 'Error loading this set. Please refresh and try again.';
+        }
+    }
+
     function renderActivePage() {
         renderCollectionPage();
         renderMasterSetsPage();
+        void renderMasterSetDetailPage();
     }
 
     document.addEventListener('DOMContentLoaded', () => {
