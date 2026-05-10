@@ -813,6 +813,17 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   font-weight: 800;
 }
 
+.pv-collectionAmount {
+  margin: 0.2rem 0 0.55rem;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 1.2rem;
+}
+
+.pv-conditionSelect {
+  margin-bottom: 0.45rem;
+}
+
 .pv-masterSetsGrid {
   display: grid;
   grid-template-columns: 1fr;

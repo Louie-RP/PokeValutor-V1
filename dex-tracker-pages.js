@@ -81,6 +81,17 @@
         return 'n/a';
     }
 
+    function buildConditionOptionsHtml(selectedCondition) {
+        const selected = normalizeDexConditionCode(selectedCondition);
+        const options = ['<option value="">Select condition</option>'];
+        for (const code of DEX_CONDITION_CODES) {
+            const label = getConditionLabel(code);
+            const isSelected = selected === code ? 'selected' : '';
+            options.push(`<option value="${code}" ${isSelected}>${escapeHtml(label)}</option>`);
+        }
+        return options.join('');
+    }
+
     function readValueCache() {
         try {
             const raw = localStorage.getItem(VALUE_CACHE_KEY);
@@ -244,24 +255,23 @@
             const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
             const valueEl = document.getElementById(valueElId);
             const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
-            const conditionLabel = getConditionLabel(conditionCode);
 
             if (valueEl) {
-                valueEl.textContent = conditionCode ? `Value (${conditionLabel}): Loading...` : 'Value: n/a';
+                valueEl.textContent = conditionCode ? '...' : '--';
             }
 
             if (!conditionCode) return;
 
             const valueInfo = await getCurrentCardValue(item);
             if (!valueInfo || !Number.isFinite(valueInfo.market)) {
-                if (valueEl) valueEl.textContent = `Value (${conditionLabel}): n/a`;
+                if (valueEl) valueEl.textContent = '--';
                 return;
             }
 
             pricedCount++;
             total += valueInfo.market;
             if (valueEl) {
-                valueEl.textContent = `Value (${conditionLabel}): ${formatUsd(valueInfo.market)}`;
+                valueEl.textContent = formatUsd(valueInfo.market);
             }
         }));
 
@@ -392,14 +402,12 @@
             const rows = items.map((item) => {
                 const id = safeString(item?.id, '');
                 const name = escapeHtml(safeString(item?.name, 'Unknown'));
-                const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
                 const setName = escapeHtml(getCardSetName(item));
-                const variantName = escapeHtml(safeString(item?.selectedVariant, 'n/a'));
+                const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
                 const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
-                const conditionLabel = escapeHtml(getConditionLabel(conditionCode));
-                const addedAt = escapeHtml(formatDate(item?.addedAt));
                 const img = escapeHtml(pickFrontMediumImage(item?.images));
                 const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
+                const conditionOptions = buildConditionOptionsHtml(conditionCode);
 
                 return `
                     <div class="col-12 col-sm-6 col-md-4 col-lg-3">
@@ -407,13 +415,12 @@
                             ${img ? `<img class="pv-card__img" src="${img}" alt="${name} card image"/>` : ''}
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
-                                <p class="pv-card__text">Set: ${setName}</p>
-                                <p class="pv-card__text">Rarity: ${rarity}</p>
-                                <p class="pv-card__text">Type: ${variantName}</p>
-                                <p class="pv-card__text">Condition: ${conditionLabel}</p>
-                                <p class="pv-card__text">Card ID: ${escapeHtml(id || 'n/a')}</p>
-                                <p class="pv-card__text">Added: ${addedAt || 'n/a'}</p>
-                                <p class="pv-card__text" id="${escapeAttr(valueElId)}">Value: ${conditionCode ? `Loading...` : 'n/a'}</p>
+                                <p class="pv-card__text">${setName}</p>
+                                <p class="pv-card__text">${rarity}</p>
+                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionCode ? '...' : '--'}</p>
+                                <select class="form-select pv-conditionSelect" data-condition-card-id="${escapeAttr(id)}" aria-label="Update condition for ${name}">
+                                    ${conditionOptions}
+                                </select>
                                 <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-card-id="${escapeHtml(id)}">Remove Card</button>
                             </div>
                         </article>
@@ -432,6 +439,35 @@
                     if (!ok) return;
                     removeCardFromTrackers(id);
                     renderActivePage();
+                });
+            }
+
+            const conditionSelects = Array.from(grid.querySelectorAll('[data-condition-card-id]'));
+            for (const sel of conditionSelects) {
+                sel.addEventListener('change', () => {
+                    const cardId = safeString(sel.getAttribute('data-condition-card-id'), '');
+                    if (!cardId) return;
+
+                    const nextCondition = normalizeDexConditionCode(sel.value);
+                    const current = readCollection();
+                    const updated = current.map((entry) => {
+                        if (safeString(entry?.id, '') !== cardId) return entry;
+                        return {
+                            ...entry,
+                            selectedCondition: nextCondition,
+                            updatedAt: Date.now(),
+                        };
+                    });
+                    writeCollection(updated);
+
+                    for (const item of items) {
+                        if (safeString(item?.id, '') !== cardId) continue;
+                        item.selectedCondition = nextCondition;
+                        item.updatedAt = Date.now();
+                        break;
+                    }
+
+                    void refreshCollectionValues(items, totalEl);
                 });
             }
 
