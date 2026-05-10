@@ -4,10 +4,10 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Search Pokémon on PokéValutor" />
+    <meta name="description" content="Browse cards by set on PokéValutor Dex" />
     <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
     <meta property="og:image:alt" content="PokéValutor logo" />
-    <title>PokéValutor • Search</title>
+    <title>PokéValutor • Dex</title>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-search-body" class="pv-body">
+<body id="pv-dex-body" class="pv-body">
     <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
 
     <header id="pv-search-header" class="pv-header" role="banner">
@@ -42,8 +42,8 @@
 
     <main id="pv-search-main" class="pv-main" role="main">
         <section id="pv-search-hero" class="pv-hero container" aria-labelledby="pv-search-title">
-            <h1 id="pv-search-title" class="pv-hero__title">Search Pokémon</h1>
-            <p class="pv-hero__subtitle">Find Pokémon by name or card number.</p>
+            <h1 id="pv-search-title" class="pv-hero__title">Dex Explorer</h1>
+            <p class="pv-hero__subtitle">Browse full set card lists, then load more as needed.</p>
         </section>
 
         <section id="pv-search-section" class="pv-section container">
@@ -113,6 +113,9 @@
                     <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
                 </div>
                 <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
+                <div class="pv-loadMoreWrap">
+                    <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
+                </div>
             </section>
 
             <section id="pv-favorites" class="pv-section" aria-labelledby="pv-favorites-title">
@@ -147,14 +150,11 @@
 
     <script src="script.js" defer></script>
 
-    <!-- Firebase CDN (compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
 
-    <!-- Load default config first, then local override (if present). -->
     <script src="firebase-config.js" defer></script>
-    <!-- Optional local-only Firebase config (ignored by git). 404 is OK in production. -->
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 

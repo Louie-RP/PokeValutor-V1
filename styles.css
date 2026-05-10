@@ -737,6 +737,18 @@ h1, h2, h3, h4, h5, h6,
 .pv-form select:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 /* Placeholders for white inputs */
 .pv-form input::placeholder, .pv-form textarea::placeholder { color: #6b7280; }
+
+.pv-setFilterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pv-setFilterRow .btn {
+  white-space: nowrap;
+}
+
 /* Search field: keep white background + yellow border at all times */
 label[for="pv-search-query"],
 label[for="pv-search-number"] { color: var(--pv-primary); }
@@ -757,6 +769,12 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 .pv-search-actions .pv-conditionFilter {
   margin-left: 0.35rem;
   flex: 0 0 auto;
+}
+
+.pv-loadMoreWrap {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
 }
 
 /* Search condition filter dropdown */
@@ -824,6 +842,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 @media (max-width: 575.98px) {
+  .pv-setFilterRow {
+    grid-template-columns: 1fr;
+  }
+
+  .pv-setFilterRow .btn {
+    width: 100%;
+  }
+
   .pv-search-actions {
     align-items: center;
     gap: 0.35rem;
