@@ -6,6 +6,13 @@
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
+    const collectionSortState = {
+        active: 'value',
+        nameDir: 'asc',
+        valueDir: 'desc',
+    };
+    /** @type {Record<string, number>} */
+    const collectionValueById = {};
 
     function safeParseJson(raw) {
         try {
@@ -38,6 +45,108 @@
         const n = Number(amount);
         if (!Number.isFinite(n)) return '$0.00';
         return `$${n.toFixed(2)}`;
+    }
+
+    function getNameSortLabel() {
+        return collectionSortState.nameDir === 'asc' ? 'Name: A-Z' : 'Name: Z-A';
+    }
+
+    function getValueSortLabel() {
+        return collectionSortState.valueDir === 'desc' ? 'Value: High-Low' : 'Value: Low-High';
+    }
+
+    function updateCollectionSortUi() {
+        const nameBtn = document.getElementById('pv-sort-name');
+        const valueBtn = document.getElementById('pv-sort-value');
+        if (nameBtn) {
+            nameBtn.textContent = getNameSortLabel();
+            const active = collectionSortState.active === 'name';
+            nameBtn.classList.toggle('is-active', active);
+            nameBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+        if (valueBtn) {
+            valueBtn.textContent = getValueSortLabel();
+            const active = collectionSortState.active === 'value';
+            valueBtn.classList.toggle('is-active', active);
+            valueBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+    }
+
+    function applyCollectionSortToGrid(gridEl) {
+        if (!gridEl) return;
+        if (collectionSortState.active !== 'name' && collectionSortState.active !== 'value') return;
+
+        const cols = Array.from(gridEl.querySelectorAll('.pv-collectionCol'));
+        if (cols.length <= 1) return;
+
+        cols.sort((a, b) => {
+            const nameA = safeString(a.getAttribute('data-card-name'), '').toLowerCase();
+            const nameB = safeString(b.getAttribute('data-card-name'), '').toLowerCase();
+
+            if (collectionSortState.active === 'name') {
+                const dir = collectionSortState.nameDir === 'asc' ? 1 : -1;
+                const cmp = nameA.localeCompare(nameB);
+                return cmp * dir;
+            }
+
+            const idA = safeString(a.getAttribute('data-card-id'), '');
+            const idB = safeString(b.getAttribute('data-card-id'), '');
+            const va = Number(collectionValueById[idA]);
+            const vb = Number(collectionValueById[idB]);
+            const hasA = Number.isFinite(va);
+            const hasB = Number.isFinite(vb);
+
+            if (!hasA && !hasB) {
+                return nameA.localeCompare(nameB);
+            }
+            if (!hasA) return 1;
+            if (!hasB) return -1;
+
+            const dir = collectionSortState.valueDir === 'asc' ? 1 : -1;
+            if (va === vb) return nameA.localeCompare(nameB);
+            return (va - vb) * dir;
+        });
+
+        for (const col of cols) {
+            gridEl.appendChild(col);
+        }
+    }
+
+    function bindCollectionSortControls() {
+        const nameBtn = document.getElementById('pv-sort-name');
+        const valueBtn = document.getElementById('pv-sort-value');
+
+        if (nameBtn && nameBtn.getAttribute('data-bound') !== '1') {
+            nameBtn.setAttribute('data-bound', '1');
+            nameBtn.addEventListener('click', () => {
+                if (collectionSortState.active === 'name') {
+                    collectionSortState.nameDir = collectionSortState.nameDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    collectionSortState.active = 'name';
+                }
+
+                updateCollectionSortUi();
+                const grid = document.getElementById('pv-collection-grid');
+                applyCollectionSortToGrid(grid);
+            });
+        }
+
+        if (valueBtn && valueBtn.getAttribute('data-bound') !== '1') {
+            valueBtn.setAttribute('data-bound', '1');
+            valueBtn.addEventListener('click', () => {
+                if (collectionSortState.active === 'value') {
+                    collectionSortState.valueDir = collectionSortState.valueDir === 'desc' ? 'asc' : 'desc';
+                } else {
+                    collectionSortState.active = 'value';
+                }
+
+                updateCollectionSortUi();
+                const grid = document.getElementById('pv-collection-grid');
+                applyCollectionSortToGrid(grid);
+            });
+        }
+
+        updateCollectionSortUi();
     }
 
     function getWorkerBase() {
@@ -264,12 +373,14 @@
 
             const valueInfo = await getCurrentCardValue(item);
             if (!valueInfo || !Number.isFinite(valueInfo.market)) {
+                delete collectionValueById[id];
                 if (valueEl) valueEl.textContent = '--';
                 return;
             }
 
             pricedCount++;
             total += valueInfo.market;
+            collectionValueById[id] = valueInfo.market;
             if (valueEl) {
                 valueEl.textContent = formatUsd(valueInfo.market);
             }
@@ -277,6 +388,9 @@
 
         const coverage = pricedCount < list.length ? ` (${pricedCount}/${list.length} priced)` : '';
         totalEl.textContent = `Collection Value: ${formatUsd(total)}${coverage}`;
+
+        const grid = document.getElementById('pv-collection-grid');
+        applyCollectionSortToGrid(grid);
     }
 
     function pickFrontMediumImage(images) {
@@ -395,6 +509,8 @@
         const items = readCollection().slice().sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
         summary.textContent = `${items.length} card${items.length === 1 ? '' : 's'} tracked in your collection.`;
 
+        bindCollectionSortControls();
+
         if (!items.length) {
             totalEl.textContent = 'Collection Value: $0.00';
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Open Dex, browse a set, and press + on cards you own.</div></div>';
@@ -410,7 +526,7 @@
                 const conditionOptions = buildConditionOptionsHtml(conditionCode);
 
                 return `
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(name)}">
                         <article class="pv-card h-100" aria-label="${name}">
                             ${img ? `<img class="pv-card__img" src="${img}" alt="${name} card image"/>` : ''}
                             <div class="pv-card__body">
@@ -429,6 +545,7 @@
             }).join('');
 
             grid.innerHTML = rows;
+            applyCollectionSortToGrid(grid);
 
             const removeButtons = Array.from(grid.querySelectorAll('[data-remove-card-id]'));
             for (const btn of removeButtons) {
