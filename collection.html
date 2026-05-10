@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="View your card collection on PokéValutor" />
+    <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
+    <meta property="og:image:alt" content="PokéValutor logo" />
+    <title>PokéValutor • Collection</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="PokeValuator.png" type="image/png">
+</head>
+
+<body id="pv-collection-body" class="pv-body">
+    <a class="pv-skiplink" href="#pv-collection-main">Skip to content</a>
+
+    <header id="pv-collection-header" class="pv-header" role="banner">
+        <div class="pv-header__inner" aria-label="Site header">
+            <a id="pv-collection-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <button id="pv-collection-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-collection-nav" aria-label="Toggle navigation">
+                <span class="pv-navToggle__bar" aria-hidden="true"></span>
+                <span class="pv-navToggle__bar" aria-hidden="true"></span>
+                <span class="pv-navToggle__bar" aria-hidden="true"></span>
+            </button>
+            <nav id="pv-collection-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
+                <ul class="pv-nav__list">
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="pv-collection-main" class="pv-main" role="main">
+        <section class="pv-hero container" aria-labelledby="pv-collection-title">
+            <a class="pv-backLink" href="dex.html" aria-label="Back to Dex">&larr; Back to Dex</a>
+            <h1 id="pv-collection-title" class="pv-hero__title">My Collection</h1>
+            <p class="pv-hero__subtitle">Cards added from Dex are listed here.</p>
+        </section>
+
+        <section class="pv-section container" aria-labelledby="pv-collection-list-title">
+            <div class="pv-section__header">
+                <h2 id="pv-collection-list-title" class="pv-section__title">Tracked Cards</h2>
+                <button id="pv-collection-clear" class="pv-button pv-button--secondary btn" type="button">Clear Collection</button>
+            </div>
+            <p id="pv-collection-summary" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></p>
+            <div id="pv-collection-grid" class="row g-3" aria-label="Collection grid"></div>
+        </section>
+    </main>
+
+    <footer id="pv-collection-footer" class="pv-footer" role="contentinfo">
+        <div class="pv-footer__inner">
+            <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+            <ul class="pv-footer__links" aria-label="Footer links">
+                <li><a href="policies.html#pv-privacyPolicy">Privacy</a></li>
+                <li><a href="policies.html#pv-termsOfUse">Terms</a></li>
+                <li><a href="policies.html#pv-accessibility">Accessibility</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <script src="script.js" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-05-10-1" defer></script>
+</body>
+
+</html>

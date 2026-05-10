@@ -72,6 +72,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const WATCHLIST_COLLAPSED_KEY = `${CACHE_PREFIX}watchlistCollapsed:v1`;
     const LEGACY_FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
+    const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
+    const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
 
@@ -523,6 +525,207 @@ document.addEventListener('DOMContentLoaded', function () {
         return s ? s : (fallback || '');
     }
 
+    function normalizeDexCollectionCard(card) {
+        return {
+            id: safeString(card?.id, ''),
+            name: safeString(card?.name, 'Unknown'),
+            rarity: safeString(card?.rarity, ''),
+            expansion: (card?.expansion && typeof card.expansion === 'object') ? card.expansion : null,
+            set: (card?.set && typeof card.set === 'object') ? card.set : null,
+            images: Array.isArray(card?.images) ? card.images : [],
+            variants: Array.isArray(card?.variants) ? card.variants : [],
+            selectedVariant: safeString(card?.selectedVariant, ''),
+            pricesText: safeString(card?.pricesText, ''),
+            addedAt: Date.now(),
+        };
+    }
+
+    function loadDexCollection() {
+        try {
+            const raw = localStorage.getItem(DEX_COLLECTION_KEY);
+            if (!raw) return [];
+            const parsed = safeParseJson(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .filter((x) => x && typeof x === 'object' && x.id)
+                .map((x) => normalizeDexCollectionCard(x));
+        } catch {
+            return [];
+        }
+    }
+
+    function saveDexCollection(list) {
+        try {
+            const safe = Array.isArray(list) ? list : [];
+            localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function loadDexMasterSets() {
+        try {
+            const raw = localStorage.getItem(DEX_MASTER_SETS_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return (parsed && typeof parsed === 'object') ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function saveDexMasterSets(map) {
+        try {
+            const safe = (map && typeof map === 'object') ? map : {};
+            localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getDexExpansionInfo(card) {
+        const ex = (card?.expansion && typeof card.expansion === 'object') ? card.expansion : null;
+        const id = safeString(ex?.id, 'unknown');
+        return {
+            id,
+            name: safeString(ex?.name, 'Unknown Set'),
+            series: safeString(ex?.series, ''),
+            printedTotal: Number(ex?.printed_total ?? ex?.printedTotal ?? 0) || 0,
+            total: Number(ex?.total ?? 0) || 0,
+        };
+    }
+
+    function isInDexCollection(cardId) {
+        const id = safeString(cardId, '');
+        if (!id) return false;
+        const items = loadDexCollection();
+        return items.some((x) => safeString(x?.id, '') === id);
+    }
+
+    function addDexCardToTrackers(card) {
+        const normalized = normalizeDexCollectionCard(card);
+        const id = safeString(normalized.id, '');
+        if (!id) return { addedCollection: false, addedMasterSet: false, expansionName: '' };
+
+        const collection = loadDexCollection();
+        const existsInCollection = collection.some((x) => safeString(x?.id, '') === id);
+        if (!existsInCollection) {
+            collection.push(normalized);
+            saveDexCollection(collection);
+        }
+
+        const expansion = getDexExpansionInfo(card);
+        const master = loadDexMasterSets();
+        const existingSet = (master[expansion.id] && typeof master[expansion.id] === 'object') ? master[expansion.id] : {};
+        const cardIds = Array.isArray(existingSet.cardIds) ? existingSet.cardIds.map((x) => safeString(x, '')).filter(Boolean) : [];
+        const idSet = new Set(cardIds);
+        const beforeSize = idSet.size;
+        idSet.add(id);
+
+        const nextCardIds = Array.from(idSet);
+        master[expansion.id] = {
+            expansionId: expansion.id,
+            expansionName: expansion.name,
+            series: expansion.series,
+            targetCount: expansion.printedTotal || expansion.total || null,
+            cardIds: nextCardIds,
+            count: nextCardIds.length,
+            updatedAt: Date.now(),
+        };
+        saveDexMasterSets(master);
+
+        const addedMasterSet = idSet.size > beforeSize;
+        return {
+            addedCollection: !existsInCollection,
+            addedMasterSet,
+            expansionName: expansion.name,
+        };
+    }
+
+    function removeDexCardFromTrackers(cardOrId) {
+        const id = safeString(cardOrId?.id ?? cardOrId, '');
+        if (!id) return { removedCollection: false, removedMasterSet: false, expansionNames: [] };
+
+        const collection = loadDexCollection();
+        const nextCollection = collection.filter((x) => safeString(x?.id, '') !== id);
+        const removedCollection = nextCollection.length !== collection.length;
+        if (removedCollection) {
+            saveDexCollection(nextCollection);
+        }
+
+        const master = loadDexMasterSets();
+        let removedMasterSet = false;
+        /** @type {Array<string>} */
+        const expansionNames = [];
+
+        for (const key of Object.keys(master)) {
+            const entry = master[key];
+            if (!entry || typeof entry !== 'object') continue;
+
+            const cardIds = Array.isArray(entry.cardIds)
+                ? entry.cardIds.map((x) => safeString(x, '')).filter(Boolean)
+                : [];
+            if (!cardIds.includes(id)) continue;
+
+            removedMasterSet = true;
+            const name = safeString(entry.expansionName, '');
+            if (name && !expansionNames.includes(name)) expansionNames.push(name);
+
+            const nextIds = cardIds.filter((cardId) => cardId !== id);
+            if (nextIds.length === 0) {
+                delete master[key];
+            } else {
+                master[key] = {
+                    ...entry,
+                    cardIds: nextIds,
+                    count: nextIds.length,
+                    updatedAt: Date.now(),
+                };
+            }
+        }
+
+        if (removedMasterSet) {
+            saveDexMasterSets(master);
+        }
+
+        return { removedCollection, removedMasterSet, expansionNames };
+    }
+
+    function toggleDexCardInTrackers(card) {
+        const id = safeString(card?.id, '');
+        if (!id) {
+            return {
+                action: 'none',
+                addedCollection: false,
+                addedMasterSet: false,
+                removedCollection: false,
+                removedMasterSet: false,
+                expansionName: '',
+                expansionNames: [],
+            };
+        }
+
+        if (isInDexCollection(id)) {
+            const removed = removeDexCardFromTrackers(card);
+            return {
+                action: 'removed',
+                ...removed,
+                addedCollection: false,
+                addedMasterSet: false,
+                expansionName: '',
+            };
+        }
+
+        const added = addDexCardToTrackers(card);
+        return {
+            action: 'added',
+            ...added,
+            removedCollection: false,
+            removedMasterSet: false,
+            expansionNames: [],
+        };
+    }
+
     function escapeHtml(value) {
         const s = String(value ?? '');
         return s
@@ -680,7 +883,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // If the user signs in, prefer cloud favorites so they follow the account.
     // Local storage remains as an offline fallback.
     try {
-        if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
+        if (!isDexPage && window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) return;
                 const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
@@ -930,7 +1133,9 @@ document.addEventListener('DOMContentLoaded', function () {
             showCta = true;
             if (remaining != null && remaining <= 0) {
                 quotaBanner.classList.add('pv-quotaBanner--error');
-                message = 'Daily guest allowance reached. Sign in to continue (and sync your Watchlist).';
+                message = isDexPage
+                    ? 'Daily guest allowance reached. Sign in to continue (and sync your collection).'
+                    : 'Daily guest allowance reached. Sign in to continue (and sync your Watchlist).';
             } else if (remaining != null && remaining <= 2) {
                 quotaBanner.classList.add('pv-quotaBanner--warn');
                 message = `Guest allowance running low: ${ratioText}. Sign in to increase your daily limit.`;
@@ -1736,8 +1941,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const variantsFull = Array.isArray(card?.variants) ? card.variants : [];
             const variants = variantsFull.map((v) => v?.name).filter(Boolean);
             const fav = isFavorite(id);
-            const favSymbol = fav ? '★' : '☆';
-            const favLabel = fav ? 'Remove from watchlist' : 'Add to watchlist';
+            const inDexCollection = isDexPage ? isInDexCollection(id) : false;
+            const favSymbol = isDexPage ? (inDexCollection ? '✓' : '+') : (fav ? '★' : '☆');
+            const favLabel = isDexPage
+                ? (inDexCollection ? 'Already in collection' : 'Add to collection and master set tracker')
+                : (fav ? 'Remove from watchlist' : 'Add to watchlist');
 
             const variantOptions = variants.length
                 ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
@@ -1795,7 +2003,36 @@ document.addEventListener('DOMContentLoaded', function () {
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
             if (favBtn) {
-                favBtn.addEventListener('click', () => toggleFavorite(card));
+                if (isDexPage) {
+                    favBtn.setAttribute('aria-pressed', inDexCollection ? 'true' : 'false');
+                }
+                if (isDexPage) {
+                    favBtn.addEventListener('click', () => {
+                        const result = toggleDexCardInTrackers(card);
+                        const nowTracked = isInDexCollection(id);
+                        const nextLabel = nowTracked ? 'Already in collection' : 'Add to collection and master set tracker';
+                        favBtn.textContent = nowTracked ? '✓' : '+';
+                        favBtn.setAttribute('aria-label', nextLabel);
+                        favBtn.setAttribute('title', nextLabel);
+                        favBtn.setAttribute('aria-pressed', nowTracked ? 'true' : 'false');
+
+                        if (result.action === 'added' && (result.addedCollection || result.addedMasterSet)) {
+                            const setSuffix = result.expansionName ? ` (${result.expansionName})` : '';
+                            setStatus(`Added to Collection and Master Sets${setSuffix}.`);
+                        } else if (result.action === 'removed' && (result.removedCollection || result.removedMasterSet)) {
+                            const firstSet = Array.isArray(result.expansionNames) && result.expansionNames.length
+                                ? ` (${result.expansionNames[0]})`
+                                : '';
+                            setStatus(`Removed from Collection and Master Sets${firstSet}.`);
+                        } else if (result.action === 'added') {
+                            setStatus('Card is already in your Collection and Master Sets tracker.');
+                        } else if (result.action === 'removed') {
+                            setStatus('Card was already removed from your Collection and Master Sets tracker.');
+                        }
+                    });
+                } else {
+                    favBtn.addEventListener('click', () => toggleFavorite(card));
+                }
             }
 
             let lastLoadedVariantName = '';

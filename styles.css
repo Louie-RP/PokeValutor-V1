@@ -777,6 +777,125 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   justify-content: center;
 }
 
+.pv-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.pv-backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--pv-primary);
+  text-decoration: none;
+  font-weight: 700;
+  margin-top: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.pv-backLink:hover,
+.pv-backLink:focus {
+  text-decoration: underline;
+}
+
+.pv-emptyState {
+  border: 1px solid var(--pv-border);
+  border-radius: 12px;
+  background: var(--pv-surface-2);
+  color: var(--pv-muted);
+  padding: 1rem;
+}
+
+.pv-masterSetsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+.pv-masterSetCard {
+  border: 1px solid var(--pv-border);
+  border-radius: 12px;
+  background: var(--pv-surface-2);
+  padding: 0.9rem;
+}
+
+.pv-masterSetCard__title {
+  margin: 0 0 0.25rem;
+  color: #ffffff;
+  font-size: 1.05rem;
+}
+
+.pv-masterSetCard__meta {
+  margin: 0.15rem 0;
+  color: var(--pv-muted);
+}
+
+.pv-removeCardBtn {
+  margin-top: 0.55rem;
+  background: var(--pv-danger);
+  border-color: transparent;
+  color: #ffffff;
+}
+
+.pv-removeCardBtn:hover,
+.pv-removeCardBtn:focus {
+  background: var(--pv-danger-dark);
+  color: #ffffff;
+}
+
+.pv-removeCardBtn--small {
+  margin-top: 0;
+  padding: 0.32rem 0.58rem;
+  font-size: 0.82rem;
+}
+
+.pv-masterSetCardList {
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pv-masterSetCardList__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pv-masterSetCardList__item > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pv-masterSetProgress {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--pv-border);
+  background: #111827;
+  margin: 0.55rem 0 0.45rem;
+}
+
+.pv-masterSetProgress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b 0%, #ffcb05 100%);
+}
+
+@media (min-width: 768px) {
+  .pv-masterSetsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Search condition filter dropdown */
 .pv-conditionFilter {
   width: min(100%, 250px);
