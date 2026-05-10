@@ -824,6 +824,65 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin-bottom: 0.45rem;
 }
 
+.pv-conditionQtyList {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.pv-conditionQtyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.42rem 0.5rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pv-conditionQtyLabel {
+  margin: 0;
+}
+
+.pv-qtyStepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.pv-qtyBtn {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.45rem;
+  margin-top: 0;
+  line-height: 1;
+}
+
+.pv-qtyValue {
+  min-width: 1.5rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.pv-conditionAddRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+  margin-bottom: 0.5rem;
+}
+
+.pv-addConditionBtn {
+  margin-top: 0;
+}
+
+@media (min-width: 768px) {
+  .pv-conditionAddRow {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}
+
 .pv-sortRow {
   display: flex;
   flex-wrap: wrap;

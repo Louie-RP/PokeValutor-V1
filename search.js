@@ -541,8 +541,55 @@ document.addEventListener('DOMContentLoaded', function () {
         return DEX_CARD_CONDITIONS.includes(upper) ? upper : '';
     }
 
+    function normalizeConditionQuantities(rawMap, fallbackCondition) {
+        /** @type {Record<string, number>} */
+        const out = {};
+
+        if (rawMap && typeof rawMap === 'object') {
+            for (const [rawCode, rawQty] of Object.entries(rawMap)) {
+                const code = normalizeDexConditionCode(rawCode);
+                if (!code) continue;
+
+                const qty = Math.floor(Number(rawQty));
+                if (!Number.isFinite(qty) || qty <= 0) continue;
+
+                out[code] = (out[code] || 0) + qty;
+            }
+        }
+
+        if (Object.keys(out).length === 0) {
+            const fallback = normalizeDexConditionCode(fallbackCondition);
+            if (fallback) out[fallback] = 1;
+        }
+
+        return out;
+    }
+
+    function getPrimaryConditionCode(conditionQuantities) {
+        const map = normalizeConditionQuantities(conditionQuantities, '');
+        for (const code of DEX_CARD_CONDITIONS) {
+            const qty = Math.floor(Number(map[code] || 0));
+            if (qty > 0) return code;
+        }
+        return '';
+    }
+
+    function getTotalDexConditionCopies(conditionQuantities, fallbackCondition) {
+        const map = normalizeConditionQuantities(conditionQuantities, fallbackCondition);
+        let total = 0;
+        for (const code of DEX_CARD_CONDITIONS) {
+            const qty = Math.floor(Number(map[code] || 0));
+            if (!Number.isFinite(qty) || qty <= 0) continue;
+            total += qty;
+        }
+        return total;
+    }
+
     function normalizeDexCollectionCard(card) {
-        const normalizedCondition = normalizeDexConditionCode(card?.selectedCondition);
+        const conditionQuantities = normalizeConditionQuantities(card?.conditionQuantities, card?.selectedCondition);
+        const selectedCondition = getPrimaryConditionCode(conditionQuantities);
+        const addedAtRaw = Number(card?.addedAt || 0);
+        const updatedAtRaw = Number(card?.updatedAt || 0);
         return {
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -552,9 +599,11 @@ document.addEventListener('DOMContentLoaded', function () {
             images: Array.isArray(card?.images) ? card.images : [],
             variants: Array.isArray(card?.variants) ? card.variants : [],
             selectedVariant: safeString(card?.selectedVariant, ''),
-            selectedCondition: normalizedCondition,
+            selectedCondition,
+            conditionQuantities,
             pricesText: safeString(card?.pricesText, ''),
-            addedAt: Date.now(),
+            addedAt: Number.isFinite(addedAtRaw) && addedAtRaw > 0 ? addedAtRaw : Date.now(),
+            updatedAt: Number.isFinite(updatedAtRaw) && updatedAtRaw > 0 ? updatedAtRaw : Date.now(),
         };
     }
 
@@ -626,9 +675,28 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!id) return { addedCollection: false, addedMasterSet: false, expansionName: '' };
 
         const collection = loadDexCollection();
-        const existsInCollection = collection.some((x) => safeString(x?.id, '') === id);
+        const existingIndex = collection.findIndex((x) => safeString(x?.id, '') === id);
+        const existsInCollection = existingIndex >= 0;
         if (!existsInCollection) {
             collection.push(normalized);
+            saveDexCollection(collection);
+        } else {
+            const existing = normalizeDexCollectionCard(collection[existingIndex]);
+            const nextMap = normalizeConditionQuantities(existing?.conditionQuantities, existing?.selectedCondition);
+            const addCode = normalizeDexConditionCode(normalized?.selectedCondition);
+
+            if (addCode) {
+                nextMap[addCode] = (nextMap[addCode] || 0) + 1;
+            }
+
+            collection[existingIndex] = {
+                ...existing,
+                ...normalized,
+                addedAt: existing.addedAt,
+                conditionQuantities: nextMap,
+                selectedCondition: getPrimaryConditionCode(nextMap),
+                updatedAt: Date.now(),
+            };
             saveDexCollection(collection);
         }
 
@@ -640,23 +708,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const beforeSize = idSet.size;
         idSet.add(id);
 
-        const nextCardIds = Array.from(idSet);
-        master[expansion.id] = {
-            expansionId: expansion.id,
-            expansionName: expansion.name,
-            series: expansion.series,
-            targetCount: expansion.printedTotal || expansion.total || null,
-            cardIds: nextCardIds,
-            count: nextCardIds.length,
-            updatedAt: Date.now(),
-        };
-        saveDexMasterSets(master);
-
         const addedMasterSet = idSet.size > beforeSize;
+        if (addedMasterSet) {
+            const nextCardIds = Array.from(idSet);
+            master[expansion.id] = {
+                expansionId: expansion.id,
+                expansionName: expansion.name,
+                series: expansion.series,
+                targetCount: expansion.printedTotal || expansion.total || null,
+                cardIds: nextCardIds,
+                count: nextCardIds.length,
+                updatedAt: Date.now(),
+            };
+            saveDexMasterSets(master);
+        }
+
+        const copies = existsInCollection
+            ? getTotalDexConditionCopies(collection[existingIndex]?.conditionQuantities, collection[existingIndex]?.selectedCondition)
+            : getTotalDexConditionCopies(normalized?.conditionQuantities, normalized?.selectedCondition);
+
         return {
-            addedCollection: !existsInCollection,
+            addedCollection: true,
             addedMasterSet,
             expansionName: expansion.name,
+            totalCopies: copies,
         };
     }
 
@@ -1967,9 +2042,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 : null;
             const fav = isFavorite(id);
             const inDexCollection = isDexPage ? !!dexTracked : false;
+            const trackedCopies = isDexPage
+                ? getTotalDexConditionCopies(dexTracked?.conditionQuantities, dexTracked?.selectedCondition)
+                : 0;
+            const trackedCopyLabel = trackedCopies > 0 ? ` (${trackedCopies} cop${trackedCopies === 1 ? 'y' : 'ies'})` : '';
             const favSymbol = isDexPage ? (inDexCollection ? '✓' : '+') : (fav ? '★' : '☆');
             const favLabel = isDexPage
-                ? (inDexCollection ? 'Already in collection' : 'Add to collection and master set tracker')
+                ? (inDexCollection ? `Already in collection${trackedCopyLabel}` : 'Add to collection and master set tracker')
                 : (fav ? 'Remove from watchlist' : 'Add to watchlist');
 
             const variantOptions = variants.length
@@ -2095,7 +2174,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         const result = toggleDexCardInTrackers(card);
                         const nowTracked = isInDexCollection(id);
-                        const nextLabel = nowTracked ? 'Already in collection' : 'Add to collection and master set tracker';
+                        const nowTrackedEntry = nowTracked
+                            ? loadDexCollection().find((x) => safeString(x?.id, '') === id)
+                            : null;
+                        const nextCopies = nowTracked
+                            ? getTotalDexConditionCopies(nowTrackedEntry?.conditionQuantities, nowTrackedEntry?.selectedCondition)
+                            : 0;
+                        const nextCopyLabel = nextCopies > 0 ? ` (${nextCopies} cop${nextCopies === 1 ? 'y' : 'ies'})` : '';
+                        const nextLabel = nowTracked
+                            ? `Already in collection${nextCopyLabel}`
+                            : 'Add to collection and master set tracker';
                         favBtn.textContent = nowTracked ? '✓' : '+';
                         favBtn.setAttribute('aria-label', nextLabel);
                         favBtn.setAttribute('title', nextLabel);

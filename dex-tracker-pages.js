@@ -201,6 +201,66 @@
         return options.join('');
     }
 
+    function normalizeConditionQuantities(rawMap, fallbackCondition) {
+        /** @type {Record<string, number>} */
+        const out = {};
+
+        if (rawMap && typeof rawMap === 'object') {
+            for (const [rawCode, rawQty] of Object.entries(rawMap)) {
+                const code = normalizeDexConditionCode(rawCode);
+                if (!code) continue;
+
+                const qty = Math.floor(Number(rawQty));
+                if (!Number.isFinite(qty) || qty <= 0) continue;
+
+                out[code] = (out[code] || 0) + qty;
+            }
+        }
+
+        if (Object.keys(out).length === 0) {
+            const fallback = normalizeDexConditionCode(fallbackCondition);
+            if (fallback) out[fallback] = 1;
+        }
+
+        return out;
+    }
+
+    function getPrimaryConditionCode(conditionQuantities) {
+        const map = normalizeConditionQuantities(conditionQuantities, '');
+        for (const code of DEX_CONDITION_CODES) {
+            const qty = Math.floor(Number(map[code] || 0));
+            if (qty > 0) return code;
+        }
+        return '';
+    }
+
+    function getConditionQuantityEntries(conditionQuantities, fallbackCondition) {
+        const map = normalizeConditionQuantities(conditionQuantities, fallbackCondition);
+        /** @type {Array<{ code: string, qty: number }>} */
+        const out = [];
+        for (const code of DEX_CONDITION_CODES) {
+            const qty = Math.floor(Number(map[code] || 0));
+            if (!Number.isFinite(qty) || qty <= 0) continue;
+            out.push({ code, qty });
+        }
+        return out;
+    }
+
+    function getTotalCopiesFromConditionMap(conditionQuantities, fallbackCondition) {
+        const entries = getConditionQuantityEntries(conditionQuantities, fallbackCondition);
+        let total = 0;
+        for (const entry of entries) {
+            total += entry.qty;
+        }
+        return total;
+    }
+
+    function formatConditionSummary(conditionQuantities, fallbackCondition) {
+        const entries = getConditionQuantityEntries(conditionQuantities, fallbackCondition);
+        if (!entries.length) return 'n/a';
+        return entries.map((x) => `${getConditionLabel(x.code)} x${x.qty}`).join(', ');
+    }
+
     function readValueCache() {
         try {
             const raw = localStorage.getItem(VALUE_CACHE_KEY);
@@ -347,6 +407,10 @@
         if (!totalEl) return;
 
         const list = Array.isArray(items) ? items : [];
+        for (const key of Object.keys(collectionValueById)) {
+            delete collectionValueById[key];
+        }
+
         if (!list.length) {
             totalEl.textContent = 'Collection Value: $0.00';
             return;
@@ -355,7 +419,8 @@
         totalEl.textContent = 'Collection Value: Loading...';
 
         let total = 0;
-        let pricedCount = 0;
+        let totalCopies = 0;
+        let pricedCopies = 0;
 
         await Promise.all(list.map(async (item) => {
             const id = safeString(item?.id, '');
@@ -363,30 +428,48 @@
 
             const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
             const valueEl = document.getElementById(valueElId);
-            const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
+            const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
+            const copiesForCard = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+            totalCopies += copiesForCard;
 
             if (valueEl) {
-                valueEl.textContent = conditionCode ? '...' : '--';
+                valueEl.textContent = conditionEntries.length ? '...' : '--';
             }
 
-            if (!conditionCode) return;
+            if (!conditionEntries.length) {
+                delete collectionValueById[id];
+                return;
+            }
 
-            const valueInfo = await getCurrentCardValue(item);
-            if (!valueInfo || !Number.isFinite(valueInfo.market)) {
+            let cardTotal = 0;
+            let cardPricedCopies = 0;
+
+            await Promise.all(conditionEntries.map(async (entry) => {
+                const valueInfo = await getCurrentCardValue({
+                    ...item,
+                    selectedCondition: entry.code,
+                });
+                if (!valueInfo || !Number.isFinite(valueInfo.market)) return;
+
+                cardTotal += valueInfo.market * entry.qty;
+                cardPricedCopies += entry.qty;
+            }));
+
+            if (cardTotal <= 0) {
                 delete collectionValueById[id];
                 if (valueEl) valueEl.textContent = '--';
                 return;
             }
 
-            pricedCount++;
-            total += valueInfo.market;
-            collectionValueById[id] = valueInfo.market;
+            pricedCopies += cardPricedCopies;
+            total += cardTotal;
+            collectionValueById[id] = cardTotal;
             if (valueEl) {
-                valueEl.textContent = formatUsd(valueInfo.market);
+                valueEl.textContent = formatUsd(cardTotal);
             }
         }));
 
-        const coverage = pricedCount < list.length ? ` (${pricedCount}/${list.length} priced)` : '';
+        const coverage = pricedCopies < totalCopies ? ` (${pricedCopies}/${totalCopies} priced)` : '';
         totalEl.textContent = `Collection Value: ${formatUsd(total)}${coverage}`;
 
         const grid = document.getElementById('pv-collection-grid');
@@ -412,7 +495,29 @@
             const raw = localStorage.getItem(DEX_COLLECTION_KEY);
             if (!raw) return [];
             const parsed = safeParseJson(raw);
-            return Array.isArray(parsed) ? parsed : [];
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .filter((x) => x && typeof x === 'object' && x.id)
+                .map((x) => {
+                    const conditionQuantities = normalizeConditionQuantities(x?.conditionQuantities, x?.selectedCondition);
+                    const addedAt = Number(x?.addedAt || 0);
+                    const updatedAt = Number(x?.updatedAt || 0);
+                    return {
+                        id: safeString(x?.id, ''),
+                        name: safeString(x?.name, 'Unknown'),
+                        rarity: safeString(x?.rarity, ''),
+                        expansion: (x?.expansion && typeof x.expansion === 'object') ? x.expansion : null,
+                        set: (x?.set && typeof x.set === 'object') ? x.set : null,
+                        images: Array.isArray(x?.images) ? x.images : [],
+                        variants: Array.isArray(x?.variants) ? x.variants : [],
+                        selectedVariant: safeString(x?.selectedVariant, ''),
+                        selectedCondition: getPrimaryConditionCode(conditionQuantities),
+                        conditionQuantities,
+                        pricesText: safeString(x?.pricesText, ''),
+                        addedAt: Number.isFinite(addedAt) && addedAt > 0 ? addedAt : Date.now(),
+                        updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
+                    };
+                });
         } catch {
             return [];
         }
@@ -444,6 +549,60 @@
         } catch {
             // ignore
         }
+    }
+
+    function updateCollectionConditionQuantity(cardId, conditionCode, delta) {
+        const id = safeString(cardId, '');
+        const code = normalizeDexConditionCode(conditionCode);
+        const qtyDelta = Math.floor(Number(delta));
+        if (!id || !code || !Number.isFinite(qtyDelta) || qtyDelta === 0) {
+            return { changed: false, removeCard: false };
+        }
+
+        const collection = readCollection();
+        let found = false;
+        let changed = false;
+        let removeCard = false;
+
+        const nextCollection = collection.map((entry) => {
+            if (safeString(entry?.id, '') !== id) return entry;
+
+            found = true;
+            const map = normalizeConditionQuantities(entry?.conditionQuantities, entry?.selectedCondition);
+            const currentQty = Math.floor(Number(map[code] || 0));
+            const nextQty = Math.max(0, currentQty + qtyDelta);
+
+            if (nextQty === currentQty) return entry;
+
+            changed = true;
+            if (nextQty > 0) {
+                map[code] = nextQty;
+            } else {
+                delete map[code];
+            }
+
+            if (getTotalCopiesFromConditionMap(map, '') <= 0) {
+                removeCard = true;
+                return entry;
+            }
+
+            return {
+                ...entry,
+                conditionQuantities: map,
+                selectedCondition: getPrimaryConditionCode(map),
+                updatedAt: Date.now(),
+            };
+        });
+
+        if (!found || !changed) {
+            return { changed: false, removeCard: false };
+        }
+
+        if (!removeCard) {
+            writeCollection(nextCollection);
+        }
+
+        return { changed: true, removeCard };
     }
 
     function removeCardFromTrackers(cardId) {
@@ -507,7 +666,10 @@
         if (!grid || !summary || !totalEl) return;
 
         const items = readCollection().slice().sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
-        summary.textContent = `${items.length} card${items.length === 1 ? '' : 's'} tracked in your collection.`;
+        const totalCopies = items.reduce((sum, item) => {
+            return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
+        }, 0);
+        summary.textContent = `${items.length} unique card${items.length === 1 ? '' : 's'} • ${totalCopies} total cop${totalCopies === 1 ? 'y' : 'ies'}.`;
 
         bindCollectionSortControls();
 
@@ -517,26 +679,53 @@
         } else {
             const rows = items.map((item) => {
                 const id = safeString(item?.id, '');
-                const name = escapeHtml(safeString(item?.name, 'Unknown'));
+                const cardName = safeString(item?.name, 'Unknown');
+                const name = escapeHtml(cardName);
                 const setName = escapeHtml(getCardSetName(item));
                 const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
-                const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
                 const img = escapeHtml(pickFrontMediumImage(item?.images));
                 const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
-                const conditionOptions = buildConditionOptionsHtml(conditionCode);
+                const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
+                const copyCount = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+                const addConditionSelectId = `pv-add-condition-${encodeURIComponent(id)}`;
+                const addConditionOptions = buildConditionOptionsHtml('');
+
+                const conditionRows = conditionEntries.length
+                    ? conditionEntries.map((entry) => {
+                        const label = escapeHtml(getConditionLabel(entry.code));
+                        const code = escapeAttr(entry.code);
+                        return `
+                                    <div class="pv-conditionQtyRow">
+                                        <p class="pv-card__text pv-conditionQtyLabel">${label}</p>
+                                        <div class="pv-qtyStepper" role="group" aria-label="Adjust ${code} quantity for ${name}">
+                                            <button class="pv-button btn pv-qtyBtn" type="button" data-qty-dec-card-id="${escapeAttr(id)}" data-qty-condition="${code}" aria-label="Decrease ${code} quantity for ${name}">-</button>
+                                            <span class="pv-qtyValue">${entry.qty}</span>
+                                            <button class="pv-button btn pv-qtyBtn" type="button" data-qty-inc-card-id="${escapeAttr(id)}" data-qty-condition="${code}" aria-label="Increase ${code} quantity for ${name}">+</button>
+                                        </div>
+                                    </div>
+                                `;
+                    }).join('')
+                    : '<p class="pv-card__text">No condition copies tracked yet.</p>';
 
                 return `
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(name)}">
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}">
                         <article class="pv-card h-100" aria-label="${name}">
                             ${img ? `<img class="pv-card__img" src="${img}" alt="${name} card image"/>` : ''}
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
                                 <p class="pv-card__text">${setName}</p>
                                 <p class="pv-card__text">${rarity}</p>
-                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionCode ? '...' : '--'}</p>
-                                <select class="form-select pv-conditionSelect" data-condition-card-id="${escapeAttr(id)}" aria-label="Update condition for ${name}">
-                                    ${conditionOptions}
-                                </select>
+                                <p class="pv-card__text">Copies tracked: ${copyCount}</p>
+                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
+                                <div class="pv-conditionQtyList">
+                                    ${conditionRows}
+                                </div>
+                                <div class="pv-conditionAddRow">
+                                    <select id="${escapeAttr(addConditionSelectId)}" class="form-select pv-conditionSelect" aria-label="Select condition to add for ${name}">
+                                        ${addConditionOptions}
+                                    </select>
+                                    <button class="pv-button btn pv-addConditionBtn" type="button" data-add-condition-card-id="${escapeAttr(id)}" data-add-condition-select-id="${escapeAttr(addConditionSelectId)}">+ Add Copy</button>
+                                </div>
                                 <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-card-id="${escapeHtml(id)}">Remove Card</button>
                             </div>
                         </article>
@@ -559,32 +748,60 @@
                 });
             }
 
-            const conditionSelects = Array.from(grid.querySelectorAll('[data-condition-card-id]'));
-            for (const sel of conditionSelects) {
-                sel.addEventListener('change', () => {
-                    const cardId = safeString(sel.getAttribute('data-condition-card-id'), '');
-                    if (!cardId) return;
+            const incrementButtons = Array.from(grid.querySelectorAll('[data-qty-inc-card-id]'));
+            for (const btn of incrementButtons) {
+                btn.addEventListener('click', () => {
+                    const cardId = safeString(btn.getAttribute('data-qty-inc-card-id'), '');
+                    const code = normalizeDexConditionCode(btn.getAttribute('data-qty-condition'));
+                    if (!cardId || !code) return;
 
-                    const nextCondition = normalizeDexConditionCode(sel.value);
-                    const current = readCollection();
-                    const updated = current.map((entry) => {
-                        if (safeString(entry?.id, '') !== cardId) return entry;
-                        return {
-                            ...entry,
-                            selectedCondition: nextCondition,
-                            updatedAt: Date.now(),
-                        };
-                    });
-                    writeCollection(updated);
+                    const result = updateCollectionConditionQuantity(cardId, code, 1);
+                    if (!result.changed) return;
+                    renderCollectionPage();
+                });
+            }
 
-                    for (const item of items) {
-                        if (safeString(item?.id, '') !== cardId) continue;
-                        item.selectedCondition = nextCondition;
-                        item.updatedAt = Date.now();
-                        break;
+            const decrementButtons = Array.from(grid.querySelectorAll('[data-qty-dec-card-id]'));
+            for (const btn of decrementButtons) {
+                btn.addEventListener('click', () => {
+                    const cardId = safeString(btn.getAttribute('data-qty-dec-card-id'), '');
+                    const code = normalizeDexConditionCode(btn.getAttribute('data-qty-condition'));
+                    if (!cardId || !code) return;
+
+                    const result = updateCollectionConditionQuantity(cardId, code, -1);
+                    if (!result.changed) return;
+
+                    if (result.removeCard) {
+                        const ok = window.confirm('No copies remain. Remove this card from Collection and Master Sets?');
+                        if (!ok) return;
+                        removeCardFromTrackers(cardId);
+                        renderActivePage();
+                        return;
                     }
 
-                    void refreshCollectionValues(items, totalEl);
+                    renderCollectionPage();
+                });
+            }
+
+            const addConditionButtons = Array.from(grid.querySelectorAll('[data-add-condition-card-id]'));
+            for (const btn of addConditionButtons) {
+                btn.addEventListener('click', () => {
+                    const cardId = safeString(btn.getAttribute('data-add-condition-card-id'), '');
+                    const selectId = safeString(btn.getAttribute('data-add-condition-select-id'), '');
+                    if (!cardId || !selectId) return;
+
+                    const selectEl = document.getElementById(selectId);
+                    if (!(selectEl instanceof HTMLSelectElement)) return;
+
+                    const code = normalizeDexConditionCode(selectEl.value);
+                    if (!code) {
+                        selectEl.focus();
+                        return;
+                    }
+
+                    const result = updateCollectionConditionQuantity(cardId, code, 1);
+                    if (!result.changed) return;
+                    renderCollectionPage();
                 });
             }
 
@@ -646,8 +863,9 @@
                 const cardListHtml = cardIds.length
                     ? `<ul class="pv-masterSetCardList">${cardIds.map((id) => {
                         const card = cardsById[id];
+                        const conditionSummary = formatConditionSummary(card?.conditionQuantities, card?.selectedCondition);
                         const label = card
-                            ? `${safeString(card?.name, 'Unknown')} • ${safeString(card?.selectedVariant, 'Type n/a')} • ${getConditionLabel(card?.selectedCondition)} (${getCardSetName(card)})`
+                            ? `${safeString(card?.name, 'Unknown')} • ${safeString(card?.selectedVariant, 'Type n/a')} • ${conditionSummary} (${getCardSetName(card)})`
                             : id;
                         return `<li class="pv-masterSetCardList__item"><span>${escapeHtml(label)}</span><button class="pv-button btn pv-removeCardBtn pv-removeCardBtn--small" type="button" data-remove-card-id="${escapeHtml(id)}">Remove</button></li>`;
                     }).join('')}</ul>`
