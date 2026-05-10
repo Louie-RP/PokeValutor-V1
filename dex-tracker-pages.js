@@ -443,6 +443,8 @@
 
             let cardTotal = 0;
             let cardPricedCopies = 0;
+            let cardDisplayUnit = null;
+            const primaryCondition = normalizeDexConditionCode(item?.selectedCondition);
 
             await Promise.all(conditionEntries.map(async (entry) => {
                 const valueInfo = await getCurrentCardValue({
@@ -453,6 +455,13 @@
 
                 cardTotal += valueInfo.market * entry.qty;
                 cardPricedCopies += entry.qty;
+
+                if (primaryCondition && entry.code === primaryCondition) {
+                    cardDisplayUnit = valueInfo.market;
+                }
+                if (cardDisplayUnit == null) {
+                    cardDisplayUnit = valueInfo.market;
+                }
             }));
 
             if (cardTotal <= 0) {
@@ -463,9 +472,9 @@
 
             pricedCopies += cardPricedCopies;
             total += cardTotal;
-            collectionValueById[id] = cardTotal;
+            collectionValueById[id] = Number.isFinite(cardDisplayUnit) ? Number(cardDisplayUnit) : 0;
             if (valueEl) {
-                valueEl.textContent = formatUsd(cardTotal);
+                valueEl.textContent = Number.isFinite(cardDisplayUnit) ? formatUsd(cardDisplayUnit) : '--';
             }
         }));
 
