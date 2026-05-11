@@ -217,15 +217,97 @@ document.addEventListener('DOMContentLoaded', function () {
         const text = await res.text();
         const data = safeParseJson(text);
         if (!res.ok || !data) {
-            throw new Error(`Request failed (${res.status})`);
+            const msg = (data && typeof data === 'object' && (data.error || data.message))
+                ? (data.error || data.message)
+                : `Request failed (${res.status})`;
+            const err = new Error(String(msg));
+            // @ts-ignore
+            err.status = res.status;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429;
+            throw err;
         }
 
         if (data && typeof data === 'object' && data.ok === false) {
-            throw new Error(String(data.error || 'API error'));
+            const msg = String(data.error || data.message || 'API error');
+            const err = new Error(msg);
+            // @ts-ignore
+            err.status = res.status;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429;
+            throw err;
         }
 
         cacheSet(key, data, ttlMs);
         return data;
+    }
+
+    function buildFieldQuery(fieldName, value) {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return '';
+        const needsQuotes = /\s/.test(trimmed) || /[^A-Za-z0-9]/.test(trimmed);
+        const term = needsQuotes ? `"${trimmed.replace(/"/g, '\\"')}"` : trimmed;
+        return `${fieldName}:${term}`;
+    }
+
+    function derivePokemonFamilyName(cardName) {
+        const raw = String(cardName || '').trim();
+        if (!raw) return '';
+
+        const stop = new Set([
+            'mega', 'm', 'ex', 'gx', 'v', 'vmax', 'vstar', 'lv', 'lvl', 'break', 'prime',
+            'radiant', 'shining', 'dark', 'delta', 'tag', 'team', 'rocket', 's',
+            'galarian', 'hisuian', 'alolan', 'paldean', 'x', 'y', 'xy', 'trainer'
+        ]);
+
+        const cleaned = raw
+            .toLowerCase()
+            .replace(/[’']/g, ' ')
+            .replace(/[^a-z0-9\s-]/g, ' ')
+            .replace(/[-_]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!cleaned) return '';
+
+        const tokens = cleaned
+            .split(' ')
+            .map((t) => t.trim())
+            .filter(Boolean)
+            .filter((t) => !stop.has(t));
+
+        if (!tokens.length) return '';
+
+        // Prefer the last meaningful token (e.g., "Mega Charizard X EX" -> "charizard").
+        for (let i = tokens.length - 1; i >= 0; i--) {
+            const tok = tokens[i];
+            if (/^[a-z]/.test(tok)) return tok;
+        }
+
+        return tokens[tokens.length - 1];
+    }
+
+    function mergeUniqueCardsById(target, next) {
+        const out = Array.isArray(target) ? target.slice() : [];
+        if (!Array.isArray(next) || !next.length) return out;
+
+        const seen = new Set(out.map((x) => safeString(x?.id, '')));
+        for (const card of next) {
+            const id = safeString(card?.id, '');
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            out.push(card);
+        }
+        return out;
+    }
+
+    async function fetchCardsForQuery(query, pageSize) {
+        const q = String(query || '').trim();
+        if (!q) return [];
+        const base = getWorkerBase();
+        const size = Math.max(1, Math.min(30, Number(pageSize) || 24));
+        const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=${size}&lang=en`;
+        const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+        return Array.isArray(data?.data) ? data.data : [];
     }
 
     function normalizeWatchlistItem(card) {
@@ -492,49 +574,79 @@ document.addEventListener('DOMContentLoaded', function () {
     async function renderRelated(card) {
         if (!relatedGridEl) return;
 
-        const expansionId = safeString(card?.expansion?.id, '');
-        if (!expansionId) {
-            relatedGridEl.innerHTML = '<div class="col-12">No related cards available.</div>';
-            return;
-        }
+        const resultLimit = 3;
+        const cardId = safeString(card?.id, '');
+        const cardName = safeString(card?.name, '');
+        const pokemonFamily = derivePokemonFamilyName(cardName);
 
         relatedGridEl.innerHTML = '<div class="col-12">Loading related cards...</div>';
 
-        try {
-            const query = `expansion.id:${expansionId}`;
-            const base = getWorkerBase();
-            const url = `${base}/cards/search?q=${encodeURIComponent(query)}&page=1&pageSize=12&lang=en`;
-            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-            const all = Array.isArray(data?.data) ? data.data : [];
+        /** @type {Array<any>} */
+        let all = [];
+        /** @type {any|null} */
+        let lastError = null;
 
-            const rows = all
-                .filter((x) => safeString(x?.id, '') && safeString(x?.id, '') !== safeString(card?.id, ''))
-                .slice(0, 6);
+        const primaryQueries = [];
+        if (pokemonFamily) {
+            primaryQueries.push(buildFieldQuery('name', pokemonFamily));
+        } else if (cardName) {
+            primaryQueries.push(buildFieldQuery('name', cardName));
+        }
 
-            if (!rows.length) {
-                relatedGridEl.innerHTML = '<div class="col-12">No related cards available.</div>';
+        // Query only by Pokemon/name to avoid unrelated same-set cards.
+        for (const query of primaryQueries) {
+            try {
+                const fetched = await fetchCardsForQuery(query, 8);
+                all = mergeUniqueCardsById(all, fetched);
+                if (all.length >= (resultLimit + 2)) break;
+            } catch (e) {
+                lastError = e;
+            }
+        }
+
+        const familyLc = String(pokemonFamily || '').toLowerCase();
+        const rows = all
+            .filter((x) => safeString(x?.id, '') && safeString(x?.id, '') !== cardId)
+            .filter((x) => {
+                if (!familyLc) return true;
+                const nameLc = safeString(x?.name, '').toLowerCase();
+                return !!nameLc && nameLc.includes(familyLc);
+            })
+            .sort((a, b) => {
+                const an = safeString(a?.name, '').toLowerCase();
+                const bn = safeString(b?.name, '').toLowerCase();
+                const aHas = familyLc && an.includes(familyLc) ? 1 : 0;
+                const bHas = familyLc && bn.includes(familyLc) ? 1 : 0;
+                if (aHas !== bHas) return bHas - aHas;
+                return an.localeCompare(bn);
+            })
+            .slice(0, resultLimit);
+
+        if (!rows.length) {
+            if (lastError && (lastError.status === 429 || lastError.isQuotaExceeded)) {
+                relatedGridEl.innerHTML = '<div class="col-12">Related cards are temporarily unavailable because the daily allowance was reached.</div>';
                 return;
             }
-
-            relatedGridEl.innerHTML = rows.map((item) => {
-                const name = safeString(item?.name, 'Card');
-                const setName = getCardSetName(item);
-                const img = sanitizeUrl(pickFrontMediumImage(item?.images));
-                const href = buildCardDetailPath(item);
-
-                return `
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-2">
-                        <a class="pv-relatedCard" href="${escapeHtml(href)}" aria-label="View ${escapeHtml(name)} details">
-                            ${img ? `<img class="pv-relatedCard__img" src="${escapeHtml(img)}" alt="${escapeHtml(name)} card image" loading="lazy" />` : ''}
-                            <span class="pv-relatedCard__name">${escapeHtml(name)}</span>
-                            <span class="pv-relatedCard__set">${escapeHtml(setName)}</span>
-                        </a>
-                    </div>
-                `;
-            }).join('');
-        } catch {
-            relatedGridEl.innerHTML = '<div class="col-12">Unable to load related cards right now.</div>';
+            relatedGridEl.innerHTML = '<div class="col-12">No related cards available for this Pokemon yet.</div>';
+            return;
         }
+
+        relatedGridEl.innerHTML = rows.map((item) => {
+            const name = safeString(item?.name, 'Card');
+            const setName = getCardSetName(item);
+            const img = sanitizeUrl(pickFrontMediumImage(item?.images));
+            const href = buildCardDetailPath(item);
+
+            return `
+                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                    <a class="pv-relatedCard" href="${escapeHtml(href)}" aria-label="View ${escapeHtml(name)} details">
+                        ${img ? `<img class="pv-relatedCard__img" src="${escapeHtml(img)}" alt="${escapeHtml(name)} card image" loading="lazy" />` : ''}
+                        <span class="pv-relatedCard__name">${escapeHtml(name)}</span>
+                        <span class="pv-relatedCard__set">${escapeHtml(setName)}</span>
+                    </a>
+                </div>
+            `;
+        }).join('');
     }
 
     async function copyToClipboard(text) {
