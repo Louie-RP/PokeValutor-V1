@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const EXPANSIONS_PAGE_SIZE = 100;
     const SET_SEARCH_PAGE_SIZE = 100;
+    const NAME_SEARCH_PAGE_SIZE = 15;
+    const NUMBER_SEARCH_PAGE_SIZE = 15;
     const SET_SEARCH_MAX_PAGES = 10;
     const MAX_CACHE_ENTRIES = 250;
 
@@ -95,6 +97,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let dexSetBrowseState = {
         active: false,
+        mode: '',
+        query: '',
         expansionId: '',
         expansionName: '',
         expansionSeries: '',
@@ -211,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setLoadMoreState(visible, loading) {
-        if (!loadMoreBtn || !isDexPage) return;
+        if (!loadMoreBtn) return;
         loadMoreBtn.hidden = !visible;
         loadMoreBtn.disabled = !!loading;
         loadMoreBtn.textContent = loading ? 'Loading...' : 'Load More';
@@ -220,6 +224,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function resetDexSetBrowseState() {
         dexSetBrowseState = {
             active: false,
+            mode: '',
+            query: '',
             expansionId: '',
             expansionName: '',
             expansionSeries: '',
@@ -2912,15 +2918,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const queryCandidates = buildNameQueryCandidates(q).slice(0, 3);
             let cards = [];
             let matchedBy = 'exact';
+            let matchedQuery = '';
+            let hasMore = false;
 
             // Try exact/strict first, then controlled wildcard fallbacks.
             for (let i = 0; i < queryCandidates.length; i++) {
                 const query = queryCandidates[i];
-                const url = `${base}/cards/search?q=${encodeURIComponent(query)}&page=1&pageSize=5&lang=en`;
-                const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-                const found = Array.isArray(data?.data) ? data.data : [];
-                if (found.length) {
-                    cards = found;
+                const page1 = await fetchCardsSearchPage(base, query, 1, NAME_SEARCH_PAGE_SIZE);
+                if (page1.cards.length) {
+                    cards = page1.cards;
+                    matchedQuery = query;
+                    hasMore = page1.hasMore;
                     matchedBy = i === 0 ? 'exact' : 'fallback';
                     break;
                 }
@@ -2928,7 +2936,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             renderCards(cards);
             const guidance = 'If your card is not displayed, please search by card number (printed number) instead.';
-            const limitNote = cards.length >= 5 ? ' Showing up to 5 matches.' : '';
+            const limitNote = hasMore ? ' Showing first 15 matches. Use Load More to see more.' : '';
             const matchNote = matchedBy === 'fallback' && cards.length
                 ? ' Showing closest partial matches.'
                 : '';
@@ -2946,9 +2954,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
                 })(),
             });
+
+            if (matchedQuery) {
+                dexSetBrowseState = {
+                    active: true,
+                    mode: 'name',
+                    query: q,
+                    expansionId: '',
+                    expansionName: '',
+                    expansionSeries: '',
+                    queryCandidates,
+                    matchedQuery,
+                    nextPage: 2,
+                    pageSize: NAME_SEARCH_PAGE_SIZE,
+                    cards: cards.slice(),
+                    hasMore,
+                };
+                setLoadMoreState(hasMore, false);
+            }
         } catch (e) {
             console.warn('[PokeValutor] search error', e);
             renderCards([]);
+            resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
                 setStatus('Daily guest allowance reached. Sign in to continue.');
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
@@ -2995,6 +3022,8 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             let cards = [];
             let usedFallback = false;
+            let matchedQuery = '';
+            let hasMore = false;
 
             // Try documented nested-field filter first, then compatibility fallbacks.
             for (let eIdx = 0; eIdx < expansionClauses.length; eIdx++) {
@@ -3003,11 +3032,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 for (let nIdx = 0; nIdx < namesToTry.length; nIdx++) {
                     const nameClause = namesToTry[nIdx];
                     const q = `${expansionClause} ${nameClause}`;
-                    const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=25&lang=en`;
-                    const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-                    const found = Array.isArray(data?.data) ? data.data : [];
-                    if (found.length) {
-                        cards = found;
+                    const page1 = await fetchCardsSearchPage(base, q, 1, NAME_SEARCH_PAGE_SIZE);
+                    if (page1.cards.length) {
+                        cards = page1.cards;
+                        matchedQuery = q;
+                        hasMore = page1.hasMore;
                         usedFallback = nIdx > 0 || eIdx > 0;
                         break;
                     }
@@ -3019,7 +3048,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const fallbackNote = usedFallback && cards.length ? ' Showing closest partial matches.' : '';
-            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in set "${label}".${fallbackNote}`;
+            const limitNote = hasMore ? ' Showing first 15 matches. Use Load More to see more.' : '';
+            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in set "${label}".${limitNote}${fallbackNote}`;
             setStatus(statusText);
 
             saveLastResults({
@@ -3036,9 +3066,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
                 })(),
             });
+
+            if (matchedQuery) {
+                dexSetBrowseState = {
+                    active: true,
+                    mode: 'setName',
+                    query: name,
+                    expansionId: id,
+                    expansionName: setName,
+                    expansionSeries: setSeries,
+                    queryCandidates,
+                    matchedQuery,
+                    nextPage: 2,
+                    pageSize: NAME_SEARCH_PAGE_SIZE,
+                    cards: cards.slice(),
+                    hasMore,
+                };
+                setLoadMoreState(hasMore, false);
+            }
         } catch (e) {
             console.warn('[PokeValutor] set+name search error', e);
             renderCards([]);
+            resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
                 setStatus('Daily guest allowance reached. Sign in to continue.');
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
@@ -3062,7 +3111,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Number searches are high-collision (many sets share the same number),
         // so show more results than name searches.
-        const RESULT_LIMIT = 10;
+        const RESULT_LIMIT = NUMBER_SEARCH_PAGE_SIZE;
 
         function normalizeSimpleDigits(raw) {
             const s = String(raw || '').trim();
@@ -3092,7 +3141,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setStatus('Searching…');
         if (grid) {
             grid.innerHTML = '';
-            for (let i = 0; i < Math.min(RESULT_LIMIT, 10); i++) {
+            for (let i = 0; i < Math.min(RESULT_LIMIT, 12); i++) {
                 const col = document.createElement('div');
                 col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
@@ -3213,9 +3262,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
                 })(),
             });
+
+            setLoadMoreState(false, false);
         } catch (e) {
             console.warn('[PokeValutor] printed number search error', e);
             renderCards([]);
+            resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
                 setStatus('Daily guest allowance reached. Sign in to continue.');
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
@@ -3387,9 +3439,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 })(),
             });
 
-            if (isDexPage && matchedQuery) {
+            if (matchedQuery) {
                 dexSetBrowseState = {
                     active: true,
+                    mode: 'set',
+                    query: id,
                     expansionId: id,
                     expansionName: setName,
                     expansionSeries: setSeries,
@@ -3418,7 +3472,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function loadMoreDexSetCards() {
-        if (!isDexPage || !dexSetBrowseState.active || !dexSetBrowseState.hasMore || !dexSetBrowseState.matchedQuery) {
+        if (!dexSetBrowseState.active || !dexSetBrowseState.hasMore || !dexSetBrowseState.matchedQuery) {
             setLoadMoreState(false, false);
             return;
         }
@@ -3438,16 +3492,30 @@ document.addEventListener('DOMContentLoaded', function () {
             const restored = loadLastResults();
             renderCards(merged, restored || undefined);
 
-            const label = dexSetBrowseState.expansionSeries
-                ? `${dexSetBrowseState.expansionSeries} • ${dexSetBrowseState.expansionName || dexSetBrowseState.expansionId}`
-                : (dexSetBrowseState.expansionName || dexSetBrowseState.expansionId);
-            const statusText = `${merged.length} card${merged.length !== 1 ? 's' : ''} loaded for set "${label}".`;
+            const mode = String(dexSetBrowseState.mode || '');
+            let statusText = `${merged.length} card${merged.length !== 1 ? 's' : ''} loaded.`;
+
+            if (mode === 'name') {
+                statusText = `${merged.length} result${merged.length !== 1 ? 's' : ''} for "${dexSetBrowseState.query}".`;
+            } else if (mode === 'setName') {
+                const label = dexSetBrowseState.expansionSeries
+                    ? `${dexSetBrowseState.expansionSeries} • ${dexSetBrowseState.expansionName || dexSetBrowseState.expansionId}`
+                    : (dexSetBrowseState.expansionName || dexSetBrowseState.expansionId);
+                statusText = `${merged.length} result${merged.length !== 1 ? 's' : ''} for "${dexSetBrowseState.query}" in set "${label}".`;
+            } else if (mode === 'set') {
+                const label = dexSetBrowseState.expansionSeries
+                    ? `${dexSetBrowseState.expansionSeries} • ${dexSetBrowseState.expansionName || dexSetBrowseState.expansionId}`
+                    : (dexSetBrowseState.expansionName || dexSetBrowseState.expansionId);
+                statusText = `${merged.length} card${merged.length !== 1 ? 's' : ''} loaded for set "${label}".`;
+            }
             setStatus(statusText);
 
+            const saveMode = mode === 'setName' ? 'setName' : (mode === 'set' ? 'set' : 'name');
+            const saveQuery = mode === 'set' ? dexSetBrowseState.expansionId : dexSetBrowseState.query;
             saveLastResults({
                 savedAt: Date.now(),
-                mode: 'set',
-                query: dexSetBrowseState.expansionId,
+                mode: saveMode,
+                query: saveQuery,
                 cards: merged,
                 statusText,
                 expansionId: dexSetBrowseState.expansionId,
