@@ -2026,7 +2026,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const fav of favorites) {
             const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3 pv-favoritesCol';
 
             const id = safeString(fav?.id, '');
             const name = safeString(fav?.name, 'Unknown');
@@ -2061,8 +2061,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="pv-card__title">${nameHtml}</div>
                             <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
                         </div>
-                        <p class="pv-card__text">Set: ${setNameHtml}</p>
-                        <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
+                        <p class="pv-card__text">${setNameHtml}</p>
+                        <p class="pv-card__text">${rarity ? rarityHtml : 'n/a'}</p>
                         ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariantHtml}</p>` : ''}
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-fav-trade-${idAttr}">Trade %</label>
@@ -2725,8 +2725,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                     : ''}
                             </div>
                         </div>
-                        <p class="pv-card__text">Set: ${setNameHtml}</p>
-                        <p class="pv-card__text">${rarity ? `Rarity: ${rarityHtml}` : 'Rarity: n/a'}</p>
+                        <p class="pv-card__text">${setNameHtml}</p>
+                        <p class="pv-card__text">${rarity ? rarityHtml : 'n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
                             <select class="form-select" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
