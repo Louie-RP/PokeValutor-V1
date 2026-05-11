@@ -2,10 +2,8 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-search-form');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-search-query'));
-    const numberInput = /** @type {HTMLInputElement} */(document.getElementById('pv-search-number'));
     const seriesSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-series'));
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
-    const setSearchBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-set-submit'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
     const status = document.getElementById('pv-search-status');
     const grid = document.getElementById('pv-search-grid');
@@ -117,9 +115,6 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {string} */
     let pendingRestoredExpansionId = '';
 
-    /** @type {'name' | 'number' | null} */
-    let lastEditedSearchField = null;
-
     /** @type {Set<string>} */
     let selectedConditionFilters = loadConditionFilterSet();
 
@@ -213,7 +208,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearSearchInputs() {
         if (input) input.value = '';
-        if (numberInput) numberInput.value = '';
     }
 
     function setLoadMoreState(visible, loading) {
@@ -322,10 +316,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 setSelect.innerHTML = '<option value="">Loading sets...</option>';
             }
         }
-
-        if (setSearchBtn) {
-            setSearchBtn.disabled = true;
-        }
     }
 
     function renderSeriesOptions(seriesNames, selectedSeries) {
@@ -360,12 +350,6 @@ document.addEventListener('DOMContentLoaded', function () {
             .sort(sortExpansionsByReleaseDesc);
     }
 
-    function updateSetSearchButtonState() {
-        if (!setSearchBtn || !setSelect) return;
-        const hasSet = !!safeString(setSelect.value, '');
-        setSearchBtn.disabled = !hasSet;
-    }
-
     function renderSetOptionsForSeries(seriesName, selectedExpansionId) {
         if (!setSelect) return;
 
@@ -383,7 +367,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setSelect.innerHTML = options.join('');
         setSelect.disabled = sets.length === 0;
-        updateSetSearchButtonState();
     }
 
     function getSelectedExpansionFromFilter() {
@@ -500,26 +483,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 setSelect.disabled = true;
                 setSelect.innerHTML = '<option value="">Unable to load sets</option>';
             }
-            if (setSearchBtn) setSearchBtn.disabled = true;
             throw e;
         } finally {
             expansionCatalogPromise = null;
         }
-    }
-
-    // Keep search modes mutually exclusive so one field never blocks the other.
-    if (input) {
-        input.addEventListener('input', () => {
-            lastEditedSearchField = 'name';
-            if (numberInput && numberInput.value) numberInput.value = '';
-        });
-    }
-
-    if (numberInput) {
-        numberInput.addEventListener('input', () => {
-            lastEditedSearchField = 'number';
-            if (input && input.value) input.value = '';
-        });
     }
 
     function safeString(value, fallback) {
@@ -2223,6 +2190,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return candidates;
     }
 
+    function isLikelyCardNumberQuery(rawQuery) {
+        const q = String(rawQuery || '').trim();
+        if (!q) return false;
+
+        // Number-like queries are compact and pattern-driven.
+        // Keep this strict so names like "Porygon2" stay in name-search mode.
+        if (/\s/.test(q)) return false;
+
+        const upper = q.toUpperCase();
+        if (/^\d{1,4}$/.test(upper)) return true;
+        if (/^\d{1,4}\/\d{1,4}$/.test(upper)) return true;
+        if (/^[A-Z]{1,5}\d{1,4}$/.test(upper)) return true;
+        if (/^(?=.*\d)[A-Z0-9]{2,6}-[A-Z0-9]{1,6}$/.test(upper)) return true;
+        if (/^[A-Z]{1,5}\d{1,4}\/[A-Z]{1,5}\d{1,4}$/.test(upper)) return true;
+        return false;
+    }
+
     function formatPriceList(prices, tradePercent) {
         if (!Array.isArray(prices) || prices.length === 0) return 'No prices available for this variant at this time';
 
@@ -3490,54 +3474,29 @@ document.addEventListener('DOMContentLoaded', function () {
     if (form && input) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const byNumber = (numberInput?.value || '').trim();
-            const byName = (input?.value || '').trim();
-            const bySetId = (setSelect?.value || '').trim();
+            const query = safeString(input?.value, '').trim();
+            const bySetId = safeString(setSelect?.value, '').trim();
 
-            if (!byNumber && !byName && !bySetId) {
-                setStatus('Please enter a Pokémon name, a printed card number, or choose a set.');
+            if (!query) {
+                setStatus('Please enter a Pokemon name or card number.');
                 renderCards([]);
                 return;
             }
 
-            if (bySetId && byName && !byNumber) {
+            if (isLikelyCardNumberQuery(query)) {
+                void searchByPrintedNumber(query);
+                return;
+            }
+
+            if (bySetId) {
                 const selected = getSelectedExpansionFromFilter();
                 const selectedName = safeString(selected?.name, '');
                 const selectedSeries = safeString(selected?.series, '');
-                void searchByNameInSet(bySetId, selectedName, selectedSeries, byName);
+                void searchByNameInSet(bySetId, selectedName, selectedSeries, query);
                 return;
             }
 
-            if (!byNumber && !byName && bySetId) {
-                if (!isDexPage) {
-                    setStatus('Enter a Pokemon name to search within the selected set.');
-                    renderCards([]);
-                    return;
-                }
-
-                const selected = getSelectedExpansionFromFilter();
-                const selectedName = safeString(selected?.name, '');
-                const selectedSeries = safeString(selected?.series, '');
-                void searchByExpansionSet(bySetId, selectedName, selectedSeries);
-                return;
-            }
-
-            // Clear the inputs immediately after capturing the query.
-            // This prevents a previous search from blocking the next.
-            clearSearchInputs();
-
-            // If both are somehow filled, choose the most recently edited field.
-            if (byNumber && byName) {
-                if (lastEditedSearchField === 'name') {
-                    void searchByName(byName);
-                } else {
-                    void searchByPrintedNumber(byNumber);
-                }
-                return;
-            }
-
-            if (byNumber) void searchByPrintedNumber(byNumber);
-            else void searchByName(byName);
+            void searchByName(query);
         });
     }
 
@@ -3569,38 +3528,9 @@ document.addEventListener('DOMContentLoaded', function () {
         setSelect.addEventListener('pointerdown', onSetFocus, { once: true });
 
         setSelect.addEventListener('change', () => {
-            updateSetSearchButtonState();
             const series = safeString(seriesSelect?.value, '');
             const expansionId = safeString(setSelect.value, '');
             saveSetFilterState(series, expansionId);
-        });
-    }
-
-    if (setSearchBtn) {
-        setSearchBtn.addEventListener('click', () => {
-            const selected = getSelectedExpansionFromFilter();
-            const expansionId = safeString(selected?.id, safeString(setSelect?.value, ''));
-            if (!expansionId) {
-                setStatus('Please choose a set first.');
-                return;
-            }
-
-            const selectedName = safeString(selected?.name, '');
-            const selectedSeries = safeString(selected?.series, '');
-            saveSetFilterState(selectedSeries, expansionId);
-
-            const byName = safeString(input?.value, '');
-            if (byName) {
-                void searchByNameInSet(expansionId, selectedName, selectedSeries, byName);
-                return;
-            }
-
-            if (!isDexPage) {
-                setStatus('Enter a Pokemon name to search within the selected set.');
-                return;
-            }
-
-            void searchByExpansionSet(expansionId, selectedName, selectedSeries);
         });
     }
 
@@ -3695,7 +3625,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const restored = loadLastResults();
     if (restored && Array.isArray(restored.cards) && restored.cards.length) {
         if (restored.mode === 'name' && input) input.value = String(restored.query || '');
-        if (restored.mode === 'number' && numberInput) numberInput.value = String(restored.query || '');
+        if (restored.mode === 'number' && input) input.value = String(restored.query || '');
         if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
         if (restored.mode === 'set' && restored.expansionId) {
             pendingRestoredExpansionId = String(restored.expansionId || '');

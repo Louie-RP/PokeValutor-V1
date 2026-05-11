@@ -43,20 +43,15 @@
     <main id="pv-search-main" class="pv-main" role="main">
         <section id="pv-search-hero" class="pv-hero container" aria-labelledby="pv-search-title">
             <h1 id="pv-search-title" class="pv-hero__title">Search Pokémon</h1>
-            <p class="pv-hero__subtitle">Find Pokémon by name or card number.</p>
+            <p class="pv-hero__subtitle">Search by Pokémon name or card number, then optionally narrow by series and set.</p>
         </section>
 
         <section id="pv-search-section" class="pv-section container">
             <form id="pv-search-form" class="pv-form row g-3" role="search">
-                <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-query" class="form-label">Pokémon Name</label>
+                <div class="pv-form__field col-12">
+                    <label for="pv-search-query" class="form-label">Search</label>
                     <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
-                        placeholder="e.g., pikachu" aria-controls="pv-search-results" />
-                </div>
-                <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-number" class="form-label">Card Number</label>
-                    <input id="pv-search-number" name="pv-search-number" type="search" class="form-control"
-                        placeholder="e.g., 87/160 or SWSH101" aria-controls="pv-search-results" />
+                        placeholder="e.g., pikachu, 87/160, SWSH101" aria-controls="pv-search-results" />
                 </div>
                 <div class="pv-form__field col-12 col-md-6">
                     <label for="pv-search-series" class="form-label">Series</label>
@@ -65,13 +60,10 @@
                     </select>
                 </div>
                 <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-set" class="form-label">Set</label>
-                    <div class="pv-setFilterRow">
-                        <select id="pv-search-set" name="pv-search-set" class="form-select" aria-label="Choose a set" disabled>
-                            <option value="">Choose a set</option>
-                        </select>
-                        <button id="pv-search-set-submit" class="pv-button pv-button--primary btn" type="button" disabled>Show Set Cards</button>
-                    </div>
+                    <label for="pv-search-set" class="form-label">Set (Optional)</label>
+                    <select id="pv-search-set" name="pv-search-set" class="form-select" aria-label="Choose a set" disabled>
+                        <option value="">Choose a set</option>
+                    </select>
                 </div>
                 <div class="col-12 pv-search-actions">
                     <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
@@ -158,7 +150,7 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="search.js?v=2026-05-10-4" defer></script>
+    <script src="search.js?v=2026-05-10-5" defer></script>
 </body>
 
 </html>
