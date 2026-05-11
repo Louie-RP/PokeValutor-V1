@@ -1347,6 +1347,90 @@ document.addEventListener('DOMContentLoaded', function () {
         return expansionName || setName || directExpansionName || directSetName || 'n/a';
     }
 
+    function slugifyForUrl(value) {
+        return String(value || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-');
+    }
+
+    function buildCardDetailPath(cardLike) {
+        const id = safeString(cardLike?.id, '');
+        if (!id) return 'card.html';
+        const name = safeString(cardLike?.name, 'card');
+        const slug = slugifyForUrl(`${id}-${name}`);
+        return `card.html?id=${encodeURIComponent(id)}&slug=${encodeURIComponent(slug)}`;
+    }
+
+    function buildAbsoluteUrl(path) {
+        const normalizedPath = String(path || '').replace(/^\/+/, '');
+        const origin = String(window.location.origin || '').trim();
+        if (origin && origin !== 'null' && /^https?:/i.test(origin)) {
+            const base = origin.replace(/\/$/, '');
+            return `${base}/${normalizedPath}`;
+        }
+        try {
+            return new URL(normalizedPath, window.location.href).href;
+        } catch {
+            return normalizedPath;
+        }
+    }
+
+    async function copyTextToClipboard(value) {
+        const text = String(value || '');
+        if (!text) return false;
+
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch {
+            // ignore
+        }
+
+        try {
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            temp.setAttribute('readonly', '');
+            temp.style.position = 'absolute';
+            temp.style.left = '-9999px';
+            document.body.appendChild(temp);
+            temp.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(temp);
+            return !!ok;
+        } catch {
+            return false;
+        }
+    }
+
+    async function shareCardLink(cardLike) {
+        const path = buildCardDetailPath(cardLike);
+        const url = buildAbsoluteUrl(path);
+        const title = safeString(cardLike?.name, 'Pokemon card');
+        const setName = getCardSetName(cardLike);
+        const text = `${title} • ${setName}`;
+
+        try {
+            if (navigator.share) {
+                await navigator.share({ title, text, url });
+                setStatus('Share options opened.');
+                return;
+            }
+        } catch (err) {
+            const errName = String(err?.name || '');
+            if (errName === 'AbortError') {
+                setStatus('Share canceled.');
+                return;
+            }
+        }
+
+        const copied = await copyTextToClipboard(url);
+        setStatus(copied ? 'Card link copied to clipboard.' : 'Unable to copy link on this browser.');
+    }
+
     function normalizeFavoriteCard(card) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
         return {
@@ -2045,6 +2129,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const setNameHtml = escapeHtml(setName);
             const selectedVariantHtml = escapeHtml(selectedVariant);
             const imgUrlAttr = escapeAttr(imgUrl);
+            const detailPath = buildCardDetailPath(fav);
+            const detailPathAttr = escapeAttr(detailPath);
 
             const maybePrices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
             const pricesText = maybePrices
@@ -2055,10 +2141,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             col.innerHTML = `
                 <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/>` : ''}
+                    ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
                     <div class="pv-card__body">
                         <div class="pv-card__header">
-                            <div class="pv-card__title">${nameHtml}</div>
+                            <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
                             <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
                         </div>
                         <p class="pv-card__text">${setNameHtml}</p>
@@ -2708,17 +2794,24 @@ document.addEventListener('DOMContentLoaded', function () {
             const favLabelAttr = escapeAttr(favLabel);
             const removeLabelAttr = escapeAttr(removeLabel);
             const imgUrlAttr = escapeAttr(imgUrl);
+            const detailPath = buildCardDetailPath(card);
+            const detailPathAttr = escapeAttr(detailPath);
 
             col.setAttribute('data-card-id', id);
             col.setAttribute('data-card-name', name);
 
             col.innerHTML = `
                 <div class="pv-card h-100">
-                    ${imgUrl ? `<img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/>` : ''}
+                    ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
                     <div class="pv-card__body">
                         <div class="pv-card__header">
-                            <div class="pv-card__title">${nameHtml}</div>
+                            <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
                             <div class="pv-card__actions">
+                                <button id="pv-share-${idAttr}" class="pv-share-btn" type="button" aria-label="Share card link" title="Share card link">
+                                    <svg class="pv-share-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <path d="M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z"></path>
+                                    </svg>
+                                </button>
                                 <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
                                 ${isDexPage
                                     ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}>−</button>`
@@ -2745,8 +2838,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const conditionEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-condition-${CSS.escape(id)}`));
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
+            const shareBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-share-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
             const removeBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-remove-${CSS.escape(id)}`));
+
+            if (shareBtn) {
+                shareBtn.addEventListener('click', () => {
+                    void shareCardLink(card);
+                });
+            }
 
             function updateDexButtonStateFromStorage() {
                 if (!isDexPage || !favBtn) return;
