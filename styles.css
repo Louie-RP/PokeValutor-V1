@@ -931,6 +931,10 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   color: var(--pv-primary);
 }
 
+#pv-search-sort {
+  margin-top: 0.9rem;
+}
+
 .pv-masterSetsGrid {
   display: grid;
   grid-template-columns: 1fr;

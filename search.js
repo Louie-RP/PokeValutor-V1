@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
+    const searchSortNameBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-search-sort-name'));
+    const searchSortValueBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-search-sort-value'));
     const conditionSummaryEl = document.getElementById('pv-condition-summary');
     const conditionCheckboxEls = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('input[name="pv-condition-filter"]')));
 
@@ -94,6 +96,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {Array<any>} */
     let currentResultsCards = [];
+
+    const searchSortState = {
+        active: 'value',
+        nameDir: 'asc',
+        valueDir: 'desc',
+    };
+
+    /** @type {Record<string, number>} */
+    const searchValueById = {};
 
     let dexSetBrowseState = {
         active: false,
@@ -212,6 +223,124 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearSearchInputs() {
         if (input) input.value = '';
+    }
+
+    function getSearchNameSortLabel() {
+        return searchSortState.nameDir === 'asc' ? 'Name: A-Z' : 'Name: Z-A';
+    }
+
+    function getSearchValueSortLabel() {
+        return searchSortState.valueDir === 'desc' ? 'Value: High-Low' : 'Value: Low-High';
+    }
+
+    function updateSearchSortUi() {
+        if (searchSortNameBtn) {
+            searchSortNameBtn.textContent = getSearchNameSortLabel();
+            const active = searchSortState.active === 'name';
+            searchSortNameBtn.classList.toggle('is-active', active);
+            searchSortNameBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+
+        if (searchSortValueBtn) {
+            searchSortValueBtn.textContent = getSearchValueSortLabel();
+            const active = searchSortState.active === 'value';
+            searchSortValueBtn.classList.toggle('is-active', active);
+            searchSortValueBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+    }
+
+    function applySearchSortToGrid() {
+        if (!grid) return;
+        if (searchSortState.active !== 'name' && searchSortState.active !== 'value') return;
+
+        const cols = Array.from(grid.querySelectorAll('.pv-searchCol'));
+        if (cols.length <= 1) return;
+
+        cols.sort((a, b) => {
+            const nameA = safeString(a.getAttribute('data-card-name'), '').toLowerCase();
+            const nameB = safeString(b.getAttribute('data-card-name'), '').toLowerCase();
+
+            if (searchSortState.active === 'name') {
+                const dir = searchSortState.nameDir === 'asc' ? 1 : -1;
+                const cmp = nameA.localeCompare(nameB);
+                return cmp * dir;
+            }
+
+            const idA = safeString(a.getAttribute('data-card-id'), '');
+            const idB = safeString(b.getAttribute('data-card-id'), '');
+            const va = Number(searchValueById[idA]);
+            const vb = Number(searchValueById[idB]);
+            const hasA = Number.isFinite(va);
+            const hasB = Number.isFinite(vb);
+
+            if (!hasA && !hasB) return nameA.localeCompare(nameB);
+            if (!hasA) return 1;
+            if (!hasB) return -1;
+
+            const dir = searchSortState.valueDir === 'asc' ? 1 : -1;
+            if (va === vb) return nameA.localeCompare(nameB);
+            return (va - vb) * dir;
+        });
+
+        for (const col of cols) {
+            grid.appendChild(col);
+        }
+    }
+
+    function bindSearchSortControls() {
+        if (searchSortNameBtn && searchSortNameBtn.getAttribute('data-bound') !== '1') {
+            searchSortNameBtn.setAttribute('data-bound', '1');
+            searchSortNameBtn.addEventListener('click', () => {
+                if (searchSortState.active === 'name') {
+                    searchSortState.nameDir = searchSortState.nameDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    searchSortState.active = 'name';
+                }
+                updateSearchSortUi();
+                applySearchSortToGrid();
+            });
+        }
+
+        if (searchSortValueBtn && searchSortValueBtn.getAttribute('data-bound') !== '1') {
+            searchSortValueBtn.setAttribute('data-bound', '1');
+            searchSortValueBtn.addEventListener('click', () => {
+                if (searchSortState.active === 'value') {
+                    searchSortState.valueDir = searchSortState.valueDir === 'desc' ? 'asc' : 'desc';
+                } else {
+                    searchSortState.active = 'value';
+                }
+                updateSearchSortUi();
+                applySearchSortToGrid();
+            });
+        }
+
+        updateSearchSortUi();
+    }
+
+    function compareSearchCardsForSort(a, b) {
+        const idA = safeString(a?.id, '');
+        const idB = safeString(b?.id, '');
+        const nameA = safeString(a?.name, '').toLowerCase();
+        const nameB = safeString(b?.name, '').toLowerCase();
+
+        if (searchSortState.active === 'name') {
+            const dir = searchSortState.nameDir === 'asc' ? 1 : -1;
+            const cmp = nameA.localeCompare(nameB);
+            return cmp * dir;
+        }
+
+        const va = Number(searchValueById[idA]);
+        const vb = Number(searchValueById[idB]);
+        const hasA = Number.isFinite(va);
+        const hasB = Number.isFinite(vb);
+
+        if (!hasA && !hasB) return nameA.localeCompare(nameB);
+        if (!hasA) return 1;
+        if (!hasB) return -1;
+
+        const dir = searchSortState.valueDir === 'asc' ? 1 : -1;
+        if (va === vb) return nameA.localeCompare(nameB);
+        return (va - vb) * dir;
     }
 
     function setLoadMoreState(visible, loading) {
@@ -2326,6 +2455,64 @@ document.addEventListener('DOMContentLoaded', function () {
         return Array.isArray(match?.prices) ? match.prices : null;
     }
 
+    function getMarketFromPricesText(rawText) {
+        const text = safeString(rawText, '');
+        if (!text) return null;
+        const m = text.match(/market\s+\$([0-9]+(?:\.[0-9]+)?)/i);
+        if (!m) return null;
+        const n = Number(m[1]);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function getBestMarketFromCardVariants(cardLike) {
+        const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+        let best = null;
+
+        for (const v of variants) {
+            const prices = Array.isArray(v?.prices) ? v.prices : null;
+            const market = getMarketFromPricesForTotals(prices);
+            if (market == null) continue;
+            if (best == null || market > best) {
+                best = market;
+            }
+        }
+
+        return best;
+    }
+
+    function getCardMarketValueForSort(cardLike, restoreState) {
+        const id = safeString(cardLike?.id, '');
+        const selectedVariant = safeString(
+            restoreState?.selections?.[id]?.holoType ?? cardLike?.selectedVariant,
+            ''
+        );
+
+        if (selectedVariant) {
+            const selectedPrices = getPricesForVariant(cardLike, selectedVariant);
+            const selectedMarket = getMarketFromPricesForTotals(selectedPrices);
+            if (selectedMarket != null) return selectedMarket;
+        }
+
+        const bestMarket = getBestMarketFromCardVariants(cardLike);
+        if (bestMarket != null) return bestMarket;
+
+        return getMarketFromPricesText(
+            restoreState?.selections?.[id]?.pricesText ?? cardLike?.pricesText
+        );
+    }
+
+    function setSearchCardValue(cardId, value) {
+        const id = safeString(cardId, '');
+        if (!id) return;
+
+        const n = Number(value);
+        if (Number.isFinite(n)) {
+            searchValueById[id] = n;
+        } else {
+            delete searchValueById[id];
+        }
+    }
+
     function setFavoritesTotalsText(totalText, tradeText) {
         if (!favoritesTotalsEl) return;
         favoritesTotalsEl.textContent = '';
@@ -2397,14 +2584,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderCards(cards, restoreState) {
         if (!grid) return;
-        currentResultsCards = Array.isArray(cards) ? cards : [];
+        const sourceCards = Array.isArray(cards) ? cards : [];
+        currentResultsCards = sourceCards.slice();
         grid.innerHTML = '';
 
         const dexCollectionById = isDexPage
             ? new Map(loadDexCollection().map((x) => [safeString(x?.id, ''), x]))
             : null;
 
-        if (!Array.isArray(cards) || cards.length === 0) {
+        if (!sourceCards.length) {
+            for (const key of Object.keys(searchValueById)) {
+                delete searchValueById[key];
+            }
             const empty = document.createElement('div');
             empty.className = 'col-12';
             empty.textContent = 'No results found.';
@@ -2412,9 +2603,25 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        for (const card of cards) {
+        const visibleIds = new Set();
+        for (const card of sourceCards) {
+            const id = safeString(card?.id, '');
+            if (!id) continue;
+            visibleIds.add(id);
+            const market = getCardMarketValueForSort(card, restoreState);
+            setSearchCardValue(id, market);
+        }
+        for (const key of Object.keys(searchValueById)) {
+            if (!visibleIds.has(key)) {
+                delete searchValueById[key];
+            }
+        }
+
+        const sortedCards = sourceCards.slice().sort(compareSearchCardsForSort);
+
+        for (const card of sortedCards) {
             const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3 pv-searchCol';
 
             const id = String(card?.id || '');
             const name = String(card?.name || 'Unknown');
@@ -2501,6 +2708,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const favLabelAttr = escapeAttr(favLabel);
             const removeLabelAttr = escapeAttr(removeLabel);
             const imgUrlAttr = escapeAttr(imgUrl);
+
+            col.setAttribute('data-card-id', id);
+            col.setAttribute('data-card-name', name);
 
             col.innerHTML = `
                 <div class="pv-card h-100">
@@ -2735,6 +2945,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!lastLoadedPrices || !Array.isArray(lastLoadedPrices)) return;
                 const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
                 pricesEl.textContent = formatted;
+                const market = getMarketFromPricesForTotals(lastLoadedPrices);
+                setSearchCardValue(id, market);
+                if (searchSortState.active === 'value') {
+                    applySearchSortToGrid();
+                }
                 if (lastLoadedVariantName) {
                     persistSelection(lastLoadedVariantName, formatted);
                 }
@@ -2760,6 +2975,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     lastLoadedPrices = localPrices;
                     const formatted = formatPriceList(localPrices, getSelectedTradePercent());
                     pricesEl.textContent = formatted;
+                    const market = getMarketFromPricesForTotals(localPrices);
+                    setSearchCardValue(id, market);
+                    if (searchSortState.active === 'value') {
+                        applySearchSortToGrid();
+                    }
                     persistSelection(variantName, formatted);
                     return;
                 }
@@ -2776,6 +2996,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     lastLoadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
                     pricesEl.textContent = formatted;
+                    const market = getMarketFromPricesForTotals(lastLoadedPrices);
+                    setSearchCardValue(id, market);
+                    if (searchSortState.active === 'value') {
+                        applySearchSortToGrid();
+                    }
 
                     // Keep the in-memory card object in sync with what is shown.
                     try {
@@ -2813,10 +3038,20 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedPrices = restoredPrices;
                         const formatted = formatPriceList(restoredPrices, getSelectedTradePercent());
                         pricesEl.textContent = formatted;
+                        const market = getMarketFromPricesForTotals(restoredPrices);
+                        setSearchCardValue(id, market);
+                        if (searchSortState.active === 'value') {
+                            applySearchSortToGrid();
+                        }
                         persistSelection(restoredVariant, formatted);
                     } else if (restoredSelection.pricesText && !isDexPage) {
                         pricesEl.textContent = String(restoredSelection.pricesText);
                         lastLoadedVariantName = restoredVariant;
+                        const market = getMarketFromPricesText(restoredSelection.pricesText);
+                        setSearchCardValue(id, market);
+                        if (searchSortState.active === 'value') {
+                            applySearchSortToGrid();
+                        }
 
                         // Keep the in-memory card snapshot aligned with restored state.
                         try {
@@ -2859,6 +3094,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedPrices = p;
                         const formatted = formatPriceList(p, getSelectedTradePercent());
                         pricesEl.textContent = formatted;
+                        const market = getMarketFromPricesForTotals(p);
+                        setSearchCardValue(id, market);
+                        if (searchSortState.active === 'value') {
+                            applySearchSortToGrid();
+                        }
                         persistSelection(bestVariant, formatted);
                     } else {
                         pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
@@ -3608,10 +3848,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    bindSearchSortControls();
+
     function clearResultsUI() {
         if (grid) grid.innerHTML = '';
         if (status) status.textContent = '';
         currentResultsCards = [];
+        for (const key of Object.keys(searchValueById)) {
+            delete searchValueById[key];
+        }
         resetDexSetBrowseState();
     }
 
