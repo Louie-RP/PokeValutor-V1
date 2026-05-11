@@ -88,10 +88,12 @@ service cloud.firestore {
 - Visit [account.html](account.html)
 - Sign up/sign in
 - When signed in, your Watchlist on Cards/Sealed will sync to Firestore (and still keep local storage as a fallback).
+- Dex Collection + Master Sets now sync to Firestore as account data too, so tracker progress follows the signed-in user across devices.
 
 Firestore subcollections used:
 - `users/{uid}/cardWatchlist`
 - `users/{uid}/sealedWatchlist`
+- `users/{uid}/dex/state` (document containing `collection` + `masterSets`)
 
 Legacy (migration only): older accounts may still have data in these collections:
 - `users/{uid}/cardFavorites`

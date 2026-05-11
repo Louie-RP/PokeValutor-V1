@@ -679,12 +679,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function saveDexCollection(list) {
+    function saveDexCollection(list, options) {
         try {
             const safe = Array.isArray(list) ? list : [];
             localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(safe));
         } catch {
             // ignore
+        }
+
+        if (!options?.skipCloudSync) {
+            queueDexCloudStateSync(false);
         }
     }
 
@@ -693,19 +697,237 @@ document.addEventListener('DOMContentLoaded', function () {
             const raw = localStorage.getItem(DEX_MASTER_SETS_KEY);
             if (!raw) return {};
             const parsed = safeParseJson(raw);
-            return (parsed && typeof parsed === 'object') ? parsed : {};
+            if (!parsed || typeof parsed !== 'object') return {};
+            return normalizeDexMasterSetsMap(parsed);
         } catch {
             return {};
         }
     }
 
-    function saveDexMasterSets(map) {
+    function saveDexMasterSets(map, options) {
         try {
             const safe = (map && typeof map === 'object') ? map : {};
             localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
         } catch {
             // ignore
         }
+
+        if (!options?.skipCloudSync) {
+            queueDexCloudStateSync(false);
+        }
+    }
+
+    const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
+    let dexCloudSyncTimer = 0;
+    let dexCloudSyncHydrating = false;
+
+    function getDexUpdatedAt(value) {
+        const n = Number(value);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function normalizeDexMasterSetEntry(entry, fallbackExpansionId) {
+        if (!entry || typeof entry !== 'object') return null;
+
+        const expansionId = safeString(entry?.expansionId ?? fallbackExpansionId, '').trim();
+        if (!expansionId) return null;
+
+        const ids = Array.isArray(entry?.cardIds)
+            ? entry.cardIds.map((x) => safeString(x, '').trim()).filter(Boolean)
+            : [];
+        const cardIds = Array.from(new Set(ids));
+        const updatedAt = getDexUpdatedAt(entry?.updatedAt) || Date.now();
+
+        return {
+            expansionId,
+            expansionName: safeString(entry?.expansionName, 'Unknown Set'),
+            series: safeString(entry?.series, ''),
+            setImage: safeString(entry?.setImage, ''),
+            targetCount: Number(entry?.targetCount || 0) || null,
+            cardIds,
+            count: cardIds.length,
+            updatedAt,
+        };
+    }
+
+    function normalizeDexMasterSetsMap(mapLike) {
+        /** @type {Record<string, any>} */
+        const out = {};
+        if (!mapLike || typeof mapLike !== 'object') return out;
+
+        for (const [key, value] of Object.entries(mapLike)) {
+            const normalized = normalizeDexMasterSetEntry(value, key);
+            if (!normalized) continue;
+            out[normalized.expansionId] = normalized;
+        }
+
+        return out;
+    }
+
+    function queueDexCloudStateSync(immediate) {
+        if (!isDexPage || dexCloudSyncHydrating) return;
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user || !authApi?.saveDexState) return;
+
+        const run = () => {
+            const payload = {
+                collection: loadDexCollection(),
+                masterSets: loadDexMasterSets(),
+            };
+
+            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
+                // ignore
+            });
+        };
+
+        if (immediate) {
+            if (dexCloudSyncTimer) {
+                window.clearTimeout(dexCloudSyncTimer);
+                dexCloudSyncTimer = 0;
+            }
+            run();
+            return;
+        }
+
+        if (dexCloudSyncTimer) {
+            window.clearTimeout(dexCloudSyncTimer);
+        }
+        dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function mergeDexCollectionState(localList, cloudList) {
+        /** @type {Map<string, any>} */
+        const byId = new Map();
+
+        function addCard(raw) {
+            const normalized = normalizeDexCollectionCard(raw);
+            const id = safeString(normalized?.id, '').trim();
+            if (!id) return;
+
+            const existing = byId.get(id);
+            if (!existing) {
+                byId.set(id, normalized);
+                return;
+            }
+
+            const existingUpdatedAt = getDexUpdatedAt(existing?.updatedAt);
+            const nextUpdatedAt = getDexUpdatedAt(normalized?.updatedAt);
+            if (nextUpdatedAt >= existingUpdatedAt) {
+                byId.set(id, normalized);
+            }
+        }
+
+        if (Array.isArray(localList)) {
+            for (const item of localList) addCard(item);
+        }
+        if (Array.isArray(cloudList)) {
+            for (const item of cloudList) addCard(item);
+        }
+
+        return Array.from(byId.values())
+            .sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
+    }
+
+    function mergeDexMasterSetsState(localMap, cloudMap, mergedCollection) {
+        const local = normalizeDexMasterSetsMap(localMap);
+        const cloud = normalizeDexMasterSetsMap(cloudMap);
+        /** @type {Record<string, any>} */
+        const seedByExpansionId = {};
+        const seedKeys = Array.from(new Set([...Object.keys(local), ...Object.keys(cloud)]));
+
+        for (const key of seedKeys) {
+            const localEntry = local[key] || null;
+            const cloudEntry = cloud[key] || null;
+
+            if (!localEntry && !cloudEntry) continue;
+            if (!localEntry) {
+                seedByExpansionId[key] = cloudEntry;
+                continue;
+            }
+            if (!cloudEntry) {
+                seedByExpansionId[key] = localEntry;
+                continue;
+            }
+
+            const localUpdatedAt = getDexUpdatedAt(localEntry?.updatedAt);
+            const cloudUpdatedAt = getDexUpdatedAt(cloudEntry?.updatedAt);
+            seedByExpansionId[key] = cloudUpdatedAt >= localUpdatedAt ? cloudEntry : localEntry;
+        }
+
+        /** @type {Record<string, any>} */
+        const merged = {};
+
+        for (const card of (Array.isArray(mergedCollection) ? mergedCollection : [])) {
+            const cardId = safeString(card?.id, '').trim();
+            if (!cardId) continue;
+
+            const expansion = getDexExpansionInfo(card);
+            const expansionId = safeString(expansion?.id, '').trim();
+            if (!expansionId) continue;
+
+            const seed = seedByExpansionId[expansionId] || null;
+            const existing = merged[expansionId] || null;
+            const existingIds = Array.isArray(existing?.cardIds) ? existing.cardIds : [];
+            const nextIds = existingIds.includes(cardId) ? existingIds : [...existingIds, cardId];
+            const seedUpdatedAt = getDexUpdatedAt(seed?.updatedAt);
+            const cardUpdatedAt = getDexUpdatedAt(card?.updatedAt);
+
+            merged[expansionId] = {
+                expansionId,
+                expansionName: safeString(seed?.expansionName, expansion.name),
+                series: safeString(seed?.series, expansion.series),
+                setImage: safeString(seed?.setImage, expansion.image),
+                targetCount: Number(seed?.targetCount || expansion.printedTotal || expansion.total || 0) || null,
+                cardIds: nextIds,
+                count: nextIds.length,
+                updatedAt: Math.max(seedUpdatedAt, cardUpdatedAt, Date.now()),
+            };
+        }
+
+        return merged;
+    }
+
+    function syncDexStateFromCloudOnSignIn() {
+        if (!isDexPage || !window?.PV_AUTH?.loadDexState) return;
+
+        const localCollection = loadDexCollection();
+        const localMasterSets = loadDexMasterSets();
+        let mergedPayload = null;
+        dexCloudSyncHydrating = true;
+
+        Promise.resolve(window.PV_AUTH.loadDexState())
+            .then((cloudState) => {
+                const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+                const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
+                    ? cloudState.masterSets
+                    : {};
+
+                const mergedCollection = mergeDexCollectionState(localCollection, cloudCollection);
+                const mergedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, mergedCollection);
+
+                saveDexCollection(mergedCollection, { skipCloudSync: true });
+                saveDexMasterSets(mergedMasterSets, { skipCloudSync: true });
+                mergedPayload = {
+                    collection: mergedCollection,
+                    masterSets: mergedMasterSets,
+                };
+
+                const restoredState = loadLastResults();
+                renderCards(currentResultsCards, restoredState || undefined);
+            })
+            .catch(() => {
+                // ignore
+            })
+            .finally(() => {
+                dexCloudSyncHydrating = false;
+
+                if (mergedPayload && window?.PV_AUTH?.saveDexState) {
+                    Promise.resolve(window.PV_AUTH.saveDexState(mergedPayload)).catch(() => {
+                        // ignore
+                    });
+                }
+            });
     }
 
     function getDexExpansionInfo(card) {
@@ -1173,6 +1395,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     .catch(() => {
                         // ignore
                     });
+            });
+        }
+    } catch {
+        // ignore
+    }
+
+    // When Dex users sign in, hydrate Collection + Master Sets from cloud,
+    // merge with any local-only state, then push merged data back to Firestore.
+    try {
+        if (isDexPage && window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
+            window.PV_AUTH.onAuthStateChanged((user) => {
+                if (!user) return;
+                syncDexStateFromCloudOnSignIn();
             });
         }
     } catch {

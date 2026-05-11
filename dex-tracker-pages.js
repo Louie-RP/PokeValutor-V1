@@ -709,6 +709,34 @@
         return expansionName || setName || directExpansionName || directSetName || 'n/a';
     }
 
+    function normalizeCollectionEntry(raw) {
+        const conditionQuantities = normalizeConditionQuantities(raw?.conditionQuantities, raw?.selectedCondition);
+        const selectedCondition = getPrimaryConditionCode(conditionQuantities);
+        const totalCopies = getTotalCopiesFromConditionMap(conditionQuantities, selectedCondition);
+        const fallbackVariant = getDefaultVariantNameForCard(raw);
+        const variantQuantities = normalizeVariantQuantities(raw?.variantQuantities, fallbackVariant, totalCopies);
+        const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
+        const addedAt = Number(raw?.addedAt || 0);
+        const updatedAt = Number(raw?.updatedAt || 0);
+
+        return {
+            id: safeString(raw?.id, ''),
+            name: safeString(raw?.name, 'Unknown'),
+            rarity: safeString(raw?.rarity, ''),
+            expansion: (raw?.expansion && typeof raw.expansion === 'object') ? raw.expansion : null,
+            set: (raw?.set && typeof raw.set === 'object') ? raw.set : null,
+            images: Array.isArray(raw?.images) ? raw.images : [],
+            variants: Array.isArray(raw?.variants) ? raw.variants : [],
+            selectedVariant,
+            variantQuantities,
+            selectedCondition,
+            conditionQuantities,
+            pricesText: safeString(raw?.pricesText, ''),
+            addedAt: Number.isFinite(addedAt) && addedAt > 0 ? addedAt : Date.now(),
+            updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
+        };
+    }
+
     function readCollection() {
         try {
             const raw = localStorage.getItem(DEX_COLLECTION_KEY);
@@ -717,43 +745,60 @@
             if (!Array.isArray(parsed)) return [];
             return parsed
                 .filter((x) => x && typeof x === 'object' && x.id)
-                .map((x) => {
-                    const conditionQuantities = normalizeConditionQuantities(x?.conditionQuantities, x?.selectedCondition);
-                    const selectedCondition = getPrimaryConditionCode(conditionQuantities);
-                    const totalCopies = getTotalCopiesFromConditionMap(conditionQuantities, selectedCondition);
-                    const fallbackVariant = getDefaultVariantNameForCard(x);
-                    const variantQuantities = normalizeVariantQuantities(x?.variantQuantities, fallbackVariant, totalCopies);
-                    const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
-                    const addedAt = Number(x?.addedAt || 0);
-                    const updatedAt = Number(x?.updatedAt || 0);
-                    return {
-                        id: safeString(x?.id, ''),
-                        name: safeString(x?.name, 'Unknown'),
-                        rarity: safeString(x?.rarity, ''),
-                        expansion: (x?.expansion && typeof x.expansion === 'object') ? x.expansion : null,
-                        set: (x?.set && typeof x.set === 'object') ? x.set : null,
-                        images: Array.isArray(x?.images) ? x.images : [],
-                        variants: Array.isArray(x?.variants) ? x.variants : [],
-                        selectedVariant,
-                        variantQuantities,
-                        selectedCondition,
-                        conditionQuantities,
-                        pricesText: safeString(x?.pricesText, ''),
-                        addedAt: Number.isFinite(addedAt) && addedAt > 0 ? addedAt : Date.now(),
-                        updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
-                    };
-                });
+                .map((x) => normalizeCollectionEntry(x));
         } catch {
             return [];
         }
     }
 
-    function writeCollection(next) {
+    function writeCollection(next, options) {
         try {
             localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
         } catch {
             // ignore
         }
+
+        if (!options?.skipCloudSync) {
+            queueDexCloudStateSync(false);
+        }
+    }
+
+    function normalizeMasterSetEntry(entry, fallbackExpansionId) {
+        if (!entry || typeof entry !== 'object') return null;
+
+        const expansionId = safeString(entry?.expansionId ?? fallbackExpansionId, '').trim();
+        if (!expansionId) return null;
+
+        const ids = Array.isArray(entry?.cardIds)
+            ? entry.cardIds.map((x) => safeString(x, '').trim()).filter(Boolean)
+            : [];
+        const cardIds = Array.from(new Set(ids));
+        const updatedAt = getDexUpdatedAt(entry?.updatedAt) || Date.now();
+
+        return {
+            expansionId,
+            expansionName: safeString(entry?.expansionName, 'Unknown Set'),
+            series: safeString(entry?.series, ''),
+            setImage: safeString(entry?.setImage, ''),
+            targetCount: Number(entry?.targetCount || 0) || null,
+            cardIds,
+            count: cardIds.length,
+            updatedAt,
+        };
+    }
+
+    function normalizeMasterSetsMap(mapLike) {
+        /** @type {Record<string, any>} */
+        const out = {};
+        if (!mapLike || typeof mapLike !== 'object') return out;
+
+        for (const [key, value] of Object.entries(mapLike)) {
+            const normalized = normalizeMasterSetEntry(value, key);
+            if (!normalized) continue;
+            out[normalized.expansionId] = normalized;
+        }
+
+        return out;
     }
 
     function readMasterSets() {
@@ -761,19 +806,203 @@
             const raw = localStorage.getItem(DEX_MASTER_SETS_KEY);
             if (!raw) return {};
             const parsed = safeParseJson(raw);
-            return (parsed && typeof parsed === 'object') ? parsed : {};
+            if (!parsed || typeof parsed !== 'object') return {};
+            return normalizeMasterSetsMap(parsed);
         } catch {
             return {};
         }
     }
 
-    function writeMasterSets(next) {
+    function writeMasterSets(next, options) {
         try {
             const safe = (next && typeof next === 'object') ? next : {};
             localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
         } catch {
             // ignore
         }
+
+        if (!options?.skipCloudSync) {
+            queueDexCloudStateSync(false);
+        }
+    }
+
+    const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
+    let dexCloudSyncTimer = 0;
+    let dexCloudSyncHydrating = false;
+
+    function getDexUpdatedAt(value) {
+        const n = Number(value);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function queueDexCloudStateSync(immediate) {
+        if (dexCloudSyncHydrating) return;
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user || !authApi?.saveDexState) return;
+
+        const run = () => {
+            const payload = {
+                collection: readCollection(),
+                masterSets: readMasterSets(),
+            };
+
+            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
+                // ignore
+            });
+        };
+
+        if (immediate) {
+            if (dexCloudSyncTimer) {
+                window.clearTimeout(dexCloudSyncTimer);
+                dexCloudSyncTimer = 0;
+            }
+            run();
+            return;
+        }
+
+        if (dexCloudSyncTimer) {
+            window.clearTimeout(dexCloudSyncTimer);
+        }
+        dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function mergeCollectionState(localList, cloudList) {
+        /** @type {Map<string, any>} */
+        const byId = new Map();
+
+        function addCard(raw) {
+            const normalized = normalizeCollectionEntry(raw);
+            const id = safeString(normalized?.id, '').trim();
+            if (!id) return;
+
+            const existing = byId.get(id);
+            if (!existing) {
+                byId.set(id, normalized);
+                return;
+            }
+
+            const existingUpdatedAt = getDexUpdatedAt(existing?.updatedAt);
+            const nextUpdatedAt = getDexUpdatedAt(normalized?.updatedAt);
+            if (nextUpdatedAt >= existingUpdatedAt) {
+                byId.set(id, normalized);
+            }
+        }
+
+        if (Array.isArray(localList)) {
+            for (const item of localList) addCard(item);
+        }
+        if (Array.isArray(cloudList)) {
+            for (const item of cloudList) addCard(item);
+        }
+
+        return Array.from(byId.values())
+            .sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
+    }
+
+    function mergeMasterSetsState(localMap, cloudMap, mergedCollection) {
+        const local = normalizeMasterSetsMap(localMap);
+        const cloud = normalizeMasterSetsMap(cloudMap);
+        /** @type {Record<string, any>} */
+        const seedByExpansionId = {};
+        const seedKeys = Array.from(new Set([...Object.keys(local), ...Object.keys(cloud)]));
+
+        for (const key of seedKeys) {
+            const localEntry = local[key] || null;
+            const cloudEntry = cloud[key] || null;
+
+            if (!localEntry && !cloudEntry) continue;
+            if (!localEntry) {
+                seedByExpansionId[key] = cloudEntry;
+                continue;
+            }
+            if (!cloudEntry) {
+                seedByExpansionId[key] = localEntry;
+                continue;
+            }
+
+            const localUpdatedAt = getDexUpdatedAt(localEntry?.updatedAt);
+            const cloudUpdatedAt = getDexUpdatedAt(cloudEntry?.updatedAt);
+            seedByExpansionId[key] = cloudUpdatedAt >= localUpdatedAt ? cloudEntry : localEntry;
+        }
+
+        /** @type {Record<string, any>} */
+        const merged = {};
+
+        for (const card of (Array.isArray(mergedCollection) ? mergedCollection : [])) {
+            const cardId = safeString(card?.id, '').trim();
+            if (!cardId) continue;
+
+            const ex = (card?.expansion && typeof card.expansion === 'object')
+                ? card.expansion
+                : ((card?.set && typeof card.set === 'object') ? card.set : null);
+            const expansionId = safeString(ex?.id, '').trim();
+            if (!expansionId) continue;
+
+            const seed = seedByExpansionId[expansionId] || null;
+            const existing = merged[expansionId] || null;
+            const existingIds = Array.isArray(existing?.cardIds) ? existing.cardIds : [];
+            const nextIds = existingIds.includes(cardId) ? existingIds : [...existingIds, cardId];
+            const seedUpdatedAt = getDexUpdatedAt(seed?.updatedAt);
+            const cardUpdatedAt = getDexUpdatedAt(card?.updatedAt);
+            const expansionName = safeString(ex?.name, safeString(card?.expansionName ?? card?.setName, 'Unknown Set'));
+            const expansionSeries = safeString(ex?.series, '');
+            const expansionImage = safeString(ex?.logo ?? ex?.symbol ?? ex?.image ?? ex?.images?.logo ?? ex?.images?.symbol, '');
+            const targetCount = Number(ex?.printed_total ?? ex?.printedTotal ?? ex?.total ?? 0) || null;
+
+            merged[expansionId] = {
+                expansionId,
+                expansionName: safeString(seed?.expansionName, expansionName),
+                series: safeString(seed?.series, expansionSeries),
+                setImage: safeString(seed?.setImage, expansionImage),
+                targetCount: Number(seed?.targetCount || targetCount || 0) || null,
+                cardIds: nextIds,
+                count: nextIds.length,
+                updatedAt: Math.max(seedUpdatedAt, cardUpdatedAt, Date.now()),
+            };
+        }
+
+        return merged;
+    }
+
+    function syncDexStateFromCloudOnSignIn() {
+        if (!window?.PV_AUTH?.loadDexState) return;
+
+        const localCollection = readCollection();
+        const localMasterSets = readMasterSets();
+        let mergedPayload = null;
+        dexCloudSyncHydrating = true;
+
+        Promise.resolve(window.PV_AUTH.loadDexState())
+            .then((cloudState) => {
+                const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+                const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
+                    ? cloudState.masterSets
+                    : {};
+
+                const mergedCollection = mergeCollectionState(localCollection, cloudCollection);
+                const mergedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, mergedCollection);
+
+                writeCollection(mergedCollection, { skipCloudSync: true });
+                writeMasterSets(mergedMasterSets, { skipCloudSync: true });
+                mergedPayload = {
+                    collection: mergedCollection,
+                    masterSets: mergedMasterSets,
+                };
+                renderActivePage();
+            })
+            .catch(() => {
+                // ignore
+            })
+            .finally(() => {
+                dexCloudSyncHydrating = false;
+
+                if (mergedPayload && window?.PV_AUTH?.saveDexState) {
+                    Promise.resolve(window.PV_AUTH.saveDexState(mergedPayload)).catch(() => {
+                        // ignore
+                    });
+                }
+            });
     }
 
     function updateCollectionConditionQuantity(cardId, conditionCode, delta) {
@@ -1424,6 +1653,18 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         renderActivePage();
+
+        try {
+            if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
+                window.PV_AUTH.onAuthStateChanged((user) => {
+                    if (!user) return;
+                    syncDexStateFromCloudOnSignIn();
+                });
+            }
+        } catch {
+            // ignore
+        }
+
         window.addEventListener('storage', renderActivePage);
     });
 })();

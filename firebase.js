@@ -24,6 +24,8 @@
             loadWatchlist: async () => [],
             saveWatchlistItem: async () => { },
             removeWatchlistItem: async () => { },
+            loadDexState: async () => ({ collection: [], masterSets: {} }),
+            saveDexState: async () => { },
         };
         return;
     }
@@ -49,6 +51,8 @@
             loadWatchlist: async () => [],
             saveWatchlistItem: async () => { },
             removeWatchlistItem: async () => { },
+            loadDexState: async () => ({ collection: [], masterSets: {} }),
+            saveDexState: async () => { },
         };
         return;
     }
@@ -287,6 +291,47 @@
         }
     }
 
+    function dexStateDocRef(uid) {
+        const root = userRootRef(uid);
+        if (!root) return null;
+        return root.collection('dex').doc('state');
+    }
+
+    async function loadDexState() {
+        const user = getUser();
+        if (!user || !db) return { collection: [], masterSets: {} };
+        const ref = dexStateDocRef(user.uid);
+        if (!ref) return { collection: [], masterSets: {} };
+
+        try {
+            const snap = await ref.get();
+            if (!snap.exists) return { collection: [], masterSets: {} };
+            const data = snap.data();
+            const collection = Array.isArray(data?.collection) ? data.collection : [];
+            const masterSets = (data?.masterSets && typeof data.masterSets === 'object') ? data.masterSets : {};
+            return { collection, masterSets };
+        } catch {
+            return { collection: [], masterSets: {} };
+        }
+    }
+
+    async function saveDexState(payload) {
+        const user = getUser();
+        if (!user || !db) return;
+        const ref = dexStateDocRef(user.uid);
+        if (!ref) return;
+
+        const collection = Array.isArray(payload?.collection) ? payload.collection : [];
+        const masterSets = (payload?.masterSets && typeof payload.masterSets === 'object') ? payload.masterSets : {};
+
+        await ref.set({
+            collection,
+            masterSets,
+            updatedAt: Date.now(),
+            updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    }
+
     window.PV_AUTH = {
         isReady: () => true,
         getUser,
@@ -306,5 +351,7 @@
         loadWatchlist,
         saveWatchlistItem,
         removeWatchlistItem,
+        loadDexState,
+        saveDexState,
     };
 })();
