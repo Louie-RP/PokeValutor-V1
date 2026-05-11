@@ -99,6 +99,12 @@
   // Home page: latest expansions marquee
   const expansionsTrack = document.getElementById('pv-expansions-track');
   const expansionsViewport = document.getElementById('pv-expansions-marquee');
+  const latestSpotlightsGrid = document.getElementById('pv-latest-spotlights');
+  const trendingGrid = document.getElementById('pv-trending-grid');
+
+  const HOME_CARD_WATCHLIST_KEY = 'pv:scrydex:watchlist:v1';
+  const HOME_CARD_LAST_RESULTS_KEY = 'pv:scrydex:lastResults:v1';
+  const HOME_MARKET_SNAPSHOT_KEY = 'pv:home:cardMarketSnapshots:v1';
 
   function getWorkerBase() {
     // Keep consistent with search/sealed pages.
@@ -174,6 +180,285 @@
     } catch {
       // ignore
     }
+  }
+
+  function formatUsd(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 'N/A';
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+    } catch {
+      return `$${n.toFixed(2)}`;
+    }
+  }
+
+  function readJsonStorage(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      return safeParseJson(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function readArrayStorage(key) {
+    const parsed = readJsonStorage(key);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  function readObjectStorage(key) {
+    const parsed = readJsonStorage(key);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  }
+
+  function getCardSetName(cardLike) {
+    const expansionName = String(cardLike?.expansion?.name || '').trim();
+    const setName = String(cardLike?.set?.name || '').trim();
+    const direct = String(cardLike?.expansionName || cardLike?.setName || '').trim();
+    return expansionName || setName || direct || 'Unknown set';
+  }
+
+  function getCardThumb(cardLike) {
+    const imageObj = cardLike?.images;
+    if (imageObj && typeof imageObj === 'object' && !Array.isArray(imageObj)) {
+      const direct = String(imageObj.small || imageObj.medium || imageObj.large || '').trim();
+      if (direct) return direct;
+    }
+
+    const images = Array.isArray(cardLike?.images) ? cardLike.images : [];
+    const front = images.find((img) => String(img?.type || '').toLowerCase() === 'front');
+    const src = String(front?.small || front?.medium || front?.large || images[0]?.small || images[0]?.medium || images[0]?.large || '').trim();
+    return src;
+  }
+
+  function getBestMarketFromCard(cardLike) {
+    const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+    let best = null;
+
+    for (const variant of variants) {
+      const prices = Array.isArray(variant?.prices) ? variant.prices : [];
+      for (const price of prices) {
+        const raw = price?.market ?? price?.marketPrice ?? price?.market_price;
+        const market = Number(raw);
+        if (!Number.isFinite(market) || market <= 0) continue;
+        if (best == null || market > best) best = market;
+      }
+    }
+
+    return best;
+  }
+
+
+  async function fetchJsonWithOptionalAuth(url) {
+    /** @type {Record<string, string>|undefined} */
+    let headers;
+    try {
+      const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+      const token = String(tokenRaw || '').trim();
+      if (token) headers = { Authorization: `Bearer ${token}` };
+    } catch {
+      // ignore
+    }
+
+    const res = await fetch(url, { method: 'GET', headers });
+    const text = await res.text();
+    const data = safeParseJson(text);
+    if (!res.ok) {
+      const msg = (data && typeof data === 'object' && (data.error || data.message))
+        ? (data.error || data.message)
+        : `Request failed (${res.status})`;
+      throw new Error(String(msg));
+    }
+    return data;
+  }
+
+  function buildSearchLinkForCard(cardLike) {
+    const expansionId = String(cardLike?.expansion?.id || '').trim();
+    const expansionName = getCardSetName(cardLike);
+    if (expansionId) {
+      return `search.html?expansionId=${encodeURIComponent(expansionId)}&expansionName=${encodeURIComponent(expansionName)}`;
+    }
+    return 'search.html';
+  }
+
+  async function renderLatestSetSpotlights(expansions) {
+    if (!latestSpotlightsGrid) return;
+
+    const picks = (Array.isArray(expansions) ? expansions : [])
+      .filter((x) => x && typeof x === 'object' && String(x.id || '').trim())
+      .slice(0, 3);
+
+    if (!picks.length) {
+      latestSpotlightsGrid.innerHTML = '<article class="pv-miniCard"><p class="pv-miniCard__meta">Latest set spotlights will appear here after data loads.</p></article>';
+      return;
+    }
+
+    const base = getWorkerBase();
+    const settled = await Promise.allSettled(
+      picks.map(async (setInfo) => {
+        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en`;
+        const data = await fetchJsonWithOptionalAuth(url);
+        const cards = Array.isArray(data?.data) ? data.data.slice(0, 3) : [];
+        return { setInfo, cards };
+      })
+    );
+
+    const html = settled.map((result, idx) => {
+      const fallbackSet = picks[idx] || {};
+      const payload = result.status === 'fulfilled' ? result.value : { setInfo: fallbackSet, cards: [] };
+      const setInfo = payload.setInfo || fallbackSet;
+      const setName = String(setInfo?.name || 'Latest set');
+      const setDate = toDateLabel(setInfo?.releaseDate || setInfo?.release_date);
+      const setLogo = String(setInfo?.logo || '').trim() || svgLogoDataUri(setName);
+      const href = `search.html?expansionId=${encodeURIComponent(String(setInfo?.id || ''))}&expansionName=${encodeURIComponent(setName)}`;
+
+      const topRows = payload.cards.length
+        ? payload.cards.map((card) => {
+            const market = getBestMarketFromCard(card);
+            return `<li class="pv-miniCard__subItem"><strong>${escapeText(String(card?.name || 'Card'))}</strong><span>${escapeText(formatUsd(market))}</span></li>`;
+          }).join('')
+        : '<li class="pv-miniCard__subItem"><span>Top cards loading unavailable right now.</span></li>';
+
+      return `
+        <article class="pv-miniCard">
+          <a href="${escapeText(href)}" aria-label="Open ${escapeText(setName)} top cards">
+            <div class="pv-miniCard__head">
+              <img class="pv-miniCard__thumb pv-miniCard__thumb--set" src="${escapeText(setLogo)}" alt="${escapeText(setName)} logo" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              <div>
+                <p class="pv-miniCard__title">${escapeText(setName)}</p>
+                <p class="pv-miniCard__meta">${escapeText(setDate || 'New release')}</p>
+              </div>
+              <span class="pv-miniCard__badge">Set</span>
+            </div>
+          </a>
+          <ul class="pv-miniCard__subList">${topRows}</ul>
+        </article>
+      `;
+    }).join('');
+
+    latestSpotlightsGrid.innerHTML = html;
+  }
+
+  async function renderTrendingCards() {
+    if (!trendingGrid) return;
+
+    const watchlist = readArrayStorage(HOME_CARD_WATCHLIST_KEY);
+    const cardState = readObjectStorage(HOME_CARD_LAST_RESULTS_KEY);
+    const stateCards = Array.isArray(cardState?.cards) ? cardState.cards : [];
+
+    /** @type {Map<string, any>} */
+    const byId = new Map();
+    const seed = watchlist.length ? watchlist : stateCards;
+    for (const item of seed) {
+      const id = String(item?.id || '').trim();
+      if (!id || byId.has(id)) continue;
+      byId.set(id, item);
+      if (byId.size >= 6) break;
+    }
+
+    const candidates = Array.from(byId.values());
+    if (!candidates.length) {
+      trendingGrid.innerHTML = '<article class="pv-miniCard"><p class="pv-miniCard__meta">Add cards to your watchlist to unlock movement tracking.</p></article>';
+      return;
+    }
+
+    const previousMap = readObjectStorage(HOME_MARKET_SNAPSHOT_KEY) || {};
+    const nextMap = { ...previousMap };
+    const base = getWorkerBase();
+
+    const settled = await Promise.allSettled(
+      candidates.map(async (item) => {
+        const id = String(item?.id || '').trim();
+        const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+        const data = await fetchJsonWithOptionalAuth(url);
+        const card = data?.data || data || item;
+        const market = getBestMarketFromCard(card);
+
+        const prevMarket = Number(previousMap?.[id]?.market);
+        const hasPrev = Number.isFinite(prevMarket);
+        const hasNow = Number.isFinite(market);
+        const delta = hasPrev && hasNow ? Number(market) - prevMarket : null;
+
+        if (hasNow) {
+          nextMap[id] = {
+            market: Number(market),
+            seenAt: Date.now(),
+            name: String(card?.name || item?.name || ''),
+          };
+        }
+
+        return {
+          id,
+          name: String(card?.name || item?.name || 'Unknown card'),
+          setName: getCardSetName(card || item),
+          image: getCardThumb(card || item) || svgLogoDataUri(String(card?.name || item?.name || 'Card')),
+          market: hasNow ? Number(market) : null,
+          prevMarket: hasPrev ? prevMarket : null,
+          delta,
+          href: buildSearchLinkForCard(card || item),
+        };
+      })
+    );
+
+    try {
+      const entries = Object.entries(nextMap)
+        .sort((a, b) => Number(b?.[1]?.seenAt || 0) - Number(a?.[1]?.seenAt || 0))
+        .slice(0, 200);
+      localStorage.setItem(HOME_MARKET_SNAPSHOT_KEY, JSON.stringify(Object.fromEntries(entries)));
+    } catch {
+      // ignore
+    }
+
+    const rows = settled
+      .filter((x) => x.status === 'fulfilled')
+      .map((x) => x.value)
+      .sort((a, b) => Math.abs(Number(b?.delta || 0)) - Math.abs(Number(a?.delta || 0)));
+
+    if (!rows.length) {
+      trendingGrid.innerHTML = '<article class="pv-miniCard"><p class="pv-miniCard__meta">Trending cards are temporarily unavailable.</p></article>';
+      return;
+    }
+
+    trendingGrid.innerHTML = rows.map((row) => {
+      const delta = Number(row.delta);
+      const hasDelta = Number.isFinite(delta);
+
+      let deltaClass = 'pv-miniCard__delta pv-miniCard__delta--flat';
+      let deltaText = 'New';
+      if (hasDelta) {
+        if (delta > 0.009) {
+          deltaClass = 'pv-miniCard__delta pv-miniCard__delta--up';
+          deltaText = `+${formatUsd(delta)}`;
+        } else if (delta < -0.009) {
+          deltaClass = 'pv-miniCard__delta pv-miniCard__delta--down';
+          deltaText = `${formatUsd(delta)}`;
+        } else {
+          deltaClass = 'pv-miniCard__delta pv-miniCard__delta--flat';
+          deltaText = 'Flat';
+        }
+      }
+
+      const marketLine = Number.isFinite(row.market)
+        ? `Now ${formatUsd(row.market)}${Number.isFinite(row.prevMarket) ? ` • Prev ${formatUsd(row.prevMarket)}` : ''}`
+        : 'Market currently unavailable';
+
+      return `
+        <article class="pv-miniCard">
+          <a href="${escapeText(row.href)}" aria-label="Open ${escapeText(row.name)}">
+            <div class="pv-miniCard__head">
+              <img class="pv-miniCard__thumb" src="${escapeText(row.image)}" alt="${escapeText(row.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+              <div>
+                <p class="pv-miniCard__title">${escapeText(row.name)}</p>
+                <p class="pv-miniCard__meta">${escapeText(row.setName)}</p>
+              </div>
+              <span class="${deltaClass}">${escapeText(deltaText)}</span>
+            </div>
+          </a>
+          <p class="pv-miniCard__meta">${escapeText(marketLine)}</p>
+        </article>
+      `;
+    }).join('');
   }
 
   function svgLogoDataUri(label) {
@@ -295,6 +580,7 @@
           cacheSet(CACHE_KEY, cleaned, TTL_MS);
         }
         renderExpansionsList(cleaned);
+        void renderLatestSetSpotlights(cleaned);
         return;
       }
       // If cached list becomes empty after filtering, fall through to refetch.
@@ -346,6 +632,7 @@
             const cleaned = normalizeExpansions(stale);
             if (cleaned.length) {
               renderExpansionsList(cleaned);
+              void renderLatestSetSpotlights(cleaned);
               return;
             }
           }
@@ -361,13 +648,17 @@
       if (normalized.length) {
         cacheSet(CACHE_KEY, normalized, TTL_MS);
         renderExpansionsList(normalized);
+        void renderLatestSetSpotlights(normalized);
       }
     } catch {
       // Keep the placeholder if the API fails, but prefer any stale cache.
       const stale = cacheGetStale(CACHE_KEY);
       if (Array.isArray(stale) && stale.length) {
         const cleaned = normalizeExpansions(stale);
-        if (cleaned.length) renderExpansionsList(cleaned);
+        if (cleaned.length) {
+          renderExpansionsList(cleaned);
+          void renderLatestSetSpotlights(cleaned);
+        }
       }
     }
   }
@@ -408,4 +699,5 @@
 
   loadLatestEnglishExpansions();
   setupExpansionsMarqueeScrolling();
+  void renderTrendingCards();
 })();

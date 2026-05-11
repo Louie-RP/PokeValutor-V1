@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="PokéValutor project website" />
+  <meta name="description" content="Track Pokemon card values, sealed prices, watchlist items, and collection growth in one place." />
   <meta name="theme-color" content="#000000" />
   <meta name="color-scheme" content="dark" />
   <meta property="og:title" content="PokéValutor" />
-  <meta property="og:description" content="Search Pokémon TCG cards and sealed product, compare variants, and save watchlist items." />
+  <meta property="og:description" content="Track Pokemon card values, sealed prices, watchlist items, and collection growth in one place." />
   <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
   <meta property="og:image:alt" content="PokéValutor logo" />
   <meta property="og:type" content="website" />
@@ -47,38 +47,39 @@
     <section id="pv-hero" class="pv-hero pv-hero--home" aria-labelledby="pv-heroTitle">
       <div class="pv-hero__grid">
         <div class="pv-hero__content">
-          <h1 id="pv-heroTitle" class="pv-hero__title">PokéValutor</h1>
-          <p class="pv-hero__subtitle">Search Pokémon TCG cards and sealed product, compare variants, and save to your watchlist — fast and simple.</p>
+          <p class="pv-hero__kicker">Pokemon TCG dashboard</p>
+          <h1 id="pv-heroTitle" class="pv-hero__title">Track card values, sealed product prices, favorites, and collection growth in one place.</h1>
+          <p class="pv-hero__subtitle">A cleaner way to track the market without bouncing between tabs.</p>
           <div class="pv-cta" role="group" aria-label="Primary actions">
             <a id="pv-cta-cards" class="pv-button pv-button--primary btn" href="search.html">Search Cards</a>
             <a id="pv-cta-sealed" class="pv-button pv-button--secondary btn" href="sealed.html">Search Sealed</a>
           </div>
-          <p class="pv-hero__fineprint">Your watchlist is stored locally in your browser.</p>
+          <p class="pv-hero__fineprint">Watchlist and progress stay synced to your account when signed in.</p>
         </div>
 
         <div class="pv-hero__panel" aria-label="Preview">
           <div class="pv-heroCard">
             <div class="pv-heroCard__header">
-              <span class="pv-badge" aria-label="Tip">Quick tip</span>
-              <span class="pv-heroCard__title">Try a search</span>
+              <span class="pv-badge" aria-label="Summary">Today</span>
+              <span class="pv-heroCard__title">Value workflow</span>
             </div>
             <div class="pv-heroCard__body" role="presentation">
               <div class="pv-heroCard__row">
-                <span class="pv-heroCard__label">Name</span>
-                <span class="pv-heroCard__value">Pikachu</span>
+                <span class="pv-heroCard__label">Collectors</span>
+                <span class="pv-heroCard__value">Track value and set progress</span>
               </div>
               <div class="pv-heroCard__row">
-                <span class="pv-heroCard__label">Card #</span>
-                <span class="pv-heroCard__value">238/191</span>
+                <span class="pv-heroCard__label">Vendors</span>
+                <span class="pv-heroCard__value">Compare cards and sealed quickly</span>
               </div>
               <div class="pv-heroCard__row">
-                <span class="pv-heroCard__label">Variant</span>
-                <span class="pv-heroCard__value">Holo / Reverse / etc.</span>
+                <span class="pv-heroCard__label">Latest sets</span>
+                <span class="pv-heroCard__value">New releases + top cards</span>
               </div>
               <div class="pv-heroCard__divider" aria-hidden="true"></div>
               <div class="pv-heroCard__row">
-                <span class="pv-heroCard__label">Watchlist</span>
-                <span class="pv-heroCard__value">★ Save what you like</span>
+                <span class="pv-heroCard__label">Return fast</span>
+                <span class="pv-heroCard__value">Trending movement ready</span>
               </div>
             </div>
           </div>
@@ -97,28 +98,43 @@
       </div>
     </section>
 
-    <section id="pv-quick" class="pv-section pv-quick" aria-label="Quick links">
-      <div class="pv-tileGrid">
-        <a class="pv-tile" href="search.html" aria-label="Go to card search">
-          <div class="pv-tile__title">Cards</div>
-          <div class="pv-tile__text">Search by Pokémon name or card number.</div>
-        </a>
-        <a class="pv-tile" href="sealed.html" aria-label="Go to sealed product search">
-          <div class="pv-tile__title">Sealed</div>
-          <div class="pv-tile__text">Find booster boxes, ETBs, and more.</div>
-        </a>
-        <a class="pv-tile" href="search.html#pv-favorites" aria-label="Jump to your watchlist on the Cards page">
-          <div class="pv-tile__title">Watchlist</div>
-          <div class="pv-tile__text">Star cards and keep them handy.</div>
-        </a>
+    <section id="pv-audiences" class="pv-section" aria-labelledby="pv-audiencesTitle">
+      <h2 id="pv-audiencesTitle" class="pv-section__title">Built for how you buy and sell</h2>
+      <div class="pv-audienceGrid" role="list">
+        <article class="pv-audienceCard" role="listitem" aria-labelledby="pv-collectors-title">
+          <h3 id="pv-collectors-title" class="pv-audienceCard__title">For Collectors</h3>
+          <ul class="pv-pointList">
+            <li>Track collection value over time.</li>
+            <li>Save cards and sealed in one watchlist.</li>
+            <li>See set progress from the Dex.</li>
+          </ul>
+          <a class="pv-button pv-button--secondary" href="dex.html">Open Dex</a>
+        </article>
+
+        <article class="pv-audienceCard" role="listitem" aria-labelledby="pv-vendors-title">
+          <h3 id="pv-vendors-title" class="pv-audienceCard__title">For Vendors</h3>
+          <ul class="pv-pointList">
+            <li>Compare variants before you price.</li>
+            <li>Spot high-value cards in each set.</li>
+            <li>Check sealed value quickly by name.</li>
+          </ul>
+          <a class="pv-button pv-button--secondary" href="search.html">Open Market View</a>
+        </article>
       </div>
     </section>
 
     <section id="pv-expansions" class="pv-section pv-expansions" aria-labelledby="pv-expansionsTitle">
       <div class="pv-section__header">
-        <h2 id="pv-expansionsTitle" class="pv-section__title">Latest sets</h2>
+        <h2 id="pv-expansionsTitle" class="pv-section__title">Latest Sets</h2>
+        <a class="pv-inlineLink" href="search.html">Explore all cards</a>
       </div>
-      <p class="pv-section__text pv-expansions__subtitle">Scroll to browse the latest sets. Click a set to view the top 10 valued cards.</p>
+      <p class="pv-section__text pv-expansions__subtitle">Newest releases with top-value cards ready to open.</p>
+
+      <div id="pv-latest-spotlights" class="pv-homeDataGrid pv-homeDataGrid--spotlights" aria-live="polite">
+        <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
+        <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
+        <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
+      </div>
 
       <div class="pv-marquee" aria-label="Recent sets">
         <div id="pv-expansions-marquee" class="pv-marquee__viewport" tabindex="0" aria-label="Horizontal carousel. Scroll to browse.">
@@ -127,32 +143,16 @@
       </div>
     </section>
 
-    <section id="pv-features" class="pv-section pv-features" aria-labelledby="pv-featuresTitle">
-      <h2 id="pv-featuresTitle" class="pv-section__title">What you can do</h2>
-      <div class="pv-featureGrid" role="list">
-        <div class="pv-feature" role="listitem">
-          <h3 class="pv-feature__title">Fast searching</h3>
-          <p class="pv-feature__text">Look up cards by name or number with clean results you can scan quickly.</p>
-        </div>
-        <div class="pv-feature" role="listitem">
-          <h3 class="pv-feature__title">Variant-aware prices</h3>
-          <p class="pv-feature__text">Select the holo/variant you care about and review current market values.</p>
-        </div>
-        <div class="pv-feature" role="listitem">
-          <h3 class="pv-feature__title">Save watchlist items locally</h3>
-          <p class="pv-feature__text">Add cards and sealed product to your watchlist; your list stays in your browser.</p>
-        </div>
+    <section id="pv-trending" class="pv-section" aria-labelledby="pv-trendingTitle">
+      <div class="pv-section__header">
+        <h2 id="pv-trendingTitle" class="pv-section__title">Trending Cards</h2>
       </div>
-    </section>
-
-    <section id="pv-how" class="pv-section pv-how" aria-labelledby="pv-howTitle">
-      <h2 id="pv-howTitle" class="pv-section__title">How it works</h2>
-      <ol class="pv-steps">
-        <li class="pv-step"><span class="pv-step__num">1</span><span class="pv-step__text">Open <a class="pv-inlineLink" href="search.html">Cards</a> or <a class="pv-inlineLink" href="sealed.html">Sealed</a>.</span></li>
-        <li class="pv-step"><span class="pv-step__num">2</span><span class="pv-step__text">Search by name (or card # for cards).</span></li>
-        <li class="pv-step"><span class="pv-step__num">3</span><span class="pv-step__text">Pick a variant/holo type when available.</span></li>
-        <li class="pv-step"><span class="pv-step__num">4</span><span class="pv-step__text">Star items to save them to your watchlist.</span></li>
-      </ol>
+      <p class="pv-section__text pv-expansions__subtitle">Recent value movement from your tracked cards.</p>
+      <div id="pv-trending-grid" class="pv-homeDataGrid" aria-live="polite">
+        <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
+        <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
+        <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
+      </div>
     </section>
 
   </main>
