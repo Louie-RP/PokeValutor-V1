@@ -105,6 +105,9 @@
   const HOME_CARD_WATCHLIST_KEY = 'pv:scrydex:watchlist:v1';
   const HOME_CARD_LAST_RESULTS_KEY = 'pv:scrydex:lastResults:v1';
   const HOME_MARKET_SNAPSHOT_KEY = 'pv:home:cardMarketSnapshots:v1';
+  const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
+  const HOME_TRENDING_CARD_TTL_MS = 15 * 60 * 1000;
+  const HOME_SPOTLIGHTS_TTL_MS = 60 * 60 * 1000;
 
   function getWorkerBase() {
     // Keep consistent with search/sealed pages.
@@ -273,6 +276,16 @@
     return data;
   }
 
+  async function fetchJsonWithOptionalAuthAndCache(url, ttlMs) {
+    const cacheKey = `${HOME_URL_CACHE_PREFIX}${url}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
+    const data = await fetchJsonWithOptionalAuth(url);
+    cacheSet(cacheKey, data, ttlMs);
+    return data;
+  }
+
   function buildSearchLinkForCard(cardLike) {
     const expansionId = String(cardLike?.expansion?.id || '').trim();
     const expansionName = getCardSetName(cardLike);
@@ -298,7 +311,7 @@
     const settled = await Promise.allSettled(
       picks.map(async (setInfo) => {
         const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en`;
-        const data = await fetchJsonWithOptionalAuth(url);
+        const data = await fetchJsonWithOptionalAuthAndCache(url, HOME_SPOTLIGHTS_TTL_MS);
         const cards = Array.isArray(data?.data) ? data.data.slice(0, 3) : [];
         return { setInfo, cards };
       })
@@ -371,7 +384,7 @@
       candidates.map(async (item) => {
         const id = String(item?.id || '').trim();
         const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-        const data = await fetchJsonWithOptionalAuth(url);
+        const data = await fetchJsonWithOptionalAuthAndCache(url, HOME_TRENDING_CARD_TTL_MS);
         const card = data?.data || data || item;
         const market = getBestMarketFromCard(card);
 
