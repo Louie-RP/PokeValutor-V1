@@ -6,7 +6,7 @@
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
-    const SET_CARDS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+    const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
