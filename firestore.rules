@@ -1,12 +1,62 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // User-owned data only. This covers:
-    // - users/{uid}/cardWatchlist/{id}
-    // - users/{uid}/sealedWatchlist/{id}
-    // - legacy migration collections (cardFavorites/sealedFavorites)
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isTrackedCollection(collectionId) {
+      return collectionId == 'cardWatchlist'
+        || collectionId == 'sealedWatchlist'
+        || collectionId == 'cardFavorites'
+        || collectionId == 'sealedFavorites';
+    }
+
+    function isValidTrackedItem(itemId) {
+      return request.resource.data.keys().hasAll(['id', 'updatedAt'])
+        && request.resource.data.id is string
+        && request.resource.data.id == itemId
+        && request.resource.data.id.size() > 0
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isValidDexState() {
+      return request.resource.data.keys().hasOnly(['collection', 'masterSets', 'updatedAt', 'updatedAtServer'])
+        && request.resource.data.collection is list
+        && request.resource.data.masterSets is map
+        && (request.resource.data.updatedAt is int || request.resource.data.updatedAt is float)
+        && request.resource.data.updatedAt > 0
+        && request.resource.data.updatedAtServer is timestamp;
+    }
+
+    // Optional user profile doc.
+    match /users/{userId} {
+      allow read, create, update, delete: if isOwner(userId);
+    }
+
+    // Watchlist/favorites data used by the web client.
+    match /users/{userId}/{collectionId}/{itemId} {
+      allow read: if isOwner(userId) && isTrackedCollection(collectionId);
+      allow create, update: if isOwner(userId)
+        && isTrackedCollection(collectionId)
+        && isValidTrackedItem(itemId);
+      allow delete: if isOwner(userId) && isTrackedCollection(collectionId);
+    }
+
+    // Dex cloud-sync state used by dex-tracker-pages.js.
+    match /users/{userId}/dex/state {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidDexState();
+      allow delete: if isOwner(userId);
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

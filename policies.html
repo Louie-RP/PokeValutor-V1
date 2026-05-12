@@ -44,7 +44,7 @@
         <section class="pv-hero container" aria-labelledby="pv-policies-title">
             <h1 id="pv-policies-title" class="pv-hero__title">Policies</h1>
             <p class="pv-hero__subtitle">Disclaimer, privacy, terms, and accessibility details.</p>
-            <p class="pv-hero__fineprint">Last updated: January 16, 2026</p>
+            <p class="pv-hero__fineprint">Last updated: May 11, 2026</p>
         </section>
 
         <section class="pv-section" aria-label="On this page">
@@ -82,16 +82,28 @@
 
         <section id="pv-privacyPolicy" class="pv-section" aria-labelledby="pv-privacyTitle">
             <h2 id="pv-privacyTitle" class="pv-section__title">Privacy</h2>
-            <p class="pv-section__text">PokéValutor is designed to work without accounts. By default, your watchlist is stored locally in your browser using local storage.</p>
+            <p class="pv-section__text">PokéValutor can be used without an account, but account features use Firebase services. By default, recent activity is still stored in your browser using local storage.</p>
 
             <div class="pv-featureGrid" role="list" aria-label="Privacy details">
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Local storage</h3>
-                    <p class="pv-feature__text">Your watchlist and recent results are saved in your browser (local storage) so they persist between visits. This data stays on your device unless your browser syncs it.</p>
+                    <p class="pv-feature__text">Some app state (such as recent browsing and local tracker data) is saved in your browser so it persists between visits. This data stays on your device unless your browser sync settings copy it elsewhere.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Firebase Authentication</h3>
+                    <p class="pv-feature__text">If you sign in, authentication is handled by Firebase Authentication (Google sign-in or email/password). Firebase and Google may process account data such as your UID, email address, sign-in provider, IP address, and security logs.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Cloud Firestore sync</h3>
+                    <p class="pv-feature__text">When signed in, your watchlist/favorites and Dex tracker state are synced to Cloud Firestore under your account UID so your data can persist across devices. Firestore access from the app is governed by Firebase Security Rules and is restricted to the signed-in user’s own records.</p>
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Network requests</h3>
                     <p class="pv-feature__text">When you search, your browser makes requests to the PokéValutor API endpoint (a Cloudflare Worker) which proxies requests to a third-party Pokémon data provider. Those services may receive standard request metadata such as IP address, user agent, and timestamps.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Redis caching</h3>
+                    <p class="pv-feature__text">To improve performance and reduce repeated upstream requests, the Worker may cache selected API responses in Upstash Redis for limited time windows. Cache entries are temporary and primarily keyed by request context (for example endpoint/query and quota keys).</p>
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Contact form</h3>
@@ -99,8 +111,12 @@
                 </div>
             </div>
 
-            <p class="pv-section__text">Third-party services used by this site (for example hosting/CDN, fonts, contact form processing, and data providers) may have their own privacy practices. Review their policies if you need more detail.</p>
-            <p class="pv-section__text"><strong>Your choices:</strong> you can remove watchlist items and cached data at any time by using the “Clear” buttons on the Cards/Sealed pages, or by clearing this site’s storage in your browser settings.</p>
+            <p class="pv-section__text">Third-party services used by this site (for example Firebase, hosting/CDN, fonts, contact form processing, and data providers) may have their own privacy practices. Review their policies for service-specific details.</p>
+            <p class="pv-section__text"><strong>Your choices:</strong> you can remove watchlist/tracker items with in-app controls, clear browser storage in your browser settings, and stop future cloud sync by signing out. Deleting your account in Firebase Authentication removes sign-in access, but data cleanup timing depends on Firebase processing and any configured retention.</p>
+            <p class="pv-section__text"><strong>Delete my account/data:</strong></p>
+            <p class="pv-section__text">1. Sign in on the <a class="pv-inlineLink" href="account.html">Account</a> page and use the <strong>Delete account</strong> button. You will be asked to confirm by typing DELETE.</p>
+            <p class="pv-section__text">2. The app attempts to remove your synced Firestore tracker data first, then deletes your Firebase Authentication account.</p>
+            <p class="pv-section__text">3. If Firebase requires a recent login, sign in again and retry. If you still need help, contact us via <a class="pv-inlineLink" href="contact.html">Contact</a>.</p>
         </section>
 
         <section id="pv-termsOfUse" class="pv-section" aria-labelledby="pv-termsTitle">
@@ -110,11 +126,15 @@
             <div class="pv-featureGrid" role="list" aria-label="Terms details">
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Permitted use</h3>
-                    <p class="pv-feature__text">You may use the site for personal, non-commercial purposes such as researching cards/sealed products and managing your own watchlist.</p>
+                    <p class="pv-feature__text">You may use the site for personal, non-commercial purposes such as researching cards/sealed products and managing your own watchlist/tracker data.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Account responsibility</h3>
+                    <p class="pv-feature__text">If you create or use an account, you are responsible for maintaining the security of your login credentials and for activity that occurs under your account. Use accurate information and comply with the terms of any sign-in provider you choose (for example, Google).</p>
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Prohibited use</h3>
-                    <p class="pv-feature__text">Do not abuse the service or attempt to disrupt it (e.g., automated scraping, excessive requests, bypassing rate limits, reverse engineering protected endpoints, or using the site to harass others).</p>
+                    <p class="pv-feature__text">Do not abuse the service or attempt to disrupt it (e.g., automated scraping, excessive requests, bypassing rate limits, attempting unauthorized access to Firebase resources, reverse engineering protected endpoints, or using the site to harass others).</p>
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Limitation of liability</h3>
@@ -122,7 +142,7 @@
                 </div>
             </div>
 
-            <p class="pv-section__text">PokéValutor may change or discontinue features at any time, and may update these terms. Continued use after updates means you accept the changes.</p>
+            <p class="pv-section__text">PokéValutor may change or discontinue features (including Firebase-backed features) at any time, and may update these terms. Continued use after updates means you accept the changes.</p>
         </section>
 
         <section id="pv-accessibility" class="pv-section" aria-labelledby="pv-accessTitle">

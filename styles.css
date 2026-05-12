@@ -327,6 +327,24 @@ h1, h2, h3, h4, h5, h6,
 .pv-button--primary:hover { background: var(--pv-primary-dark); }
 .pv-button--primary:focus { outline: 3px solid var(--pv-focus); outline-offset: 2px; }
 .pv-button--secondary { background: transparent; color: var(--pv-text); }
+.pv-button--danger {
+  background: var(--pv-danger);
+  color: #ffffff;
+  border-color: transparent;
+}
+.pv-button--danger:hover {
+  background: var(--pv-danger-dark);
+  color: #ffffff;
+}
+.pv-button--danger:focus {
+  outline: 3px solid #fca5a5;
+  outline-offset: 2px;
+}
+.pv-button[disabled],
+.pv-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* Clear Results button (danger) */
 #pv-clear-results,

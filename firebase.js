@@ -16,6 +16,7 @@
             signUpWithEmail: async () => { throw new Error('Firebase not configured'); },
             signInWithEmail: async () => { throw new Error('Firebase not configured'); },
             signOut: async () => { },
+            deleteAccount: async () => { throw new Error('Firebase not configured'); },
             getIdToken: async () => null,
             db: null,
             loadFavorites: async () => [],
@@ -43,6 +44,7 @@
             signUpWithEmail: async () => { throw new Error('Firebase SDK not loaded'); },
             signInWithEmail: async () => { throw new Error('Firebase SDK not loaded'); },
             signOut: async () => { },
+            deleteAccount: async () => { throw new Error('Firebase SDK not loaded'); },
             getIdToken: async () => null,
             db: null,
             loadFavorites: async () => [],
@@ -145,6 +147,53 @@
         } catch {
             // ignore
         }
+    }
+
+    async function purgeOwnFirestoreData() {
+        const user = getUser();
+        if (!user || !db) return;
+
+        const root = userRootRef(user.uid);
+        if (!root) return;
+
+        const trackedCollections = ['cardWatchlist', 'sealedWatchlist', 'cardFavorites', 'sealedFavorites'];
+        for (const name of trackedCollections) {
+            try {
+                const snap = await root.collection(name).get();
+                if (!snap || snap.empty) continue;
+                const jobs = [];
+                snap.forEach((doc) => {
+                    jobs.push(doc.ref.delete());
+                });
+                if (jobs.length) await Promise.allSettled(jobs);
+            } catch {
+                // ignore best-effort cleanup errors
+            }
+        }
+
+        try {
+            await root.collection('dex').doc('state').delete();
+        } catch {
+            // ignore
+        }
+
+        try {
+            await root.delete();
+        } catch {
+            // ignore
+        }
+    }
+
+    async function deleteAccount(options) {
+        const user = getUser();
+        if (!user) throw new Error('Sign in before deleting your account.');
+
+        const shouldDeleteData = options?.deleteFirestoreData !== false;
+        if (shouldDeleteData) {
+            await purgeOwnFirestoreData();
+        }
+
+        await user.delete();
     }
 
     function userRootRef(uid) {
@@ -340,6 +389,7 @@
         signUpWithEmail,
         signInWithEmail,
         signOut,
+        deleteAccount,
         getIdToken,
         getIdTokenResult,
         callFunction,

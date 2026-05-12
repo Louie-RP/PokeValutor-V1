@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const signUpBtn = document.getElementById('pv-auth-signup');
     const googleBtn = document.getElementById('pv-auth-google');
     const signOutBtn = document.getElementById('pv-auth-signout');
+    const deleteBtn = document.getElementById('pv-auth-delete');
 
     // Temporary diagnostics helper for startup/auth setup issues.
     const ENABLE_AUTH_SELF_CHECK = true;
@@ -97,6 +98,25 @@ document.addEventListener('DOMContentLoaded', function () {
         return '';
     }
 
+    function getDeleteAccountErrorMessage(error) {
+        const code = String(error?.code || '').trim().toLowerCase();
+        if (!code) return '';
+
+        if (code === 'auth/requires-recent-login' || code === 'auth/user-token-expired') {
+            return 'For security, please sign in again and retry account deletion.';
+        }
+
+        if (code === 'auth/network-request-failed') {
+            return 'Network request failed while deleting the account. Check your connection and retry.';
+        }
+
+        if (code === 'auth/popup-blocked' || code === 'auth/internal-error') {
+            return 'Re-authentication was blocked by the browser. Sign out, sign in again, then retry deletion.';
+        }
+
+        return '';
+    }
+
     function runStartupChecks() {
         if (!ENABLE_AUTH_SELF_CHECK) return;
 
@@ -146,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setStatus('Signed out');
             setRoleText('');
             setAdminVisible(false);
+            if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = true;
             return;
         }
         const email = String(user.email || '');
@@ -153,6 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setStatus(`Signed in as ${email || 'user'} (${uid.slice(0, 8)}…)`);
         clearSelfCheck();
+        if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = false;
 
         // Fetch/refresh custom claims for role display + admin gating.
         Promise.resolve(window.PV_AUTH.getIdTokenResult ? window.PV_AUTH.getIdTokenResult(true) : null)
@@ -207,6 +229,46 @@ document.addEventListener('DOMContentLoaded', function () {
                 setStatus('Signed out');
                 setRoleText('');
                 setAdminVisible(false);
+            });
+        });
+    }
+
+    if (deleteBtn) {
+        if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = true;
+
+        deleteBtn.addEventListener('click', () => {
+            run(async () => {
+                if (!window?.PV_AUTH?.deleteAccount) {
+                    throw new Error('Account deletion is not configured.');
+                }
+
+                const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+                if (!user) throw new Error('Sign in before deleting your account.');
+
+                const confirmStep1 = window.confirm('Delete your account? This cannot be undone.');
+                if (!confirmStep1) {
+                    setStatus('Account deletion canceled.');
+                    return;
+                }
+
+                const confirmText = window.prompt('Type DELETE to confirm account deletion.');
+                if (String(confirmText || '').trim().toUpperCase() !== 'DELETE') {
+                    setStatus('Account deletion canceled (confirmation text did not match).');
+                    return;
+                }
+
+                try {
+                    await window.PV_AUTH.deleteAccount({ deleteFirestoreData: true });
+                    setStatus('Account deleted. Synced account data deletion was attempted.');
+                    setRoleText('');
+                    setAdminVisible(false);
+                } catch (error) {
+                    const msg = getDeleteAccountErrorMessage(error);
+                    if (msg) {
+                        throw new Error(msg);
+                    }
+                    throw error;
+                }
             });
         });
     }
