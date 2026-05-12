@@ -1275,6 +1275,7 @@
                     const image = getSetImageFromData(entry, setCards, cardsById);
                     if (image) {
                         imageEl.src = image;
+                        imageEl.alt = `${safeString(entry?.expansionName, 'Master set')} set image`;
                         imageEl.hidden = false;
                     }
                 }
@@ -1523,7 +1524,7 @@
                 const imageSrc = safeString(entry?.setImage, '') || pickFrontMediumImage(firstCard?.images);
                 const imageHtml = imageSrc
                     ? `<img class="pv-masterSetCard__image" src="${escapeAttr(imageSrc)}" alt="${setName} set image" loading="lazy" data-master-image="1"/>`
-                    : '<img class="pv-masterSetCard__image" alt="" hidden data-master-image="1"/>';
+                    : `<img class="pv-masterSetCard__image" alt="${setName} set image" hidden data-master-image="1"/>`;
 
                 return `
                     <article class="pv-masterSetCard" data-master-set-id="${escapeAttr(expansionId)}">
@@ -1626,7 +1627,7 @@
                 const setImage = getSetImageFromData(entry, setCards, cardsById);
                 if (setImage) {
                     imageEl.src = setImage;
-                    imageEl.alt = `${escapeHtml(setName)} set image`;
+                    imageEl.alt = `${setName} set image`;
                     imageEl.hidden = false;
                 }
             }

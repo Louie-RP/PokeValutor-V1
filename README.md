@@ -23,6 +23,19 @@ Deploy to GitHub Pages
 3. Add the Firebase secrets listed below.
 4. Push again and open the provided Pages URL.
 
+## Google Search Console setup
+
+Search Console submission is a manual Google action, but this repo is prepared for it:
+- [sitemap.xml](sitemap.xml) exists at `https://www.pokevaluator.com/sitemap.xml`
+- [robots.txt](robots.txt) references that sitemap
+
+Recommended steps:
+1. Open Google Search Console and add your property (`https://www.pokevaluator.com`).
+2. Verify ownership (DNS TXT verification is preferred for long-term stability).
+3. In Search Console, go to **Sitemaps** and submit `https://www.pokevaluator.com/sitemap.xml`.
+4. Use **URL Inspection** on key pages (home/search/card/dex/sealed) and request indexing if needed.
+5. Re-submit sitemap after major URL structure changes.
+
 ## Security / secrets (read this)
 
 - Anything committed to this repo can be viewed on GitHub, and may be downloadable from the GitHub Pages site if someone guesses the filename (for example, `/README.md`).

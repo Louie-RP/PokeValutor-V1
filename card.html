@@ -4,15 +4,33 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" id="pv-card-meta-description" content="Pokemon card details, variant pricing, and watchlist tracking on PokeValutor." />
+    <meta name="description" id="pv-card-meta-description" content="Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor." />
     <meta property="og:title" id="pv-card-og-title" content="Card Details | PokeValutor" />
-    <meta property="og:description" id="pv-card-og-description" content="Pokemon card details and pricing on PokeValutor." />
+    <meta property="og:description" id="pv-card-og-description" content="Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" id="pv-card-og-image" content="https://www.pokevaluator.com/social-card.png" />
-    <meta property="og:image:alt" id="pv-card-og-image-alt" content="Pokemon card preview" />
+    <meta property="og:image" id="pv-card-og-image" content="https://www.pokevaluator.com/og/card.png" />
+    <meta property="og:image:alt" id="pv-card-og-image-alt" content="Pokemon card preview on PokeValutor" />
     <meta property="og:url" id="pv-card-og-url" content="https://www.pokevaluator.com/card.html" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" id="pv-card-twitter-title" content="Card Details | PokeValutor" />
+    <meta name="twitter:description" id="pv-card-twitter-description" content="Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor." />
+    <meta name="twitter:image" id="pv-card-twitter-image" content="https://www.pokevaluator.com/og/card.png" />
     <link rel="canonical" id="pv-card-canonical" href="https://www.pokevaluator.com/card.html" />
     <title id="pv-card-title-tag">Card Details | PokeValutor</title>
+    <script id="pv-card-schema" type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Card Details",
+            "description": "Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor.",
+            "url": "https://www.pokevaluator.com/card.html",
+            "isPartOf": {
+                "@type": "WebSite",
+                "name": "PokeValutor",
+                "url": "https://www.pokevaluator.com/"
+            }
+        }
+    </script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +45,7 @@
 
     <header id="pv-card-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-card-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <a id="pv-card-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokÃ©Valutor</a>
             <button id="pv-card-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-card-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -146,7 +164,7 @@
 
     <footer id="pv-card-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
-            <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+            <p class="pv-footer__text">Â© <span id="pv-year"></span> PokÃ©Valutor. All rights reserved.</p>
             <ul class="pv-footer__links" aria-label="Footer links">
                 <li><a id="pv-card-privacy" href="policies.html#pv-privacyPolicy">Privacy</a></li>
                 <li><a id="pv-card-terms" href="policies.html#pv-termsOfUse">Terms</a></li>
@@ -156,7 +174,7 @@
         </div>
     </footer>
 
-    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">â–²</button>
 
     <script src="script.js" defer></script>
 

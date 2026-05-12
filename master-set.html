@@ -4,10 +4,33 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="View collected and missing cards for a master set on PokeValutor" />
-    <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
-    <meta property="og:image:alt" content="PokeValutor logo" />
-    <title>PokeValutor • Master Set Details</title>
+    <meta name="description" content="View collected and missing cards for a specific Pokemon TCG master set, including variant progress." />
+    <meta property="og:title" content="Master Set Details | PokeValutor" />
+    <meta property="og:description" content="View collected and missing cards for a specific Pokemon TCG master set, including variant progress." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.pokevaluator.com/master-set.html" />
+    <meta property="og:image" content="https://www.pokevaluator.com/og/master-set.png" />
+    <meta property="og:image:alt" content="PokeValutor master set details preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Master Set Details | PokeValutor" />
+    <meta name="twitter:description" content="View collected and missing cards for a specific Pokemon TCG master set, including variant progress." />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/og/master-set.png" />
+    <title>Master Set Details | PokeValutor</title>
+    <link rel="canonical" href="https://www.pokevaluator.com/master-set.html" />
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Master Set Details",
+            "description": "View collected and missing cards for a specific Pokemon TCG master set, including variant progress.",
+            "url": "https://www.pokevaluator.com/master-set.html",
+            "isPartOf": {
+                "@type": "WebSite",
+                "name": "PokeValutor",
+                "url": "https://www.pokevaluator.com/"
+            }
+        }
+    </script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -51,7 +74,7 @@
                 <h2 id="pv-master-set-overview-title" class="pv-section__title">Set Overview</h2>
             </div>
             <div class="pv-masterSetOverview">
-                <img id="pv-master-set-detail-image" class="pv-masterSetOverview__image" alt="" hidden />
+                <img id="pv-master-set-detail-image" class="pv-masterSetOverview__image" alt="Master set image" hidden />
                 <div class="pv-masterSetOverview__content">
                     <p id="pv-master-set-detail-count" class="pv-masterSetCard__meta">Collected: 0/0 master variants</p>
                     <div id="pv-master-set-detail-progress" class="pv-masterSetProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -78,7 +101,7 @@
 
     <footer id="pv-master-set-detail-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
-            <p class="pv-footer__text">© <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
+            <p class="pv-footer__text">Â© <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
             <ul class="pv-footer__links" aria-label="Footer links">
                 <li><a href="policies.html#pv-privacyPolicy">Privacy</a></li>
                 <li><a href="policies.html#pv-termsOfUse">Terms</a></li>
@@ -88,7 +111,7 @@
         </div>
     </footer>
 
-    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">â–²</button>
 
     <script src="script.js" defer></script>
 

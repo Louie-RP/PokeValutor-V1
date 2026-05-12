@@ -33,7 +33,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const metaOgImageEl = /** @type {HTMLMetaElement|null} */ (document.getElementById('pv-card-og-image'));
     const metaOgImageAltEl = /** @type {HTMLMetaElement|null} */ (document.getElementById('pv-card-og-image-alt'));
     const metaOgUrlEl = /** @type {HTMLMetaElement|null} */ (document.getElementById('pv-card-og-url'));
+    const metaTwitterTitleEl = /** @type {HTMLMetaElement|null} */ (document.getElementById('pv-card-twitter-title'));
+    const metaTwitterDescEl = /** @type {HTMLMetaElement|null} */ (document.getElementById('pv-card-twitter-description'));
+    const metaTwitterImageEl = /** @type {HTMLMetaElement|null} */ (document.getElementById('pv-card-twitter-image'));
     const canonicalEl = /** @type {HTMLLinkElement|null} */ (document.getElementById('pv-card-canonical'));
+    const cardSchemaEl = /** @type {HTMLScriptElement|null} */ (document.getElementById('pv-card-schema'));
 
     /** @type {any|null} */
     let currentCard = null;
@@ -167,6 +171,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const n = Number(price?.market ?? price?.marketPrice ?? price?.market_price);
             if (!Number.isFinite(n)) continue;
             if (best == null || n > best) best = n;
+        }
+        return best;
+    }
+
+    function getBestMarketFromCard(cardLike) {
+        if (!cardLike || !Array.isArray(cardLike?.variants)) return null;
+        let best = null;
+        for (const variant of cardLike.variants) {
+            const market = getBestMarket(variant?.prices);
+            if (!Number.isFinite(market)) continue;
+            if (best == null || market > best) best = market;
         }
         return best;
     }
@@ -441,11 +456,43 @@ document.addEventListener('DOMContentLoaded', function () {
         if (metaOgTitleEl) metaOgTitleEl.setAttribute('content', title);
         if (metaOgDescEl) metaOgDescEl.setAttribute('content', desc);
         if (metaOgUrlEl) metaOgUrlEl.setAttribute('content', detailUrl);
+        if (metaTwitterTitleEl) metaTwitterTitleEl.setAttribute('content', title);
+        if (metaTwitterDescEl) metaTwitterDescEl.setAttribute('content', desc);
         if (canonicalEl) canonicalEl.setAttribute('href', detailUrl);
 
         if (imageUrl) {
             if (metaOgImageEl) metaOgImageEl.setAttribute('content', imageUrl);
             if (metaOgImageAltEl) metaOgImageAltEl.setAttribute('content', `${name} card image`);
+            if (metaTwitterImageEl) metaTwitterImageEl.setAttribute('content', imageUrl);
+        }
+
+        if (cardSchemaEl instanceof HTMLScriptElement) {
+            const schema = {
+                '@context': 'https://schema.org',
+                '@type': 'Product',
+                name,
+                description: desc,
+                category: 'Pokemon Trading Card',
+                brand: {
+                    '@type': 'Brand',
+                    name: 'Pokemon',
+                },
+                url: detailUrl,
+            };
+
+            const market = getBestMarketFromCard(card);
+            if (imageUrl) schema.image = imageUrl;
+            if (number) schema.sku = `${setName}-${number}`;
+            if (Number.isFinite(market)) {
+                schema.offers = {
+                    '@type': 'Offer',
+                    priceCurrency: 'USD',
+                    price: Number(market).toFixed(2),
+                    url: detailUrl,
+                };
+            }
+
+            cardSchemaEl.textContent = JSON.stringify(schema);
         }
     }
 
