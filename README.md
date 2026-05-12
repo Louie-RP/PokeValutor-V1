@@ -67,6 +67,23 @@ This repo now includes a simple Firebase Auth + Firestore integration designed t
 
 For local development, copy [firebase-config.local.example.js](firebase-config.local.example.js) to `firebase-config.local.js` and paste values there.
 
+### Local test login autofill (dev only)
+
+For easier account-page testing, add test credentials in your local, git-ignored [secrets.js](secrets.js):
+
+```js
+window.PV_SECRETS = {
+	PV_API_URL: "https://your-worker-url",
+	PV_TEST_AUTH_EMAIL: "your-test-email@example.com",
+	PV_TEST_AUTH_PASSWORD: "your-test-password"
+};
+```
+
+Notes:
+- This only auto-fills on `localhost` / `127.0.0.1`.
+- The credentials are never committed because `secrets.js` is in `.gitignore`.
+- Avoid using a production admin account for local autofill.
+
 ### 3) Set up Firestore
 1. Firebase Console → Build → Firestore Database → Create database.
 2. Start in "production" mode.

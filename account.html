@@ -10,13 +10,13 @@
         content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
 </head>
 
-<body class="pv-body">
+<body class="pv-body pv-accountPage">
     <a class="pv-skiplink" href="#pv-account-main">Skip to content</a>
 
     <header class="pv-header" role="banner">
@@ -41,15 +41,27 @@
     </header>
 
     <main id="pv-account-main" class="pv-main" role="main">
-        <section class="pv-hero container" aria-labelledby="pv-account-title">
-            <h1 id="pv-account-title" class="pv-hero__title">Account</h1>
-            <p class="pv-hero__subtitle">Sign in to unlock per-account quotas and cloud watchlist sync.</p>
+        <section class="pv-hero pv-accountHero container" aria-labelledby="pv-account-title">
+            <p class="pv-accountHero__eyebrow">PokéValutor Cloud</p>
+            <div class="pv-accountHero__titleRow">
+                <h1 id="pv-account-title" class="pv-hero__title">Your account hub</h1>
+                <span id="pv-auth-hero-badge" class="pv-authHeroBadge" hidden>Signed in</span>
+            </div>
+            <p class="pv-hero__subtitle">Sign in to unlock cross-device sync, personalized quotas, and secure account tools.</p>
+            <ul class="pv-accountHero__points" aria-label="Account benefits">
+                <li>Watchlist and tracker sync across devices</li>
+                <li>Role-based quota limits and account controls</li>
+                <li>Secure Firebase authentication and session visibility</li>
+            </ul>
         </section>
 
-        <section class="pv-section container" aria-label="Account login">
-            <div class="pv-authGrid">
-                <article class="pv-authCard" aria-label="Sign in">
-                    <h2 class="pv-section__title">Sign in</h2>
+        <section class="pv-section pv-accountSection container" aria-label="Account login">
+            <div id="pv-auth-grid" class="pv-authGrid">
+                <article id="pv-auth-signin-card" class="pv-authCard pv-authCard--signin" aria-label="Sign in">
+                    <div class="pv-authCard__header">
+                        <h2 class="pv-section__title">Sign in</h2>
+                        <p class="pv-authCard__eyebrow">Secure access</p>
+                    </div>
                     <div class="pv-authField">
                         <label class="form-label" for="pv-auth-email">Email</label>
                         <input id="pv-auth-email" class="form-control" type="email" autocomplete="email"
@@ -69,13 +81,36 @@
                     <div class="pv-authDivider" aria-hidden="true"></div>
                     <button id="pv-auth-google" class="pv-button pv-button--secondary btn" type="button">Continue with
                         Google</button>
+                    <p id="pv-auth-form-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                    <p id="pv-auth-form-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
+                    <p class="pv-section__text pv-authSmall">By continuing, you agree to our <a class="pv-inlineLink" href="policies.html#pv-termsOfUse">Terms</a> and <a class="pv-inlineLink" href="policies.html#pv-privacyPolicy">Privacy Policy</a>.</p>
                 </article>
 
-                <article class="pv-authCard" aria-label="Your session">
-                    <h2 class="pv-section__title">Session</h2>
-                    <p id="pv-auth-status" class="pv-section__text" role="status" aria-live="polite">Loading…</p>
-                    <p id="pv-auth-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
-                    <p id="pv-auth-role" class="pv-section__text pv-authSmall" aria-live="polite"></p>
+                <article id="pv-auth-session-card" class="pv-authCard pv-authCard--session" aria-label="Your session" hidden>
+                    <div class="pv-authCard__header">
+                        <h2 class="pv-section__title">Session</h2>
+                        <p class="pv-authCard__eyebrow">Live status</p>
+                    </div>
+                    <div id="pv-auth-profile" class="pv-authProfile" hidden>
+                        <img id="pv-auth-avatar" class="pv-authProfile__avatar" src="" alt="" hidden />
+                        <span id="pv-auth-avatar-fallback" class="pv-authProfile__avatarFallback" aria-hidden="true">U</span>
+                        <div class="pv-authProfile__meta">
+                            <p id="pv-auth-displayname" class="pv-authProfile__name">PokeValutor user</p>
+                            <p class="pv-authProfile__email">
+                                <span class="pv-sensitiveLabel">Email: </span>
+                                <span id="pv-auth-email-display" class="pv-sensitiveValue" tabindex="0" role="button" aria-label="Reveal email"></span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="pv-sessionStack">
+                        <p id="pv-auth-status" class="pv-section__text" role="status" aria-live="polite">Loading…</p>
+                        <p id="pv-auth-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
+                        <p id="pv-auth-role" class="pv-section__text pv-authSmall" aria-live="polite"></p>
+                        <p id="pv-auth-uid-row" class="pv-section__text pv-authSmall" aria-live="polite">
+                            <span class="pv-sensitiveLabel">UID: </span>
+                            <span id="pv-auth-uid" class="pv-sensitiveValue" tabindex="0" role="button" aria-label="Reveal UID"></span>
+                        </p>
+                    </div>
                     <div class="pv-authActions">
                         <button id="pv-auth-signout" class="pv-button pv-button--secondary btn" type="button">Sign
                             out</button>
@@ -86,8 +121,8 @@
                         your Firebase ID token automatically.</p>
 
                     <div id="pv-admin-panel" class="pv-authDivider" aria-hidden="true" hidden></div>
-                    <div id="pv-admin-tools" hidden>
-                        <h3 class="pv-section__title" style="margin-top:0.5rem">Admin tools</h3>
+                    <div id="pv-admin-tools" class="pv-adminToolsPanel" hidden>
+                        <h3 class="pv-section__title">Admin tools</h3>
                         <p class="pv-section__text pv-authSmall">Assign roles (admin/basic/premium/tester). Admins only.</p>
                         <div class="pv-authField">
                             <label class="form-label" for="pv-admin-uid">Target UID</label>
@@ -111,7 +146,7 @@
                 </article>
             </div>
 
-            <p class="pv-section__text pv-authSmall">
+            <p class="pv-section__text pv-authSmall pv-accountSetupNote">
                 First-time setup: for local dev, create <strong>firebase-config.local.js</strong> (see <strong>firebase-config.local.example.js</strong>).
                 For GitHub Pages, inject config via GitHub Secrets (see README).
             </p>
@@ -142,6 +177,8 @@
     <script src="firebase-config.js" defer></script>
     <!-- Optional local-only Firebase config (ignored by git). 404 is OK in production. -->
     <script src="firebase-config.local.js" defer></script>
+    <!-- Optional local-only secrets (ignored by git). 404 is OK in production. -->
+    <script src="secrets.js" defer></script>
     <script src="firebase.js" defer></script>
     <script src="account.js" defer></script>
 </body>

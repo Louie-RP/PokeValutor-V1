@@ -5,6 +5,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusEl = document.getElementById('pv-auth-status');
     const selfCheckEl = document.getElementById('pv-auth-selfcheck');
     const roleEl = document.getElementById('pv-auth-role');
+    const uidEl = document.getElementById('pv-auth-uid');
+    const formStatusEl = document.getElementById('pv-auth-form-status');
+    const formSelfCheckEl = document.getElementById('pv-auth-form-selfcheck');
+    const signInCardEl = document.getElementById('pv-auth-signin-card');
+    const sessionCardEl = document.getElementById('pv-auth-session-card');
+    const heroBadgeEl = document.getElementById('pv-auth-hero-badge');
+    const profileEl = document.getElementById('pv-auth-profile');
+    const profileAvatarEl = /** @type {HTMLImageElement} */ (document.getElementById('pv-auth-avatar'));
+    const profileAvatarFallbackEl = document.getElementById('pv-auth-avatar-fallback');
+    const profileNameEl = document.getElementById('pv-auth-displayname');
+    const profileEmailEl = document.getElementById('pv-auth-email-display');
+    const sensitiveRevealTimers = new WeakMap();
 
     const adminDivider = document.getElementById('pv-admin-panel');
     const adminTools = document.getElementById('pv-admin-tools');
@@ -24,7 +36,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const ENABLE_AUTH_SELF_CHECK = true;
 
     function setStatus(msg) {
-        if (statusEl) statusEl.textContent = String(msg || '');
+        const text = String(msg || '');
+        if (statusEl) statusEl.textContent = text;
+        if (formStatusEl) formStatusEl.textContent = text;
     }
 
     function setSelfCheck(msg) {
@@ -32,16 +46,70 @@ document.addEventListener('DOMContentLoaded', function () {
         const text = String(msg || '').trim();
         selfCheckEl.hidden = text.length === 0;
         selfCheckEl.textContent = text;
+        if (formSelfCheckEl) {
+            formSelfCheckEl.hidden = text.length === 0;
+            formSelfCheckEl.textContent = text;
+        }
     }
 
     function clearSelfCheck() {
         if (!selfCheckEl) return;
         selfCheckEl.hidden = true;
         selfCheckEl.textContent = '';
+        if (formSelfCheckEl) {
+            formSelfCheckEl.hidden = true;
+            formSelfCheckEl.textContent = '';
+        }
+    }
+
+    function setAuthViewMode(isSignedIn) {
+        const signedIn = !!isSignedIn;
+        if (signInCardEl) signInCardEl.hidden = signedIn;
+        if (sessionCardEl) sessionCardEl.hidden = !signedIn;
+        if (heroBadgeEl) heroBadgeEl.hidden = !signedIn;
     }
 
     function setRoleText(msg) {
         if (roleEl) roleEl.textContent = String(msg || '');
+    }
+
+    function setUidText(msg) {
+        if (uidEl) uidEl.textContent = String(msg || '');
+    }
+
+    function revealSensitiveValue(el) {
+        if (!(el instanceof HTMLElement)) return;
+
+        el.classList.add('is-revealed');
+        const existingTimer = sensitiveRevealTimers.get(el);
+        if (existingTimer) {
+            window.clearTimeout(existingTimer);
+        }
+
+        const timer = window.setTimeout(() => {
+            el.classList.remove('is-revealed');
+            sensitiveRevealTimers.delete(el);
+        }, 4500);
+
+        sensitiveRevealTimers.set(el, timer);
+    }
+
+    function setupSensitiveTapReveal() {
+        const hasHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+        if (hasHover) return;
+
+        const sensitiveNodes = document.querySelectorAll('.pv-sensitiveValue');
+        sensitiveNodes.forEach((node) => {
+            if (!(node instanceof HTMLElement)) return;
+
+            node.addEventListener('click', () => revealSensitiveValue(node));
+            node.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    revealSensitiveValue(node);
+                }
+            });
+        });
     }
 
     function setAdminStatus(msg) {
@@ -53,6 +121,65 @@ document.addEventListener('DOMContentLoaded', function () {
         if (adminDivider) adminDivider.hidden = !show;
         if (adminTools) adminTools.hidden = !show;
         if (!show) setAdminStatus('');
+    }
+
+    function getProfileInitials(displayName, email) {
+        const sourceRaw = String(displayName || email || '').trim();
+        const source = sourceRaw.includes('@') ? sourceRaw.split('@')[0] : sourceRaw;
+        const cleaned = source.replace(/[^a-zA-Z0-9 ]+/g, ' ').trim();
+        if (!cleaned) return 'U';
+        const parts = cleaned.split(/\s+/).filter(Boolean);
+        if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+        return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`.toUpperCase();
+    }
+
+    function setProfileSignedOut() {
+        if (profileEl) profileEl.hidden = true;
+        if (profileNameEl) profileNameEl.textContent = 'PokeValutor user';
+        if (profileEmailEl) profileEmailEl.textContent = '';
+
+        if (profileAvatarEl instanceof HTMLImageElement) {
+            profileAvatarEl.hidden = true;
+            profileAvatarEl.src = '';
+            profileAvatarEl.alt = '';
+        }
+
+        if (profileAvatarFallbackEl) {
+            profileAvatarFallbackEl.hidden = false;
+            profileAvatarFallbackEl.textContent = 'U';
+        }
+    }
+
+    function setProfileSignedIn(user) {
+        if (!profileEl) return;
+
+        const displayNameRaw = String(user?.displayName || '').trim();
+        const email = String(user?.email || '').trim();
+        const displayName = displayNameRaw || (email ? email.split('@')[0] : 'PokeValutor user');
+        const photoURL = String(user?.photoURL || '').trim();
+
+        if (profileNameEl) profileNameEl.textContent = displayName;
+        if (profileEmailEl) profileEmailEl.textContent = email || 'No email on account';
+
+        if (photoURL && profileAvatarEl instanceof HTMLImageElement) {
+            profileAvatarEl.src = photoURL;
+            profileAvatarEl.alt = `${displayName} profile photo`;
+            profileAvatarEl.hidden = false;
+            if (profileAvatarFallbackEl) profileAvatarFallbackEl.hidden = true;
+        } else {
+            if (profileAvatarEl instanceof HTMLImageElement) {
+                profileAvatarEl.hidden = true;
+                profileAvatarEl.src = '';
+                profileAvatarEl.alt = '';
+            }
+
+            if (profileAvatarFallbackEl) {
+                profileAvatarFallbackEl.hidden = false;
+                profileAvatarFallbackEl.textContent = getProfileInitials(displayName, email);
+            }
+        }
+
+        profileEl.hidden = false;
     }
 
     function normalizeRoleFromClaims(claims) {
@@ -68,6 +195,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const email = String(emailEl?.value || '').trim();
         const password = String(passEl?.value || '');
         return { email, password };
+    }
+
+    function applyLocalDevTestCredentials() {
+        const host = String(window.location.hostname || '').trim().toLowerCase();
+        const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+        if (!isLocalHost) return;
+
+        const secretEmail = String(window?.PV_SECRETS?.PV_TEST_AUTH_EMAIL || '').trim();
+        const secretPassword = String(window?.PV_SECRETS?.PV_TEST_AUTH_PASSWORD || '');
+
+        if (secretEmail && emailEl && !String(emailEl.value || '').trim()) {
+            emailEl.value = secretEmail;
+        }
+
+        if (secretPassword && passEl && !String(passEl.value || '')) {
+            passEl.value = secretPassword;
+        }
     }
 
     function getAuthTroubleshootMessage(error) {
@@ -154,25 +298,34 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     runStartupChecks();
+    applyLocalDevTestCredentials();
+    setupSensitiveTapReveal();
+
+    setAuthViewMode(false);
 
     if (!window.PV_AUTH || !window.PV_AUTH.onAuthStateChanged) {
         setStatus('Firebase not loaded. Check CSP + firebase-config.js');
         setSelfCheck('Setup check: firebase.js did not initialize. Confirm valid config and Firebase scripts are loading.');
+        setProfileSignedOut();
         return;
     }
 
     window.PV_AUTH.onAuthStateChanged((user) => {
         if (!user) {
+            setAuthViewMode(false);
             setStatus('Signed out');
             setRoleText('');
+            setUidText('');
             setAdminVisible(false);
+            setProfileSignedOut();
             if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = true;
             return;
         }
-        const email = String(user.email || '');
         const uid = String(user.uid || '');
 
-        setStatus(`Signed in as ${email || 'user'} (${uid.slice(0, 8)}…)`);
+        setAuthViewMode(true);
+        setProfileSignedIn(user);
+    setStatus('Signed in');
         clearSelfCheck();
         if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = false;
 
@@ -181,11 +334,13 @@ document.addEventListener('DOMContentLoaded', function () {
             .then((tokenResult) => {
                 const claims = tokenResult?.claims || null;
                 const role = normalizeRoleFromClaims(claims);
-                setRoleText(`Role: ${role} • UID: ${uid}`);
+                setRoleText(`Role: ${role}`);
+                setUidText(uid);
                 setAdminVisible(role === 'admin');
             })
             .catch(() => {
-                setRoleText(`Role: unknown • UID: ${uid}`);
+                setRoleText('Role: unknown');
+                setUidText(uid);
                 setAdminVisible(false);
             });
     });
@@ -228,7 +383,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 await window.PV_AUTH.signOut();
                 setStatus('Signed out');
                 setRoleText('');
+                setUidText('');
                 setAdminVisible(false);
+                setProfileSignedOut();
             });
         });
     }
@@ -261,7 +418,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     await window.PV_AUTH.deleteAccount({ deleteFirestoreData: true });
                     setStatus('Account deleted. Synced account data deletion was attempted.');
                     setRoleText('');
+                    setUidText('');
                     setAdminVisible(false);
+                    setProfileSignedOut();
                 } catch (error) {
                     const msg = getDeleteAccountErrorMessage(error);
                     if (msg) {
