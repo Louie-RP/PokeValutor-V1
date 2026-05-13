@@ -2967,6 +2967,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const imgUrlAttr = escapeAttr(imgUrl);
             const detailPath = buildCardDetailPath(card);
             const detailPathAttr = escapeAttr(detailPath);
+            const moreActionsLabelAttr = escapeAttr('More card actions');
 
             col.setAttribute('data-card-id', id);
             col.setAttribute('data-card-name', name);
@@ -2977,19 +2978,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="pv-card__body">
                         <div class="pv-card__header">
                             <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
-                            <div class="pv-card__actions">
-                                <button id="pv-share-${idAttr}" class="pv-share-btn" type="button" aria-label="Share card link" title="Share card link">
-                                    <svg class="pv-share-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                        <path d="M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z"></path>
-                                    </svg>
-                                </button>
+                            <div class="pv-card__actions" role="group" aria-label="Card actions">
                                 <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
                                 ${!isDexPage && enableDexTrackingControls
                                     ? `<button id="pv-dex-add-${idAttr}" class="pv-fav-btn" type="button" aria-label="${escapeAttr(dexAddLabel)}" aria-pressed="${inDexCollection ? 'true' : 'false'}" title="${escapeAttr(dexAddLabel)}">${inDexCollection ? '✓' : '+'}</button>`
                                     : ''}
-                                ${enableDexTrackingControls
-                                    ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}>−</button>`
-                                    : ''}
+                                <details class="pv-card__actionsMore">
+                                    <summary class="pv-card__moreBtn" aria-label="${moreActionsLabelAttr}" title="${moreActionsLabelAttr}">
+                                        <span aria-hidden="true">...</span>
+                                    </summary>
+                                    <div class="pv-card__actionsMenu">
+                                        <button id="pv-share-${idAttr}" class="pv-share-btn pv-share-btn--menu" type="button" aria-label="Share card link" title="Share card link">
+                                            <svg class="pv-share-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                <path d="M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z"></path>
+                                            </svg>
+                                            <span class="pv-card__actionLabel">Share</span>
+                                        </button>
+                                        ${enableDexTrackingControls
+                                            ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn pv-dex-remove-btn--menu" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}><span class="pv-card__actionGlyph" aria-hidden="true">-</span><span class="pv-card__actionLabel">Remove copy</span></button>`
+                                            : ''}
+                                    </div>
+                                </details>
                             </div>
                         </div>
                         <p class="pv-card__text">${setNameHtml}</p>
@@ -3016,9 +3025,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
             const dexAddBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-add-${CSS.escape(id)}`));
             const removeBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-remove-${CSS.escape(id)}`));
+            const actionsMoreEl = /** @type {HTMLDetailsElement|null} */ (col.querySelector('.pv-card__actionsMore'));
 
             if (shareBtn) {
                 shareBtn.addEventListener('click', () => {
+                    if (actionsMoreEl) actionsMoreEl.open = false;
                     void shareCardLink(card);
                 });
             }
@@ -3163,6 +3174,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (enableDexTrackingControls && removeBtn) {
                 removeBtn.addEventListener('click', () => {
+                    if (actionsMoreEl) actionsMoreEl.open = false;
                     const cardName = getCardDisplayName(card);
                     if (!isInDexCollection(id)) {
                         setStatus('No tracked copies to remove for this card.');
