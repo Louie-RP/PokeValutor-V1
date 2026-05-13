@@ -22,6 +22,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const quotaBanner = document.getElementById('pv-quota-banner');
     const quotaMessageEl = document.getElementById('pv-quota-message');
     const quotaCtaEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-quota-cta'));
+    /** @type {HTMLElement|null} */
+    let actionToastEl = null;
+    /** @type {number} */
+    let actionToastHideTimer = 0;
+    /** @type {number} */
+    let actionToastHideTransitionTimer = 0;
 
     const CACHE_PREFIX = 'pv:scrydex:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
@@ -86,6 +92,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const PV_BUILD = '2026-05-09-1';
     const isDexPage = document.body?.id === 'pv-dex-body';
+    const isSearchPage = document.body?.id === 'pv-search-body';
+    const enableDexTrackingControls = isDexPage || isSearchPage;
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] search.js build', PV_BUILD);
@@ -867,7 +875,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function queueDexCloudStateSync(immediate) {
-        if (!isDexPage || dexCloudSyncHydrating) return;
+        if (!enableDexTrackingControls || dexCloudSyncHydrating) return;
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState) return;
@@ -991,7 +999,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function syncDexStateFromCloudOnSignIn() {
-        if (!isDexPage || !window?.PV_AUTH?.loadDexState) return;
+        if (!enableDexTrackingControls || !window?.PV_AUTH?.loadDexState) return;
 
         const localCollection = loadDexCollection();
         const localMasterSets = loadDexMasterSets();
@@ -1590,7 +1598,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // When Dex users sign in, hydrate Collection + Master Sets from cloud,
     // merge with any local-only state, then push merged data back to Firestore.
     try {
-        if (isDexPage && window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
+        if (enableDexTrackingControls && window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) return;
                 syncDexStateFromCloudOnSignIn();
@@ -1647,8 +1655,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleFavorite(card) {
         const id = safeString(card?.id, '');
         if (!id) return;
+        const cardName = getCardDisplayName(card);
+        const wasInWatchlist = isFavorite(id);
 
-        if (isFavorite(id)) {
+        if (wasInWatchlist) {
             favorites = favorites.filter((c) => String(c?.id || '') !== id);
             try {
                 if (window?.PV_AUTH?.removeWatchlistItem) {
@@ -1729,6 +1739,70 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Keep results stars in sync without losing variant selection.
         renderCards(currentResultsCards, restoredState || undefined);
+
+        const watchlistMessage = wasInWatchlist
+            ? `${cardName} removed from your Watchlist.`
+            : `${cardName} added to your Watchlist.`;
+        showActionToast(watchlistMessage, wasInWatchlist ? 'removed' : 'added');
+    }
+
+    function getCardDisplayName(cardLike) {
+        const name = safeString(cardLike?.name, '').trim();
+        return name || 'Card';
+    }
+
+    function ensureActionToastEl() {
+        if (actionToastEl && actionToastEl.isConnected) return actionToastEl;
+
+        const el = document.createElement('div');
+        el.id = 'pv-action-toast';
+        el.className = 'pv-actionToast';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.setAttribute('aria-atomic', 'true');
+        el.hidden = true;
+        document.body.appendChild(el);
+        actionToastEl = el;
+        return el;
+    }
+
+    function showActionToast(message, kind) {
+        const text = safeString(message, '').trim();
+        if (!text) return;
+
+        const el = ensureActionToastEl();
+        if (!el) return;
+
+        if (actionToastHideTimer) {
+            window.clearTimeout(actionToastHideTimer);
+            actionToastHideTimer = 0;
+        }
+        if (actionToastHideTransitionTimer) {
+            window.clearTimeout(actionToastHideTransitionTimer);
+            actionToastHideTransitionTimer = 0;
+        }
+
+        el.textContent = text;
+        el.classList.remove('is-added', 'is-removed', 'is-visible');
+        if (kind === 'removed') {
+            el.classList.add('is-removed');
+        } else {
+            el.classList.add('is-added');
+        }
+
+        el.hidden = false;
+        window.requestAnimationFrame(() => {
+            el.classList.add('is-visible');
+        });
+
+        actionToastHideTimer = window.setTimeout(() => {
+            el.classList.remove('is-visible');
+            actionToastHideTransitionTimer = window.setTimeout(() => {
+                if (!el.classList.contains('is-visible')) {
+                    el.hidden = true;
+                }
+            }, 280);
+        }, 2600);
     }
 
     function setStatus(message) {
@@ -2674,7 +2748,7 @@ document.addEventListener('DOMContentLoaded', function () {
         currentResultsCards = sourceCards.slice();
         grid.innerHTML = '';
 
-        const dexCollectionById = isDexPage
+        const dexCollectionById = enableDexTrackingControls
             ? new Map(loadDexCollection().map((x) => [safeString(x?.id, ''), x]))
             : null;
 
@@ -2716,12 +2790,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const imgUrl = sanitizeUrl(pickFrontMediumImage(card?.images));
             const variantsFull = Array.isArray(card?.variants) ? card.variants : [];
             const variants = variantsFull.map((v) => v?.name).filter(Boolean);
-            const dexTracked = (isDexPage && dexCollectionById)
+            const dexTracked = (enableDexTrackingControls && dexCollectionById)
                 ? dexCollectionById.get(id)
                 : null;
             const fav = isFavorite(id);
-            const inDexCollection = isDexPage ? !!dexTracked : false;
-            const trackedCopies = isDexPage
+            const inDexCollection = enableDexTrackingControls ? !!dexTracked : false;
+            const trackedCopies = enableDexTrackingControls
                 ? getTotalDexConditionCopies(dexTracked?.conditionQuantities, dexTracked?.selectedCondition)
                 : 0;
             const trackedCopyLabel = trackedCopies > 0 ? ` (${trackedCopies} cop${trackedCopies === 1 ? 'y' : 'ies'})` : '';
@@ -2729,9 +2803,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const favLabel = isDexPage
                 ? (inDexCollection ? `Add another copy to collection${trackedCopyLabel}` : 'Add to collection and master set tracker')
                 : (fav ? 'Remove from watchlist' : 'Add to watchlist');
-            const removeLabel = isDexPage
+            const removeLabel = enableDexTrackingControls
                 ? (inDexCollection ? `Remove one tracked copy${trackedCopyLabel}` : 'No tracked copies to remove')
                 : '';
+            const dexAddLabel = inDexCollection
+                ? `Add another copy to collection${trackedCopyLabel}`
+                : 'Add to collection and master set tracker';
 
             const variantOptions = variants.length
                 ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
@@ -2776,7 +2853,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                 `;
 
-            const conditionFieldHtml = isDexPage
+            const conditionFieldHtml = enableDexTrackingControls
                 ? `
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-condition-${idAttr}">Condition</label>
@@ -2813,7 +2890,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                     </svg>
                                 </button>
                                 <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
-                                ${isDexPage
+                                ${!isDexPage && enableDexTrackingControls
+                                    ? `<button id="pv-dex-add-${idAttr}" class="pv-fav-btn" type="button" aria-label="${escapeAttr(dexAddLabel)}" aria-pressed="${inDexCollection ? 'true' : 'false'}" title="${escapeAttr(dexAddLabel)}">${inDexCollection ? '✓' : '+'}</button>`
+                                    : ''}
+                                ${enableDexTrackingControls
                                     ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}>−</button>`
                                     : ''}
                             </div>
@@ -2840,6 +2920,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const shareBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-share-${CSS.escape(id)}`));
             const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
+            const dexAddBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-add-${CSS.escape(id)}`));
             const removeBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-remove-${CSS.escape(id)}`));
 
             if (shareBtn) {
@@ -2849,7 +2930,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             function updateDexButtonStateFromStorage() {
-                if (!isDexPage || !favBtn) return;
+                if (!enableDexTrackingControls) return;
 
                 const trackedEntry = loadDexCollection().find((x) => safeString(x?.id, '') === id) || null;
                 const nowTracked = !!trackedEntry;
@@ -2861,10 +2942,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 const addLabel = nowTracked
                     ? `Add another copy to collection${copyLabel}`
                     : 'Add to collection and master set tracker';
-                favBtn.textContent = nowTracked ? '✓' : '+';
-                favBtn.setAttribute('aria-label', addLabel);
-                favBtn.setAttribute('title', addLabel);
-                favBtn.setAttribute('aria-pressed', nowTracked ? 'true' : 'false');
+                if (isDexPage && favBtn) {
+                    favBtn.textContent = nowTracked ? '✓' : '+';
+                    favBtn.setAttribute('aria-label', addLabel);
+                    favBtn.setAttribute('title', addLabel);
+                    favBtn.setAttribute('aria-pressed', nowTracked ? 'true' : 'false');
+                }
+
+                if (!isDexPage && dexAddBtn) {
+                    dexAddBtn.textContent = nowTracked ? '✓' : '+';
+                    dexAddBtn.setAttribute('aria-label', addLabel);
+                    dexAddBtn.setAttribute('title', addLabel);
+                    dexAddBtn.setAttribute('aria-pressed', nowTracked ? 'true' : 'false');
+                }
 
                 if (removeBtn) {
                     const rmLabel = nowTracked
@@ -2883,6 +2973,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (isDexPage) {
                     favBtn.addEventListener('click', () => {
                         const currentlyTracked = isInDexCollection(id);
+                        const cardName = getCardDisplayName(card);
                         const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
                         if (!selectedCondition) {
                             setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
@@ -2913,14 +3004,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         const addedDetail = `${addedConditionLabel} • ${addedVariantLabel}`;
 
                         if (result.action === 'added' && (result.addedCollection || result.addedMasterSet)) {
-                            const setSuffix = result.expansionName ? ` (${result.expansionName})` : '';
-                            const prefix = currentlyTracked ? 'Added another copy to Collection and Master Sets' : 'Added to Collection and Master Sets';
-                            setStatus(`${prefix} (${addedDetail})${setSuffix}.`);
+                            const actionMessage = `${cardName} added to Collection.`;
+                            showActionToast(actionMessage, 'added');
                         } else if (result.action === 'removed' && (result.removedCollection || result.removedMasterSet)) {
-                            const firstSet = Array.isArray(result.expansionNames) && result.expansionNames.length
-                                ? ` (${result.expansionNames[0]})`
-                                : '';
-                            setStatus(`Removed from Collection and Master Sets${firstSet}.`);
+                            const actionMessage = `${cardName} removed from Collection.`;
+                            showActionToast(actionMessage, 'removed');
                         } else if (result.action === 'added') {
                             setStatus('Card is already in your Collection and Master Sets tracker.');
                         } else if (result.action === 'removed') {
@@ -2932,8 +3020,56 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            if (isDexPage && removeBtn) {
+            if (!isDexPage && enableDexTrackingControls && dexAddBtn) {
+                dexAddBtn.addEventListener('click', () => {
+                    const currentlyTracked = isInDexCollection(id);
+                    const cardName = getCardDisplayName(card);
+                    const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
+                    if (!selectedCondition) {
+                        setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
+                        if (conditionEl) conditionEl.focus();
+                        return;
+                    }
+
+                    const selectedVariant = safeString(selectEl?.value, '');
+                    if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
+                        setStatus('Select a card type (variant) before adding to your Collection.');
+                        if (selectEl) selectEl.focus();
+                        return;
+                    }
+
+                    try {
+                        card.selectedCondition = selectedCondition;
+                        card.selectedVariant = selectedVariant;
+                    } catch {
+                        // ignore
+                    }
+
+                    const result = toggleDexCardInTrackers(card);
+                    updateDexButtonStateFromStorage();
+
+                    const addedConditionLabel = getDexConditionLabel(selectedCondition);
+                    const addedVariantRaw = safeString(selectedVariant || getDexDefaultVariantForCard(card), '').trim();
+                    const addedVariantLabel = addedVariantRaw || 'Standard';
+                    const addedDetail = `${addedConditionLabel} • ${addedVariantLabel}`;
+
+                    if (result.action === 'added' && (result.addedCollection || result.addedMasterSet)) {
+                        const actionMessage = `${cardName} added to Collection.`;
+                        showActionToast(actionMessage, 'added');
+                    } else if (result.action === 'removed' && (result.removedCollection || result.removedMasterSet)) {
+                        const actionMessage = `${cardName} removed from Collection.`;
+                        showActionToast(actionMessage, 'removed');
+                    } else if (result.action === 'added') {
+                        setStatus('Card is already in your Collection and Master Sets tracker.');
+                    } else if (result.action === 'removed') {
+                        setStatus('Card was already removed from your Collection and Master Sets tracker.');
+                    }
+                });
+            }
+
+            if (enableDexTrackingControls && removeBtn) {
                 removeBtn.addEventListener('click', () => {
+                    const cardName = getCardDisplayName(card);
                     if (!isInDexCollection(id)) {
                         setStatus('No tracked copies to remove for this card.');
                         return;
@@ -2976,18 +3112,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         return;
                     }
 
-                    const setSuffix = Array.isArray(removed.expansionNames) && removed.expansionNames.length
-                        ? ` (${removed.expansionNames[0]})`
-                        : '';
                     if (removed.removedCard) {
-                        setStatus(`Removed last tracked copy (${removedDetail}) from Collection and Master Sets${setSuffix}.`);
+                        const actionMessage = `${cardName} removed from Collection.`;
+                        showActionToast(actionMessage, 'removed');
                     } else {
-                        setStatus(`Removed one tracked copy (${removedDetail}) from Collection${setSuffix}.`);
+                        const actionMessage = `${cardName} removed from Collection.`;
+                        showActionToast(actionMessage, 'removed');
                     }
                 });
             }
 
-            if (isDexPage && selectEl && selectedDexVariant && variants.includes(selectedDexVariant)) {
+            if (enableDexTrackingControls && selectEl && selectedDexVariant && variants.includes(selectedDexVariant)) {
                 selectEl.value = selectedDexVariant;
             }
 

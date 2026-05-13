@@ -650,6 +650,52 @@ body {
   background: rgba(220, 38, 38, 0.10);
 }
 
+.pv-actionToast {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1200;
+  max-width: min(92vw, 420px);
+  padding: 0.8rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02)),
+    rgba(3, 7, 18, 0.94);
+  color: #f8fafc;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(12px) scale(0.98);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.pv-actionToast.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.pv-actionToast.is-added {
+  border-color: rgba(74, 222, 128, 0.5);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(74, 222, 128, 0.12) inset;
+}
+
+.pv-actionToast.is-removed {
+  border-color: rgba(248, 113, 113, 0.54);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(248, 113, 113, 0.12) inset;
+}
+
+@media (max-width: 640px) {
+  .pv-actionToast {
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    max-width: none;
+  }
+}
+
 @media (max-width: 520px) {
   .pv-quotaBanner {
     flex-direction: column;
