@@ -6,6 +6,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
     const status = document.getElementById('pv-search-status');
+    const searchResultsTitleEl = document.getElementById('pv-search-results-title');
+    const dexResultsContextEl = document.getElementById('pv-dex-results-context');
+    const dexSearchPanel = /** @type {HTMLDetailsElement|null} */ (document.getElementById('pv-dex-search-panel'));
+    const dexStatCardsEl = document.getElementById('pv-dex-stat-cards');
+    const dexStatCopiesEl = document.getElementById('pv-dex-stat-copies');
     const grid = document.getElementById('pv-search-grid');
     const favoritesGrid = document.getElementById('pv-favorites-grid');
     const favoritesBody = document.getElementById('pv-favorites-body');
@@ -86,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
+    const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
 
     const CONDITION_FILTER_KEYS = ['NM', 'LP', 'MP', 'OTHER'];
     const DEFAULT_CONDITION_FILTERS = ['NM'];
@@ -797,6 +803,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // ignore
         }
 
+        notifyDexStateChanged();
+
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(false);
         }
@@ -822,8 +830,18 @@ document.addEventListener('DOMContentLoaded', function () {
             // ignore
         }
 
+        notifyDexStateChanged();
+
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(false);
+        }
+    }
+
+    function notifyDexStateChanged() {
+        try {
+            window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
+        } catch {
+            // ignore
         }
     }
 
@@ -1022,6 +1040,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     collection: mergedCollection,
                     masterSets: mergedMasterSets,
                 };
+
+                if (isDexPage) {
+                    updateDexCollectionStats(mergedCollection);
+                }
 
                 const restoredState = loadLastResults();
                 renderCards(currentResultsCards, restoredState || undefined);
@@ -1807,6 +1829,73 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setStatus(message) {
         if (status) status.textContent = message;
+    }
+
+    function setResultsHeading(text) {
+        if (searchResultsTitleEl) {
+            searchResultsTitleEl.textContent = safeString(text, 'Results');
+        }
+    }
+
+    function setDexResultsContext(message) {
+        if (dexResultsContextEl) {
+            dexResultsContextEl.textContent = safeString(message, '');
+        }
+    }
+
+    function loadDexSearchPanelOpenState() {
+        if (!isDexPage) return false;
+        try {
+            const raw = localStorage.getItem(DEX_SEARCH_PANEL_OPEN_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveDexSearchPanelOpenState(isOpen) {
+        if (!isDexPage) return;
+        try {
+            localStorage.setItem(DEX_SEARCH_PANEL_OPEN_KEY, isOpen ? '1' : '0');
+        } catch {
+            // ignore
+        }
+    }
+
+    function setDexSearchPanelOpen(isOpen, options) {
+        if (!dexSearchPanel) return;
+
+        if (isOpen) {
+            dexSearchPanel.setAttribute('open', '');
+        } else {
+            dexSearchPanel.removeAttribute('open');
+        }
+
+        if (!options?.skipPersist) {
+            saveDexSearchPanelOpenState(!!isOpen);
+        }
+    }
+
+    function updateDexCollectionStats(collectionList) {
+        if (!isDexPage) return;
+
+        const list = Array.isArray(collectionList) ? collectionList : [];
+        let totalCopies = 0;
+        for (const card of list) {
+            totalCopies += getTotalDexConditionCopies(card?.conditionQuantities, card?.selectedCondition);
+        }
+
+        if (dexStatCardsEl) dexStatCardsEl.textContent = String(list.length);
+        if (dexStatCopiesEl) dexStatCopiesEl.textContent = String(totalCopies);
+
+        return { cardCount: list.length, copyCount: totalCopies };
+    }
+
+    function activateDexSearchMode() {
+        if (!isDexPage) return;
+        setResultsHeading('Search Results');
+        setDexResultsContext('Search results are shown below.');
+        setDexSearchPanelOpen(true);
     }
 
     function isQuotaExceededError(err) {
@@ -2748,8 +2837,13 @@ document.addEventListener('DOMContentLoaded', function () {
         currentResultsCards = sourceCards.slice();
         grid.innerHTML = '';
 
+        const dexCollectionList = enableDexTrackingControls ? loadDexCollection() : [];
+        if (isDexPage) {
+            updateDexCollectionStats(dexCollectionList);
+        }
+
         const dexCollectionById = enableDexTrackingControls
-            ? new Map(loadDexCollection().map((x) => [safeString(x?.id, ''), x]))
+            ? new Map(dexCollectionList.map((x) => [safeString(x?.id, ''), x]))
             : null;
 
         if (!sourceCards.length) {
@@ -3369,6 +3463,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function searchByName(name) {
+        activateDexSearchMode();
         const q = (name || '').trim();
         if (!q) {
             setStatus('Please enter a Pokémon name.');
@@ -3463,6 +3558,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function searchByNameInSet(expansionId, expansionName, seriesName, pokemonName) {
+        activateDexSearchMode();
         const id = String(expansionId || '').trim();
         const setName = String(expansionName || '').trim();
         const setSeries = String(seriesName || '').trim();
@@ -3575,6 +3671,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function searchByPrintedNumber(printedNumber) {
+        activateDexSearchMode();
         const pn = (printedNumber || '').trim();
         if (!pn) {
             setStatus('Please enter a printed card number (e.g., 87/160 or SWSH101).');
@@ -3783,6 +3880,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function searchTopByExpansion(expansionId, expansionName) {
+        activateDexSearchMode();
         const id = String(expansionId || '').trim();
         const name = String(expansionName || '').trim();
         if (!id) return;
@@ -3847,6 +3945,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function searchByExpansionSet(expansionId, expansionName, seriesName) {
+        activateDexSearchMode();
         const id = String(expansionId || '').trim();
         const setName = String(expansionName || '').trim();
         const setSeries = String(seriesName || '').trim();
@@ -4017,6 +4116,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (form && input) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
+            if (isDexPage) {
+                activateDexSearchMode();
+            }
             const query = safeString(input?.value, '').trim();
             const bySetId = safeString(setSelect?.value, '').trim();
 
@@ -4085,6 +4187,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindSearchSortControls();
 
+    if (isDexPage && dexSearchPanel) {
+        setDexSearchPanelOpen(loadDexSearchPanelOpenState(), { skipPersist: true });
+
+        if (dexSearchPanel.getAttribute('data-bound') !== '1') {
+            dexSearchPanel.setAttribute('data-bound', '1');
+            dexSearchPanel.addEventListener('toggle', () => {
+                saveDexSearchPanelOpenState(!!dexSearchPanel.open);
+            });
+        }
+    }
+
     function clearResultsUI() {
         if (grid) grid.innerHTML = '';
         if (status) status.textContent = '';
@@ -4148,6 +4261,12 @@ document.addEventListener('DOMContentLoaded', function () {
             purgeUrlCacheEntries((u) => String(u || '').includes('/cards/top-by-expansion'));
 
             clearSearchInputs();
+
+            if (isDexPage) {
+                setDexSearchPanelOpen(false);
+                setResultsHeading('Search Results');
+                setDexResultsContext('Use search to browse cards and add them to your collection.');
+            }
         });
     }
 
@@ -4169,39 +4288,53 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Restore last results after refresh.
-    const restored = loadLastResults();
-    if (restored && Array.isArray(restored.cards) && restored.cards.length) {
-        if (restored.mode === 'name' && input) input.value = String(restored.query || '');
-        if (restored.mode === 'number' && input) input.value = String(restored.query || '');
-        if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
-        if (restored.mode === 'set' && restored.expansionId) {
-            pendingRestoredExpansionId = String(restored.expansionId || '');
-            void ensureExpansionCatalogLoaded().catch((e) => {
-                console.warn('[PokeValutor] expansions load error', e);
-            });
-        }
-        if (restored.mode === 'setName' && restored.expansionId) {
-            pendingRestoredExpansionId = String(restored.expansionId || '');
-            void ensureExpansionCatalogLoaded().catch((e) => {
-                console.warn('[PokeValutor] expansions load error', e);
-            });
-        }
-        renderCards(restored.cards, restored);
-        renderFavorites(restored);
-        if (restored.statusText) setStatus(String(restored.statusText));
-    }
-
-    // Deep-link support: /search.html?expansionId=...&expansionName=...
+    let deepLinkExpansionId = '';
+    let deepLinkExpansionName = '';
     try {
         const params = new URLSearchParams(window.location.search || '');
-        const expansionId = params.get('expansionId') || '';
-        const expansionName = params.get('expansionName') || '';
-        if (expansionId) {
-            void searchTopByExpansion(expansionId, expansionName);
-        }
+        deepLinkExpansionId = params.get('expansionId') || '';
+        deepLinkExpansionName = params.get('expansionName') || '';
     } catch {
         // ignore
+    }
+
+    if (isDexPage) {
+        setResultsHeading('Search Results');
+        setDexResultsContext('Use search to browse cards and add them to your collection.');
+
+        if (deepLinkExpansionId) {
+            void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+        } else {
+            clearResultsUI();
+        }
+    } else {
+        // Restore last results after refresh.
+        const restored = loadLastResults();
+        if (restored && Array.isArray(restored.cards) && restored.cards.length) {
+            if (restored.mode === 'name' && input) input.value = String(restored.query || '');
+            if (restored.mode === 'number' && input) input.value = String(restored.query || '');
+            if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
+            if (restored.mode === 'set' && restored.expansionId) {
+                pendingRestoredExpansionId = String(restored.expansionId || '');
+                void ensureExpansionCatalogLoaded().catch((e) => {
+                    console.warn('[PokeValutor] expansions load error', e);
+                });
+            }
+            if (restored.mode === 'setName' && restored.expansionId) {
+                pendingRestoredExpansionId = String(restored.expansionId || '');
+                void ensureExpansionCatalogLoaded().catch((e) => {
+                    console.warn('[PokeValutor] expansions load error', e);
+                });
+            }
+            renderCards(restored.cards, restored);
+            renderFavorites(restored);
+            if (restored.statusText) setStatus(String(restored.statusText));
+        }
+
+        // Deep-link support: /search.html?expansionId=...&expansionName=...
+        if (deepLinkExpansionId) {
+            void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+        }
     }
 
     if (scrollTopBtn) {

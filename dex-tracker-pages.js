@@ -1334,6 +1334,12 @@
         const totalCopies = items.reduce((sum, item) => {
             return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
         }, 0);
+
+        const dexCardsStat = document.getElementById('pv-dex-stat-cards');
+        const dexCopiesStat = document.getElementById('pv-dex-stat-copies');
+        if (dexCardsStat) dexCardsStat.textContent = String(items.length);
+        if (dexCopiesStat) dexCopiesStat.textContent = String(totalCopies);
+
         summary.textContent = `${items.length} unique card${items.length === 1 ? '' : 's'} • ${totalCopies} total cop${totalCopies === 1 ? 'y' : 'ies'}.`;
 
         bindCollectionSortControls();
@@ -1667,5 +1673,6 @@
         }
 
         window.addEventListener('storage', renderActivePage);
+        window.addEventListener('pv:dex-state-changed', renderActivePage);
     });
 })();
