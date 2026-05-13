@@ -1764,6 +1764,22 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   gap: 0.55rem;
 }
 
+#pv-dex-body #pv-dex-master-link {
+  background: linear-gradient(180deg, rgba(255, 203, 5, 0.24), rgba(255, 203, 5, 0.14));
+  border-color: rgba(255, 203, 5, 0.68);
+  color: #fff8d6;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(255, 203, 5, 0.2);
+  min-height: 42px;
+}
+
+#pv-dex-body #pv-dex-master-link:hover,
+#pv-dex-body #pv-dex-master-link:focus {
+  background: linear-gradient(180deg, rgba(255, 203, 5, 0.34), rgba(255, 203, 5, 0.2));
+  border-color: rgba(255, 203, 5, 0.88);
+  color: #fffef2;
+}
+
 #pv-dex-body .pv-dexStats {
   margin-top: 0.95rem;
   display: grid;
@@ -1884,6 +1900,22 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   color: #dbeafe;
 }
 
+@media (max-width: 899.98px) {
+  #pv-dex-body .pv-search-actions {
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  #pv-dex-body .pv-search-actions > .btn {
+    flex: 0 0 auto;
+  }
+
+  #pv-dex-body .pv-search-actions > .pv-conditionFilter {
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 767.98px) {
   #pv-dex-body .pv-dexTools__actions {
     width: 100%;
@@ -1892,6 +1924,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   #pv-dex-body .pv-dexTools__actions .pv-button {
     flex: 1 1 calc(50% - 0.3rem);
     text-align: center;
+  }
+
+  #pv-dex-body .pv-dexTools__actions .pv-button:only-child {
+    flex: 1 1 100%;
+  }
+
+  #pv-dex-body .pv-search-actions > .btn {
+    flex: 1 1 calc(50% - 0.25rem);
   }
 
   #pv-dex-body .pv-dexSearchPanel__summary {
