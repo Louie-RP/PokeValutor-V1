@@ -685,7 +685,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const href = buildCardDetailPath(item);
 
             return `
-                <div class="col-12 col-sm-6 col-md-4 col-lg-2">
+                <div class="col-6 col-sm-4 col-md-3 col-lg-2">
                     <a class="pv-relatedCard" href="${escapeHtml(href)}" aria-label="View ${escapeHtml(name)} details">
                         ${img ? `<img class="pv-relatedCard__img" src="${escapeHtml(img)}" alt="${escapeHtml(name)} card image" loading="lazy" />` : ''}
                         <span class="pv-relatedCard__name">${escapeHtml(name)}</span>

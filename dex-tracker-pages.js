@@ -709,6 +709,22 @@
         return expansionName || setName || directExpansionName || directSetName || 'n/a';
     }
 
+    function slugifyForUrl(value) {
+        return String(value || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-');
+    }
+
+    function buildCardDetailPath(cardLike) {
+        const id = safeString(cardLike?.id, '');
+        if (!id) return 'card.html';
+        const name = safeString(cardLike?.name, 'card');
+        const slug = slugifyForUrl(`${id}-${name}`);
+        return `card.html?id=${encodeURIComponent(id)}&slug=${encodeURIComponent(slug)}`;
+    }
+
     function normalizeCollectionEntry(raw) {
         const conditionQuantities = normalizeConditionQuantities(raw?.conditionQuantities, raw?.selectedCondition);
         const selectedCondition = getPrimaryConditionCode(conditionQuantities);
@@ -1360,6 +1376,9 @@
                 const copyCount = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
                 const addConditionSelectId = `pv-add-condition-${encodeURIComponent(id)}`;
                 const addConditionOptions = buildConditionOptionsHtml('');
+                const detailPath = buildCardDetailPath(item);
+                const detailPathAttr = escapeAttr(detailPath);
+                const nameAttr = escapeAttr(cardName);
 
                 const conditionRows = conditionEntries.length
                     ? conditionEntries.map((entry) => {
@@ -1381,9 +1400,9 @@
                 return `
                     <div class="col-12 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}">
                         <article class="pv-card h-100" aria-label="${name}">
-                            ${img ? `<img class="pv-card__img" src="${img}" alt="${name} card image"/>` : ''}
+                            ${img ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${img}" alt="${name} card image"/></a>` : ''}
                             <div class="pv-card__body">
-                                <h3 class="pv-card__title">${name}</h3>
+                                <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text">${setName}</p>
                                 <p class="pv-card__text">${rarity}</p>
                                 <p class="pv-card__text">Copies tracked: ${copyCount}</p>
