@@ -3471,6 +3471,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   color: #dbeafe;
 }
 
+@media (min-width: 768px) {
+  #pv-shared-body .pv-collectionFilterRow {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    max-width: 420px;
+  }
+}
+
 #pv-shared-body #pv-shared-grid .pv-card {
   border-color: var(--pv-border);
   background: var(--pv-surface-2);
