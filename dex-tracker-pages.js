@@ -1916,6 +1916,12 @@
             summary.textContent = `${items.length} items • ${cardItems.length} cards • ${sealedItems.length} sealed • ${totalCardCopies} card cop${totalCardCopies === 1 ? 'y' : 'ies'}.`;
         }
 
+        const hideDuplicateSummary = !filterQuery && selectedType === 'all';
+        summary.hidden = hideDuplicateSummary;
+        if (hideDuplicateSummary) {
+            summary.textContent = '';
+        }
+
         bindCollectionSortControls();
 
         if (!items.length) {
