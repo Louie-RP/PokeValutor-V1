@@ -34,13 +34,13 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-sealed-body" class="pv-body">
+<body id="pv-sealed-body" class="pv-body pv-sealedPage">
     <a class="pv-skiplink" href="#pv-sealed-main">Skip to content</a>
 
     <header id="pv-sealed-header" class="pv-header" role="banner">
@@ -64,35 +64,56 @@
     </header>
 
     <main id="pv-sealed-main" class="pv-main" role="main">
-        <section id="pv-sealed-hero" class="pv-hero container" aria-labelledby="pv-sealed-title">
-            <h1 id="pv-sealed-title" class="pv-hero__title">Search Sealed Product</h1>
-            <p class="pv-hero__subtitle">Find sealed products by name and view market values.</p>
+        <section id="pv-sealed-hero" class="pv-hero container pv-sealedHero" aria-labelledby="pv-sealed-title">
+            <p class="pv-sealedHero__eyebrow">Sealed Market</p>
+            <h1 id="pv-sealed-title" class="pv-hero__title">Search sealed products and track market-ready values.</h1>
+            <p class="pv-hero__subtitle">Find boxes, packs, and collections by name, then keep top targets in your watchlist.</p>
+            <div class="pv-sealedHero__chips" aria-label="Sealed search highlights">
+                <span class="pv-sealedHero__chip">Market pricing</span>
+                <span class="pv-sealedHero__chip">Trade percent controls</span>
+                <span class="pv-sealedHero__chip">Persistent watchlist</span>
+            </div>
         </section>
 
-        <section id="pv-sealed-section" class="pv-section container">
-            <form id="pv-sealed-form" class="pv-form row g-3" role="search">
-                <div class="pv-form__field col-12 col-md-8">
-                    <label for="pv-sealed-query" class="form-label">Product Name</label>
-                    <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
-                        placeholder="e.g., Phantasmal Flames Booster Box" aria-controls="pv-sealed-results" />
+        <section class="pv-section container pv-sealedTools" aria-labelledby="pv-sealed-tools-title">
+            <div class="pv-sealedTools__head">
+                <div>
+                    <h2 id="pv-sealed-tools-title" class="pv-section__title">Sealed Workspace</h2>
+                    <p class="pv-section__text">Search product names, tune trade percentages, and monitor totals in one view.</p>
                 </div>
-                <div class="col-12">
-                    <button id="pv-sealed-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                    <button id="pv-sealed-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                <div class="pv-cta pv-sealedTools__actions" role="group" aria-label="Sealed shortcuts">
+                    <a class="pv-button pv-button--secondary btn" href="search.html">Open Cards</a>
+                    <a class="pv-button pv-button--secondary btn" href="dex.html">Open Dex</a>
                 </div>
-            </form>
+            </div>
+        </section>
 
-            <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
-            <section id="pv-sealed-results" class="pv-section" aria-labelledby="pv-sealed-results-title">
-                <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
-                <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
-                    <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
-                    <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
-                </div>
-                <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
-            </section>
+        <section id="pv-sealed-section" class="pv-section container pv-sealedWorkspace">
+            <div class="pv-sealedPanel">
+                <form id="pv-sealed-form" class="pv-form row g-3" role="search">
+                    <div class="pv-form__field col-12 col-md-8">
+                        <label for="pv-sealed-query" class="form-label">Product Name</label>
+                        <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
+                            placeholder="e.g., Prismatic Evolutions Booster Bundle" aria-controls="pv-sealed-results" />
+                    </div>
+                    <div class="col-12 pv-sealedActions">
+                        <button id="pv-sealed-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+                        <button id="pv-sealed-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                    </div>
+                </form>
 
-            <section id="pv-sealed-favorites" class="pv-section" aria-labelledby="pv-sealed-favorites-title">
+                <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
+                <section id="pv-sealed-results" class="pv-section pv-sealedResults" aria-labelledby="pv-sealed-results-title">
+                    <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                    <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
+                        <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
+                        <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
+                    </div>
+                    <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
+                </section>
+            </div>
+
+            <section id="pv-sealed-favorites" class="pv-section pv-sealedWatchlist" aria-labelledby="pv-sealed-favorites-title">
                 <div class="pv-section__header">
                     <h2 id="pv-sealed-favorites-title" class="pv-section__title">Watchlist <span id="pv-sealed-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
                     <div>

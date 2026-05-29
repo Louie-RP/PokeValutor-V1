@@ -34,13 +34,13 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-search-body" class="pv-body">
+<body id="pv-search-body" class="pv-body pv-searchPage">
     <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
 
     <header id="pv-search-header" class="pv-header" role="banner">
@@ -64,81 +64,102 @@
     </header>
 
     <main id="pv-search-main" class="pv-main" role="main">
-        <section id="pv-search-hero" class="pv-hero container" aria-labelledby="pv-search-title">
-            <h1 id="pv-search-title" class="pv-hero__title">Search Pokémon</h1>
-            <p class="pv-hero__subtitle">Search by Pokémon name or card number, then optionally narrow by series and set.</p>
+        <section id="pv-search-hero" class="pv-hero container pv-searchHero" aria-labelledby="pv-search-title">
+            <p class="pv-searchHero__eyebrow">Card Market</p>
+            <h1 id="pv-search-title" class="pv-hero__title">Find cards fast, compare variants, and build your watchlist.</h1>
+            <p class="pv-hero__subtitle">Search by name or card number, then narrow by series and set without leaving the page.</p>
+            <div class="pv-searchHero__chips" aria-label="Search highlights">
+                <span class="pv-searchHero__chip">Variant pricing</span>
+                <span class="pv-searchHero__chip">Live watchlist totals</span>
+                <span class="pv-searchHero__chip">Quick sorting</span>
+            </div>
         </section>
 
-        <section id="pv-search-section" class="pv-section container">
-            <form id="pv-search-form" class="pv-form row g-3" role="search">
-                <div class="pv-form__field col-12 col-md-6 col-lg-5">
-                    <label for="pv-search-query" class="form-label">Search</label>
-                    <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
-                    placeholder="e.g., pikachu or SWSH101" aria-controls="pv-search-results" />
+        <section class="pv-section container pv-searchTools" aria-labelledby="pv-search-tools-title">
+            <div class="pv-searchTools__head">
+                <div>
+                    <h2 id="pv-search-tools-title" class="pv-section__title">Search Workspace</h2>
+                    <p class="pv-section__text">Filter quickly, compare market lines, and save cards to your watchlist.</p>
                 </div>
-                <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-series" class="form-label">Series</label>
-                    <select id="pv-search-series" name="pv-search-series" class="form-select" aria-label="Filter sets by series">
-                        <option value="">Choose a series</option>
-                    </select>
+                <div class="pv-cta pv-searchTools__actions" role="group" aria-label="Search shortcuts">
+                    <a class="pv-button pv-button--secondary btn" href="dex.html">Open Dex</a>
+                    <a class="pv-button pv-button--secondary btn" href="sealed.html">Open Sealed</a>
                 </div>
-                <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-set" class="form-label">Set (Optional)</label>
-                    <select id="pv-search-set" name="pv-search-set" class="form-select" aria-label="Choose a set" disabled>
-                        <option value="">Choose a set</option>
-                    </select>
-                </div>
-                <div class="col-12 pv-search-actions">
-                    <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                    <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
-                    <details id="pv-condition-filter" class="pv-conditionFilter">
-                        <summary id="pv-condition-toggle" class="pv-conditionFilter__summary">
-                            <span>Conditions:</span>
-                            <span id="pv-condition-summary">NM</span>
-                        </summary>
-                        <div id="pv-condition-menu" class="pv-conditionFilter__menu" role="group" aria-label="Card conditions to display in price lines">
-                            <label class="pv-conditionFilter__option">
-                                <input type="checkbox" name="pv-condition-filter" value="NM" checked />
-                                NM (Near Mint)
-                            </label>
-                            <label class="pv-conditionFilter__option">
-                                <input type="checkbox" name="pv-condition-filter" value="LP" />
-                                LP (Lightly Played)
-                            </label>
-                            <label class="pv-conditionFilter__option">
-                                <input type="checkbox" name="pv-condition-filter" value="MP" />
-                                MP (Moderately Played)
-                            </label>
-                            <label class="pv-conditionFilter__option">
-                                <input type="checkbox" name="pv-condition-filter" value="OTHER" />
-                                Other Conditions
-                            </label>
-                        </div>
-                    </details>
-                </div>
-            </form>
+            </div>
+        </section>
 
-            <div id="pv-search-sort" class="pv-sortRow" role="group" aria-label="Sort search results">
-                <button id="pv-search-sort-name" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Name: A-Z</button>
-                <button id="pv-search-sort-value" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Value: High-Low</button>
+        <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
+            <div class="pv-searchPanel">
+                <form id="pv-search-form" class="pv-form row g-3" role="search">
+                    <div class="pv-form__field col-12 col-md-6 col-lg-5">
+                        <label for="pv-search-query" class="form-label">Search</label>
+                        <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
+                        placeholder="e.g., pikachu or SWSH101" aria-controls="pv-search-results" />
+                    </div>
+                    <div class="pv-form__field col-12 col-md-6">
+                        <label for="pv-search-series" class="form-label">Series</label>
+                        <select id="pv-search-series" name="pv-search-series" class="form-select" aria-label="Filter sets by series">
+                            <option value="">Choose a series</option>
+                        </select>
+                    </div>
+                    <div class="pv-form__field col-12 col-md-6">
+                        <label for="pv-search-set" class="form-label">Set (Optional)</label>
+                        <select id="pv-search-set" name="pv-search-set" class="form-select" aria-label="Choose a set" disabled>
+                            <option value="">Choose a set</option>
+                        </select>
+                    </div>
+                    <div class="col-12 pv-search-actions">
+                        <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+                        <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                        <details id="pv-condition-filter" class="pv-conditionFilter">
+                            <summary id="pv-condition-toggle" class="pv-conditionFilter__summary">
+                                <span>Conditions:</span>
+                                <span id="pv-condition-summary">NM</span>
+                            </summary>
+                            <div id="pv-condition-menu" class="pv-conditionFilter__menu" role="group" aria-label="Card conditions to display in price lines">
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="NM" checked />
+                                    NM (Near Mint)
+                                </label>
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="LP" />
+                                    LP (Lightly Played)
+                                </label>
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="MP" />
+                                    MP (Moderately Played)
+                                </label>
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="OTHER" />
+                                    Other Conditions
+                                </label>
+                            </div>
+                        </details>
+                    </div>
+                </form>
+
+                <div id="pv-search-sort" class="pv-sortRow" role="group" aria-label="Sort search results">
+                    <button id="pv-search-sort-name" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Name: A-Z</button>
+                    <button id="pv-search-sort-value" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Value: High-Low</button>
+                </div>
+
+                <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
+                </div>
+
+                <section id="pv-search-results" class="pv-section pv-searchResults" aria-labelledby="pv-search-results-title">
+                    <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
+                    <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
+                        <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
+                        <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
+                    </div>
+                    <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
+                    <div class="pv-loadMoreWrap">
+                        <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
+                    </div>
+                </section>
             </div>
 
-            <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
-            </div>
-
-            <section id="pv-search-results" class="pv-section" aria-labelledby="pv-search-results-title">
-                <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
-                <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
-                    <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
-                    <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
-                </div>
-                <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
-                <div class="pv-loadMoreWrap">
-                    <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
-                </div>
-            </section>
-
-            <section id="pv-favorites" class="pv-section" aria-labelledby="pv-favorites-title">
+            <section id="pv-favorites" class="pv-section pv-searchWatchlist" aria-labelledby="pv-favorites-title">
                 <div class="pv-section__header">
                     <h2 id="pv-favorites-title" class="pv-section__title">Watchlist <span id="pv-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
                     <div>
