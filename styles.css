@@ -563,6 +563,23 @@ body {
   box-shadow: 0 8px 20px rgba(255, 203, 5, 0.2);
 }
 
+.pv-shareLinkRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.pv-shareLinkInput {
+  font-family: "Space Grotesk", "Segoe UI", Roboto, sans-serif;
+  font-size: 0.88rem;
+}
+
+.pv-accountPage #pv-dex-share-status {
+  margin-top: 0.45rem;
+  color: #dbeafe;
+}
+
 @media (max-width: 640px) {
   .pv-accountHero {
     border-radius: 16px;
@@ -590,6 +607,10 @@ body {
 
   .pv-authActions .pv-button {
     flex-basis: 100%;
+  }
+
+  .pv-shareLinkRow {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2781,6 +2802,83 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     grid-row: 2;
     justify-self: end;
     margin-left: 0;
+  }
+}
+
+/* Shared collection page */
+#pv-shared-body .pv-main {
+  position: relative;
+  overflow: hidden;
+}
+
+#pv-shared-body .pv-main::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: min(62vh, 520px);
+  background:
+    radial-gradient(circle at 14% 20%, rgba(255, 203, 5, 0.16) 0%, rgba(255, 203, 5, 0) 42%),
+    radial-gradient(circle at 86% 10%, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0) 44%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#pv-shared-body .pv-hero,
+#pv-shared-body .pv-section {
+  position: relative;
+  z-index: 1;
+}
+
+#pv-shared-body .pv-sharedHero {
+  margin-top: 1.3rem;
+  padding: clamp(1.2rem, 2.8vw, 1.9rem);
+  border: 1px solid rgba(255, 203, 5, 0.28);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(255, 203, 5, 0.14) 0%, rgba(255, 203, 5, 0.03) 26%, rgba(15, 23, 42, 0.22) 100%),
+    rgba(5, 5, 5, 0.85);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42);
+  animation: pv-dex-fade-up 460ms ease both;
+}
+
+#pv-shared-body .pv-sharedHero__eyebrow {
+  margin: 0 0 0.45rem;
+  color: #ffe588;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-weight: 800;
+}
+
+#pv-shared-body .pv-sharedStatus {
+  margin: 0.3rem 0 0;
+  color: #dbeafe;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card {
+  border-color: var(--pv-border);
+  background: var(--pv-surface-2);
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__img {
+  background: #070707;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__text {
+  margin: 0.18rem 0;
+}
+
+#pv-shared-body .pv-sharedConditionText {
+  margin-top: 0.45rem;
+  color: #cbd5e1;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 767.98px) {
+  #pv-shared-body .pv-sharedHero {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 18px;
   }
 }
 

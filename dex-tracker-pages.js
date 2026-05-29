@@ -1062,6 +1062,7 @@
         const fallbackVariant = getDefaultVariantNameForCard(raw);
         const variantQuantities = normalizeVariantQuantities(raw?.variantQuantities, fallbackVariant, totalCopies);
         const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
+        const cardNumber = getCardDisplayNumber(raw);
         const addedAt = Number(raw?.addedAt || 0);
         const updatedAt = Number(raw?.updatedAt || 0);
 
@@ -1069,6 +1070,8 @@
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             rarity: safeString(raw?.rarity, ''),
+            card_no: cardNumber,
+            number: cardNumber,
             expansion: (raw?.expansion && typeof raw.expansion === 'object') ? raw.expansion : null,
             set: (raw?.set && typeof raw.set === 'object') ? raw.set : null,
             images: Array.isArray(raw?.images) ? raw.images : [],
@@ -1470,11 +1473,20 @@
         return out;
     }
 
+    function extractCardNumberFromId(cardId) {
+        const id = safeString(cardId, '').trim();
+        if (!id) return '';
+        const parts = id.split('-').map((part) => safeString(part, '').trim()).filter(Boolean);
+        if (parts.length < 2) return '';
+        return parts[parts.length - 1];
+    }
+
     function getCardDisplayNumber(cardLike) {
-        const cardNo = safeString(cardLike?.card_no, '');
+        const cardNo = safeString(cardLike?.card_no ?? cardLike?.cardNo ?? cardLike?.cardNumber ?? cardLike?.collectorNumber, '').trim();
         if (cardNo) return cardNo;
-        const number = safeString(cardLike?.number, '');
-        return number;
+        const number = safeString(cardLike?.number ?? cardLike?.card_number, '').trim();
+        if (number) return number;
+        return extractCardNumberFromId(cardLike?.id);
     }
 
     function splitCardVariants(setCard, collectedCard) {

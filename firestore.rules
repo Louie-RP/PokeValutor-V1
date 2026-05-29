@@ -33,6 +33,32 @@ service cloud.firestore {
         && request.resource.data.updatedAtServer is timestamp;
     }
 
+    function isValidShareToken(token) {
+      return token is string
+        && token.size() >= 16
+        && token.size() <= 128
+        && token.matches('^[A-Za-z0-9_-]+$');
+    }
+
+    function isValidSharedDexDoc(shareToken) {
+      return request.resource.data.keys().hasOnly([
+          'enabled',
+          'ownerUid',
+          'collection',
+          'updatedAt',
+          'updatedAtServer',
+          'disabledAtServer'
+        ])
+        && request.resource.data.keys().hasAll(['enabled', 'ownerUid', 'collection', 'updatedAt'])
+        && request.resource.data.enabled is bool
+        && request.resource.data.ownerUid is string
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.collection is list
+        && (request.resource.data.updatedAt is int || request.resource.data.updatedAt is float)
+        && request.resource.data.updatedAt > 0
+        && isValidShareToken(shareToken);
+    }
+
     // Optional user profile doc.
     match /users/{userId} {
       allow read, create, update, delete: if isOwner(userId);
@@ -52,6 +78,17 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId) && isValidDexState();
       allow delete: if isOwner(userId);
+    }
+
+    // Public, token-based snapshot for shared read-only collection views.
+    match /dexShared/{shareToken} {
+      allow read: if resource.data.enabled == true && isValidShareToken(shareToken);
+      allow create: if isSignedIn() && isValidSharedDexDoc(shareToken);
+      allow update: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && isValidSharedDexDoc(shareToken);
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
     // Deny everything else by default.

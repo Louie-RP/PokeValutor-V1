@@ -27,6 +27,9 @@
             removeWatchlistItem: async () => { },
             loadDexState: async () => ({ collection: [], masterSets: {} }),
             saveDexState: async () => { },
+            loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
+            saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
+            loadSharedDexCollection: async () => ({ collection: [] }),
         };
         return;
     }
@@ -55,6 +58,9 @@
             removeWatchlistItem: async () => { },
             loadDexState: async () => ({ collection: [], masterSets: {} }),
             saveDexState: async () => { },
+            loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
+            saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
+            loadSharedDexCollection: async () => ({ collection: [] }),
         };
         return;
     }
@@ -156,6 +162,16 @@
         const root = userRootRef(user.uid);
         if (!root) return;
 
+        let shareToken = '';
+        try {
+            const profileSnap = await root.get();
+            if (profileSnap && profileSnap.exists) {
+                shareToken = normalizeShareToken(profileSnap.data()?.dexShareToken);
+            }
+        } catch {
+            // ignore
+        }
+
         const trackedCollections = ['cardWatchlist', 'sealedWatchlist', 'cardFavorites', 'sealedFavorites'];
         for (const name of trackedCollections) {
             try {
@@ -175,6 +191,17 @@
             await root.collection('dex').doc('state').delete();
         } catch {
             // ignore
+        }
+
+        if (shareToken) {
+            try {
+                const sharedRef = dexSharedDocRef(shareToken);
+                if (sharedRef) {
+                    await sharedRef.delete();
+                }
+            } catch {
+                // ignore
+            }
         }
 
         try {
@@ -346,6 +373,207 @@
         return root.collection('dex').doc('state');
     }
 
+    function dexSharedDocRef(token) {
+        if (!db) return null;
+        return db.collection('dexShared').doc(String(token || ''));
+    }
+
+    const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
+
+    const dexShareSettingsCache = {
+        uid: '',
+        loaded: false,
+        enabled: false,
+        token: '',
+    };
+
+    function normalizeShareToken(value) {
+        const token = String(value || '').trim();
+        return SHARE_TOKEN_REGEX.test(token) ? token : '';
+    }
+
+    function randomShareToken() {
+        const bytes = new Uint8Array(18);
+        try {
+            const cryptoObj = window.crypto || window.msCrypto;
+            if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+                cryptoObj.getRandomValues(bytes);
+            } else {
+                for (let i = 0; i < bytes.length; i += 1) {
+                    bytes[i] = Math.floor(Math.random() * 256);
+                }
+            }
+        } catch {
+            for (let i = 0; i < bytes.length; i += 1) {
+                bytes[i] = Math.floor(Math.random() * 256);
+            }
+        }
+
+        let base64 = '';
+        for (let i = 0; i < bytes.length; i += 1) {
+            base64 += String.fromCharCode(bytes[i]);
+        }
+
+        return btoa(base64)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/g, '');
+    }
+
+    function buildDexShareUrlFromToken(token) {
+        const safeToken = normalizeShareToken(token);
+        if (!safeToken) return '';
+
+        const pageUrl = new URL('shared-collection.html', window.location.href);
+        pageUrl.searchParams.set('share', safeToken);
+        return pageUrl.href;
+    }
+
+    function buildDexShareSettingsResult(enabled, token) {
+        const safeToken = normalizeShareToken(token);
+        const canShare = Boolean(enabled) && Boolean(safeToken);
+        return {
+            enabled: canShare,
+            token: safeToken,
+            shareUrl: canShare ? buildDexShareUrlFromToken(safeToken) : '',
+        };
+    }
+
+    function normalizeDexShareSettings(raw) {
+        const token = normalizeShareToken(raw?.token || raw?.dexShareToken);
+        const enabled = Boolean(raw?.enabled ?? raw?.dexShareEnabled) && Boolean(token);
+        return { enabled, token };
+    }
+
+    function cacheDexShareSettings(uid, settings) {
+        dexShareSettingsCache.uid = String(uid || '');
+        dexShareSettingsCache.loaded = true;
+        dexShareSettingsCache.enabled = Boolean(settings?.enabled);
+        dexShareSettingsCache.token = normalizeShareToken(settings?.token);
+    }
+
+    async function loadDexShareSettingsFromProfile(forceRefresh) {
+        const user = getUser();
+        if (!user || !db) return { enabled: false, token: '' };
+
+        const uid = String(user.uid || '');
+        if (!uid) return { enabled: false, token: '' };
+
+        if (!forceRefresh && dexShareSettingsCache.loaded && dexShareSettingsCache.uid === uid) {
+            return {
+                enabled: dexShareSettingsCache.enabled,
+                token: dexShareSettingsCache.token,
+            };
+        }
+
+        const root = userRootRef(uid);
+        if (!root) return { enabled: false, token: '' };
+
+        try {
+            const snap = await root.get();
+            const data = snap && snap.exists ? snap.data() : null;
+            const settings = normalizeDexShareSettings(data || {});
+            cacheDexShareSettings(uid, settings);
+            return settings;
+        } catch {
+            return { enabled: false, token: '' };
+        }
+    }
+
+    async function syncSharedDexSnapshotForUser(uid, settings, collection) {
+        const ownerUid = String(uid || '').trim();
+        const token = normalizeShareToken(settings?.token);
+        if (!ownerUid || !token) return;
+
+        const ref = dexSharedDocRef(token);
+        if (!ref) return;
+
+        const canShare = Boolean(settings?.enabled);
+        const safeCollection = Array.isArray(collection) ? collection : [];
+
+        const payload = {
+            enabled: canShare,
+            ownerUid,
+            collection: canShare ? safeCollection : [],
+            updatedAt: Date.now(),
+            updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
+        };
+
+        if (!canShare) {
+            payload.disabledAtServer = window.firebase.firestore.FieldValue.serverTimestamp();
+        }
+
+        await ref.set(payload, { merge: true });
+    }
+
+    async function loadDexShareSettings() {
+        const settings = await loadDexShareSettingsFromProfile(false);
+        return buildDexShareSettingsResult(settings.enabled, settings.token);
+    }
+
+    async function saveDexShareSettings(payload) {
+        const user = getUser();
+        if (!user || !db) throw new Error('Sign in before changing sharing settings.');
+
+        const uid = String(user.uid || '');
+        if (!uid) throw new Error('User session missing UID.');
+
+        const root = userRootRef(uid);
+        if (!root) throw new Error('Firestore unavailable.');
+
+        const requestedEnabled = Boolean(payload?.enabled);
+        const providedToken = normalizeShareToken(payload?.token);
+        const current = await loadDexShareSettingsFromProfile(false);
+        const token = providedToken || current.token || randomShareToken();
+        const settings = {
+            enabled: requestedEnabled && Boolean(token),
+            token,
+        };
+
+        await root.set({
+            dexShareEnabled: settings.enabled,
+            dexShareToken: settings.token,
+            dexShareUpdatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        cacheDexShareSettings(uid, settings);
+
+        const dexState = await loadDexState();
+        await syncSharedDexSnapshotForUser(uid, settings, dexState.collection);
+
+        return buildDexShareSettingsResult(settings.enabled, settings.token);
+    }
+
+    async function loadSharedDexCollection(tokenRaw) {
+        const token = normalizeShareToken(tokenRaw);
+        if (!token || !db) throw new Error('Invalid share link.');
+
+        const ref = dexSharedDocRef(token);
+        if (!ref) throw new Error('Shared collection is unavailable right now.');
+
+        try {
+            const snap = await ref.get();
+            if (!snap.exists) {
+                throw new Error('This collection is not currently shared.');
+            }
+
+            const data = snap.data();
+            const enabled = Boolean(data?.enabled);
+            if (!enabled) {
+                throw new Error('This collection is not currently shared.');
+            }
+
+            const collection = Array.isArray(data?.collection) ? data.collection : [];
+            return { collection };
+        } catch (error) {
+            const code = String(error?.code || '').toLowerCase();
+            if (code === 'permission-denied') {
+                throw new Error('This collection is not currently shared.');
+            }
+            throw error;
+        }
+    }
+
     async function loadDexState() {
         const user = getUser();
         if (!user || !db) return { collection: [], masterSets: {} };
@@ -379,6 +607,13 @@
             updatedAt: Date.now(),
             updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
+
+        try {
+            const settings = await loadDexShareSettingsFromProfile(false);
+            await syncSharedDexSnapshotForUser(user.uid, settings, collection);
+        } catch {
+            // ignore share-sync failures so Dex save still succeeds
+        }
     }
 
     window.PV_AUTH = {
@@ -403,5 +638,8 @@
         removeWatchlistItem,
         loadDexState,
         saveDexState,
+        loadDexShareSettings,
+        saveDexShareSettings,
+        loadSharedDexCollection,
     };
 })();

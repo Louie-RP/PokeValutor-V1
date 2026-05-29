@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="View a shared read-only Pokemon TCG collection from PokeValutor." />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta property="og:title" content="Shared Collection | PokeValutor" />
+    <meta property="og:description" content="View a shared read-only Pokemon TCG collection from PokeValutor." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.pokevaluator.com/shared-collection.html" />
+    <meta property="og:image" content="https://www.pokevaluator.com/og/dex.png" />
+    <meta property="og:image:alt" content="PokeValutor shared collection preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Shared Collection | PokeValutor" />
+    <meta name="twitter:description" content="View a shared read-only Pokemon TCG collection from PokeValutor." />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/og/dex.png" />
+    <title>Shared Collection | PokeValutor</title>
+    <link rel="canonical" href="https://www.pokevaluator.com/shared-collection.html" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-05-29-10" />
+    <link rel="icon" href="PokeValuator.png" type="image/png">
+</head>
+
+<body id="pv-shared-body" class="pv-body">
+    <a class="pv-skiplink" href="#pv-shared-main">Skip to content</a>
+
+    <header class="pv-header" role="banner">
+        <div class="pv-header__inner" aria-label="Site header">
+            <a class="pv-brand" href="index.html" aria-label="Back to home">PokeValutor</a>
+            <button class="pv-navToggle" aria-expanded="false" aria-controls="pv-shared-nav" aria-label="Toggle navigation">
+                <span class="pv-navToggle__bar" aria-hidden="true"></span>
+                <span class="pv-navToggle__bar" aria-hidden="true"></span>
+                <span class="pv-navToggle__bar" aria-hidden="true"></span>
+            </button>
+            <nav id="pv-shared-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
+                <ul class="pv-nav__list">
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="pv-shared-main" class="pv-main" role="main">
+        <section class="pv-hero container pv-sharedHero" aria-labelledby="pv-shared-title">
+            <p class="pv-sharedHero__eyebrow">Read-only Link</p>
+            <h1 id="pv-shared-title" class="pv-hero__title">Shared Collection</h1>
+            <p class="pv-hero__subtitle">This view is read-only. Only the owner can update this collection.</p>
+            <p id="pv-shared-status" class="pv-section__text pv-sharedStatus" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="pv-section container" aria-labelledby="pv-shared-collection-title">
+            <div class="pv-section__header">
+                <h2 id="pv-shared-collection-title" class="pv-section__title">Collection</h2>
+            </div>
+            <p id="pv-shared-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Total copies: 0</p>
+            <div id="pv-shared-sort" class="pv-sortRow" role="group" aria-label="Sort shared collection">
+                <label for="pv-shared-sort-select" class="form-label pv-sortLabel">Sort</label>
+                <select id="pv-shared-sort-select" class="form-select pv-sortSelect" aria-label="Sort shared collection">
+                    <option value="value-desc" selected>High-Low</option>
+                    <option value="value-asc">Low-High</option>
+                    <option value="name-asc">A-Z</option>
+                    <option value="name-desc">Z-A</option>
+                </select>
+            </div>
+            <div class="pv-collectionFilterRow" role="search" aria-label="Filter shared collection">
+                <label for="pv-shared-filter" class="form-label">Find a card</label>
+                <input id="pv-shared-filter" class="form-control" type="search" placeholder="Search by card name, set, number, or id" autocomplete="off" />
+            </div>
+            <p id="pv-shared-summary" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading shared collection...</p>
+            <div id="pv-shared-grid" class="row g-3" aria-label="Shared collection grid"></div>
+        </section>
+    </main>
+
+    <footer class="pv-footer" role="contentinfo">
+        <div class="pv-footer__inner">
+            <p class="pv-footer__text">&copy; <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
+            <ul class="pv-footer__links" aria-label="Footer links">
+                <li><a href="policies.html#pv-privacyPolicy">Privacy</a></li>
+                <li><a href="policies.html#pv-termsOfUse">Terms</a></li>
+                <li><a href="policies.html#pv-accessibility">Accessibility</a></li>
+                <li><a href="contact.html">Contact</a></li>
+            </ul>
+        </div>
+    </footer>
+
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">&#9650;</button>
+
+    <script src="script.js" defer></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+
+    <script src="firebase-config.js" defer></script>
+    <script src="firebase-config.local.js" defer></script>
+    <script src="firebase.js" defer></script>
+    <script src="shared-collection.js?v=2026-05-29-4" defer></script>
+</body>
+
+</html>

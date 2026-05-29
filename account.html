@@ -173,6 +173,23 @@
                         <p id="pv-dex-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                     </div>
 
+                    <div id="pv-dex-share-panel" class="pv-adminToolsPanel" hidden>
+                        <h3 class="pv-section__title">Collection Sharing</h3>
+                        <p class="pv-section__text pv-authSmall">Share a read-only link to your collection. Visitors can view cards and copies but cannot edit anything.</p>
+                        <div class="form-check">
+                            <input id="pv-dex-share-enabled" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label pv-section__text pv-authSmall" for="pv-dex-share-enabled">Allow read-only sharing for my collection</label>
+                        </div>
+                        <div class="pv-authField">
+                            <label class="form-label" for="pv-dex-share-link">Share link</label>
+                            <div class="pv-shareLinkRow">
+                                <input id="pv-dex-share-link" class="form-control pv-shareLinkInput" type="text" readonly placeholder="Enable sharing to generate a link" />
+                                <button id="pv-dex-share-copy" class="pv-button pv-button--secondary btn" type="button" disabled>Copy link</button>
+                            </div>
+                        </div>
+                        <p id="pv-dex-share-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                    </div>
+
                     <div id="pv-admin-panel" class="pv-authDivider" aria-hidden="true" hidden></div>
                     <div id="pv-admin-tools" class="pv-adminToolsPanel" hidden>
                         <h3 class="pv-section__title">Admin</h3>

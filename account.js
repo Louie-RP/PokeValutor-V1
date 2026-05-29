@@ -42,6 +42,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const dexStatusEl = document.getElementById('pv-dex-status');
     const dexClearCollectionBtn = document.getElementById('pv-dex-clear-collection');
     const dexClearMasterSetsBtn = document.getElementById('pv-dex-clear-master-sets');
+    const dexSharePanelEl = document.getElementById('pv-dex-share-panel');
+    const dexShareEnabledEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-dex-share-enabled'));
+    const dexShareLinkEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-dex-share-link'));
+    const dexShareCopyBtn = document.getElementById('pv-dex-share-copy');
+    const dexShareStatusEl = document.getElementById('pv-dex-share-status');
     const localDexPanelEl = document.getElementById('pv-local-dex-panel');
     const localDexStatusEl = document.getElementById('pv-local-dex-status');
     const localDexGuardEl = document.getElementById('pv-local-dex-guard');
@@ -56,6 +61,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const HOME_LATEST_EXPANSIONS_CACHE_PREFIX = 'pv:expansions:latestEnglish:';
     let localDexPanelVisible = false;
     let localDexBusy = false;
+    let dexShareBusy = false;
+    let dexShareUiSyncing = false;
+    let dexShareState = {
+        enabled: false,
+        token: '',
+        shareUrl: '',
+    };
 
     // Temporary diagnostics helper for startup/auth setup issues.
     const ENABLE_AUTH_SELF_CHECK = true;
@@ -210,6 +222,180 @@ document.addEventListener('DOMContentLoaded', function () {
         if (dexPanelEl) dexPanelEl.hidden = !show;
         setDexButtonsDisabled(!show);
         if (!show) setDexStatus('');
+    }
+
+    function normalizeDexShareState(raw) {
+        const token = String(raw?.token || '').trim();
+        const shareUrl = String(raw?.shareUrl || '').trim();
+        const enabled = Boolean(raw?.enabled) && Boolean(token) && Boolean(shareUrl);
+        return { enabled, token, shareUrl };
+    }
+
+    function setDexShareStatus(msg) {
+        if (!dexShareStatusEl) return;
+        dexShareStatusEl.textContent = String(msg || '');
+    }
+
+    function applyDexShareUiState() {
+        dexShareUiSyncing = true;
+        const hasLink = Boolean(dexShareState?.shareUrl);
+        const sharingEnabled = Boolean(dexShareState?.enabled && hasLink);
+
+        if (dexShareEnabledEl instanceof HTMLInputElement) {
+            dexShareEnabledEl.checked = sharingEnabled;
+            dexShareEnabledEl.disabled = dexShareBusy;
+        }
+
+        if (dexShareLinkEl instanceof HTMLInputElement) {
+            dexShareLinkEl.value = hasLink ? dexShareState.shareUrl : '';
+            dexShareLinkEl.placeholder = sharingEnabled
+                ? 'Your share link is ready'
+                : 'Enable sharing to generate a link';
+        }
+
+        if (dexShareCopyBtn instanceof HTMLButtonElement) {
+            dexShareCopyBtn.disabled = dexShareBusy || !sharingEnabled || !hasLink;
+        }
+
+        dexShareUiSyncing = false;
+    }
+
+    function setDexShareBusy(isBusy) {
+        dexShareBusy = !!isBusy;
+        applyDexShareUiState();
+    }
+
+    function setDexShareVisible(isVisible) {
+        const show = !!isVisible;
+        if (dexSharePanelEl) dexSharePanelEl.hidden = !show;
+
+        if (!show) {
+            dexShareState = {
+                enabled: false,
+                token: '',
+                shareUrl: '',
+            };
+            dexShareBusy = false;
+            setDexShareStatus('');
+        }
+
+        applyDexShareUiState();
+    }
+
+    async function copyTextToClipboard(text) {
+        const value = String(text || '');
+        if (!value) return false;
+
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(value);
+                return true;
+            }
+        } catch {
+            // ignore and fall back
+        }
+
+        try {
+            const el = document.createElement('textarea');
+            el.value = value;
+            el.setAttribute('readonly', 'readonly');
+            el.style.position = 'absolute';
+            el.style.left = '-9999px';
+            document.body.appendChild(el);
+            el.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(el);
+            return Boolean(ok);
+        } catch {
+            return false;
+        }
+    }
+
+    function getDexShareErrorMessage(error, fallback) {
+        const code = String(error?.code || '').trim().toLowerCase();
+        const message = String(error?.message || '').trim();
+        const lower = message.toLowerCase();
+
+        if (code === 'permission-denied' || lower.includes('missing or insufficient permissions')) {
+            return 'Collection sharing is blocked by Firestore rules. Deploy the latest firestore.rules and try again.';
+        }
+
+        return message || String(fallback || 'Could not update collection sharing.');
+    }
+
+    async function refreshDexShareSettings() {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.loadDexShareSettings) {
+            setDexShareStatus('Collection sharing is unavailable right now.');
+            return;
+        }
+
+        setDexShareBusy(true);
+        setDexShareStatus('Loading sharing settings...');
+
+        try {
+            const settings = await authApi.loadDexShareSettings();
+            dexShareState = normalizeDexShareState(settings);
+            applyDexShareUiState();
+
+            if (dexShareState.enabled) {
+                setDexShareStatus('Sharing is on. Anyone with your link can view your collection in read-only mode.');
+            } else {
+                setDexShareStatus('Sharing is currently off. Existing shared links are disabled.');
+            }
+        } catch (error) {
+            setDexShareStatus(getDexShareErrorMessage(error, 'Could not load collection sharing settings.'));
+        } finally {
+            setDexShareBusy(false);
+        }
+    }
+
+    async function updateDexShareEnabled(nextEnabled) {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.saveDexShareSettings) {
+            setDexShareStatus('Collection sharing is unavailable right now.');
+            return;
+        }
+
+        const prevState = { ...dexShareState };
+        setDexShareBusy(true);
+        setDexShareStatus(nextEnabled
+            ? 'Enabling sharing and preparing your read-only link...'
+            : 'Disabling sharing...');
+
+        try {
+            const saved = await authApi.saveDexShareSettings({
+                enabled: Boolean(nextEnabled),
+                token: prevState.token,
+            });
+            dexShareState = normalizeDexShareState(saved);
+            applyDexShareUiState();
+
+            if (dexShareState.enabled) {
+                setDexShareStatus('Sharing enabled. Your read-only link is active.');
+            } else {
+                setDexShareStatus('Sharing disabled. Anyone with the old link will now see that sharing is off.');
+            }
+        } catch (error) {
+            dexShareState = prevState;
+            applyDexShareUiState();
+            setDexShareStatus(getDexShareErrorMessage(error, 'Could not update collection sharing.'));
+        } finally {
+            setDexShareBusy(false);
+        }
+    }
+
+    async function copyDexShareLink() {
+        const link = String(dexShareState?.shareUrl || '').trim();
+        if (!dexShareState?.enabled || !link) {
+            setDexShareStatus('Enable sharing first to copy your link.');
+            return;
+        }
+
+        const copied = await copyTextToClipboard(link);
+        setDexShareStatus(copied
+            ? 'Share link copied to clipboard.'
+            : 'Unable to copy link on this browser.');
     }
 
     function setLocalDexStatus(msg) {
@@ -656,6 +842,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setAuthViewMode(false);
     setDexVisible(false);
+    setDexShareVisible(false);
     setLocalDexVisible(false);
 
     if (!window.PV_AUTH || !window.PV_AUTH.onAuthStateChanged) {
@@ -676,6 +863,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setAdminVisible(false);
             setBillingVisible(false);
             setDexVisible(false);
+            setDexShareVisible(false);
             setLocalDexVisible(true);
             setLocalDexStatus('Safety lock on. Check the acknowledgment box to enable local clear actions.');
             setProfileSignedOut();
@@ -691,6 +879,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = false;
         setBillingVisible(true);
         setDexVisible(true);
+        setDexShareVisible(true);
+        void refreshDexShareSettings();
         setLocalDexVisible(false);
         applyCheckoutStatusFromUrl();
         refreshBillingStatus();
@@ -943,6 +1133,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 successMessage: 'Local master sets cleared on this browser only.',
                 clearAction: clearLocalDexMasterSetsState,
             });
+        });
+    }
+
+    if (dexShareEnabledEl instanceof HTMLInputElement) {
+        dexShareEnabledEl.addEventListener('change', () => {
+            if (dexShareUiSyncing) return;
+            void updateDexShareEnabled(dexShareEnabledEl.checked);
+        });
+    }
+
+    if (dexShareCopyBtn) {
+        dexShareCopyBtn.addEventListener('click', () => {
+            void copyDexShareLink();
         });
     }
 

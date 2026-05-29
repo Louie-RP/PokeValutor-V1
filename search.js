@@ -896,6 +896,22 @@ document.addEventListener('DOMContentLoaded', function () {
         return keys[0];
     }
 
+    function extractCardNumberFromId(cardId) {
+        const id = safeString(cardId, '').trim();
+        if (!id) return '';
+        const parts = id.split('-').map((part) => safeString(part, '').trim()).filter(Boolean);
+        if (parts.length < 2) return '';
+        return parts[parts.length - 1];
+    }
+
+    function getCardDisplayNumber(cardLike) {
+        const cardNo = safeString(cardLike?.card_no ?? cardLike?.cardNo ?? cardLike?.cardNumber ?? cardLike?.collectorNumber, '').trim();
+        if (cardNo) return cardNo;
+        const number = safeString(cardLike?.number ?? cardLike?.card_number, '').trim();
+        if (number) return number;
+        return extractCardNumberFromId(cardLike?.id);
+    }
+
     function normalizeDexCollectionCard(card) {
         const conditionQuantities = normalizeConditionQuantities(card?.conditionQuantities, card?.selectedCondition);
         const selectedCondition = getPrimaryConditionCode(conditionQuantities);
@@ -903,12 +919,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const fallbackVariant = getDexDefaultVariantForCard(card);
         const variantQuantities = normalizeVariantQuantities(card?.variantQuantities, fallbackVariant, totalCopies);
         const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
+        const cardNumber = getCardDisplayNumber(card);
         const addedAtRaw = Number(card?.addedAt || 0);
         const updatedAtRaw = Number(card?.updatedAt || 0);
         return {
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
             rarity: safeString(card?.rarity, ''),
+            card_no: cardNumber,
+            number: cardNumber,
             expansion: (card?.expansion && typeof card.expansion === 'object') ? card.expansion : null,
             set: (card?.set && typeof card.set === 'object') ? card.set : null,
             images: Array.isArray(card?.images) ? card.images : [],
