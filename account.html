@@ -103,6 +103,21 @@
                     <p id="pv-auth-form-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                     <p id="pv-auth-form-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
                     <p class="pv-section__text pv-authSmall">By continuing, you agree to our <a class="pv-inlineLink" href="policies.html#pv-termsOfUse">Terms</a> and <a class="pv-inlineLink" href="policies.html#pv-privacyPolicy">Privacy Policy</a>.</p>
+
+                    <div id="pv-local-dex-panel" class="pv-adminToolsPanel" hidden>
+                        <h3 class="pv-section__title">Local Dex Data</h3>
+                        <p class="pv-section__text pv-authSmall">Signed out mode: this only clears Dex data stored in this browser. Cloud data is unchanged.</p>
+                        <p class="pv-section__text pv-authSmall pv-localDexGuardRow">Safety: <span id="pv-local-dex-guard" class="pv-dexSafetyBadge" role="status" aria-live="polite">Safety lock on</span></p>
+                        <div class="form-check">
+                            <input id="pv-local-dex-ack" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label pv-section__text pv-authSmall" for="pv-local-dex-ack">I understand this only affects data on this device.</label>
+                        </div>
+                        <div class="pv-authActions">
+                            <button id="pv-local-dex-clear-collection" class="pv-button pv-button--danger btn" type="button" disabled>Clear Local Collection</button>
+                            <button id="pv-local-dex-clear-master-sets" class="pv-button pv-button--danger btn" type="button" disabled>Clear Local Master Sets</button>
+                        </div>
+                        <p id="pv-local-dex-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                    </div>
                 </article>
 
                 <article id="pv-auth-session-card" class="pv-authCard pv-authCard--session" aria-label="Your session" hidden>
@@ -146,6 +161,16 @@
                             <button id="pv-billing-manage" class="pv-button pv-button--secondary btn" type="button">Manage billing</button>
                         </div>
                         <p id="pv-billing-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                    </div>
+
+                    <div id="pv-dex-panel" class="pv-adminToolsPanel" hidden>
+                        <h3 class="pv-section__title">Dex Data</h3>
+                        <p class="pv-section__text pv-authSmall">These actions permanently remove tracked data from this device and your synced Dex state.</p>
+                        <div class="pv-authActions">
+                            <button id="pv-dex-clear-collection" class="pv-button pv-button--danger btn" type="button">Clear Dex Collection</button>
+                            <button id="pv-dex-clear-master-sets" class="pv-button pv-button--danger btn" type="button">Clear Master Sets</button>
+                        </div>
+                        <p id="pv-dex-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                     </div>
 
                     <div id="pv-admin-panel" class="pv-authDivider" aria-hidden="true" hidden></div>

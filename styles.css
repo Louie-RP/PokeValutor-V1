@@ -492,6 +492,40 @@ body {
   margin-top: 0;
 }
 
+.pv-localDexGuardRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.55rem 0 0.4rem;
+}
+
+.pv-dexSafetyBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.58);
+  background: rgba(127, 29, 29, 0.34);
+  color: #fecaca;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.15rem 0.56rem;
+  letter-spacing: 0.01em;
+}
+
+.pv-dexSafetyBadge.is-armed {
+  border-color: rgba(134, 239, 172, 0.56);
+  background: rgba(22, 101, 52, 0.34);
+  color: #bbf7d0;
+}
+
+.pv-dexSafetyBadge.is-signed-in {
+  border-color: rgba(147, 197, 253, 0.56);
+  background: rgba(30, 64, 175, 0.32);
+  color: #bfdbfe;
+}
+
 .pv-accountSetupNote {
   margin-top: 1rem;
   padding: 0.75rem 0.9rem;

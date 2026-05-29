@@ -36,6 +36,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const googleBtn = document.getElementById('pv-auth-google');
     const signOutBtn = document.getElementById('pv-auth-signout');
     const deleteBtn = document.getElementById('pv-auth-delete');
+    const dexPanelEl = document.getElementById('pv-dex-panel');
+    const dexStatusEl = document.getElementById('pv-dex-status');
+    const dexClearCollectionBtn = document.getElementById('pv-dex-clear-collection');
+    const dexClearMasterSetsBtn = document.getElementById('pv-dex-clear-master-sets');
+    const localDexPanelEl = document.getElementById('pv-local-dex-panel');
+    const localDexStatusEl = document.getElementById('pv-local-dex-status');
+    const localDexGuardEl = document.getElementById('pv-local-dex-guard');
+    const localDexAckEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-local-dex-ack'));
+    const localDexClearCollectionBtn = document.getElementById('pv-local-dex-clear-collection');
+    const localDexClearMasterSetsBtn = document.getElementById('pv-local-dex-clear-master-sets');
+
+    const DEX_CACHE_PREFIX = 'pv:scrydex:';
+    const DEX_COLLECTION_KEY = `${DEX_CACHE_PREFIX}collection:v1`;
+    const DEX_MASTER_SETS_KEY = `${DEX_CACHE_PREFIX}masterSets:v1`;
+    let localDexPanelVisible = false;
+    let localDexBusy = false;
 
     // Temporary diagnostics helper for startup/auth setup issues.
     const ENABLE_AUTH_SELF_CHECK = true;
@@ -143,6 +159,206 @@ document.addEventListener('DOMContentLoaded', function () {
         const isDisabled = !!disabled;
         if (billingSubscribeBtn instanceof HTMLButtonElement) billingSubscribeBtn.disabled = isDisabled;
         if (billingManageBtn instanceof HTMLButtonElement) billingManageBtn.disabled = isDisabled;
+    }
+
+    function setDexStatus(msg) {
+        if (!dexStatusEl) return;
+        dexStatusEl.textContent = String(msg || '');
+    }
+
+    function setDexButtonsDisabled(disabled) {
+        const isDisabled = !!disabled;
+        if (dexClearCollectionBtn instanceof HTMLButtonElement) dexClearCollectionBtn.disabled = isDisabled;
+        if (dexClearMasterSetsBtn instanceof HTMLButtonElement) dexClearMasterSetsBtn.disabled = isDisabled;
+    }
+
+    function setDexVisible(isVisible) {
+        const show = !!isVisible;
+        if (dexPanelEl) dexPanelEl.hidden = !show;
+        setDexButtonsDisabled(!show);
+        if (!show) setDexStatus('');
+    }
+
+    function setLocalDexStatus(msg) {
+        if (!localDexStatusEl) return;
+        localDexStatusEl.textContent = String(msg || '');
+    }
+
+    function isLocalDexSafetyArmed() {
+        return (localDexAckEl instanceof HTMLInputElement) && localDexAckEl.checked;
+    }
+
+    function syncLocalDexControlsState() {
+        const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+        const signedIn = Boolean(user);
+        const armed = isLocalDexSafetyArmed();
+        const canRunLocalClear = localDexPanelVisible && !signedIn && armed && !localDexBusy;
+
+        if (localDexClearCollectionBtn instanceof HTMLButtonElement) {
+            localDexClearCollectionBtn.disabled = !canRunLocalClear;
+        }
+        if (localDexClearMasterSetsBtn instanceof HTMLButtonElement) {
+            localDexClearMasterSetsBtn.disabled = !canRunLocalClear;
+        }
+        if (localDexAckEl instanceof HTMLInputElement) {
+            localDexAckEl.disabled = !localDexPanelVisible || localDexBusy;
+        }
+
+        if (localDexGuardEl) {
+            let guardText = 'Safety lock on';
+            if (signedIn) {
+                guardText = 'Signed-in mode';
+            } else if (armed) {
+                guardText = 'Safety lock off';
+            }
+
+            localDexGuardEl.textContent = guardText;
+            localDexGuardEl.classList.toggle('is-armed', !signedIn && armed);
+            localDexGuardEl.classList.toggle('is-signed-in', signedIn);
+        }
+    }
+
+    function setLocalDexVisible(isVisible) {
+        const show = !!isVisible;
+        if (localDexPanelEl) localDexPanelEl.hidden = !show;
+        localDexPanelVisible = show;
+        if (!show) {
+            setLocalDexStatus('');
+            if (localDexAckEl instanceof HTMLInputElement) localDexAckEl.checked = false;
+        }
+        syncLocalDexControlsState();
+    }
+
+    function setLocalDexBusy(isBusy) {
+        localDexBusy = !!isBusy;
+        syncLocalDexControlsState();
+    }
+
+    function safeParseJson(raw) {
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
+    }
+
+    function readDexCollection() {
+        try {
+            const raw = localStorage.getItem(DEX_COLLECTION_KEY);
+            if (!raw) return [];
+            const parsed = safeParseJson(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function readDexMasterSets() {
+        try {
+            const raw = localStorage.getItem(DEX_MASTER_SETS_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+            return parsed;
+        } catch {
+            return {};
+        }
+    }
+
+    function writeDexCollection(next) {
+        try {
+            localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
+        } catch {
+            // ignore
+        }
+    }
+
+    function writeDexMasterSets(next) {
+        try {
+            const safe = (next && typeof next === 'object' && !Array.isArray(next)) ? next : {};
+            localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function clearLocalDexCollectionState() {
+        writeDexCollection([]);
+        window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
+    }
+
+    function clearLocalDexMasterSetsState() {
+        writeDexMasterSets({});
+        window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
+    }
+
+    function runLocalDexClearAction(options) {
+        function resetLocalDexAcknowledgment() {
+            if (localDexAckEl instanceof HTMLInputElement) {
+                localDexAckEl.checked = false;
+            }
+            syncLocalDexControlsState();
+        }
+
+        const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+        if (user) {
+            setLocalDexStatus('You are signed in. Use the Dex Data controls in your Session card.');
+            return;
+        }
+
+        if (!isLocalDexSafetyArmed()) {
+            setLocalDexStatus('Safety lock is on. Check the acknowledgment box first.');
+            return;
+        }
+
+        const ok = window.confirm(String(options?.confirmMessage || 'Confirm this action.'));
+        if (!ok) {
+            resetLocalDexAcknowledgment();
+            setLocalDexStatus(String(options?.cancelMessage || 'Local Dex clear canceled.'));
+            return;
+        }
+
+        const requiredText = String(options?.requiredText || '').trim().toUpperCase();
+        if (requiredText) {
+            const promptText = String(options?.promptMessage || 'Type the confirmation text to continue.');
+            const confirmText = window.prompt(promptText);
+            if (String(confirmText || '').trim().toUpperCase() !== requiredText) {
+                resetLocalDexAcknowledgment();
+                setLocalDexStatus(String(options?.mismatchMessage || 'Local Dex clear canceled (confirmation text did not match).'));
+                return;
+            }
+        }
+
+        setLocalDexBusy(true);
+        setLocalDexStatus(String(options?.progressMessage || 'Clearing local Dex data...'));
+
+        try {
+            if (typeof options?.clearAction === 'function') {
+                options.clearAction();
+            }
+            setLocalDexStatus(String(options?.successMessage || 'Local Dex data cleared on this browser only.'));
+        } finally {
+            resetLocalDexAcknowledgment();
+            setLocalDexBusy(false);
+        }
+    }
+
+    async function syncDexStateToCloud() {
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user || !authApi?.saveDexState) return false;
+
+        const payload = {
+            collection: readDexCollection(),
+            masterSets: readDexMasterSets(),
+        };
+
+        try {
+            await authApi.saveDexState(payload);
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     function buildAccountUrlWithQuery(name, value) {
@@ -406,10 +622,14 @@ document.addEventListener('DOMContentLoaded', function () {
     setupSensitiveTapReveal();
 
     setAuthViewMode(false);
+    setDexVisible(false);
+    setLocalDexVisible(false);
 
     if (!window.PV_AUTH || !window.PV_AUTH.onAuthStateChanged) {
         setStatus('Firebase not loaded. Check CSP + firebase-config.js');
         setSelfCheck('Setup check: firebase.js did not initialize. Confirm valid config and Firebase scripts are loading.');
+        setLocalDexVisible(true);
+        setLocalDexStatus('Auth is unavailable. You can still clear local Dex data below.');
         setProfileSignedOut();
         return;
     }
@@ -422,6 +642,9 @@ document.addEventListener('DOMContentLoaded', function () {
             setUidText('');
             setAdminVisible(false);
             setBillingVisible(false);
+            setDexVisible(false);
+            setLocalDexVisible(true);
+            setLocalDexStatus('Safety lock on. Check the acknowledgment box to enable local clear actions.');
             setProfileSignedOut();
             if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = true;
             return;
@@ -434,6 +657,8 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSelfCheck();
         if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = false;
         setBillingVisible(true);
+        setDexVisible(true);
+        setLocalDexVisible(false);
         applyCheckoutStatusFromUrl();
         refreshBillingStatus();
 
@@ -575,6 +800,115 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!portalUrl) throw new Error('Stripe billing portal session did not return a URL.');
 
                 window.location.assign(portalUrl);
+            });
+        });
+    }
+
+    if (dexClearCollectionBtn) {
+        dexClearCollectionBtn.addEventListener('click', async () => {
+            const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+            if (!user) {
+                setDexStatus('Sign in to manage Dex data.');
+                return;
+            }
+
+            const ok = window.confirm('Clear your Dex collection? This removes all tracked cards.');
+            if (!ok) {
+                setDexStatus('Dex collection clear canceled.');
+                return;
+            }
+
+            const confirmText = window.prompt('Type CLEAR COLLECTION to confirm.');
+            if (String(confirmText || '').trim().toUpperCase() !== 'CLEAR COLLECTION') {
+                setDexStatus('Dex collection clear canceled (confirmation text did not match).');
+                return;
+            }
+
+            setDexButtonsDisabled(true);
+            setDexStatus('Clearing Dex collection...');
+
+            try {
+                writeDexCollection([]);
+                window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
+                const synced = await syncDexStateToCloud();
+                setDexStatus(synced ? 'Dex collection cleared and synced.' : 'Dex collection cleared on this device. Cloud sync unavailable.');
+            } finally {
+                setDexButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (dexClearMasterSetsBtn) {
+        dexClearMasterSetsBtn.addEventListener('click', async () => {
+            const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+            if (!user) {
+                setDexStatus('Sign in to manage Dex data.');
+                return;
+            }
+
+            const ok = window.confirm('Clear your tracked master sets?');
+            if (!ok) {
+                setDexStatus('Master sets clear canceled.');
+                return;
+            }
+
+            const confirmText = window.prompt('Type CLEAR MASTER SETS to confirm.');
+            if (String(confirmText || '').trim().toUpperCase() !== 'CLEAR MASTER SETS') {
+                setDexStatus('Master sets clear canceled (confirmation text did not match).');
+                return;
+            }
+
+            setDexButtonsDisabled(true);
+            setDexStatus('Clearing master sets...');
+
+            try {
+                writeDexMasterSets({});
+                window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
+                const synced = await syncDexStateToCloud();
+                setDexStatus(synced ? 'Master sets cleared and synced.' : 'Master sets cleared on this device. Cloud sync unavailable.');
+            } finally {
+                setDexButtonsDisabled(false);
+            }
+        });
+    }
+
+    if (localDexAckEl instanceof HTMLInputElement) {
+        localDexAckEl.addEventListener('change', () => {
+            syncLocalDexControlsState();
+            if (localDexAckEl.checked) {
+                setLocalDexStatus('Safety lock off. Choose a local clear action.');
+            } else {
+                setLocalDexStatus('Safety lock on. Check the acknowledgment box to enable local clear actions.');
+            }
+        });
+    }
+
+    if (localDexClearCollectionBtn) {
+        localDexClearCollectionBtn.addEventListener('click', () => {
+            runLocalDexClearAction({
+                confirmMessage: 'Clear local Dex collection on this browser? Cloud data is unchanged.',
+                promptMessage: 'Type CLEAR LOCAL COLLECTION to confirm.',
+                requiredText: 'CLEAR LOCAL COLLECTION',
+                cancelMessage: 'Local collection clear canceled.',
+                mismatchMessage: 'Local collection clear canceled (confirmation text did not match).',
+                progressMessage: 'Clearing local Dex collection...',
+                successMessage: 'Local Dex collection cleared on this browser only.',
+                clearAction: clearLocalDexCollectionState,
+            });
+        });
+    }
+
+    if (localDexClearMasterSetsBtn) {
+        localDexClearMasterSetsBtn.addEventListener('click', () => {
+            runLocalDexClearAction({
+                confirmMessage: 'Clear local master sets on this browser? Cloud data is unchanged.',
+                promptMessage: 'Type CLEAR LOCAL MASTER SETS to confirm.',
+                requiredText: 'CLEAR LOCAL MASTER SETS',
+                cancelMessage: 'Local master sets clear canceled.',
+                mismatchMessage: 'Local master sets clear canceled (confirmation text did not match).',
+                progressMessage: 'Clearing local master sets...',
+                successMessage: 'Local master sets cleared on this browser only.',
+                clearAction: clearLocalDexMasterSetsState,
             });
         });
     }

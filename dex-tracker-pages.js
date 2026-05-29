@@ -1673,7 +1673,6 @@
         const grid = document.getElementById('pv-collection-grid');
         const summary = document.getElementById('pv-collection-summary');
         const totalEl = document.getElementById('pv-collection-total');
-        const clearBtn = document.getElementById('pv-collection-clear');
         const filterInput = document.getElementById('pv-collection-filter');
         if (!grid || !summary || !totalEl) return;
 
@@ -1903,20 +1902,11 @@
             });
         }
 
-        if (clearBtn) {
-            clearBtn.onclick = () => {
-                const ok = window.confirm('Clear all tracked cards?');
-                if (!ok) return;
-                writeCollection([]);
-                renderCollectionPage();
-            };
-        }
     }
 
     function renderMasterSetsPage() {
         const grid = document.getElementById('pv-master-sets-grid');
         const summary = document.getElementById('pv-master-sets-summary');
-        const clearBtn = document.getElementById('pv-master-sets-clear');
         const filterInput = document.getElementById('pv-master-sets-filter');
         if (!grid || !summary) return;
 
@@ -2040,14 +2030,6 @@
             });
         }
 
-        if (clearBtn) {
-            clearBtn.onclick = () => {
-                const ok = window.confirm('Clear all master sets?');
-                if (!ok) return;
-                writeMasterSets({});
-                renderMasterSetsPage();
-            };
-        }
     }
 
     async function renderMasterSetDetailPage() {
