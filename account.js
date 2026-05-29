@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const adminSetRoleBtn = document.getElementById('pv-admin-set-role');
     const adminFillSelfBtn = document.getElementById('pv-admin-fill-self');
     const adminStatusEl = document.getElementById('pv-admin-status');
+    const adminRefreshLatestSetsBtn = document.getElementById('pv-admin-refresh-latest-sets');
+    const adminRefreshLatestSetsStatusEl = document.getElementById('pv-admin-refresh-latest-sets-status');
 
     const billingPanelEl = document.getElementById('pv-billing-panel');
     const billingStatusEl = document.getElementById('pv-billing-status');
@@ -50,6 +52,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${DEX_CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${DEX_CACHE_PREFIX}masterSets:v1`;
+    const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
+    const HOME_LATEST_EXPANSIONS_CACHE_PREFIX = 'pv:expansions:latestEnglish:';
     let localDexPanelVisible = false;
     let localDexBusy = false;
 
@@ -137,11 +141,40 @@ document.addEventListener('DOMContentLoaded', function () {
         if (adminStatusEl) adminStatusEl.textContent = String(msg || '');
     }
 
+    function setAdminRefreshLatestSetsStatus(msg) {
+        if (adminRefreshLatestSetsStatusEl) {
+            adminRefreshLatestSetsStatusEl.textContent = String(msg || '');
+        }
+    }
+
+    function clearHomeLatestSetsCacheEntries() {
+        try {
+            const remove = [];
+            for (let i = 0; i < localStorage.length; i += 1) {
+                const key = localStorage.key(i);
+                if (!key) continue;
+                if (key.startsWith(HOME_URL_CACHE_PREFIX) || key.startsWith(HOME_LATEST_EXPANSIONS_CACHE_PREFIX)) {
+                    remove.push(key);
+                }
+            }
+
+            for (const key of remove) {
+                localStorage.removeItem(key);
+            }
+            return remove.length;
+        } catch {
+            return 0;
+        }
+    }
+
     function setAdminVisible(isVisible) {
         const show = !!isVisible;
         if (adminDivider) adminDivider.hidden = !show;
         if (adminTools) adminTools.hidden = !show;
-        if (!show) setAdminStatus('');
+        if (!show) {
+            setAdminStatus('');
+            setAdminRefreshLatestSetsStatus('');
+        }
     }
 
     function setBillingVisible(isVisible) {
@@ -937,6 +970,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 const result = await window.PV_AUTH.callFunction('setUserRole', { uid: targetUid, role });
                 setAdminStatus(`Role updated: ${String(result?.uid || targetUid).slice(0, 8)}… → ${role}`);
             });
+        });
+    }
+
+    if (adminRefreshLatestSetsBtn) {
+        adminRefreshLatestSetsBtn.addEventListener('click', async () => {
+            const btn = adminRefreshLatestSetsBtn instanceof HTMLButtonElement ? adminRefreshLatestSetsBtn : null;
+            const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+            if (!user) {
+                setAdminRefreshLatestSetsStatus('Sign in as admin to run this action.');
+                return;
+            }
+
+            setAdminRefreshLatestSetsStatus('Working…');
+            if (btn) btn.disabled = true;
+
+            try {
+                const tokenResult = await (window?.PV_AUTH?.getIdTokenResult ? window.PV_AUTH.getIdTokenResult(true) : null);
+                const role = normalizeRoleFromClaims(tokenResult?.claims || null);
+                if (role !== 'admin') {
+                    throw new Error('Admin role is required for this action.');
+                }
+
+                const confirmed = window.confirm('Clear Home latest-sets cache on this browser now? The Home page will refetch fresh data on next load.');
+                if (!confirmed) {
+                    setAdminRefreshLatestSetsStatus('Refresh canceled.');
+                    return;
+                }
+
+                const removedCount = clearHomeLatestSetsCacheEntries();
+                const noun = removedCount === 1 ? 'entry' : 'entries';
+                setAdminRefreshLatestSetsStatus(`Done. Cleared ${removedCount} cache ${noun}. Open Home to fetch fresh latest sets.`);
+            } catch (error) {
+                const message = String(error?.message || 'Could not refresh Home latest sets cache.');
+                setAdminRefreshLatestSetsStatus(message);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         });
     }
 });

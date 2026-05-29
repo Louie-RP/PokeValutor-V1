@@ -108,6 +108,9 @@
   const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
   const HOME_TRENDING_CARD_TTL_MS = 15 * 60 * 1000;
   const HOME_SPOTLIGHTS_TTL_MS = 60 * 60 * 1000;
+  const HOME_LATEST_EXPANSIONS_CACHE_KEY = 'pv:expansions:latestEnglish:v6';
+  const HOME_LATEST_EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  const HOME_LATEST_EXPANSIONS_REVALIDATE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 
   function getWorkerBase() {
     // Keep consistent with search/sealed pages.
@@ -529,8 +532,22 @@
     const LATEST_EXPANSIONS_COUNT = 20;
 
     // Bump this key when filtering/shape changes so old cached results don't linger.
-    const CACHE_KEY = 'pv:expansions:latestEnglish:v4';
-    const TTL_MS = 30 * 24 * 60 * 60 * 1000;
+    const CACHE_KEY = HOME_LATEST_EXPANSIONS_CACHE_KEY;
+    const TTL_MS = HOME_LATEST_EXPANSIONS_TTL_MS;
+    const REVALIDATE_AFTER_MS = HOME_LATEST_EXPANSIONS_REVALIDATE_AFTER_MS;
+
+    function getCacheAgeMs(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return Number.POSITIVE_INFINITY;
+        const parsed = safeParseJson(raw);
+        const savedAt = Number(parsed?.savedAt);
+        if (!Number.isFinite(savedAt)) return Number.POSITIVE_INFINITY;
+        return Math.max(0, Date.now() - savedAt);
+      } catch {
+        return Number.POSITIVE_INFINITY;
+      }
+    }
 
     function isExcludedExpansion(x) {
       const id = String(x?.id || '').toLowerCase();
@@ -584,6 +601,7 @@
         .slice(0, LATEST_EXPANSIONS_COUNT);
     }
 
+    let renderedFromCache = false;
     const cached = cacheGet(CACHE_KEY);
     if (Array.isArray(cached) && cached.length) {
       const cleaned = normalizeExpansions(cached);
@@ -594,20 +612,27 @@
         }
         renderExpansionsList(cleaned);
         void renderLatestSetSpotlights(cleaned);
-        return;
+        renderedFromCache = true;
+
+        // Keep home fast by serving cache first, then refresh periodically.
+        if (getCacheAgeMs(CACHE_KEY) < REVALIDATE_AFTER_MS) {
+          return;
+        }
       }
       // If cached list becomes empty after filtering, fall through to refetch.
     }
 
     // Fallback placeholder (renders immediately if the network is slow).
-    renderExpansionsList([
-      { name: 'Loading expansions…', releaseDate: '', logo: '' },
-      { name: 'Please wait', releaseDate: '', logo: '' },
-      { name: '', releaseDate: '', logo: '' },
-      { name: '', releaseDate: '', logo: '' },
-      { name: '', releaseDate: '', logo: '' },
-      { name: '', releaseDate: '', logo: '' },
-    ]);
+    if (!renderedFromCache) {
+      renderExpansionsList([
+        { name: 'Loading expansions…', releaseDate: '', logo: '' },
+        { name: 'Please wait', releaseDate: '', logo: '' },
+        { name: '', releaseDate: '', logo: '' },
+        { name: '', releaseDate: '', logo: '' },
+        { name: '', releaseDate: '', logo: '' },
+        { name: '', releaseDate: '', logo: '' },
+      ]);
+    }
 
     try {
       const base = getWorkerBase();
@@ -664,6 +689,8 @@
         void renderLatestSetSpotlights(normalized);
       }
     } catch {
+      if (renderedFromCache) return;
+
       // Keep the placeholder if the API fails, but prefer any stale cache.
       const stale = cacheGetStale(CACHE_KEY);
       if (Array.isArray(stale) && stale.length) {
@@ -710,7 +737,7 @@
     }, { passive: false });
   }
 
-  loadLatestEnglishExpansions();
+  void loadLatestEnglishExpansions();
   setupExpansionsMarqueeScrolling();
   void renderTrendingCards();
 })();
