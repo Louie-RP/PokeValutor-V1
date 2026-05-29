@@ -36,6 +36,32 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function normalizeRoleFromClaims(claims) {
+        const role = String(claims?.role || claims?.tier || '').trim().toLowerCase();
+        if (role === 'admin' || role === 'tester' || role === 'premium' || role === 'basic') return role;
+        if (claims?.admin === true) return 'admin';
+        if (claims?.tester === true) return 'tester';
+        if (claims?.premium === true) return 'premium';
+        return 'basic';
+    }
+
+    function isPremiumRole(role) {
+        const normalized = String(role || '').trim().toLowerCase();
+        return normalized === 'admin' || normalized === 'tester' || normalized === 'premium';
+    }
+
+    async function readRoleFromClaims(forceRefresh) {
+        const authApi = window?.PV_AUTH;
+        if (!authApi || typeof authApi.getIdTokenResult !== 'function') return 'basic';
+
+        try {
+            const tokenResult = await authApi.getIdTokenResult(Boolean(forceRefresh));
+            return normalizeRoleFromClaims(tokenResult?.claims || {});
+        } catch {
+            return 'basic';
+        }
+    }
+
     function buildPageUrl(pageName) {
         return new URL(String(pageName || ''), window.location.href);
     }
@@ -220,7 +246,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (typeof authApi.callFunction !== 'function') {
-            setPlanBadges(true, false);
+            const roleFromClaims = await readRoleFromClaims(false);
+            setPlanBadges(true, isPremiumRole(roleFromClaims));
             setPrimaryCtas('Open account', 'account', false);
             setStatus('Billing tools unavailable: Firebase Functions not configured.');
             return;
@@ -250,9 +277,19 @@ document.addEventListener('DOMContentLoaded', function () {
             setPrimaryCtas('Upgrade to Premium', 'subscribe', false);
         } catch (error) {
             const message = String(error?.message || 'Could not load subscription status.');
-            setPlanBadges(true, false);
-            setPrimaryCtas('Open account', 'account', false);
-            setStatus(message);
+            const roleFromClaims = await readRoleFromClaims(false);
+            const premiumByRole = isPremiumRole(roleFromClaims);
+
+            setPlanBadges(true, premiumByRole);
+
+            if (premiumByRole) {
+                setPrimaryCtas('Open account', 'account', false);
+                setStatus(message);
+                return;
+            }
+
+            setPrimaryCtas('Upgrade to Premium', 'subscribe', false);
+            setStatus(`${message} You can still try checkout.`);
         }
     }
 
