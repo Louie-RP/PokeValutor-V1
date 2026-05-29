@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-sealed-form');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-sealed-query'));
-    const PV_BUILD = '2026-01-29-1';
+    const PV_BUILD = '2026-05-28-3';
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] sealed.js build', PV_BUILD);
@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesTotalsEl = document.getElementById('pv-sealed-favorites-totals');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-sealed-clear');
+    const loadMoreBtn = document.getElementById('pv-sealed-load-more');
+    const loadMoreWrap = document.getElementById('pv-sealed-load-more-wrap');
 
     const quotaBanner = document.getElementById('pv-quota-banner');
     const quotaMessageEl = document.getElementById('pv-quota-message');
@@ -26,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
+    const SEARCH_PAGE_SIZE = 10;
     const DEFAULT_TRADE_PERCENT = 80;
     const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
 
@@ -69,6 +72,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {Array<any>} */
     let currentResultsProducts = [];
+    let currentSearchQuery = '';
+    let currentSearchPage = 0;
+    let currentSearchTotalCount = null;
+    let currentSearchHasMore = false;
+    let isLoadingMore = false;
 
     function setStatus(message) {
         if (status) status.textContent = message;
@@ -614,6 +622,142 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${fieldName}:${term}`;
     }
 
+    function escapeLucenePhrase(value) {
+        return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    function toWildcardToken(raw) {
+        return String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function buildTokenVariants(token) {
+        const base = String(token || '').trim().toLowerCase();
+        if (!base) return [];
+
+        const variants = [base];
+        if (base.length >= 5 && base.endsWith('ies')) variants.push(`${base.slice(0, -3)}y`);
+        if (base.length >= 4 && base.endsWith('es')) variants.push(base.slice(0, -2));
+        if (base.length >= 4 && base.endsWith('s') && !base.endsWith('ss')) variants.push(base.slice(0, -1));
+
+        return [...new Set(variants)].filter((v) => v.length >= 2);
+    }
+
+    function singularizeToken(token) {
+        const base = String(token || '').trim().toLowerCase();
+        if (!base) return '';
+        if (base.length >= 5 && base.endsWith('ies')) return `${base.slice(0, -3)}y`;
+        if (base.length >= 4 && base.endsWith('es')) return base.slice(0, -2);
+        if (base.length >= 4 && base.endsWith('s') && !base.endsWith('ss')) return base.slice(0, -1);
+        return base;
+    }
+
+    function buildWildcardClauseFromToken(token) {
+        const variants = buildTokenVariants(token);
+        if (!variants.length) return '';
+        if (variants.length === 1) return `name:${variants[0]}*`;
+        return `(${variants.map((v) => `name:${v}*`).join(' OR ')})`;
+    }
+
+    function isLikelyAdvancedSealedQuery(rawQuery) {
+        const q = String(rawQuery || '').trim();
+        if (!q) return false;
+
+        if (/(^|\s)[a-z][a-z0-9_.]*:/.test(q)) return true;
+        if (/\bAND\b|\bOR\b|\bNOT\b/i.test(q)) return true;
+        if (/[()\[\]{}]/.test(q)) return true;
+        if (q.includes('*')) return true;
+        if (/(^|\s)-[a-z][a-z0-9_.]*:/.test(q)) return true;
+        return false;
+    }
+
+    function buildSealedSearchQueryCandidates(rawInput) {
+        const raw = String(rawInput || '').trim();
+        if (!raw) return [];
+
+        const candidates = [];
+        const seen = new Set();
+        function push(q) {
+            const next = String(q || '').trim();
+            if (!next || seen.has(next)) return;
+            seen.add(next);
+            candidates.push(next);
+        }
+
+        // Allow users to enter full Scrydex/Lucene query syntax directly.
+        if (isLikelyAdvancedSealedQuery(raw)) {
+            push(raw);
+            return candidates;
+        }
+
+        const phraseClause = `name:"${escapeLucenePhrase(raw)}"`;
+        push(phraseClause);
+
+        const tokens = raw.split(/\s+/).map(toWildcardToken).filter(Boolean);
+        if (!tokens.length) return candidates;
+
+        const singularPhrase = tokens.map((t) => singularizeToken(t) || t).join(' ');
+        if (singularPhrase && singularPhrase.toLowerCase() !== raw.toLowerCase()) {
+            push(`name:"${escapeLucenePhrase(singularPhrase)}"`);
+        }
+
+        const allTokensClause = tokens
+            .map((t) => buildWildcardClauseFromToken(t))
+            .filter(Boolean)
+            .join(' AND ');
+
+        if (allTokensClause) push(allTokensClause);
+        return candidates;
+    }
+
+    function getResultStatusText(resultCount, totalCount) {
+        const shown = Number(resultCount) || 0;
+        const total = Number.isFinite(Number(totalCount)) ? Number(totalCount) : null;
+        if (total != null && total > shown) return `Found ${total} result(s). Showing ${shown}.`;
+        return `Found ${shown} result(s).`;
+    }
+
+    function shouldShowLoadMore(resultCount, totalCount) {
+        const shown = Number(resultCount) || 0;
+        const total = Number.isFinite(Number(totalCount)) ? Number(totalCount) : null;
+        if (total != null) return shown < total;
+        return shown >= SEARCH_PAGE_SIZE && shown % SEARCH_PAGE_SIZE === 0;
+    }
+
+    function updateLoadMoreButton(visible, loading) {
+        if (!loadMoreBtn) return;
+        const show = Boolean(visible);
+        if (loadMoreWrap) loadMoreWrap.hidden = !show;
+        loadMoreBtn.hidden = !show;
+        loadMoreBtn.disabled = Boolean(loading);
+        loadMoreBtn.textContent = loading ? 'Loading…' : 'Load More';
+    }
+
+    function mergeUniqueProducts(existing, incoming) {
+        const out = [];
+        const seen = new Set();
+
+        for (const p of Array.isArray(existing) ? existing : []) {
+            const id = String(p?.id || '').trim();
+            if (id && !seen.has(id)) {
+                seen.add(id);
+                out.push(p);
+            }
+        }
+        for (const p of Array.isArray(incoming) ? incoming : []) {
+            const id = String(p?.id || '').trim();
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            out.push(p);
+        }
+        return out;
+    }
+
+    async function fetchSealedSearchPage(query, page) {
+        const base = getWorkerBase();
+        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}`;
+        return fetchJsonWithCache(url, SEARCH_TTL_MS);
+    }
+
     function formatCurrency(value, currency) {
         const n = Number(value);
         if (!Number.isFinite(n)) return 'N/A';
@@ -989,30 +1133,69 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!q) {
             setStatus('Enter a product name to search.');
             if (grid) grid.innerHTML = '';
+            currentSearchHasMore = false;
+            updateLoadMoreButton(false, false);
             return;
         }
 
-        const base = getWorkerBase();
-        const query = buildFieldQuery('name', q);
-        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
+        const queryCandidates = buildSealedSearchQueryCandidates(q);
+        const fallbackQuery = queryCandidates[0] || '';
+        currentSearchQuery = fallbackQuery;
+        currentSearchPage = 0;
+        currentSearchTotalCount = null;
+        currentSearchHasMore = false;
+        isLoadingMore = false;
 
         setStatus('Searching…');
         if (grid) grid.innerHTML = '';
+        updateLoadMoreButton(false, false);
 
         try {
-            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
-            const list = Array.isArray(data?.data) ? data.data : [];
+            let usedQuery = fallbackQuery;
+            let data = null;
+            let list = [];
+
+            for (const candidate of queryCandidates) {
+                const nextData = await fetchSealedSearchPage(candidate, 1);
+                const nextList = Array.isArray(nextData?.data) ? nextData.data : [];
+                data = nextData;
+                list = nextList;
+                usedQuery = candidate;
+                if (nextList.length > 0) break;
+            }
+
+            currentSearchQuery = usedQuery;
+            const totalCountNum = Number(data?.totalCount);
+            const totalCount = Number.isFinite(totalCountNum) ? totalCountNum : null;
+
+            currentSearchPage = 1;
+            currentSearchTotalCount = totalCount;
             renderProducts(list);
-            setStatus(list.length ? `Found ${list.length} result(s). If your searched product is not displayed, include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.` : 'No results found. Search by Product name e.g., "Prismatic Evolutions" and include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.');
+
+            if (list.length) {
+                currentSearchHasMore = shouldShowLoadMore(list.length, totalCount);
+                setStatus(getResultStatusText(list.length, totalCount));
+                updateLoadMoreButton(currentSearchHasMore, false);
+            } else {
+                currentSearchHasMore = false;
+                setStatus('No results found. Try a different product name.');
+                updateLoadMoreButton(false, false);
+            }
 
             const prev = loadLastResults();
             const preservedSelections = (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+            const statusText = list.length
+                ? getResultStatusText(list.length, totalCount)
+                : 'No results found. Try a different product name.';
 
             saveLastResults({
                 mode: 'name',
                 query: q,
+                builtQuery: usedQuery,
+                page: 1,
+                totalCount,
                 products: list,
-                statusText: list.length ? `Found ${list.length} result(s). If your searched product is not displayed, include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.` : 'No results found. Search by Product name e.g., "Prismatic Evolutions" and include product type: Booster Pack, Booster Bundle, Elite Trainer box, etc.',
+                statusText,
                 selections: preservedSelections,
                 savedAt: Date.now(),
             });
@@ -1023,6 +1206,67 @@ document.addEventListener('DOMContentLoaded', function () {
                 setStatus(`Error: ${e?.message || 'Search failed.'}`);
             }
             if (grid) grid.innerHTML = '';
+            updateLoadMoreButton(false, false);
+        }
+    }
+
+    async function loadMoreResults() {
+        if (!currentSearchQuery || isLoadingMore || !currentSearchHasMore) return;
+
+        isLoadingMore = true;
+        updateLoadMoreButton(true, true);
+
+        const nextPage = currentSearchPage + 1;
+        try {
+            const data = await fetchSealedSearchPage(currentSearchQuery, nextPage);
+            const nextItems = Array.isArray(data?.data) ? data.data : [];
+            const totalCountNum = Number(data?.totalCount);
+            const totalCount = Number.isFinite(totalCountNum) ? totalCountNum : currentSearchTotalCount;
+
+            if (!nextItems.length) {
+                currentSearchHasMore = false;
+                updateLoadMoreButton(false, false);
+                setStatus(getResultStatusText(currentResultsProducts.length, totalCount));
+                return;
+            }
+
+            const merged = mergeUniqueProducts(currentResultsProducts, nextItems);
+            currentSearchPage = nextPage;
+            currentSearchTotalCount = totalCount;
+            renderProducts(merged);
+
+            const statusText = getResultStatusText(merged.length, totalCount);
+            setStatus(statusText);
+            if (totalCount != null) {
+                currentSearchHasMore = merged.length < totalCount;
+            } else {
+                currentSearchHasMore = nextItems.length >= SEARCH_PAGE_SIZE;
+            }
+            updateLoadMoreButton(currentSearchHasMore, false);
+
+            const prev = loadLastResults();
+            const preservedSelections = (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+            saveLastResults({
+                mode: 'name',
+                query: input ? String(input.value || '').trim() : (prev?.query || ''),
+                builtQuery: currentSearchQuery,
+                page: currentSearchPage,
+                totalCount,
+                products: merged,
+                statusText,
+                selections: preservedSelections,
+                savedAt: Date.now(),
+            });
+        } catch (e) {
+            if (isQuotaExceededError(e)) {
+                setStatus('Daily guest allowance reached. Sign in to continue.');
+            } else {
+                setStatus(`Error: ${e?.message || 'Search failed.'}`);
+            }
+            updateLoadMoreButton(currentSearchHasMore, false);
+        } finally {
+            isLoadingMore = false;
+            updateLoadMoreButton(currentSearchHasMore, false);
         }
     }
 
@@ -1030,6 +1274,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (grid) grid.innerHTML = '';
         setStatus('');
         currentResultsProducts = [];
+        currentSearchQuery = '';
+        currentSearchPage = 0;
+        currentSearchTotalCount = null;
+        currentSearchHasMore = false;
+        isLoadingMore = false;
+        updateLoadMoreButton(false, false);
         clearLastResults();
     }
 
@@ -1044,6 +1294,12 @@ document.addEventListener('DOMContentLoaded', function () {
         clearBtn.addEventListener('click', () => {
             if (input) input.value = '';
             clearResultsUI();
+        });
+    }
+
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', () => {
+            void loadMoreResults();
         });
     }
 
@@ -1067,9 +1323,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const restored = loadLastResults();
     if (restored && Array.isArray(restored.products) && restored.products.length) {
         if (restored.mode === 'name' && input) input.value = String(restored.query || '');
+        const restoredCandidates = buildSealedSearchQueryCandidates(restored.query || '');
+        currentSearchQuery = String(restored.builtQuery || restoredCandidates[0] || '');
+        currentSearchPage = Math.max(1, Number(restored.page) || 1);
+        const restoredTotalCountNum = Number(restored.totalCount);
+        currentSearchTotalCount = Number.isFinite(restoredTotalCountNum) ? restoredTotalCountNum : null;
+        currentSearchHasMore = shouldShowLoadMore(restored.products.length, currentSearchTotalCount);
         renderProducts(restored.products, restored);
         renderFavorites(restored);
-        if (restored.statusText) setStatus(String(restored.statusText));
+        updateLoadMoreButton(currentSearchHasMore, false);
+        if (restored.statusText) {
+            const restoredStatus = String(restored.statusText);
+            if (/\bTip:/i.test(restoredStatus)) {
+                setStatus(getResultStatusText(restored.products.length, currentSearchTotalCount));
+            } else {
+                setStatus(restoredStatus);
+            }
+        }
     }
 
     if (scrollTopBtn) {

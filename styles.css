@@ -2266,6 +2266,17 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   padding: 0;
 }
 
+#pv-sealed-body .pv-sealedResults__more {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#pv-sealed-body #pv-sealed-load-more {
+  min-width: 10rem;
+}
+
 #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist {
   margin-top: 0;
   border: 1px solid rgba(74, 222, 128, 0.3);
