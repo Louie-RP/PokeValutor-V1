@@ -83,8 +83,15 @@
                         <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
                         placeholder="e.g., Pikachu or SWSH101" aria-controls="pv-search-results" />
                     </div>
+                    <div class="pv-form__field pv-searchField--seriesSetToggle col-12">
+                        <label for="pv-search-series-set-toggle" class="pv-searchSeriesSetToggle">
+                            <input id="pv-search-series-set-toggle" name="pv-search-series-set-toggle" type="checkbox"
+                                aria-controls="pv-search-series pv-search-set" />
+                            <span>Series/Set</span>
+                        </label>
+                    </div>
                     <div class="pv-form__field pv-searchField--series col-12 col-md-6 col-lg-4">
-                        <label for="pv-search-series" class="form-label">Series</label>
+                        <label for="pv-search-series" class="form-label">Series <span class="pv-desktopOptional">(Optional)</span></label>
                         <select id="pv-search-series" name="pv-search-series" class="form-select" aria-label="Filter sets by series">
                             <option value="">Choose a series</option>
                         </select>

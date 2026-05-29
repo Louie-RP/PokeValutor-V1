@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-search-query'));
     const seriesSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-series'));
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
+    const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
     const status = document.getElementById('pv-search-status');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const QUOTA_STORAGE_KEY = 'pv:quota:last:v1';
     const SET_FILTER_STATE_KEY = `${CACHE_PREFIX}setFilterState:v1`;
+    const SEARCH_SERIES_SET_VISIBLE_KEY = `${CACHE_PREFIX}searchSeriesSetVisibleMobile:v1`;
 
     // Hide quota banner by default; only show for signed-out users after auth resolves.
     function forceHideQuotaBanner() {
@@ -213,8 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .map((k) => (k === 'OTHER' ? 'Other' : k));
         if (!labels.length) return 'NM';
 
-        const isMobile = window.matchMedia('(max-width: 575.98px)').matches;
-        const maxVisible = isMobile ? 1 : 3;
+        const maxVisible = 3;
 
         if (labels.length <= maxVisible) {
             return labels.join(', ');
@@ -554,6 +555,41 @@ document.addEventListener('DOMContentLoaded', function () {
             }));
         } catch {
             // ignore
+        }
+    }
+
+    function loadSeriesSetVisibilityPreference() {
+        try {
+            const raw = localStorage.getItem(SEARCH_SERIES_SET_VISIBLE_KEY);
+            if (raw === null) return true;
+            return raw === '1';
+        } catch {
+            return true;
+        }
+    }
+
+    function saveSeriesSetVisibilityPreference(show) {
+        try {
+            localStorage.setItem(SEARCH_SERIES_SET_VISIBLE_KEY, show ? '1' : '0');
+        } catch {
+            // ignore
+        }
+    }
+
+    function isSeriesSetFiltersVisible() {
+        if (!isSearchPage) return true;
+        if (!window.matchMedia('(max-width: 767.98px)').matches) return true;
+        return !!seriesSetToggle?.checked;
+    }
+
+    function applySeriesSetVisibilityUi(skipPersist) {
+        if (!isSearchPage || !form || !seriesSetToggle) return;
+
+        const show = !!seriesSetToggle.checked;
+        form.classList.toggle('pv-searchForm--seriesSetHidden', !show);
+
+        if (!skipPersist) {
+            saveSeriesSetVisibilityPreference(show);
         }
     }
 
@@ -4245,7 +4281,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 activateDexSearchMode();
             }
             const query = safeString(input?.value, '').trim();
-            const bySetId = safeString(setSelect?.value, '').trim();
+            const bySetId = isSeriesSetFiltersVisible() ? safeString(setSelect?.value, '').trim() : '';
 
             if (!query) {
                 setStatus('Please enter a Pokemon name or card number.');
@@ -4267,6 +4303,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             void searchByName(query);
+        });
+    }
+
+    if (isSearchPage && form && seriesSetToggle) {
+        seriesSetToggle.checked = loadSeriesSetVisibilityPreference();
+        applySeriesSetVisibilityUi(true);
+
+        seriesSetToggle.addEventListener('change', () => {
+            applySeriesSetVisibilityUi(false);
+        });
+
+        window.addEventListener('resize', () => {
+            applySeriesSetVisibilityUi(true);
         });
     }
 
