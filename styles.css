@@ -1849,6 +1849,37 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin: 0.15rem 0 0.5rem;
 }
 
+.pv-collectionFilterRow {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0.65rem;
+  max-width: 430px;
+}
+
+#pv-collection-filter {
+  min-height: 38px;
+}
+
+.pv-searchHighlight {
+  background: rgba(255, 203, 5, 0.32);
+  color: #fff8d8;
+  border-radius: 4px;
+  padding: 0 0.12rem;
+}
+
+.pv-searchSuggestionText {
+  margin: 0.55rem 0 0;
+  color: var(--pv-muted);
+}
+
+.pv-searchSuggestionBtn {
+  margin-top: 0;
+  margin-left: 0.22rem;
+  padding: 0.18rem 0.48rem;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
 .pv-sortLabel {
   margin: 0;
   font-size: 0.82rem;
@@ -3146,6 +3177,17 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.85rem;
+}
+
+.pv-masterSetsToolbar {
+  margin-bottom: 0.85rem;
+  display: grid;
+  gap: 0.35rem;
+  max-width: 420px;
+}
+
+#pv-master-sets-filter {
+  min-height: 40px;
 }
 
 .pv-masterSetCard {

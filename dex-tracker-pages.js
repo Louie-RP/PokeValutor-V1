@@ -33,6 +33,314 @@
         return s ? s : (fallback || '');
     }
 
+    function normalizeSearchText(value) {
+        const raw = safeString(value, '').toLowerCase();
+        return raw
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+    }
+
+    function tokenizeSearchText(value) {
+        const normalized = normalizeSearchText(value);
+        if (!normalized) return [];
+        return normalized.split(/\s+/).filter(Boolean);
+    }
+
+    function getTypoTolerance(tokenLength) {
+        const len = Math.max(0, Math.floor(Number(tokenLength) || 0));
+        if (len <= 2) return 0;
+        if (len <= 5) return 1;
+        if (len <= 9) return 2;
+        return 3;
+    }
+
+    function isWithinLevenshteinLimit(aRaw, bRaw, limitRaw) {
+        const a = safeString(aRaw, '');
+        const b = safeString(bRaw, '');
+        const limit = Math.max(0, Math.floor(Number(limitRaw) || 0));
+
+        if (a === b) return true;
+        const aLen = a.length;
+        const bLen = b.length;
+        if (Math.abs(aLen - bLen) > limit) return false;
+        if (!aLen || !bLen) return Math.max(aLen, bLen) <= limit;
+
+        let prev = new Array(bLen + 1);
+        let curr = new Array(bLen + 1);
+
+        for (let j = 0; j <= bLen; j += 1) {
+            prev[j] = j;
+        }
+
+        for (let i = 1; i <= aLen; i += 1) {
+            curr[0] = i;
+            let rowMin = curr[0];
+
+            for (let j = 1; j <= bLen; j += 1) {
+                const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+                const deletion = prev[j] + 1;
+                const insertion = curr[j - 1] + 1;
+                const substitution = prev[j - 1] + cost;
+                const best = Math.min(deletion, insertion, substitution);
+                curr[j] = best;
+                if (best < rowMin) rowMin = best;
+            }
+
+            if (rowMin > limit) return false;
+
+            const next = prev;
+            prev = curr;
+            curr = next;
+        }
+
+        return prev[bLen] <= limit;
+    }
+
+    function tokenFuzzyMatch(queryTokenRaw, candidateTokenRaw) {
+        const queryToken = normalizeSearchText(queryTokenRaw);
+        const candidateToken = normalizeSearchText(candidateTokenRaw);
+        if (!queryToken || !candidateToken) return false;
+
+        if (candidateToken.includes(queryToken)) {
+            return true;
+        }
+
+        const tolerance = Math.min(
+            getTypoTolerance(queryToken.length),
+            getTypoTolerance(candidateToken.length)
+        );
+        if (tolerance <= 0) return false;
+
+        return isWithinLevenshteinLimit(queryToken, candidateToken, tolerance);
+    }
+
+    function getLevenshteinDistance(aRaw, bRaw, maxDistanceRaw) {
+        const a = safeString(aRaw, '');
+        const b = safeString(bRaw, '');
+        const maxDistanceNum = Number(maxDistanceRaw);
+        const maxDistance = Number.isFinite(maxDistanceNum) && maxDistanceNum >= 0
+            ? Math.floor(maxDistanceNum)
+            : Number.POSITIVE_INFINITY;
+
+        if (a === b) return 0;
+        const aLen = a.length;
+        const bLen = b.length;
+        if (!aLen) return bLen;
+        if (!bLen) return aLen;
+        if (Math.abs(aLen - bLen) > maxDistance) return Number.POSITIVE_INFINITY;
+
+        let prev = new Array(bLen + 1);
+        let curr = new Array(bLen + 1);
+
+        for (let j = 0; j <= bLen; j += 1) {
+            prev[j] = j;
+        }
+
+        for (let i = 1; i <= aLen; i += 1) {
+            curr[0] = i;
+            let rowMin = curr[0];
+
+            for (let j = 1; j <= bLen; j += 1) {
+                const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+                const deletion = prev[j] + 1;
+                const insertion = curr[j - 1] + 1;
+                const substitution = prev[j - 1] + cost;
+                const best = Math.min(deletion, insertion, substitution);
+                curr[j] = best;
+                if (best < rowMin) rowMin = best;
+            }
+
+            if (rowMin > maxDistance) return Number.POSITIVE_INFINITY;
+
+            const next = prev;
+            prev = curr;
+            curr = next;
+        }
+
+        return prev[bLen] <= maxDistance ? prev[bLen] : Number.POSITIVE_INFINITY;
+    }
+
+    function getTokenMatchScore(queryTokenRaw, candidateTokenRaw) {
+        const queryToken = normalizeSearchText(queryTokenRaw);
+        const candidateToken = normalizeSearchText(candidateTokenRaw);
+        if (!queryToken || !candidateToken) return 0;
+
+        if (queryToken === candidateToken) return 1;
+        if (candidateToken.startsWith(queryToken)) return 0.9;
+        if (candidateToken.includes(queryToken)) return 0.78;
+
+        const tolerance = Math.min(
+            getTypoTolerance(queryToken.length),
+            getTypoTolerance(candidateToken.length)
+        );
+        if (tolerance <= 0) return 0;
+
+        const distance = getLevenshteinDistance(queryToken, candidateToken, tolerance);
+        if (!Number.isFinite(distance)) return 0;
+
+        const longest = Math.max(queryToken.length, candidateToken.length, 1);
+        return Math.max(0.45, 1 - (distance / longest));
+    }
+
+    function getTypoTolerantSearchScore(queryRaw, fields) {
+        const normalizedQuery = normalizeSearchText(queryRaw);
+        if (!normalizedQuery) return 0;
+
+        const fieldStrings = Array.isArray(fields)
+            ? fields.map((value) => normalizeSearchText(value)).filter(Boolean)
+            : [];
+        if (!fieldStrings.length) return -1;
+
+        const queryTokens = tokenizeSearchText(normalizedQuery);
+        if (!queryTokens.length) return 0;
+
+        const fieldTokens = fieldStrings
+            .flatMap((field) => field.split(/\s+/))
+            .filter(Boolean);
+        if (!fieldTokens.length) return -1;
+
+        let score = 0;
+        for (const queryToken of queryTokens) {
+            let bestTokenScore = 0;
+            for (const candidateToken of fieldTokens) {
+                const tokenScore = getTokenMatchScore(queryToken, candidateToken);
+                if (tokenScore > bestTokenScore) {
+                    bestTokenScore = tokenScore;
+                }
+            }
+            if (bestTokenScore <= 0) return -1;
+            score += Math.round(bestTokenScore * 100);
+        }
+
+        if (fieldStrings.some((field) => field.includes(normalizedQuery))) {
+            score += 240;
+        } else {
+            const joined = fieldStrings.join(' ');
+            if (queryTokens.every((token) => joined.includes(token))) {
+                score += 120;
+            }
+        }
+
+        return score;
+    }
+
+    function isTypoTolerantSearchMatch(queryRaw, fields) {
+        return getTypoTolerantSearchScore(queryRaw, fields) >= 0;
+    }
+
+    function getDidYouMeanSuggestion(queryRaw, candidateValues) {
+        const query = normalizeSearchText(queryRaw);
+        if (!query) return '';
+
+        const seen = new Set();
+        let best = null;
+
+        for (const rawValue of (Array.isArray(candidateValues) ? candidateValues : [])) {
+            const value = safeString(rawValue, '').trim();
+            const normalizedValue = normalizeSearchText(value);
+            if (!value || !normalizedValue || normalizedValue === query || seen.has(normalizedValue)) continue;
+            seen.add(normalizedValue);
+
+            let score = getTypoTolerantSearchScore(query, [value]);
+            if (score < 0) {
+                const queryTokens = tokenizeSearchText(query);
+                const valueTokens = tokenizeSearchText(value);
+                let fallbackScore = 0;
+                let matched = 0;
+
+                for (const queryToken of queryTokens) {
+                    let bestTokenScore = 0;
+                    for (const valueToken of valueTokens) {
+                        let tokenScore = getTokenMatchScore(queryToken, valueToken);
+                        if (tokenScore <= 0) {
+                            const looseLimit = Math.max(
+                                getTypoTolerance(queryToken.length),
+                                getTypoTolerance(valueToken.length)
+                            ) + 2;
+                            const looseDistance = getLevenshteinDistance(queryToken, valueToken, looseLimit);
+                            if (Number.isFinite(looseDistance)) {
+                                const longest = Math.max(queryToken.length, valueToken.length, 1);
+                                tokenScore = Math.max(0.32, 1 - (looseDistance / longest));
+                            }
+                        }
+                        if (tokenScore > bestTokenScore) {
+                            bestTokenScore = tokenScore;
+                        }
+                    }
+                    if (bestTokenScore > 0) {
+                        matched += 1;
+                        fallbackScore += Math.round(bestTokenScore * 110);
+                    }
+                }
+
+                score = matched ? fallbackScore - ((queryTokens.length - matched) * 40) : -1;
+            }
+
+            if (score < 45) continue;
+            if (!best || score > best.score) {
+                best = { value, score };
+            }
+        }
+
+        return best ? best.value : '';
+    }
+
+    function escapeRegExp(value) {
+        return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function buildSearchHighlightHtml(textRaw, queryRaw) {
+        const text = safeString(textRaw, '');
+        if (!text) return '';
+
+        const queryTokens = Array.from(new Set(tokenizeSearchText(queryRaw).filter((token) => token.length >= 2)));
+        if (!queryTokens.length) return escapeHtml(text);
+
+        const lowerText = text.toLowerCase();
+        let highlightTokens = queryTokens.filter((token) => lowerText.includes(token));
+
+        if (!highlightTokens.length) {
+            const rawTokens = Array.from(text.match(/[A-Za-z0-9]+/g) || []);
+            let bestRawToken = '';
+            let bestScore = 0;
+
+            for (const rawToken of rawTokens) {
+                const candidateToken = normalizeSearchText(rawToken);
+                for (const queryToken of queryTokens) {
+                    const tokenScore = getTokenMatchScore(queryToken, candidateToken);
+                    if (tokenScore > bestScore) {
+                        bestScore = tokenScore;
+                        bestRawToken = rawToken;
+                    }
+                }
+            }
+
+            if (bestRawToken && bestScore >= 0.6) {
+                highlightTokens = [bestRawToken];
+            }
+        }
+
+        if (!highlightTokens.length) return escapeHtml(text);
+
+        const pattern = highlightTokens
+            .map((token) => escapeRegExp(token))
+            .filter(Boolean)
+            .sort((a, b) => b.length - a.length)
+            .join('|');
+        if (!pattern) return escapeHtml(text);
+
+        const regex = new RegExp(`(${pattern})`, 'ig');
+        const parts = text.split(regex);
+        return parts.map((part, idx) => {
+            if (idx % 2 === 1) {
+                return `<mark class="pv-searchHighlight">${escapeHtml(part)}</mark>`;
+            }
+            return escapeHtml(part);
+        }).join('');
+    }
+
     function escapeHtml(value) {
         const s = String(value ?? '');
         return s
@@ -119,6 +427,12 @@
         if (cols.length <= 1) return;
 
         cols.sort((a, b) => {
+            const relevanceA = Number(a.getAttribute('data-search-score') || 0);
+            const relevanceB = Number(b.getAttribute('data-search-score') || 0);
+            if (relevanceA !== relevanceB) {
+                return relevanceB - relevanceA;
+            }
+
             const nameA = safeString(a.getAttribute('data-card-name'), '').toLowerCase();
             const nameB = safeString(b.getAttribute('data-card-name'), '').toLowerCase();
 
@@ -1360,31 +1674,86 @@
         const summary = document.getElementById('pv-collection-summary');
         const totalEl = document.getElementById('pv-collection-total');
         const clearBtn = document.getElementById('pv-collection-clear');
+        const filterInput = document.getElementById('pv-collection-filter');
         if (!grid || !summary || !totalEl) return;
 
         const items = readCollection().slice().sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
         const totalCopies = items.reduce((sum, item) => {
             return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
         }, 0);
+        const filterQuery = (filterInput instanceof HTMLInputElement)
+            ? safeString(filterInput.value, '').trim()
+            : '';
+        const filteredMatches = filterQuery
+            ? items.map((item) => {
+                const searchFields = [
+                    safeString(item?.name, ''),
+                    getCardSetName(item),
+                    getCardDisplayNumber(item),
+                    safeString(item?.id, ''),
+                ];
+                return {
+                    item,
+                    score: getTypoTolerantSearchScore(filterQuery, searchFields),
+                };
+            }).filter((x) => x.score >= 0).sort((a, b) => {
+                const diff = b.score - a.score;
+                if (diff !== 0) return diff;
+                return Number(b?.item?.addedAt || 0) - Number(a?.item?.addedAt || 0);
+            })
+            : items.map((item) => ({ item, score: 0 }));
+        const filteredItems = filteredMatches.map((x) => x.item);
+        const filteredCopies = filteredItems.reduce((sum, item) => {
+            return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
+        }, 0);
+        const totalCardLabel = `card${items.length === 1 ? '' : 's'}`;
+        const totalCopyLabel = `cop${totalCopies === 1 ? 'y' : 'ies'}`;
+        let collectionSuggestion = '';
 
         const dexCardsStat = document.getElementById('pv-dex-stat-cards');
         const dexCopiesStat = document.getElementById('pv-dex-stat-copies');
         if (dexCardsStat) dexCardsStat.textContent = String(items.length);
         if (dexCopiesStat) dexCopiesStat.textContent = String(totalCopies);
 
-        summary.textContent = `${items.length} card${items.length === 1 ? '' : 's'} • ${totalCopies} cop${totalCopies === 1 ? 'y' : 'ies'}.`;
+        if (!items.length) {
+            summary.textContent = '0 cards • 0 copies.';
+        } else if (filterQuery) {
+            summary.textContent = `${filteredItems.length} of ${items.length} ${totalCardLabel} shown • ${filteredCopies} of ${totalCopies} ${totalCopyLabel}.`;
+        } else {
+            summary.textContent = `${items.length} ${totalCardLabel} • ${totalCopies} ${totalCopyLabel}.`;
+        }
 
         bindCollectionSortControls();
 
         if (!items.length) {
             totalEl.textContent = 'Value: $0.00';
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Use Search Dex to add cards.</div></div>';
+        } else if (!filteredItems.length) {
+            collectionSuggestion = getDidYouMeanSuggestion(filterQuery, items.flatMap((item) => {
+                return [
+                    safeString(item?.name, ''),
+                    getCardSetName(item),
+                    getCardDisplayNumber(item),
+                    safeString(item?.id, ''),
+                ];
+            }));
+
+            const suggestionHtml = collectionSuggestion
+                ? `<p class="pv-searchSuggestionText">Did you mean <button class="pv-button pv-button--secondary btn pv-searchSuggestionBtn" type="button" data-collection-suggestion="${escapeAttr(collectionSuggestion)}">${escapeHtml(collectionSuggestion)}</button>?</p>`
+                : '';
+            grid.innerHTML = `<div class="col-12"><div class="pv-emptyState">No cards match that search.${suggestionHtml}</div></div>`;
+
+            if (collectionSuggestion) {
+                summary.textContent = `${filteredItems.length} of ${items.length} ${totalCardLabel} shown • ${filteredCopies} of ${totalCopies} ${totalCopyLabel}. Did you mean "${collectionSuggestion}"?`;
+            }
         } else {
-            const rows = items.map((item) => {
+            const rows = filteredMatches.map((match) => {
+                const item = match.item;
                 const id = safeString(item?.id, '');
                 const cardName = safeString(item?.name, 'Unknown');
-                const name = escapeHtml(cardName);
-                const setName = escapeHtml(getCardSetName(item));
+                const namePlain = escapeHtml(cardName);
+                const name = buildSearchHighlightHtml(cardName, filterQuery);
+                const setName = buildSearchHighlightHtml(getCardSetName(item), filterQuery);
                 const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
                 const img = escapeHtml(pickFrontMediumImage(item?.images));
                 const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
@@ -1395,6 +1764,7 @@
                 const detailPath = buildCardDetailPath(item);
                 const detailPathAttr = escapeAttr(detailPath);
                 const nameAttr = escapeAttr(cardName);
+                const relevanceScore = Number(match.score || 0);
 
                 const conditionRows = conditionEntries.length
                     ? conditionEntries.map((entry) => {
@@ -1403,10 +1773,10 @@
                         return `
                                     <div class="pv-conditionQtyRow">
                                         <p class="pv-card__text pv-conditionQtyLabel">${label}</p>
-                                        <div class="pv-qtyStepper" role="group" aria-label="Adjust ${code} quantity for ${name}">
-                                            <button class="pv-button btn pv-qtyBtn" type="button" data-qty-dec-card-id="${escapeAttr(id)}" data-qty-condition="${code}" aria-label="Decrease ${code} quantity for ${name}">-</button>
+                                        <div class="pv-qtyStepper" role="group" aria-label="Adjust ${code} quantity for ${nameAttr}">
+                                            <button class="pv-button btn pv-qtyBtn" type="button" data-qty-dec-card-id="${escapeAttr(id)}" data-qty-condition="${code}" aria-label="Decrease ${code} quantity for ${nameAttr}">-</button>
                                             <span class="pv-qtyValue">${entry.qty}</span>
-                                            <button class="pv-button btn pv-qtyBtn" type="button" data-qty-inc-card-id="${escapeAttr(id)}" data-qty-condition="${code}" aria-label="Increase ${code} quantity for ${name}">+</button>
+                                            <button class="pv-button btn pv-qtyBtn" type="button" data-qty-inc-card-id="${escapeAttr(id)}" data-qty-condition="${code}" aria-label="Increase ${code} quantity for ${nameAttr}">+</button>
                                         </div>
                                     </div>
                                 `;
@@ -1414,9 +1784,9 @@
                     : '<p class="pv-card__text">No copies tracked.</p>';
 
                 return `
-                    <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}">
-                        <article class="pv-card h-100" aria-label="${name}">
-                            ${img ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${img}" alt="${name} card image"/></a>` : ''}
+                    <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
+                        <article class="pv-card h-100" aria-label="${namePlain}">
+                            ${img ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${img}" alt="${namePlain} card image"/></a>` : ''}
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text">${setName}</p>
@@ -1427,7 +1797,7 @@
                                     ${conditionRows}
                                 </div>
                                 <div class="pv-conditionAddRow">
-                                    <select id="${escapeAttr(addConditionSelectId)}" class="form-select pv-conditionSelect" aria-label="Select condition to add for ${name}">
+                                    <select id="${escapeAttr(addConditionSelectId)}" class="form-select pv-conditionSelect" aria-label="Select condition to add for ${nameAttr}">
                                         ${addConditionOptions}
                                     </select>
                                     <button class="pv-button btn pv-addConditionBtn" type="button" data-add-condition-card-id="${escapeAttr(id)}" data-add-condition-select-id="${escapeAttr(addConditionSelectId)}">Add Copy</button>
@@ -1510,8 +1880,27 @@
                     renderCollectionPage();
                 });
             }
+        }
 
+        const suggestionButton = grid.querySelector('[data-collection-suggestion]');
+        if (suggestionButton && filterInput instanceof HTMLInputElement) {
+            suggestionButton.addEventListener('click', () => {
+                filterInput.value = safeString(suggestionButton.getAttribute('data-collection-suggestion'), '');
+                renderCollectionPage();
+                filterInput.focus();
+                filterInput.select();
+            });
+        }
+
+        if (items.length) {
             void refreshCollectionValues(items, totalEl);
+        }
+
+        if (filterInput instanceof HTMLInputElement && filterInput.getAttribute('data-bound') !== '1') {
+            filterInput.setAttribute('data-bound', '1');
+            filterInput.addEventListener('input', () => {
+                renderCollectionPage();
+            });
         }
 
         if (clearBtn) {
@@ -1528,6 +1917,7 @@
         const grid = document.getElementById('pv-master-sets-grid');
         const summary = document.getElementById('pv-master-sets-summary');
         const clearBtn = document.getElementById('pv-master-sets-clear');
+        const filterInput = document.getElementById('pv-master-sets-filter');
         if (!grid || !summary) return;
 
         const map = readMasterSets();
@@ -1539,35 +1929,82 @@
                 return bUpdated - aUpdated;
             });
 
-        summary.textContent = `${entries.length} set${entries.length === 1 ? '' : 's'} tracked.`;
+        const filterQuery = (filterInput instanceof HTMLInputElement)
+            ? safeString(filterInput.value, '').trim()
+            : '';
+        const filteredMatches = filterQuery
+            ? entries.map((entry) => {
+                const searchFields = [
+                    safeString(entry?.expansionName, ''),
+                    safeString(entry?.series, ''),
+                    safeString(entry?.expansionId, ''),
+                ];
+                return {
+                    entry,
+                    score: getTypoTolerantSearchScore(filterQuery, searchFields),
+                };
+            }).filter((x) => x.score >= 0).sort((a, b) => {
+                const diff = b.score - a.score;
+                if (diff !== 0) return diff;
+                return Number(b?.entry?.updatedAt || 0) - Number(a?.entry?.updatedAt || 0);
+            })
+            : entries.map((entry) => ({ entry, score: 0 }));
+        const filteredEntries = filteredMatches.map((x) => x.entry);
+        let masterSetSuggestion = '';
 
         if (!entries.length) {
+            summary.textContent = '0 sets tracked.';
             grid.innerHTML = '<div class="pv-emptyState">No master sets tracked yet.</div>';
         } else {
-            const collection = readCollection();
-            const cardsById = buildCollectionIndexById(collection);
+            summary.textContent = filterQuery
+                ? `${filteredEntries.length} of ${entries.length} set${entries.length === 1 ? '' : 's'} shown.`
+                : `${entries.length} set${entries.length === 1 ? '' : 's'} tracked.`;
 
-            const rows = entries.map((entry) => {
-                const setName = escapeHtml(safeString(entry?.expansionName, 'Unknown Set'));
-                const setNameRaw = safeString(entry?.expansionName, 'Unknown Set');
-                const series = escapeHtml(safeString(entry?.series, ''));
-                const count = Number(entry?.count || (Array.isArray(entry?.cardIds) ? entry.cardIds.length : 0) || 0);
-                const target = Number(entry?.targetCount || 0);
-                const ratio = target > 0 ? Math.min(100, (count / target) * 100) : 0;
-                const ratioLabel = ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`;
-                const countText = target > 0 ? `${count}/${target}` : `${count}`;
-                const cardIds = Array.isArray(entry?.cardIds)
-                    ? entry.cardIds.map((x) => safeString(x, '')).filter(Boolean)
-                    : [];
-                const expansionId = safeString(entry?.expansionId, '');
-                const detailUrl = escapeAttr(buildMasterSetDetailUrl(expansionId, setNameRaw));
-                const firstCard = cardIds.length ? cardsById[cardIds[0]] : null;
-                const imageSrc = safeString(entry?.setImage, '') || pickFrontMediumImage(firstCard?.images);
-                const imageHtml = imageSrc
-                    ? `<img class="pv-masterSetCard__image" src="${escapeAttr(imageSrc)}" alt="${setName} set image" loading="lazy" data-master-image="1"/>`
-                    : `<img class="pv-masterSetCard__image" alt="${setName} set image" hidden data-master-image="1"/>`;
+            if (!filteredEntries.length) {
+                masterSetSuggestion = getDidYouMeanSuggestion(filterQuery, entries.flatMap((entry) => {
+                    return [
+                        safeString(entry?.expansionName, ''),
+                        safeString(entry?.series, ''),
+                        safeString(entry?.expansionId, ''),
+                    ];
+                }));
 
-                return `
+                const suggestionHtml = masterSetSuggestion
+                    ? `<p class="pv-searchSuggestionText">Did you mean <button class="pv-button pv-button--secondary btn pv-searchSuggestionBtn" type="button" data-master-suggestion="${escapeAttr(masterSetSuggestion)}">${escapeHtml(masterSetSuggestion)}</button>?</p>`
+                    : '';
+                grid.innerHTML = `<div class="pv-emptyState">No master sets match that search.${suggestionHtml}</div>`;
+
+                if (masterSetSuggestion) {
+                    summary.textContent = `${filteredEntries.length} of ${entries.length} set${entries.length === 1 ? '' : 's'} shown. Did you mean "${masterSetSuggestion}"?`;
+                }
+            } else {
+                const collection = readCollection();
+                const cardsById = buildCollectionIndexById(collection);
+
+                const rows = filteredMatches.map((match) => {
+                    const entry = match.entry;
+                    const setNameRaw = safeString(entry?.expansionName, 'Unknown Set');
+                    const setNamePlain = escapeHtml(setNameRaw);
+                    const setName = buildSearchHighlightHtml(setNameRaw, filterQuery);
+                    const seriesRaw = safeString(entry?.series, '');
+                    const series = buildSearchHighlightHtml(seriesRaw, filterQuery);
+                    const count = Number(entry?.count || (Array.isArray(entry?.cardIds) ? entry.cardIds.length : 0) || 0);
+                    const target = Number(entry?.targetCount || 0);
+                    const ratio = target > 0 ? Math.min(100, (count / target) * 100) : 0;
+                    const ratioLabel = ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`;
+                    const countText = target > 0 ? `${count}/${target}` : `${count}`;
+                    const cardIds = Array.isArray(entry?.cardIds)
+                        ? entry.cardIds.map((x) => safeString(x, '')).filter(Boolean)
+                        : [];
+                    const expansionId = safeString(entry?.expansionId, '');
+                    const detailUrl = escapeAttr(buildMasterSetDetailUrl(expansionId, setNameRaw));
+                    const firstCard = cardIds.length ? cardsById[cardIds[0]] : null;
+                    const imageSrc = safeString(entry?.setImage, '') || pickFrontMediumImage(firstCard?.images);
+                    const imageHtml = imageSrc
+                        ? `<img class="pv-masterSetCard__image" src="${escapeAttr(imageSrc)}" alt="${setNamePlain} set image" loading="lazy" data-master-image="1"/>`
+                        : `<img class="pv-masterSetCard__image" alt="${setNamePlain} set image" hidden data-master-image="1"/>`;
+
+                    return `
                     <article class="pv-masterSetCard" data-master-set-id="${escapeAttr(expansionId)}">
                         ${imageHtml}
                         <h3 class="pv-masterSetCard__title"><a class="pv-masterSetCard__titleLink" href="${detailUrl}">${setName}</a></h3>
@@ -1579,10 +2016,28 @@
                         <p class="pv-masterSetCard__meta" data-master-ratio>${ratioLabel} complete</p>
                     </article>
                 `;
-            }).join('');
+                }).join('');
 
-            grid.innerHTML = rows;
-            void hydrateMasterSetCardsWithVariantProgress(entries, cardsById, grid);
+                grid.innerHTML = rows;
+                void hydrateMasterSetCardsWithVariantProgress(filteredEntries, cardsById, grid);
+            }
+        }
+
+        const masterSuggestionButton = grid.querySelector('[data-master-suggestion]');
+        if (masterSuggestionButton && filterInput instanceof HTMLInputElement) {
+            masterSuggestionButton.addEventListener('click', () => {
+                filterInput.value = safeString(masterSuggestionButton.getAttribute('data-master-suggestion'), '');
+                renderMasterSetsPage();
+                filterInput.focus();
+                filterInput.select();
+            });
+        }
+
+        if (filterInput instanceof HTMLInputElement && filterInput.getAttribute('data-bound') !== '1') {
+            filterInput.setAttribute('data-bound', '1');
+            filterInput.addEventListener('input', () => {
+                renderMasterSetsPage();
+            });
         }
 
         if (clearBtn) {

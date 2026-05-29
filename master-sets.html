@@ -74,6 +74,10 @@
                 <h2 id="pv-master-sets-list-title" class="pv-section__title">Progress</h2>
                 <button id="pv-master-sets-clear" class="pv-button pv-button--secondary btn" type="button">Clear</button>
             </div>
+            <div class="pv-masterSetsToolbar" role="search" aria-label="Filter tracked master sets">
+                <label class="form-label" for="pv-master-sets-filter">Find a master set</label>
+                <input id="pv-master-sets-filter" class="form-control" type="search" placeholder="Search by set name, series, or set code" autocomplete="off" />
+            </div>
             <p id="pv-master-sets-summary" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></p>
             <div id="pv-master-sets-grid" class="pv-masterSetsGrid" aria-label="Master set progress"></div>
         </section>
@@ -103,7 +107,7 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="dex-tracker-pages.js?v=2026-05-29-4" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-05-29-8" defer></script>
 </body>
 
 </html>
