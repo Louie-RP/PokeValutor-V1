@@ -2510,6 +2510,10 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     align-items: end;
     gap: 0.6rem;
   }
+
+  #pv-dex-body .pv-collectionFilterRow {
+    max-width: 520px;
+  }
 }
 
 .pv-searchHighlight {
