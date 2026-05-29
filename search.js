@@ -3940,7 +3940,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Use a larger page, sort, then merge into the top of results.
             if (numberCandidate && !String(numberCandidate).includes('/')) {
                 const promoQ = `rarity:Promo ${buildFieldQuery('number', numberCandidate)}`;
-                const promoUrl = `${base}/cards/search?q=${encodeURIComponent(promoQ)}&page=1&pageSize=25&lang=en`;
+                const promoUrl = `${base}/cards/search?q=${encodeURIComponent(promoQ)}&page=1&pageSize=25&lang=en&consumeQuota=1`;
                 const promoData = await fetchJsonWithCache(promoUrl, SEARCH_TTL_MS);
                 const promoFound = Array.isArray(promoData?.data) ? promoData.data : [];
                 promoFound.sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || '')));
@@ -3952,7 +3952,7 @@ document.addEventListener('DOMContentLoaded', function () {
             for (const attempt of uniqueCandidates) {
                 matchedPn = attempt;
                 const q = buildFieldQuery('printed_number', matchedPn);
-                const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=${RESULT_LIMIT}&lang=en`;
+                const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
                 const found = Array.isArray(data?.data) ? data.data : [];
                 if (found.length) {
@@ -3964,7 +3964,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // 3) number:<value> (covers promo codes like SWSH020 and many regular sets).
             if (cards.length < RESULT_LIMIT && numberCandidate && !String(numberCandidate).includes('/')) {
                 const numberQ = buildFieldQuery('number', numberCandidate);
-                const numberUrl = `${base}/cards/search?q=${encodeURIComponent(numberQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en`;
+                const numberUrl = `${base}/cards/search?q=${encodeURIComponent(numberQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const numberData = await fetchJsonWithCache(numberUrl, SEARCH_TTL_MS);
                 mergeUniqueById(cards, Array.isArray(numberData?.data) ? numberData.data : []);
             }
@@ -3972,7 +3972,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // 4) If the user pasted a card id (e.g., "mep-10"), try id:<value> directly.
             if (cards.length < RESULT_LIMIT && /-/.test(pn) && /[A-Za-z]/.test(pn)) {
                 const idQ = buildFieldQuery('id', pn);
-                const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en`;
+                const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
                 mergeUniqueById(cards, Array.isArray(idData?.data) ? idData.data : []);
             }
@@ -4026,7 +4026,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function fetchCardsSearchPage(base, query, page, pageSize) {
-        const url = `${base}/cards/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}&lang=en`;
+        const url = `${base}/cards/search?q=${encodeURIComponent(query)}&page=${page}&pageSize=${pageSize}&lang=en&consumeQuota=1`;
         const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
         const cards = Array.isArray(data?.data) ? data.data : [];
         const totalCount = Number(data?.totalCount || cards.length);

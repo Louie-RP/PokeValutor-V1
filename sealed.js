@@ -991,7 +991,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function fetchSealedSearchPage(query, page) {
         const base = getWorkerBase();
-        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}`;
+        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}&consumeQuota=1`;
         return fetchJsonWithCache(url, SEARCH_TTL_MS);
     }
 

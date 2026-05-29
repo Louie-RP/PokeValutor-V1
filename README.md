@@ -164,6 +164,12 @@ Backward compatibility:
 The Worker also returns quota metadata headers to the frontend:
 - `x-pv-quota-tier`, `x-pv-quota-limit`, `x-pv-quota-used`, `x-pv-quota-remaining`
 
+Quota counters are only incremented for:
+- `GET /cards/search?...&consumeQuota=1`
+- `GET /sealed/search?...&consumeQuota=1`
+
+This keeps passive browsing (home page loads, watchlist/collection rendering, card detail fetches) from using daily credits.
+
 Cards/Sealed pages display this as a small “daily allowance” banner.
 
 ## Assigning roles (Firebase Functions)
