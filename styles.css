@@ -2322,6 +2322,25 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin: 0.18rem 0;
 }
 
+#pv-sealed-body #pv-sealed-grid .pv-qtyStepper--sealed,
+#pv-sealed-body #pv-sealed-favorites-grid .pv-qtyStepper--sealed {
+  gap: 0.24rem;
+}
+
+#pv-sealed-body #pv-sealed-grid .pv-qtyBtn,
+#pv-sealed-body #pv-sealed-favorites-grid .pv-qtyBtn {
+  min-width: 1.55rem;
+  min-height: 1.55rem;
+  padding: 0.1rem 0.25rem;
+  font-size: 0.8rem;
+}
+
+#pv-sealed-body #pv-sealed-grid .pv-qtyValue,
+#pv-sealed-body #pv-sealed-favorites-grid .pv-qtyValue {
+  min-width: 1.2rem;
+  font-size: 0.82rem;
+}
+
 #pv-search-body .pv-sortBtn.is-active {
   color: #fff8d6;
   border-color: rgba(255, 203, 5, 0.85);

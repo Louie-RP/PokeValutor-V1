@@ -543,10 +543,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return value === 'sealed' ? 'sealed' : 'card';
     }
 
+    function normalizeSealedQuantity(rawQty, fallback) {
+        const fallbackQty = Math.max(0, Math.floor(Number(fallback) || 0));
+        const parsed = Math.floor(Number(rawQty));
+        if (!Number.isFinite(parsed)) return fallbackQty;
+        return Math.max(0, parsed);
+    }
+
     function normalizeSealedCollectionProduct(product) {
         const addedAtRaw = Number(product?.addedAt || 0);
         const updatedAtRaw = Number(product?.updatedAt || 0);
         const timestamp = Date.now();
+        const rawQty = product?.quantity ?? product?.sealedQuantity;
+        const quantity = Math.max(1, normalizeSealedQuantity(rawQty, 1));
         return {
             itemType: 'sealed',
             id: safeString(product?.id, ''),
@@ -557,6 +566,7 @@ document.addEventListener('DOMContentLoaded', function () {
             images: Array.isArray(product?.images) ? product.images : [],
             variants: Array.isArray(product?.variants) ? product.variants : [],
             pricesText: safeString(product?.pricesText, ''),
+            quantity,
             addedAt: Number.isFinite(addedAtRaw) && addedAtRaw > 0 ? addedAtRaw : timestamp,
             updatedAt: Number.isFinite(updatedAtRaw) && updatedAtRaw > 0 ? updatedAtRaw : timestamp,
         };
@@ -585,7 +595,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function syncSealedCollectionInCloud(entryOrId, includeInCollection) {
+    function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState || !authApi?.loadDexState) return;
@@ -593,7 +603,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const id = safeString(entryOrId?.id ?? entryOrId, '').trim();
         if (!id) return;
 
-        const normalized = includeInCollection ? normalizeSealedCollectionProduct(entryOrId) : null;
+        const nextQuantity = normalizeSealedQuantity(nextQuantityRaw, 0);
+        const normalized = nextQuantity > 0
+            ? normalizeSealedCollectionProduct({ ...entryOrId, quantity: nextQuantity, updatedAt: Date.now() })
+            : null;
 
         Promise.resolve(authApi.loadDexState())
             .then((cloudState) => {
@@ -634,22 +647,29 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function getSealedCollectionIdSet() {
-        const out = new Set();
+    function getSealedCollectionQuantityMap() {
+        /** @type {Record<string, number>} */
+        const out = {};
         const entries = readDexCollection();
         for (const entry of entries) {
             if (normalizeCollectionItemType(entry?.itemType) !== 'sealed') continue;
             const id = safeString(entry?.id, '').trim();
             if (!id) continue;
-            out.add(id);
+            const qty = Math.max(1, normalizeSealedQuantity(entry?.quantity ?? entry?.sealedQuantity, 1));
+            out[id] = (out[id] || 0) + qty;
         }
         return out;
     }
 
-    function toggleSealedCollection(product) {
+    function updateSealedCollectionQuantity(product, delta) {
         const id = safeString(product?.id, '').trim();
+        const qtyDelta = Math.floor(Number(delta));
+        if (!Number.isFinite(qtyDelta) || qtyDelta === 0) {
+            return { changed: false, quantity: 0 };
+        }
+
         if (!id) {
-            return { changed: false, inCollection: false };
+            return { changed: false, quantity: 0 };
         }
 
         const list = readDexCollection();
@@ -658,19 +678,47 @@ document.addEventListener('DOMContentLoaded', function () {
                 && safeString(entry?.id, '').trim() === id;
         });
 
-        if (existingIndex >= 0) {
-            const removed = list[existingIndex];
-            const next = list.filter((_, idx) => idx !== existingIndex);
-            writeDexCollection(next);
-            syncSealedCollectionInCloud(removed, false);
-            return { changed: true, inCollection: false };
+        const existingEntry = existingIndex >= 0 ? list[existingIndex] : null;
+        const currentQty = existingEntry
+            ? Math.max(1, normalizeSealedQuantity(existingEntry?.quantity ?? existingEntry?.sealedQuantity, 1))
+            : 0;
+        const nextQty = Math.max(0, currentQty + qtyDelta);
+
+        if (nextQty === currentQty) {
+            return { changed: false, quantity: currentQty };
         }
 
-        const normalized = normalizeSealedCollectionProduct(product);
+        if (existingIndex >= 0) {
+            if (nextQty <= 0) {
+                const removed = list[existingIndex];
+                const next = list.filter((_, idx) => idx !== existingIndex);
+                writeDexCollection(next);
+                syncSealedCollectionInCloud(removed, 0);
+                return { changed: true, quantity: 0 };
+            }
+
+            const updated = normalizeSealedCollectionProduct({
+                ...existingEntry,
+                ...product,
+                quantity: nextQty,
+                addedAt: existingEntry?.addedAt,
+                updatedAt: Date.now(),
+            });
+            list[existingIndex] = updated;
+            writeDexCollection(list);
+            syncSealedCollectionInCloud(updated, nextQty);
+            return { changed: true, quantity: nextQty };
+        }
+
+        if (nextQty <= 0) {
+            return { changed: false, quantity: 0 };
+        }
+
+        const normalized = normalizeSealedCollectionProduct({ ...product, quantity: nextQty });
         list.push(normalized);
         writeDexCollection(list);
-        syncSealedCollectionInCloud(normalized, true);
-        return { changed: true, inCollection: true };
+        syncSealedCollectionInCloud(normalized, nextQty);
+        return { changed: true, quantity: nextQty };
     }
 
     function loadFavorites() {
@@ -1301,6 +1349,40 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     }
 
+    function createSealedQuantityStepper(productLike, currentQty, onAdjust) {
+        const name = safeString(productLike?.name, 'sealed product');
+        const qty = Math.max(0, Math.floor(Number(currentQty) || 0));
+
+        const stepper = document.createElement('div');
+        stepper.className = 'pv-qtyStepper pv-qtyStepper--sealed';
+        stepper.setAttribute('role', 'group');
+        stepper.setAttribute('aria-label', `Adjust sealed quantity for ${name}`);
+
+        const decBtn = document.createElement('button');
+        decBtn.className = 'pv-button btn pv-qtyBtn';
+        decBtn.type = 'button';
+        decBtn.textContent = '-';
+        decBtn.disabled = qty <= 0;
+        decBtn.setAttribute('aria-label', `Decrease sealed quantity for ${name}`);
+        decBtn.addEventListener('click', () => onAdjust(-1));
+
+        const qtyValue = document.createElement('span');
+        qtyValue.className = 'pv-qtyValue';
+        qtyValue.textContent = String(qty);
+
+        const incBtn = document.createElement('button');
+        incBtn.className = 'pv-button btn pv-qtyBtn';
+        incBtn.type = 'button';
+        incBtn.textContent = '+';
+        incBtn.setAttribute('aria-label', `Increase sealed quantity for ${name}`);
+        incBtn.addEventListener('click', () => onAdjust(1));
+
+        stepper.appendChild(decBtn);
+        stepper.appendChild(qtyValue);
+        stepper.appendChild(incBtn);
+        return stepper;
+    }
+
     function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
@@ -1312,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const sortedFavorites = favorites.slice().sort(compareSealedFavoritesForSort);
-        const collectionIds = getSealedCollectionIdSet();
+        const collectionQtyById = getSealedCollectionQuantityMap();
 
         for (const fav of sortedFavorites) {
             const col = document.createElement('div');
@@ -1341,16 +1423,11 @@ document.addEventListener('DOMContentLoaded', function () {
             title.className = 'pv-card__title';
             title.textContent = String(fav?.name || 'Unknown');
 
-            const inCollection = collectionIds.has(safeString(fav?.id, ''));
-            const collectionBtn = document.createElement('button');
-            collectionBtn.className = 'pv-collectionToggle-btn';
-            collectionBtn.type = 'button';
-            collectionBtn.setAttribute('aria-label', inCollection ? 'Remove from collection' : 'Add to collection');
-            collectionBtn.setAttribute('title', inCollection ? 'Remove from collection' : 'Add to collection');
-            collectionBtn.setAttribute('aria-pressed', inCollection ? 'true' : 'false');
-            collectionBtn.textContent = inCollection ? '✓' : '+';
-            collectionBtn.addEventListener('click', () => {
-                toggleSealedCollection(fav);
+            const productId = safeString(fav?.id, '');
+            const quantity = Math.max(0, Math.floor(Number(collectionQtyById[productId]) || 0));
+            const quantityStepper = createSealedQuantityStepper(fav, quantity, (delta) => {
+                const result = updateSealedCollectionQuantity(fav, delta);
+                if (!result.changed) return;
                 renderFavorites(loadLastResults() || restoreState);
                 renderProducts(currentResultsProducts, loadLastResults() || restoreState);
             });
@@ -1364,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const actions = document.createElement('div');
             actions.className = 'pv-card__actions';
-            actions.appendChild(collectionBtn);
+            actions.appendChild(quantityStepper);
             actions.appendChild(favBtn);
 
             header.appendChild(title);
@@ -1378,7 +1455,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `Expansion: ${expName} • ${expSeries}`
                 : (expName ? `Expansion: ${expName}` : (expSeries ? `Series: ${expSeries}` : 'Expansion: N/A'));
 
-            const productId = safeString(fav?.id, '');
             const tradeField = document.createElement('div');
             tradeField.className = 'pv-form__field';
             tradeField.style.marginBottom = '0.5rem';
@@ -1451,7 +1527,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const sortedProducts = sourceProducts.slice().sort(compareSealedProductsForSort);
-        const collectionIds = getSealedCollectionIdSet();
+        const collectionQtyById = getSealedCollectionQuantityMap();
 
         for (const p of sortedProducts) {
             const col = document.createElement('div');
@@ -1491,23 +1567,17 @@ document.addEventListener('DOMContentLoaded', function () {
             favBtn.textContent = favored ? '★' : '☆';
             favBtn.addEventListener('click', () => toggleFavorite(p));
 
-            const inCollection = collectionIds.has(productId);
-            const collectionBtn = document.createElement('button');
-            collectionBtn.className = 'pv-collectionToggle-btn';
-            collectionBtn.type = 'button';
-            collectionBtn.setAttribute('aria-label', inCollection ? 'Remove from collection' : 'Add to collection');
-            collectionBtn.setAttribute('title', inCollection ? 'Remove from collection' : 'Add to collection');
-            collectionBtn.setAttribute('aria-pressed', inCollection ? 'true' : 'false');
-            collectionBtn.textContent = inCollection ? '✓' : '+';
-            collectionBtn.addEventListener('click', () => {
-                toggleSealedCollection(p);
+            const quantity = Math.max(0, Math.floor(Number(collectionQtyById[productId]) || 0));
+            const quantityStepper = createSealedQuantityStepper(p, quantity, (delta) => {
+                const result = updateSealedCollectionQuantity(p, delta);
+                if (!result.changed) return;
                 renderProducts(currentResultsProducts, loadLastResults() || restoreState);
                 renderFavorites(loadLastResults() || restoreState);
             });
 
             const actions = document.createElement('div');
             actions.className = 'pv-card__actions';
-            actions.appendChild(collectionBtn);
+            actions.appendChild(quantityStepper);
             actions.appendChild(favBtn);
 
             header.appendChild(title);

@@ -921,9 +921,18 @@ document.addEventListener('DOMContentLoaded', function () {
         return normalizeDexCollectionItemType(item?.itemType) === 'card';
     }
 
+    function normalizeDexSealedQuantity(rawQty, fallback) {
+        const fallbackQty = Math.max(0, Math.floor(Number(fallback) || 0));
+        const parsed = Math.floor(Number(rawQty));
+        if (!Number.isFinite(parsed)) return fallbackQty;
+        return Math.max(0, parsed);
+    }
+
     function normalizeDexCollectionSealedProduct(product) {
         const addedAtRaw = Number(product?.addedAt || 0);
         const updatedAtRaw = Number(product?.updatedAt || 0);
+        const rawQty = product?.quantity ?? product?.sealedQuantity;
+        const quantity = Math.max(1, normalizeDexSealedQuantity(rawQty, 1));
         return {
             itemType: 'sealed',
             id: safeString(product?.id, ''),
@@ -934,6 +943,7 @@ document.addEventListener('DOMContentLoaded', function () {
             images: Array.isArray(product?.images) ? product.images : [],
             variants: Array.isArray(product?.variants) ? product.variants : [],
             pricesText: safeString(product?.pricesText, ''),
+            quantity,
             addedAt: Number.isFinite(addedAtRaw) && addedAtRaw > 0 ? addedAtRaw : Date.now(),
             updatedAt: Number.isFinite(updatedAtRaw) && updatedAtRaw > 0 ? updatedAtRaw : Date.now(),
         };

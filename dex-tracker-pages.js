@@ -54,6 +54,17 @@
         return `${type}:${id}`;
     }
 
+    function normalizeSealedQuantity(rawQty, fallback) {
+        const fallbackQty = Math.max(0, Math.floor(Number(fallback) || 0));
+        const parsed = Math.floor(Number(rawQty));
+        if (!Number.isFinite(parsed)) return fallbackQty;
+        return Math.max(0, parsed);
+    }
+
+    function getSealedCollectionQuantity(item) {
+        return Math.max(1, normalizeSealedQuantity(item?.quantity ?? item?.sealedQuantity, 1));
+    }
+
     function normalizeCollectionTypeFilter(value) {
         const next = safeString(value, '').trim().toLowerCase();
         return COLLECTION_TYPE_FILTER_VALUES.includes(next) ? next : 'all';
@@ -1014,7 +1025,8 @@
             const valueEl = document.getElementById(valueElId);
 
             if (isSealedCollectionItem(item)) {
-                totalUnits += 1;
+                const quantity = getSealedCollectionQuantity(item);
+                totalUnits += quantity;
                 if (valueEl) valueEl.textContent = '...';
 
                 const market = getSealedMarketQuote(item);
@@ -1024,8 +1036,8 @@
                     return;
                 }
 
-                pricedUnits += 1;
-                total += market;
+                pricedUnits += quantity;
+                total += market * quantity;
                 collectionValueById[entryKey] = market;
                 if (valueEl) {
                     valueEl.textContent = formatUsd(market);
@@ -1143,6 +1155,7 @@
     function normalizeSealedCollectionEntry(raw) {
         const addedAt = Number(raw?.addedAt || 0);
         const updatedAt = Number(raw?.updatedAt || 0);
+        const quantity = getSealedCollectionQuantity(raw);
 
         return {
             itemType: 'sealed',
@@ -1154,6 +1167,7 @@
             images: Array.isArray(raw?.images) ? raw.images : [],
             variants: Array.isArray(raw?.variants) ? raw.variants : [],
             pricesText: safeString(raw?.pricesText, ''),
+            quantity,
             addedAt: Number.isFinite(addedAt) && addedAt > 0 ? addedAt : Date.now(),
             updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
         };
@@ -1567,6 +1581,62 @@
         return removedCollection || removedMaster;
     }
 
+    function updateSealedCollectionQuantity(productId, delta) {
+        const id = safeString(productId, '');
+        const qtyDelta = Math.floor(Number(delta));
+        if (!id || !Number.isFinite(qtyDelta) || qtyDelta === 0) {
+            return { changed: false, removeProduct: false, quantity: 0 };
+        }
+
+        const collection = readCollection();
+        let found = false;
+        let changed = false;
+        let removeProduct = false;
+        let nextQuantity = 0;
+
+        const nextCollection = collection.map((entry) => {
+            if (!(isSealedCollectionItem(entry) && safeString(entry?.id, '') === id)) {
+                return entry;
+            }
+
+            found = true;
+            const currentQty = getSealedCollectionQuantity(entry);
+            const qty = Math.max(0, currentQty + qtyDelta);
+            nextQuantity = qty;
+
+            if (qty === currentQty) {
+                return entry;
+            }
+
+            changed = true;
+            if (qty <= 0) {
+                removeProduct = true;
+                return entry;
+            }
+
+            return {
+                ...entry,
+                quantity: qty,
+                updatedAt: Date.now(),
+            };
+        });
+
+        if (!found || !changed) {
+            return { changed: false, removeProduct: false, quantity: nextQuantity };
+        }
+
+        if (removeProduct) {
+            const filtered = nextCollection.filter((entry) => {
+                return !(isSealedCollectionItem(entry) && safeString(entry?.id, '') === id);
+            });
+            writeCollection(filtered);
+            return { changed: true, removeProduct: true, quantity: 0 };
+        }
+
+        writeCollection(nextCollection);
+        return { changed: true, removeProduct: false, quantity: nextQuantity };
+    }
+
     function removeSealedProductFromCollection(productId) {
         const id = safeString(productId, '');
         if (!id) return false;
@@ -1960,6 +2030,8 @@
                 if (isSealedCollectionItem(item)) {
                     const typeLabel = buildSearchHighlightHtml(safeString(item?.type, 'Sealed product'), filterQuery);
                     const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
+                    const quantity = getSealedCollectionQuantity(item);
+                    const nameAttr = escapeAttr(cardName);
 
                     return `
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-entry-key="${escapeAttr(entryKey)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
@@ -1970,6 +2042,15 @@
                                 <p class="pv-card__text">${setName}</p>
                                 <p class="pv-card__text">Type: ${typeLabel}</p>
                                 <p class="pv-card__text">Sealed product</p>
+                                <p class="pv-card__text">Quantity: ${quantity}</p>
+                                <div class="pv-conditionQtyRow">
+                                    <p class="pv-card__text pv-conditionQtyLabel">Collection Qty</p>
+                                    <div class="pv-qtyStepper" role="group" aria-label="Adjust sealed quantity for ${nameAttr}">
+                                        <button class="pv-button btn pv-qtyBtn" type="button" data-qty-dec-sealed-id="${escapeAttr(id)}" aria-label="Decrease sealed quantity for ${nameAttr}">-</button>
+                                        <span class="pv-qtyValue">${quantity}</span>
+                                        <button class="pv-button btn pv-qtyBtn" type="button" data-qty-inc-sealed-id="${escapeAttr(id)}" aria-label="Increase sealed quantity for ${nameAttr}">+</button>
+                                    </div>
+                                </div>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
                                 <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-sealed-id="${escapeAttr(id)}">Remove Sealed</button>
                             </div>
@@ -2054,6 +2135,30 @@
                     const ok = window.confirm('Remove this sealed product from Collection?');
                     if (!ok) return;
                     removeSealedProductFromCollection(id);
+                    renderCollectionPage();
+                });
+            }
+
+            const incrementSealedButtons = Array.from(grid.querySelectorAll('[data-qty-inc-sealed-id]'));
+            for (const btn of incrementSealedButtons) {
+                btn.addEventListener('click', () => {
+                    const id = safeString(btn.getAttribute('data-qty-inc-sealed-id'), '');
+                    if (!id) return;
+
+                    const result = updateSealedCollectionQuantity(id, 1);
+                    if (!result.changed) return;
+                    renderCollectionPage();
+                });
+            }
+
+            const decrementSealedButtons = Array.from(grid.querySelectorAll('[data-qty-dec-sealed-id]'));
+            for (const btn of decrementSealedButtons) {
+                btn.addEventListener('click', () => {
+                    const id = safeString(btn.getAttribute('data-qty-dec-sealed-id'), '');
+                    if (!id) return;
+
+                    const result = updateSealedCollectionQuantity(id, -1);
+                    if (!result.changed) return;
                     renderCollectionPage();
                 });
             }
