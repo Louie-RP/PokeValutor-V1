@@ -68,7 +68,7 @@
         <section class="pv-hero container" aria-labelledby="pv-policies-title">
             <h1 id="pv-policies-title" class="pv-hero__title">Policies</h1>
             <p class="pv-hero__subtitle">Disclaimer, privacy, terms, and accessibility details.</p>
-            <p class="pv-hero__fineprint">Last updated: May 11, 2026</p>
+            <p class="pv-hero__fineprint">Last updated: May 29, 2026</p>
         </section>
 
         <section class="pv-section" aria-label="On this page">
@@ -119,7 +119,15 @@
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Cloud Firestore sync</h3>
-                    <p class="pv-feature__text">When signed in, your watchlist/favorites and Dex tracker state are synced to Cloud Firestore under your account UID so your data can persist across devices. Firestore access from the app is governed by Firebase Security Rules and is restricted to the signed-in user's own records.</p>
+                    <p class="pv-feature__text">When signed in, your watchlist/favorites and Dex tracker state are synced to Cloud Firestore under your account UID so your data can persist across devices. Firestore access for your account records is governed by Firebase Security Rules and limited to your signed-in account, except when you explicitly enable a shared read-only collection link (described below).</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Shared collection links</h3>
+                    <p class="pv-feature__text">If you enable read-only sharing on the Account page, the app generates a random share token and publishes a read-only snapshot of your Dex collection for that link. Anyone with the link can view shared cards, conditions, and copy counts, but cannot edit your data. You can disable sharing at any time to turn link access off.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Stripe billing</h3>
+                    <p class="pv-feature__text">If you subscribe to Premium or open billing management, checkout and billing portal flows are handled by Stripe through secure Firebase Functions. Stripe may process payment and billing information directly (such as card details, billing profile, subscription status, invoices, and payment events), and the app stores minimal billing linkage data needed to map your Firebase account to subscription state. See <a class="pv-inlineLink" href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">Stripe Privacy Policy</a> and <a class="pv-inlineLink" href="https://stripe.com/legal" target="_blank" rel="noopener noreferrer">Stripe Legal Terms</a>.</p>
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Network requests</h3>
@@ -135,12 +143,13 @@
                 </div>
             </div>
 
-            <p class="pv-section__text">Third-party services used by this site (for example Firebase, hosting/CDN, fonts, contact form processing, and data providers) may have their own privacy practices. Review their policies for service-specific details.</p>
+            <p class="pv-section__text">Third-party services used by this site (for example Firebase, Stripe, hosting/CDN, fonts, contact form processing, and data providers) may have their own privacy practices. Review their policies for service-specific details.</p>
             <p class="pv-section__text"><strong>Your choices:</strong> you can remove watchlist/tracker items with in-app controls, clear browser storage in your browser settings, and stop future cloud sync by signing out. Deleting your account in Firebase Authentication removes sign-in access, but data cleanup timing depends on Firebase processing and any configured retention.</p>
             <p class="pv-section__text"><strong>Delete my account/data:</strong></p>
             <p class="pv-section__text">1. Sign in on the <a class="pv-inlineLink" href="account.html">Account</a> page and use the <strong>Delete account</strong> button. You will be asked to confirm by typing DELETE.</p>
-            <p class="pv-section__text">2. The app attempts to remove your synced Firestore tracker data first, then deletes your Firebase Authentication account.</p>
-            <p class="pv-section__text">3. If Firebase requires a recent login, sign in again and retry. If you still need help, contact us via <a class="pv-inlineLink" href="contact.html">Contact</a>.</p>
+            <p class="pv-section__text">2. The app attempts to remove your user-scoped Firestore data (watchlist/tracker and shared snapshot data under your account scope), then deletes your Firebase Authentication account.</p>
+            <p class="pv-section__text">3. If you used Stripe billing, certain billing-related records (for example Stripe customer/subscription history, invoices, charge records, and minimal internal billing linkage logs) may be retained by Stripe or backend systems for legal, tax, fraud-prevention, and accounting purposes.</p>
+            <p class="pv-section__text">4. If Firebase requires a recent login, sign in again and retry. If you still need help, contact us via <a class="pv-inlineLink" href="contact.html">Contact</a>.</p>
         </section>
 
         <section id="pv-termsOfUse" class="pv-section" aria-labelledby="pv-termsTitle">
@@ -155,6 +164,10 @@
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Account responsibility</h3>
                     <p class="pv-feature__text">If you create or use an account, you are responsible for maintaining the security of your login credentials and for activity that occurs under your account. Use accurate information and comply with the terms of any sign-in provider you choose (for example, Google).</p>
+                </div>
+                <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Subscriptions and billing</h3>
+                    <p class="pv-feature__text">Premium subscriptions are billed by Stripe. By starting or managing a subscription, you agree to Stripe's checkout and billing portal flows, recurring charges until canceled, and Stripe's applicable terms/policies. Review <a class="pv-inlineLink" href="https://stripe.com/legal" target="_blank" rel="noopener noreferrer">Stripe Legal Terms</a> and <a class="pv-inlineLink" href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">Stripe Privacy Policy</a>. Subscription state changes (active, past due, canceled, etc.) may affect your premium access level in PokéValutor.</p>
                 </div>
                 <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Prohibited use</h3>
