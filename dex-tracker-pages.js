@@ -6,12 +6,14 @@
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
+    const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
+    const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -31,6 +33,30 @@
     function safeString(value, fallback) {
         const s = String(value ?? '');
         return s ? s : (fallback || '');
+    }
+
+    function normalizeCollectionItemType(rawType) {
+        const value = safeString(rawType, '').trim().toLowerCase();
+        return value === 'sealed' ? 'sealed' : 'card';
+    }
+
+    function isCardCollectionItem(item) {
+        return normalizeCollectionItemType(item?.itemType) === 'card';
+    }
+
+    function isSealedCollectionItem(item) {
+        return normalizeCollectionItemType(item?.itemType) === 'sealed';
+    }
+
+    function getCollectionEntryKey(item) {
+        const type = normalizeCollectionItemType(item?.itemType);
+        const id = safeString(item?.id, '').trim();
+        return `${type}:${id}`;
+    }
+
+    function normalizeCollectionTypeFilter(value) {
+        const next = safeString(value, '').trim().toLowerCase();
+        return COLLECTION_TYPE_FILTER_VALUES.includes(next) ? next : 'all';
     }
 
     function normalizeSearchText(value) {
@@ -363,6 +389,23 @@
 
     const COLLECTION_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
 
+    function loadCollectionTypeFilterPreference() {
+        try {
+            const raw = localStorage.getItem(COLLECTION_TYPE_FILTER_PREF_KEY);
+            return normalizeCollectionTypeFilter(raw);
+        } catch {
+            return 'all';
+        }
+    }
+
+    function saveCollectionTypeFilterPreference(value) {
+        try {
+            localStorage.setItem(COLLECTION_TYPE_FILTER_PREF_KEY, normalizeCollectionTypeFilter(value));
+        } catch {
+            // ignore
+        }
+    }
+
     function loadCollectionSortPreference() {
         try {
             const raw = localStorage.getItem(COLLECTION_SORT_PREF_KEY);
@@ -442,10 +485,10 @@
                 return cmp * dir;
             }
 
-            const idA = safeString(a.getAttribute('data-card-id'), '');
-            const idB = safeString(b.getAttribute('data-card-id'), '');
-            const va = Number(collectionValueById[idA]);
-            const vb = Number(collectionValueById[idB]);
+            const keyA = safeString(a.getAttribute('data-entry-key'), '');
+            const keyB = safeString(b.getAttribute('data-entry-key'), '');
+            const va = Number(collectionValueById[keyA]);
+            const vb = Number(collectionValueById[keyB]);
             const hasA = Number.isFinite(va);
             const hasB = Number.isFinite(vb);
 
@@ -959,25 +1002,47 @@
         totalEl.textContent = 'Value: Loading...';
 
         let total = 0;
-        let totalCopies = 0;
-        let pricedCopies = 0;
+        let totalUnits = 0;
+        let pricedUnits = 0;
 
         await Promise.all(list.map(async (item) => {
             const id = safeString(item?.id, '');
             if (!id) return;
 
-            const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
+            const entryKey = getCollectionEntryKey(item);
+            const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
             const valueEl = document.getElementById(valueElId);
+
+            if (isSealedCollectionItem(item)) {
+                totalUnits += 1;
+                if (valueEl) valueEl.textContent = '...';
+
+                const market = getSealedMarketQuote(item);
+                if (!Number.isFinite(market) || market <= 0) {
+                    delete collectionValueById[entryKey];
+                    if (valueEl) valueEl.textContent = '--';
+                    return;
+                }
+
+                pricedUnits += 1;
+                total += market;
+                collectionValueById[entryKey] = market;
+                if (valueEl) {
+                    valueEl.textContent = formatUsd(market);
+                }
+                return;
+            }
+
             const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
             const copiesForCard = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
-            totalCopies += copiesForCard;
+            totalUnits += copiesForCard;
 
             if (valueEl) {
                 valueEl.textContent = conditionEntries.length ? '...' : '--';
             }
 
             if (!conditionEntries.length) {
-                delete collectionValueById[id];
+                delete collectionValueById[entryKey];
                 return;
             }
 
@@ -1005,20 +1070,20 @@
             }));
 
             if (cardTotal <= 0) {
-                delete collectionValueById[id];
+                delete collectionValueById[entryKey];
                 if (valueEl) valueEl.textContent = '--';
                 return;
             }
 
-            pricedCopies += cardPricedCopies;
+            pricedUnits += cardPricedCopies;
             total += cardTotal;
-            collectionValueById[id] = Number.isFinite(cardDisplayUnit) ? Number(cardDisplayUnit) : 0;
+            collectionValueById[entryKey] = Number.isFinite(cardDisplayUnit) ? Number(cardDisplayUnit) : 0;
             if (valueEl) {
                 valueEl.textContent = Number.isFinite(cardDisplayUnit) ? formatUsd(cardDisplayUnit) : '--';
             }
         }));
 
-        const coverage = pricedCopies < totalCopies ? ` (${pricedCopies}/${totalCopies} priced)` : '';
+        const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
         totalEl.textContent = `Value: ${formatUsd(total)}${coverage}`;
 
         const grid = document.getElementById('pv-collection-grid');
@@ -1039,6 +1104,26 @@
         return expansionName || setName || directExpansionName || directSetName || 'n/a';
     }
 
+    function getSealedMarketQuote(item) {
+        const variants = Array.isArray(item?.variants) ? item.variants : [];
+        /** @type {Array<number>} */
+        const markets = [];
+
+        for (const variant of variants) {
+            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
+            for (const price of prices) {
+                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
+                if (Number.isFinite(market) && market > 0) {
+                    markets.push(market);
+                }
+            }
+        }
+
+        if (!markets.length) return null;
+        markets.sort((a, b) => a - b);
+        return markets[0];
+    }
+
     function slugifyForUrl(value) {
         return String(value || '')
             .toLowerCase()
@@ -1055,7 +1140,31 @@
         return `card.html?id=${encodeURIComponent(id)}&slug=${encodeURIComponent(slug)}`;
     }
 
+    function normalizeSealedCollectionEntry(raw) {
+        const addedAt = Number(raw?.addedAt || 0);
+        const updatedAt = Number(raw?.updatedAt || 0);
+
+        return {
+            itemType: 'sealed',
+            id: safeString(raw?.id, ''),
+            name: safeString(raw?.name, 'Unknown'),
+            type: safeString(raw?.type, ''),
+            expansion: (raw?.expansion && typeof raw.expansion === 'object') ? raw.expansion : null,
+            set: (raw?.set && typeof raw.set === 'object') ? raw.set : null,
+            images: Array.isArray(raw?.images) ? raw.images : [],
+            variants: Array.isArray(raw?.variants) ? raw.variants : [],
+            pricesText: safeString(raw?.pricesText, ''),
+            addedAt: Number.isFinite(addedAt) && addedAt > 0 ? addedAt : Date.now(),
+            updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : Date.now(),
+        };
+    }
+
     function normalizeCollectionEntry(raw) {
+        const itemType = normalizeCollectionItemType(raw?.itemType);
+        if (itemType === 'sealed') {
+            return normalizeSealedCollectionEntry(raw);
+        }
+
         const conditionQuantities = normalizeConditionQuantities(raw?.conditionQuantities, raw?.selectedCondition);
         const selectedCondition = getPrimaryConditionCode(conditionQuantities);
         const totalCopies = getTotalCopiesFromConditionMap(conditionQuantities, selectedCondition);
@@ -1067,6 +1176,7 @@
         const updatedAt = Number(raw?.updatedAt || 0);
 
         return {
+            itemType: 'card',
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             rarity: safeString(raw?.rarity, ''),
@@ -1220,29 +1330,31 @@
         /** @type {Map<string, any>} */
         const byId = new Map();
 
-        function addCard(raw) {
+        function addItem(raw) {
             const normalized = normalizeCollectionEntry(raw);
             const id = safeString(normalized?.id, '').trim();
             if (!id) return;
 
-            const existing = byId.get(id);
+            const entryKey = getCollectionEntryKey(normalized);
+
+            const existing = byId.get(entryKey);
             if (!existing) {
-                byId.set(id, normalized);
+                byId.set(entryKey, normalized);
                 return;
             }
 
             const existingUpdatedAt = getDexUpdatedAt(existing?.updatedAt);
             const nextUpdatedAt = getDexUpdatedAt(normalized?.updatedAt);
             if (nextUpdatedAt >= existingUpdatedAt) {
-                byId.set(id, normalized);
+                byId.set(entryKey, normalized);
             }
         }
 
         if (Array.isArray(localList)) {
-            for (const item of localList) addCard(item);
+            for (const item of localList) addItem(item);
         }
         if (Array.isArray(cloudList)) {
-            for (const item of cloudList) addCard(item);
+            for (const item of cloudList) addItem(item);
         }
 
         return Array.from(byId.values())
@@ -1279,6 +1391,8 @@
         const merged = {};
 
         for (const card of (Array.isArray(mergedCollection) ? mergedCollection : [])) {
+            if (!isCardCollectionItem(card)) continue;
+
             const cardId = safeString(card?.id, '').trim();
             if (!cardId) continue;
 
@@ -1368,7 +1482,7 @@
         let removeCard = false;
 
         const nextCollection = collection.map((entry) => {
-            if (safeString(entry?.id, '') !== id) return entry;
+            if (!isCardCollectionItem(entry) || safeString(entry?.id, '') !== id) return entry;
 
             found = true;
             const map = normalizeConditionQuantities(entry?.conditionQuantities, entry?.selectedCondition);
@@ -1413,7 +1527,9 @@
         if (!id) return false;
 
         const collection = readCollection();
-        const nextCollection = collection.filter((x) => safeString(x?.id, '') !== id);
+        const nextCollection = collection.filter((x) => {
+            return !(isCardCollectionItem(x) && safeString(x?.id, '') === id);
+        });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
             writeCollection(nextCollection);
@@ -1451,6 +1567,22 @@
         return removedCollection || removedMaster;
     }
 
+    function removeSealedProductFromCollection(productId) {
+        const id = safeString(productId, '');
+        if (!id) return false;
+
+        const collection = readCollection();
+        const nextCollection = collection.filter((item) => {
+            return !(isSealedCollectionItem(item) && safeString(item?.id, '') === id);
+        });
+        if (nextCollection.length === collection.length) {
+            return false;
+        }
+
+        writeCollection(nextCollection);
+        return true;
+    }
+
     function buildMasterSetDetailUrl(expansionId, expansionName) {
         const id = safeString(expansionId, '').trim();
         const name = safeString(expansionName, '').trim();
@@ -1466,6 +1598,7 @@
         /** @type {Record<string, any>} */
         const out = {};
         for (const item of (Array.isArray(collection) ? collection : [])) {
+            if (!isCardCollectionItem(item)) continue;
             const id = safeString(item?.id, '');
             if (!id) continue;
             out[id] = item;
@@ -1686,88 +1819,161 @@
         const summary = document.getElementById('pv-collection-summary');
         const totalEl = document.getElementById('pv-collection-total');
         const filterInput = document.getElementById('pv-collection-filter');
+        const typeFilterSelect = document.getElementById('pv-collection-type-filter');
         if (!grid || !summary || !totalEl) return;
 
         const items = readCollection().slice().sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
-        const totalCopies = items.reduce((sum, item) => {
+        const cardItems = items.filter((item) => isCardCollectionItem(item));
+        const sealedItems = items.filter((item) => isSealedCollectionItem(item));
+        const totalCardCopies = cardItems.reduce((sum, item) => {
             return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
         }, 0);
+
+        let selectedType = loadCollectionTypeFilterPreference();
+        if (typeFilterSelect instanceof HTMLSelectElement) {
+            if (typeFilterSelect.getAttribute('data-bound') === '1') {
+                selectedType = normalizeCollectionTypeFilter(typeFilterSelect.value);
+            }
+            typeFilterSelect.value = selectedType;
+        }
+
+        const typeFilteredItems = items.filter((item) => {
+            if (selectedType === 'card') return isCardCollectionItem(item);
+            if (selectedType === 'sealed') return isSealedCollectionItem(item);
+            return true;
+        });
+
         const filterQuery = (filterInput instanceof HTMLInputElement)
             ? safeString(filterInput.value, '').trim()
             : '';
-        const filteredMatches = filterQuery
-            ? items.map((item) => {
-                const searchFields = [
+
+        function getCollectionSearchFields(item) {
+            if (isSealedCollectionItem(item)) {
+                return [
                     safeString(item?.name, ''),
                     getCardSetName(item),
-                    getCardDisplayNumber(item),
+                    safeString(item?.type, ''),
                     safeString(item?.id, ''),
                 ];
+            }
+
+            return [
+                safeString(item?.name, ''),
+                getCardSetName(item),
+                getCardDisplayNumber(item),
+                safeString(item?.id, ''),
+            ];
+        }
+
+        const filteredMatches = filterQuery
+            ? typeFilteredItems.map((item) => {
                 return {
                     item,
-                    score: getTypoTolerantSearchScore(filterQuery, searchFields),
+                    score: getTypoTolerantSearchScore(filterQuery, getCollectionSearchFields(item)),
                 };
             }).filter((x) => x.score >= 0).sort((a, b) => {
                 const diff = b.score - a.score;
                 if (diff !== 0) return diff;
                 return Number(b?.item?.addedAt || 0) - Number(a?.item?.addedAt || 0);
             })
-            : items.map((item) => ({ item, score: 0 }));
+            : typeFilteredItems.map((item) => ({ item, score: 0 }));
+
         const filteredItems = filteredMatches.map((x) => x.item);
-        const filteredCopies = filteredItems.reduce((sum, item) => {
+        const filteredCardCopies = filteredItems.reduce((sum, item) => {
+            if (!isCardCollectionItem(item)) return sum;
             return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
         }, 0);
-        const totalCardLabel = `card${items.length === 1 ? '' : 's'}`;
-        const totalCopyLabel = `cop${totalCopies === 1 ? 'y' : 'ies'}`;
+        const filteredCardCount = filteredItems.filter((item) => isCardCollectionItem(item)).length;
+        const filteredSealedCount = filteredItems.filter((item) => isSealedCollectionItem(item)).length;
         let collectionSuggestion = '';
 
         const dexCardsStat = document.getElementById('pv-dex-stat-cards');
+        const dexSealedStat = document.getElementById('pv-dex-stat-sealed');
         const dexCopiesStat = document.getElementById('pv-dex-stat-copies');
-        if (dexCardsStat) dexCardsStat.textContent = String(items.length);
-        if (dexCopiesStat) dexCopiesStat.textContent = String(totalCopies);
+        if (dexCardsStat) dexCardsStat.textContent = String(cardItems.length);
+        if (dexSealedStat) dexSealedStat.textContent = String(sealedItems.length);
+        if (dexCopiesStat) dexCopiesStat.textContent = String(totalCardCopies);
 
         if (!items.length) {
-            summary.textContent = '0 cards • 0 copies.';
+            summary.textContent = '0 cards • 0 sealed products.';
+        } else if (!typeFilteredItems.length) {
+            summary.textContent = selectedType === 'sealed'
+                ? '0 sealed products shown.'
+                : '0 cards shown • 0 copies.';
         } else if (filterQuery) {
-            summary.textContent = `${filteredItems.length} of ${items.length} ${totalCardLabel} shown • ${filteredCopies} of ${totalCopies} ${totalCopyLabel}.`;
+            if (selectedType === 'sealed') {
+                summary.textContent = `${filteredItems.length} of ${typeFilteredItems.length} sealed product${typeFilteredItems.length === 1 ? '' : 's'} shown.`;
+            } else if (selectedType === 'card') {
+                summary.textContent = `${filteredItems.length} of ${typeFilteredItems.length} card${typeFilteredItems.length === 1 ? '' : 's'} shown • ${filteredCardCopies} copies.`;
+            } else {
+                summary.textContent = `${filteredItems.length} of ${typeFilteredItems.length} items shown • ${filteredCardCount} cards • ${filteredSealedCount} sealed • ${filteredCardCopies} card copies.`;
+            }
+        } else if (selectedType === 'sealed') {
+            summary.textContent = `${sealedItems.length} sealed product${sealedItems.length === 1 ? '' : 's'}.`;
+        } else if (selectedType === 'card') {
+            summary.textContent = `${cardItems.length} card${cardItems.length === 1 ? '' : 's'} • ${totalCardCopies} cop${totalCardCopies === 1 ? 'y' : 'ies'}.`;
         } else {
-            summary.textContent = `${items.length} ${totalCardLabel} • ${totalCopies} ${totalCopyLabel}.`;
+            summary.textContent = `${items.length} items • ${cardItems.length} cards • ${sealedItems.length} sealed • ${totalCardCopies} card cop${totalCardCopies === 1 ? 'y' : 'ies'}.`;
         }
 
         bindCollectionSortControls();
 
         if (!items.length) {
             totalEl.textContent = 'Value: $0.00';
-            grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Use Search Dex to add cards.</div></div>';
+            grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items tracked yet. Add cards from Dex search or sealed products from Sealed.</div></div>';
+        } else if (!typeFilteredItems.length) {
+            grid.innerHTML = selectedType === 'sealed'
+                ? '<div class="col-12"><div class="pv-emptyState">No sealed products tracked yet. Add sealed products from the Sealed page.</div></div>'
+                : '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Use Search Dex to add cards.</div></div>';
         } else if (!filteredItems.length) {
-            collectionSuggestion = getDidYouMeanSuggestion(filterQuery, items.flatMap((item) => {
-                return [
-                    safeString(item?.name, ''),
-                    getCardSetName(item),
-                    getCardDisplayNumber(item),
-                    safeString(item?.id, ''),
-                ];
-            }));
+            collectionSuggestion = getDidYouMeanSuggestion(filterQuery, typeFilteredItems.flatMap((item) => getCollectionSearchFields(item)));
 
             const suggestionHtml = collectionSuggestion
                 ? `<p class="pv-searchSuggestionText">Did you mean <button class="pv-button pv-button--secondary btn pv-searchSuggestionBtn" type="button" data-collection-suggestion="${escapeAttr(collectionSuggestion)}">${escapeHtml(collectionSuggestion)}</button>?</p>`
                 : '';
-            grid.innerHTML = `<div class="col-12"><div class="pv-emptyState">No cards match that search.${suggestionHtml}</div></div>`;
+            const scopedLabel = selectedType === 'sealed'
+                ? 'sealed products'
+                : (selectedType === 'card' ? 'cards' : 'items');
+            grid.innerHTML = `<div class="col-12"><div class="pv-emptyState">No ${scopedLabel} match that search.${suggestionHtml}</div></div>`;
 
             if (collectionSuggestion) {
-                summary.textContent = `${filteredItems.length} of ${items.length} ${totalCardLabel} shown • ${filteredCopies} of ${totalCopies} ${totalCopyLabel}. Did you mean "${collectionSuggestion}"?`;
+                summary.textContent = `${summary.textContent} Did you mean "${collectionSuggestion}"?`;
             }
         } else {
             const rows = filteredMatches.map((match) => {
                 const item = match.item;
                 const id = safeString(item?.id, '');
+                const entryKey = getCollectionEntryKey(item);
                 const cardName = safeString(item?.name, 'Unknown');
                 const namePlain = escapeHtml(cardName);
                 const name = buildSearchHighlightHtml(cardName, filterQuery);
                 const setName = buildSearchHighlightHtml(getCardSetName(item), filterQuery);
-                const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
                 const img = escapeHtml(pickFrontMediumImage(item?.images));
-                const valueElId = `pv-collection-value-${encodeURIComponent(id)}`;
+                const relevanceScore = Number(match.score || 0);
+
+                if (isSealedCollectionItem(item)) {
+                    const typeLabel = buildSearchHighlightHtml(safeString(item?.type, 'Sealed product'), filterQuery);
+                    const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
+
+                    return `
+                    <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-entry-key="${escapeAttr(entryKey)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
+                        <article class="pv-card h-100" aria-label="${namePlain}">
+                            ${img ? `<img class="pv-card__img pv-card__img--sealed" src="${img}" alt="${namePlain} sealed product image"/>` : ''}
+                            <div class="pv-card__body">
+                                <h3 class="pv-card__title">${name}</h3>
+                                <p class="pv-card__text">${setName}</p>
+                                <p class="pv-card__text">Type: ${typeLabel}</p>
+                                <p class="pv-card__text">Sealed product</p>
+                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
+                                <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-sealed-id="${escapeAttr(id)}">Remove Sealed</button>
+                            </div>
+                        </article>
+                    </div>
+                `;
+                }
+
+                const rarity = escapeHtml(safeString(item?.rarity, 'n/a'));
+                const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
                 const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
                 const copyCount = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
                 const addConditionSelectId = `pv-add-condition-${encodeURIComponent(id)}`;
@@ -1775,7 +1981,6 @@
                 const detailPath = buildCardDetailPath(item);
                 const detailPathAttr = escapeAttr(detailPath);
                 const nameAttr = escapeAttr(cardName);
-                const relevanceScore = Number(match.score || 0);
 
                 const conditionRows = conditionEntries.length
                     ? conditionEntries.map((entry) => {
@@ -1795,7 +2000,7 @@
                     : '<p class="pv-card__text">No copies tracked.</p>';
 
                 return `
-                    <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
+                    <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-entry-key="${escapeAttr(entryKey)}" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
                         <article class="pv-card h-100" aria-label="${namePlain}">
                             ${img ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${img}" alt="${namePlain} card image"/></a>` : ''}
                             <div class="pv-card__body">
@@ -1832,6 +2037,18 @@
                     if (!ok) return;
                     removeCardFromTrackers(id);
                     renderActivePage();
+                });
+            }
+
+            const removeSealedButtons = Array.from(grid.querySelectorAll('[data-remove-sealed-id]'));
+            for (const btn of removeSealedButtons) {
+                btn.addEventListener('click', () => {
+                    const id = safeString(btn.getAttribute('data-remove-sealed-id'), '');
+                    if (!id) return;
+                    const ok = window.confirm('Remove this sealed product from Collection?');
+                    if (!ok) return;
+                    removeSealedProductFromCollection(id);
+                    renderCollectionPage();
                 });
             }
 
@@ -1910,6 +2127,17 @@
         if (filterInput instanceof HTMLInputElement && filterInput.getAttribute('data-bound') !== '1') {
             filterInput.setAttribute('data-bound', '1');
             filterInput.addEventListener('input', () => {
+                renderCollectionPage();
+            });
+        }
+
+        if (typeFilterSelect instanceof HTMLSelectElement && typeFilterSelect.getAttribute('data-bound') !== '1') {
+            typeFilterSelect.setAttribute('data-bound', '1');
+            typeFilterSelect.value = loadCollectionTypeFilterPreference();
+            typeFilterSelect.addEventListener('change', () => {
+                const next = normalizeCollectionTypeFilter(typeFilterSelect.value);
+                typeFilterSelect.value = next;
+                saveCollectionTypeFilterPreference(next);
                 renderCollectionPage();
             });
         }

@@ -912,6 +912,41 @@ document.addEventListener('DOMContentLoaded', function () {
         return extractCardNumberFromId(cardLike?.id);
     }
 
+    function normalizeDexCollectionItemType(rawType) {
+        const value = safeString(rawType, '').trim().toLowerCase();
+        return value === 'sealed' ? 'sealed' : 'card';
+    }
+
+    function isDexCardCollectionItem(item) {
+        return normalizeDexCollectionItemType(item?.itemType) === 'card';
+    }
+
+    function normalizeDexCollectionSealedProduct(product) {
+        const addedAtRaw = Number(product?.addedAt || 0);
+        const updatedAtRaw = Number(product?.updatedAt || 0);
+        return {
+            itemType: 'sealed',
+            id: safeString(product?.id, ''),
+            name: safeString(product?.name, 'Unknown'),
+            type: safeString(product?.type, ''),
+            expansion: (product?.expansion && typeof product.expansion === 'object') ? product.expansion : null,
+            set: (product?.set && typeof product.set === 'object') ? product.set : null,
+            images: Array.isArray(product?.images) ? product.images : [],
+            variants: Array.isArray(product?.variants) ? product.variants : [],
+            pricesText: safeString(product?.pricesText, ''),
+            addedAt: Number.isFinite(addedAtRaw) && addedAtRaw > 0 ? addedAtRaw : Date.now(),
+            updatedAt: Number.isFinite(updatedAtRaw) && updatedAtRaw > 0 ? updatedAtRaw : Date.now(),
+        };
+    }
+
+    function normalizeDexCollectionEntry(entry) {
+        const itemType = normalizeDexCollectionItemType(entry?.itemType);
+        if (itemType === 'sealed') {
+            return normalizeDexCollectionSealedProduct(entry);
+        }
+        return normalizeDexCollectionCard(entry);
+    }
+
     function normalizeDexCollectionCard(card) {
         const conditionQuantities = normalizeConditionQuantities(card?.conditionQuantities, card?.selectedCondition);
         const selectedCondition = getPrimaryConditionCode(conditionQuantities);
@@ -923,6 +958,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const addedAtRaw = Number(card?.addedAt || 0);
         const updatedAtRaw = Number(card?.updatedAt || 0);
         return {
+            itemType: 'card',
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
             rarity: safeString(card?.rarity, ''),
@@ -950,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!Array.isArray(parsed)) return [];
             return parsed
                 .filter((x) => x && typeof x === 'object' && x.id)
-                .map((x) => normalizeDexCollectionCard(x));
+                .map((x) => normalizeDexCollectionEntry(x));
         } catch {
             return [];
         }
@@ -1089,29 +1125,32 @@ document.addEventListener('DOMContentLoaded', function () {
         /** @type {Map<string, any>} */
         const byId = new Map();
 
-        function addCard(raw) {
-            const normalized = normalizeDexCollectionCard(raw);
+        function addItem(raw) {
+            const normalized = normalizeDexCollectionEntry(raw);
             const id = safeString(normalized?.id, '').trim();
             if (!id) return;
 
-            const existing = byId.get(id);
+            const type = normalizeDexCollectionItemType(normalized?.itemType);
+            const entryKey = `${type}:${id}`;
+
+            const existing = byId.get(entryKey);
             if (!existing) {
-                byId.set(id, normalized);
+                byId.set(entryKey, normalized);
                 return;
             }
 
             const existingUpdatedAt = getDexUpdatedAt(existing?.updatedAt);
             const nextUpdatedAt = getDexUpdatedAt(normalized?.updatedAt);
             if (nextUpdatedAt >= existingUpdatedAt) {
-                byId.set(id, normalized);
+                byId.set(entryKey, normalized);
             }
         }
 
         if (Array.isArray(localList)) {
-            for (const item of localList) addCard(item);
+            for (const item of localList) addItem(item);
         }
         if (Array.isArray(cloudList)) {
-            for (const item of cloudList) addCard(item);
+            for (const item of cloudList) addItem(item);
         }
 
         return Array.from(byId.values())
@@ -1148,6 +1187,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const merged = {};
 
         for (const card of (Array.isArray(mergedCollection) ? mergedCollection : [])) {
+            if (!isDexCardCollectionItem(card)) continue;
+
             const cardId = safeString(card?.id, '').trim();
             if (!cardId) continue;
 
@@ -1240,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const id = safeString(cardId, '');
         if (!id) return false;
         const items = loadDexCollection();
-        return items.some((x) => safeString(x?.id, '') === id);
+        return items.some((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id);
     }
 
     function addDexCardToTrackers(card) {
@@ -1249,7 +1290,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!id) return { addedCollection: false, addedMasterSet: false, expansionName: '' };
 
         const collection = loadDexCollection();
-        const existingIndex = collection.findIndex((x) => safeString(x?.id, '') === id);
+        const existingIndex = collection.findIndex((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id);
         const existsInCollection = existingIndex >= 0;
         const addVariantName = safeString(normalized?.selectedVariant, '').trim() || getDexDefaultVariantForCard(normalized);
         if (!existsInCollection) {
@@ -1326,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!id) return { removedCollection: false, removedMasterSet: false, expansionNames: [] };
 
         const collection = loadDexCollection();
-        const nextCollection = collection.filter((x) => safeString(x?.id, '') !== id);
+        const nextCollection = collection.filter((x) => !(isDexCardCollectionItem(x) && safeString(x?.id, '') === id));
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
             saveDexCollection(nextCollection);
@@ -1382,7 +1423,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const collection = loadDexCollection();
-        const idx = collection.findIndex((x) => safeString(x?.id, '') === id);
+        const idx = collection.findIndex((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id);
         if (idx < 0) {
             return { removedCopy: false, removedCard: false, reason: 'notTracked' };
         }
@@ -2040,7 +2081,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateDexCollectionStats(collectionList) {
         if (!isDexPage) return;
 
-        const list = Array.isArray(collectionList) ? collectionList : [];
+        const list = (Array.isArray(collectionList) ? collectionList : []).filter((item) => isDexCardCollectionItem(item));
         let totalCopies = 0;
         for (const card of list) {
             totalCopies += getTotalDexConditionCopies(card?.conditionQuantities, card?.selectedCondition);
@@ -3206,7 +3247,7 @@ document.addEventListener('DOMContentLoaded', function () {
             function updateDexButtonStateFromStorage() {
                 if (!enableDexTrackingControls) return;
 
-                const trackedEntry = loadDexCollection().find((x) => safeString(x?.id, '') === id) || null;
+                const trackedEntry = loadDexCollection().find((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id) || null;
                 const nowTracked = !!trackedEntry;
                 const nowCopies = nowTracked
                     ? getTotalDexConditionCopies(trackedEntry?.conditionQuantities, trackedEntry?.selectedCondition)
