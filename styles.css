@@ -632,6 +632,432 @@ body {
   }
 }
 
+/* Pricing page */
+.pv-pricingPage .pv-main {
+  position: relative;
+  font-family: "Space Grotesk", "Segoe UI", Roboto, sans-serif;
+  padding-bottom: clamp(1.6rem, 4vw, 3rem);
+}
+
+.pv-pricingPage .pv-main::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: min(54vh, 480px);
+  background:
+    radial-gradient(circle at 16% 16%, rgba(255, 203, 5, 0.18) 0%, rgba(255, 203, 5, 0) 42%),
+    radial-gradient(circle at 86% 14%, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0) 44%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pv-pricingPage .pv-hero,
+.pv-pricingPage .pv-section {
+  position: relative;
+  z-index: 1;
+}
+
+.pv-pricingPage .pv-section {
+  margin-top: clamp(2rem, 4.8vw, 3.2rem);
+}
+
+.pv-pricingPage .pv-pricingHero {
+  border: 1px solid rgba(255, 203, 5, 0.28);
+  border-radius: 24px;
+  margin-top: clamp(1.6rem, 4.6vw, 2.7rem);
+  padding: clamp(1.35rem, 3.2vw, 2.15rem) clamp(1.35rem, 3.2vw, 2.15rem) clamp(1.8rem, 4vw, 2.7rem);
+  background:
+    linear-gradient(145deg, rgba(255, 203, 5, 0.11) 0%, rgba(255, 203, 5, 0.02) 26%, rgba(0, 0, 0, 0.38) 100%),
+    rgba(6, 6, 6, 0.84);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+  display: grid;
+  gap: clamp(1rem, 2.8vw, 1.55rem);
+}
+
+.pv-pricingHero__copy {
+  display: grid;
+  gap: 0.95rem;
+  align-content: start;
+}
+
+.pv-pricingHero__eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  color: #ffe588;
+}
+
+.pv-pricingHero .pv-hero__title {
+  margin: 0;
+  font-size: clamp(1.9rem, 4.5vw, 2.9rem);
+  color: #fff4cc;
+  max-width: 22ch;
+  line-height: 1.14;
+}
+
+.pv-pricingHero .pv-hero__subtitle {
+  margin: 0;
+  color: #f8fafc;
+  max-width: 58ch;
+  line-height: 1.64;
+}
+
+.pv-pricingHero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 0.15rem;
+}
+
+.pv-pricingStatus {
+  margin: 0;
+  border: 1px solid rgba(148, 163, 184, 0.36);
+  border-radius: 11px;
+  padding: 0.65rem 0.82rem;
+  background: rgba(15, 23, 42, 0.42);
+  color: #dbeafe;
+  font-size: 0.93rem;
+  line-height: 1.48;
+}
+
+.pv-pricingOffer {
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 16px;
+  padding: 1.1rem 1.12rem;
+  background:
+    linear-gradient(170deg, rgba(14, 165, 233, 0.13), rgba(14, 165, 233, 0)),
+    rgba(2, 6, 23, 0.76);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pv-pricingOffer__tag {
+  display: inline-flex;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.56);
+  color: #bae6fd;
+  background: rgba(12, 74, 110, 0.38);
+  padding: 0.16rem 0.58rem;
+  font-size: 0.76rem;
+  font-weight: 780;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pv-pricingOffer__title {
+  margin: 0.28rem 0 0.12rem;
+  color: #ffffff;
+  font-weight: 760;
+  font-size: 1.06rem;
+  line-height: 1.35;
+}
+
+.pv-pricingOffer__text {
+  margin: 0;
+  color: var(--pv-muted);
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+
+.pv-pricingOffer__list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.05rem;
+  color: #dbeafe;
+  display: grid;
+  gap: 0.38rem;
+  font-size: 0.9rem;
+}
+
+.pv-pricingPreview {
+  margin-top: clamp(2.1rem, 5.2vw, 3.1rem);
+}
+
+.pv-pricingPreview__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+  margin-top: 0.85rem;
+}
+
+.pv-pricingPreviewCard {
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 14px;
+  padding: 1.1rem 1.05rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0) 55%),
+    rgba(12, 12, 12, 0.9);
+  animation: pv-pricingCardIn 420ms ease both;
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-height: 158px;
+}
+
+.pv-pricingPreviewCard:nth-child(2) { animation-delay: 90ms; }
+.pv-pricingPreviewCard:nth-child(3) { animation-delay: 160ms; }
+
+.pv-pricingPreviewCard__title {
+  margin: 0;
+  font-size: 1rem;
+  color: #fff4cc;
+  line-height: 1.35;
+}
+
+.pv-pricingPreviewCard__text {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+
+.pv-pricingPage .pv-pricingPlansShell {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 22px;
+  padding: clamp(1.7rem, 3.8vw, 2.25rem) clamp(1.15rem, 2.9vw, 1.75rem) clamp(1.15rem, 2.9vw, 1.75rem);
+  background:
+    radial-gradient(ellipse at 8% -2%, rgba(255, 203, 5, 0.1) 0%, rgba(255, 203, 5, 0) 36%),
+    rgba(5, 5, 5, 0.8);
+}
+
+.pv-pricingPlansShell__eyebrow {
+  margin: 0 0 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.pv-pricingPlansGrid {
+  display: grid;
+  gap: 1.05rem;
+  grid-template-columns: 1fr;
+  margin-top: 1rem;
+}
+
+.pv-pricingPlan {
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 16px;
+  padding: 1.12rem;
+  background: rgba(3, 7, 18, 0.62);
+  display: grid;
+  gap: 0.82rem;
+}
+
+.pv-pricingPlan--premium {
+  border-color: rgba(255, 203, 5, 0.48);
+  background:
+    linear-gradient(165deg, rgba(255, 203, 5, 0.1), rgba(255, 203, 5, 0)),
+    rgba(3, 7, 18, 0.72);
+}
+
+.pv-pricingPlan__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.pv-pricingPlan__title {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #ffffff;
+}
+
+.pv-pricingPlan__subtitle {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.93rem;
+  line-height: 1.55;
+}
+
+.pv-pricingPlan__badge {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.52);
+  background: rgba(71, 85, 105, 0.34);
+  color: #dbeafe;
+  font-size: 0.74rem;
+  font-weight: 750;
+  padding: 0.14rem 0.56rem;
+}
+
+.pv-pricingPlan__badge--premium {
+  border-color: rgba(255, 203, 5, 0.62);
+  background: rgba(133, 77, 14, 0.34);
+  color: #fde68a;
+}
+
+.pv-pricingPlan__price {
+  margin: 0.1rem 0 0;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.pv-pricingPlan__price span {
+  font-size: 0.86rem;
+  color: #cbd5e1;
+  font-weight: 550;
+  margin-left: 0.3rem;
+}
+
+.pv-pricingPlan__list {
+  margin: 0.1rem 0 0;
+  padding-left: 1.02rem;
+  display: grid;
+  gap: 0.44rem;
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  line-height: 1.48;
+}
+
+.pv-pricingPlan__roadmapTitle {
+  margin: 0.2rem 0 0;
+  color: #fde68a;
+  font-size: 0.88rem;
+  font-weight: 740;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pv-pricingPlan__roadmap {
+  margin: 0;
+  padding-left: 1.02rem;
+  display: grid;
+  gap: 0.36rem;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+  line-height: 1.46;
+}
+
+.pv-pricingFinal {
+  border: 1px solid rgba(255, 203, 5, 0.3);
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(255, 203, 5, 0.15), rgba(255, 203, 5, 0.02) 44%, rgba(12, 74, 110, 0.18)),
+    rgba(6, 6, 6, 0.72);
+  padding: clamp(1.2rem, 2.9vw, 1.62rem);
+  display: grid;
+  gap: 0.98rem;
+}
+
+.pv-pricingFinal__eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  color: #fde68a;
+  font-weight: 720;
+}
+
+.pv-pricingFinal__title {
+  margin: 0.24rem 0 0;
+  color: #fff7db;
+  font-size: clamp(1.2rem, 3.1vw, 1.62rem);
+  line-height: 1.34;
+}
+
+.pv-pricingFinal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.72rem;
+}
+
+@media (min-width: 900px) {
+  .pv-pricingHero {
+    grid-template-columns: minmax(0, 1.34fr) minmax(360px, 0.78fr);
+    align-items: start;
+    column-gap: clamp(1rem, 2.4vw, 1.7rem);
+    row-gap: 1.05rem;
+  }
+
+  .pv-pricingHero__copy {
+    gap: 0.64rem;
+  }
+
+  .pv-pricingHero .pv-hero__title {
+    font-size: clamp(2rem, 3.6vw, 2.68rem);
+    max-width: 25ch;
+  }
+
+  .pv-pricingHero .pv-hero__subtitle {
+    max-width: 66ch;
+    line-height: 1.52;
+    font-size: 1.01rem;
+  }
+
+  .pv-pricingHero__actions {
+    margin-top: 0;
+  }
+
+  .pv-pricingStatus {
+    margin-top: -0.08rem;
+    max-width: 90%;
+  }
+
+  .pv-pricingOffer {
+    margin-top: clamp(0.88rem, 2.05vw, 1.35rem);
+    align-self: start;
+  }
+
+  .pv-pricingPreview__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pv-pricingPlansGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pv-pricingFinal {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .pv-pricingFinal__actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 640px) {
+  .pv-pricingPage .pv-section {
+    margin-top: 1.7rem;
+  }
+
+  .pv-pricingHero,
+  .pv-pricingPlansShell,
+  .pv-pricingFinal {
+    border-radius: 14px;
+  }
+
+  .pv-pricingPreviewCard,
+  .pv-pricingPlan {
+    min-height: unset;
+  }
+
+  .pv-pricingHero__actions .pv-button,
+  .pv-pricingFinal__actions .pv-button {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@keyframes pv-pricingCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Hero */
 .pv-hero {
   max-width: 1100px;
