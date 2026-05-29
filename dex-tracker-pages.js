@@ -1116,6 +1116,26 @@
         return expansionName || setName || directExpansionName || directSetName || 'n/a';
     }
 
+    function normalizeImageList(rawImages) {
+        if (Array.isArray(rawImages)) return rawImages;
+
+        if (typeof rawImages === 'string') {
+            const url = safeString(rawImages, '').trim();
+            if (!url) return [];
+            return [{ type: 'front', small: url, medium: url, large: url }];
+        }
+
+        if (rawImages && typeof rawImages === 'object') {
+            const small = safeString(rawImages?.small ?? rawImages?.thumbnail ?? rawImages?.thumb ?? rawImages?.url ?? rawImages?.src ?? rawImages?.image, '').trim();
+            const medium = safeString(rawImages?.medium ?? rawImages?.small ?? rawImages?.url ?? rawImages?.src ?? rawImages?.image, '').trim();
+            const large = safeString(rawImages?.large ?? rawImages?.medium ?? rawImages?.small ?? rawImages?.url ?? rawImages?.src ?? rawImages?.image, '').trim();
+            if (!small && !medium && !large) return [];
+            return [{ type: 'front', small, medium, large }];
+        }
+
+        return [];
+    }
+
     function getSealedMarketQuote(item) {
         const variants = Array.isArray(item?.variants) ? item.variants : [];
         /** @type {Array<number>} */
@@ -1156,15 +1176,19 @@
         const addedAt = Number(raw?.addedAt || 0);
         const updatedAt = Number(raw?.updatedAt || 0);
         const quantity = getSealedCollectionQuantity(raw);
+        const expansionName = safeString(raw?.expansionName ?? raw?.expansion_name ?? raw?.setName ?? raw?.set_name, '');
+        const setName = safeString(raw?.setName ?? raw?.set_name ?? raw?.expansionName ?? raw?.expansion_name, '');
 
         return {
             itemType: 'sealed',
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             type: safeString(raw?.type, ''),
+            expansionName,
+            setName,
             expansion: (raw?.expansion && typeof raw.expansion === 'object') ? raw.expansion : null,
             set: (raw?.set && typeof raw.set === 'object') ? raw.set : null,
-            images: Array.isArray(raw?.images) ? raw.images : [],
+            images: normalizeImageList(raw?.images),
             variants: Array.isArray(raw?.variants) ? raw.variants : [],
             pricesText: safeString(raw?.pricesText, ''),
             quantity,
@@ -1188,17 +1212,21 @@
         const cardNumber = getCardDisplayNumber(raw);
         const addedAt = Number(raw?.addedAt || 0);
         const updatedAt = Number(raw?.updatedAt || 0);
+        const expansionName = safeString(raw?.expansionName ?? raw?.expansion_name ?? raw?.setName ?? raw?.set_name, '');
+        const setName = safeString(raw?.setName ?? raw?.set_name ?? raw?.expansionName ?? raw?.expansion_name, '');
 
         return {
             itemType: 'card',
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
-            rarity: safeString(raw?.rarity, ''),
+            rarity: safeString(raw?.rarity ?? raw?.rarityName ?? raw?.rarity_name, ''),
             card_no: cardNumber,
             number: cardNumber,
+            expansionName,
+            setName,
             expansion: (raw?.expansion && typeof raw.expansion === 'object') ? raw.expansion : null,
             set: (raw?.set && typeof raw.set === 'object') ? raw.set : null,
-            images: Array.isArray(raw?.images) ? raw.images : [],
+            images: normalizeImageList(raw?.images),
             variants: Array.isArray(raw?.variants) ? raw.variants : [],
             selectedVariant,
             variantQuantities,

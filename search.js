@@ -928,19 +928,43 @@ document.addEventListener('DOMContentLoaded', function () {
         return Math.max(0, parsed);
     }
 
+    function normalizeImageList(rawImages) {
+        if (Array.isArray(rawImages)) return rawImages;
+
+        if (typeof rawImages === 'string') {
+            const url = safeString(rawImages, '').trim();
+            if (!url) return [];
+            return [{ type: 'front', small: url, medium: url, large: url }];
+        }
+
+        if (rawImages && typeof rawImages === 'object') {
+            const small = safeString(rawImages?.small ?? rawImages?.thumbnail ?? rawImages?.thumb ?? rawImages?.url ?? rawImages?.src ?? rawImages?.image, '').trim();
+            const medium = safeString(rawImages?.medium ?? rawImages?.small ?? rawImages?.url ?? rawImages?.src ?? rawImages?.image, '').trim();
+            const large = safeString(rawImages?.large ?? rawImages?.medium ?? rawImages?.small ?? rawImages?.url ?? rawImages?.src ?? rawImages?.image, '').trim();
+            if (!small && !medium && !large) return [];
+            return [{ type: 'front', small, medium, large }];
+        }
+
+        return [];
+    }
+
     function normalizeDexCollectionSealedProduct(product) {
         const addedAtRaw = Number(product?.addedAt || 0);
         const updatedAtRaw = Number(product?.updatedAt || 0);
         const rawQty = product?.quantity ?? product?.sealedQuantity;
         const quantity = Math.max(1, normalizeDexSealedQuantity(rawQty, 1));
+        const expansionName = safeString(product?.expansionName ?? product?.expansion_name ?? product?.setName ?? product?.set_name, '');
+        const setName = safeString(product?.setName ?? product?.set_name ?? product?.expansionName ?? product?.expansion_name, '');
         return {
             itemType: 'sealed',
             id: safeString(product?.id, ''),
             name: safeString(product?.name, 'Unknown'),
             type: safeString(product?.type, ''),
+            expansionName,
+            setName,
             expansion: (product?.expansion && typeof product.expansion === 'object') ? product.expansion : null,
             set: (product?.set && typeof product.set === 'object') ? product.set : null,
-            images: Array.isArray(product?.images) ? product.images : [],
+            images: normalizeImageList(product?.images),
             variants: Array.isArray(product?.variants) ? product.variants : [],
             pricesText: safeString(product?.pricesText, ''),
             quantity,
@@ -967,16 +991,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const cardNumber = getCardDisplayNumber(card);
         const addedAtRaw = Number(card?.addedAt || 0);
         const updatedAtRaw = Number(card?.updatedAt || 0);
+        const expansionName = safeString(card?.expansionName ?? card?.expansion_name ?? card?.setName ?? card?.set_name, '');
+        const setName = safeString(card?.setName ?? card?.set_name ?? card?.expansionName ?? card?.expansion_name, '');
         return {
             itemType: 'card',
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
-            rarity: safeString(card?.rarity, ''),
+            rarity: safeString(card?.rarity ?? card?.rarityName ?? card?.rarity_name, ''),
             card_no: cardNumber,
             number: cardNumber,
+            expansionName,
+            setName,
             expansion: (card?.expansion && typeof card.expansion === 'object') ? card.expansion : null,
             set: (card?.set && typeof card.set === 'object') ? card.set : null,
-            images: Array.isArray(card?.images) ? card.images : [],
+            images: normalizeImageList(card?.images),
             variants: Array.isArray(card?.variants) ? card.variants : [],
             selectedVariant,
             variantQuantities,
