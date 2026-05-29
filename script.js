@@ -24,6 +24,203 @@
     });
   }
 
+  function isNavLinkForPage(linkEl, pageName) {
+    if (!(linkEl instanceof HTMLAnchorElement)) return false;
+    const rawHref = String(linkEl.getAttribute('href') || '').trim();
+    const targetPage = String(pageName || '').trim().toLowerCase();
+    if (!rawHref || !targetPage) return false;
+
+    try {
+      const url = new URL(rawHref, window.location.href);
+      const path = String(url.pathname || '').toLowerCase();
+      return path.endsWith(`/${targetPage}`) || path.endsWith(targetPage);
+    } catch {
+      const normalized = rawHref.toLowerCase().replace(/^\.{0,2}\//, '').split('?')[0].split('#')[0];
+      return normalized === targetPage;
+    }
+  }
+
+  function markPricingNavLinks() {
+    const links = Array.from(document.querySelectorAll('.pv-nav .pv-nav__link'));
+    for (const link of links) {
+      if (isNavLinkForPage(link, 'pricing.html')) {
+        link.classList.add('pv-nav__link--pricing');
+      }
+    }
+  }
+
+  function createDesktopOverflowMenu(navList) {
+    if (!(navList instanceof HTMLElement)) return;
+    if (navList.dataset.pvDesktopCondensed === '1') return;
+
+    const topLevelLinks = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'));
+    const overflowPaths = ['sealed.html', 'account.html'];
+    const overflowItems = [];
+
+    for (const path of overflowPaths) {
+      const link = topLevelLinks.find((candidate) => isNavLinkForPage(candidate, path));
+      const item = link?.closest('.pv-nav__item');
+      if (item && !overflowItems.includes(item)) {
+        overflowItems.push(item);
+      }
+    }
+
+    if (!overflowItems.length) return;
+
+    const moreItem = document.createElement('li');
+    moreItem.className = 'pv-nav__item pv-nav__item--more';
+
+    const moreDetails = document.createElement('details');
+    moreDetails.className = 'pv-navMore';
+
+    const moreSummary = document.createElement('summary');
+    moreSummary.className = 'pv-navMore__summary';
+    moreSummary.textContent = 'More';
+    moreDetails.appendChild(moreSummary);
+
+    const moreMenu = document.createElement('ul');
+    moreMenu.className = 'pv-navMore__menu';
+
+    let hasCurrentChild = false;
+    for (const sourceItem of overflowItems) {
+      const sourceLink = sourceItem.querySelector('.pv-nav__link');
+      if (!(sourceLink instanceof HTMLAnchorElement)) continue;
+
+      const row = document.createElement('li');
+      row.className = 'pv-navMore__item';
+
+      const menuLink = document.createElement('a');
+      menuLink.className = 'pv-navMore__link';
+      menuLink.href = String(sourceLink.getAttribute('href') || '#');
+      menuLink.textContent = String(sourceLink.textContent || '').trim() || 'Link';
+
+      if (sourceLink.hasAttribute('aria-current')) {
+        menuLink.setAttribute('aria-current', String(sourceLink.getAttribute('aria-current') || 'page'));
+        hasCurrentChild = true;
+      }
+
+      row.appendChild(menuLink);
+      moreMenu.appendChild(row);
+      sourceItem.classList.add('pv-nav__item--desktopOverflow');
+    }
+
+    if (!moreMenu.childElementCount) return;
+
+    if (hasCurrentChild) {
+      moreDetails.classList.add('pv-navMore--hasCurrent');
+    }
+
+    moreDetails.appendChild(moreMenu);
+    moreItem.appendChild(moreDetails);
+    navList.appendChild(moreItem);
+    navList.dataset.pvDesktopCondensed = '1';
+
+    document.addEventListener('click', (event) => {
+      if (!moreDetails.open) return;
+      const target = event.target;
+      if (target instanceof Node && moreDetails.contains(target)) return;
+      moreDetails.open = false;
+    });
+  }
+
+  function setupDesktopNavOverflow() {
+    const navLists = Array.from(document.querySelectorAll('.pv-nav__list'));
+    for (const list of navLists) {
+      createDesktopOverflowMenu(list);
+    }
+  }
+
+  function roleFromClaims(claims) {
+    const roleRaw = String(claims?.role || claims?.tier || '').trim().toLowerCase();
+    if (roleRaw === 'premium' || roleRaw === 'admin' || roleRaw === 'tester' || roleRaw === 'basic') {
+      return roleRaw;
+    }
+    return '';
+  }
+
+  function setPricingNavHidden(hidden) {
+    const shouldHide = Boolean(hidden);
+    const links = Array.from(document.querySelectorAll('.pv-nav .pv-nav__link'));
+
+    for (const link of links) {
+      if (!isNavLinkForPage(link, 'pricing.html')) continue;
+      const item = link.closest('.pv-nav__item');
+      if (item) {
+        item.classList.toggle('pv-nav__item--hiddenByRole', shouldHide);
+      } else {
+        link.hidden = shouldHide;
+      }
+    }
+  }
+
+  async function refreshPricingNavVisibility(authApi) {
+    try {
+      const user = authApi?.getUser ? authApi.getUser() : null;
+      if (!user) {
+        setPricingNavHidden(false);
+        return;
+      }
+
+      if (typeof authApi?.getIdTokenResult !== 'function') {
+        setPricingNavHidden(false);
+        return;
+      }
+
+      let role = '';
+      try {
+        const token = await authApi.getIdTokenResult(false);
+        role = roleFromClaims(token?.claims || null);
+      } catch {
+        role = '';
+      }
+
+      if (!role) {
+        try {
+          const refreshed = await authApi.getIdTokenResult(true);
+          role = roleFromClaims(refreshed?.claims || null);
+        } catch {
+          role = '';
+        }
+      }
+
+      const hidePricing = role === 'premium' || role === 'admin' || role === 'tester';
+      setPricingNavHidden(hidePricing);
+    } catch {
+      setPricingNavHidden(false);
+    }
+  }
+
+  function setupAuthAwarePricingNavVisibility() {
+    const deadline = Date.now() + 8000;
+
+    const tryAttach = () => {
+      const authApi = window?.PV_AUTH;
+      if (authApi && typeof authApi.getUser === 'function') {
+        const runRefresh = () => {
+          void refreshPricingNavVisibility(authApi);
+        };
+
+        runRefresh();
+        if (typeof authApi.onAuthStateChanged === 'function') {
+          authApi.onAuthStateChanged(() => {
+            runRefresh();
+          });
+        }
+        return;
+      }
+
+      if (Date.now() < deadline) {
+        window.setTimeout(tryAttach, 250);
+      }
+    };
+
+    tryAttach();
+  }
+
+  markPricingNavLinks();
+  setupDesktopNavOverflow();
+  setupAuthAwarePricingNavVisibility();
+
   // Shared scroll-to-top behavior for pages that include the floating button.
   if (scrollTopBtn && scrollTopBtn.getAttribute('data-bound') !== '1') {
     scrollTopBtn.setAttribute('data-bound', '1');
