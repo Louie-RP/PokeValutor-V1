@@ -196,3 +196,89 @@ Accessibility Notes
 - Keyboard navigation supported; visible focus states.
 - Skip link to jump to main content.
 - Landmarks: banner, main, contentinfo; labels and ARIA used thoughtfully.
+
+## Stripe subscriptions (monthly premium)
+
+This repo now includes a Firebase Functions + Stripe flow for monthly premium subscriptions:
+- Callable function: `createStripeCheckoutSession`
+- Callable function: `createStripePortalSession`
+- Callable function: `getStripeSubscriptionStatus`
+- Webhook endpoint: `stripeWebhook`
+
+When Stripe reports subscription changes, Functions sync Firebase custom claims to:
+- `role=premium` for active premium subscriptions
+- `role=basic` for canceled/inactive subscriptions
+
+Important:
+- Existing `admin` and `tester` roles are preserved and not overwritten by Stripe sync.
+
+### 1) Create Stripe product + monthly price
+
+In Stripe Dashboard:
+1. Create a Product (example: `PokeValutor Premium`).
+2. Add a recurring monthly Price.
+3. Copy the Price ID (`price_...`).
+
+### 2) Configure Stripe secrets for Firebase Functions
+
+Use Firebase Functions runtime config (recommended with current Functions code):
+
+```bash
+firebase functions:config:set \
+	stripe.secret_key="sk_live_or_test_..." \
+	stripe.webhook_secret="whsec_..." \
+	stripe.price_id_monthly_premium="price_..." \
+	stripe.app_base_url="https://www.pokevaluator.com" \
+	stripe.allowed_return_origins="https://www.pokevaluator.com,http://localhost:8080"
+```
+
+Optional (if you use a custom Stripe Billing Portal configuration):
+
+```bash
+firebase functions:config:set stripe.billing_portal_configuration_id="bpc_..."
+```
+
+### 3) Deploy Functions
+
+```bash
+cd functions
+npm install
+cd ..
+firebase deploy --only functions
+```
+
+### 4) Add Stripe webhook endpoint
+
+In Stripe Dashboard -> Developers -> Webhooks, add endpoint:
+
+```text
+https://us-central1-YOUR_FIREBASE_PROJECT.cloudfunctions.net/stripeWebhook
+```
+
+Subscribe the endpoint to these events:
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+Copy the webhook signing secret (`whsec_...`) into:
+- `stripe.webhook_secret`
+
+Then redeploy Functions if you changed config.
+
+### 5) Test locally with Stripe CLI (optional but recommended)
+
+```bash
+stripe listen --forward-to http://127.0.0.1:5001/YOUR_FIREBASE_PROJECT/us-central1/stripeWebhook
+```
+
+Use the printed webhook secret from Stripe CLI as `stripe.webhook_secret` for local testing.
+
+### 6) Frontend behavior
+
+On [account.html](account.html), signed-in users now have:
+- `Subscribe monthly` button -> redirects to Stripe Checkout
+- `Manage billing` button -> opens Stripe Billing Portal
+- Live subscription status message from `getStripeSubscriptionStatus`
+
+After checkout or webhook events, custom claims are synced so existing premium gating can continue using `role/tier/premium` as before.

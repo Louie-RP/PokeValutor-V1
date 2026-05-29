@@ -26,6 +26,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const adminFillSelfBtn = document.getElementById('pv-admin-fill-self');
     const adminStatusEl = document.getElementById('pv-admin-status');
 
+    const billingPanelEl = document.getElementById('pv-billing-panel');
+    const billingStatusEl = document.getElementById('pv-billing-status');
+    const billingSubscribeBtn = document.getElementById('pv-billing-subscribe');
+    const billingManageBtn = document.getElementById('pv-billing-manage');
+
     const signInBtn = document.getElementById('pv-auth-signin');
     const signUpBtn = document.getElementById('pv-auth-signup');
     const googleBtn = document.getElementById('pv-auth-google');
@@ -121,6 +126,105 @@ document.addEventListener('DOMContentLoaded', function () {
         if (adminDivider) adminDivider.hidden = !show;
         if (adminTools) adminTools.hidden = !show;
         if (!show) setAdminStatus('');
+    }
+
+    function setBillingVisible(isVisible) {
+        if (!billingPanelEl) return;
+        billingPanelEl.hidden = !isVisible;
+        if (!isVisible && billingStatusEl) billingStatusEl.textContent = '';
+    }
+
+    function setBillingStatus(msg) {
+        if (!billingStatusEl) return;
+        billingStatusEl.textContent = String(msg || '');
+    }
+
+    function setBillingButtonsDisabled(disabled) {
+        const isDisabled = !!disabled;
+        if (billingSubscribeBtn instanceof HTMLButtonElement) billingSubscribeBtn.disabled = isDisabled;
+        if (billingManageBtn instanceof HTMLButtonElement) billingManageBtn.disabled = isDisabled;
+    }
+
+    function buildAccountUrlWithQuery(name, value) {
+        const next = new URL(window.location.href);
+        next.searchParams.set(String(name || ''), String(value || ''));
+        return next.href;
+    }
+
+    function getStripeStatusMessage(result) {
+        const status = String(result?.subscriptionStatus || 'none').toLowerCase();
+        const entitled = Boolean(result?.premiumEntitled);
+        const role = String(result?.role || '').toLowerCase();
+
+        if (role === 'admin') return 'Admin account: subscription changes do not overwrite admin access.';
+        if (role === 'tester') return 'Tester account: subscription changes do not overwrite tester access.';
+
+        if (!result?.hasSubscription) return 'No active subscription. Subscribe to enable premium.';
+
+        if (entitled) {
+            if (status === 'trialing') return 'Premium trial active.';
+            if (status === 'past_due') return 'Premium active (payment update needed soon).';
+            return 'Premium subscription active.';
+        }
+
+        if (status === 'canceled') return 'Subscription canceled. Premium access is not active.';
+        if (status === 'unpaid' || status === 'incomplete') return 'Subscription requires payment action. Premium access is paused.';
+        return `Subscription status: ${status}.`;
+    }
+
+    async function refreshBillingStatus() {
+        if (!window?.PV_AUTH?.callFunction) {
+            setBillingStatus('Billing tools unavailable: Firebase Functions not configured.');
+            if (billingManageBtn instanceof HTMLButtonElement) billingManageBtn.disabled = true;
+            return;
+        }
+
+        setBillingButtonsDisabled(true);
+        setBillingStatus('Checking subscription status...');
+
+        try {
+            const result = await window.PV_AUTH.callFunction('getStripeSubscriptionStatus', {});
+            setBillingStatus(getStripeStatusMessage(result));
+
+            const entitled = Boolean(result?.premiumEntitled);
+            if (billingSubscribeBtn instanceof HTMLButtonElement) billingSubscribeBtn.hidden = entitled;
+            if (billingManageBtn instanceof HTMLButtonElement) {
+                billingManageBtn.disabled = !result?.customerId;
+            }
+        } catch (error) {
+            const message = String(error?.message || 'Could not load subscription status.');
+            setBillingStatus(message);
+            if (billingSubscribeBtn instanceof HTMLButtonElement) billingSubscribeBtn.hidden = false;
+            if (billingManageBtn instanceof HTMLButtonElement) billingManageBtn.disabled = true;
+        } finally {
+            if (billingSubscribeBtn instanceof HTMLButtonElement && !billingSubscribeBtn.hidden) {
+                billingSubscribeBtn.disabled = false;
+            }
+        }
+    }
+
+    async function runBilling(action) {
+        try {
+            setBillingButtonsDisabled(true);
+            await action();
+        } catch (error) {
+            const message = String(error?.message || 'Billing action failed.');
+            setBillingStatus(message);
+            if (billingSubscribeBtn instanceof HTMLButtonElement && !billingSubscribeBtn.hidden) {
+                billingSubscribeBtn.disabled = false;
+            }
+            if (billingManageBtn instanceof HTMLButtonElement) billingManageBtn.disabled = false;
+        }
+    }
+
+    function applyCheckoutStatusFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const checkoutState = String(params.get('checkout') || '').toLowerCase();
+        if (checkoutState === 'success') {
+            setBillingStatus('Checkout completed. Confirming subscription status...');
+        } else if (checkoutState === 'cancelled') {
+            setBillingStatus('Checkout canceled. You can subscribe any time.');
+        }
     }
 
     function getProfileInitials(displayName, email) {
@@ -317,6 +421,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setRoleText('');
             setUidText('');
             setAdminVisible(false);
+            setBillingVisible(false);
             setProfileSignedOut();
             if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = true;
             return;
@@ -325,9 +430,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setAuthViewMode(true);
         setProfileSignedIn(user);
-    setStatus('Signed in');
+        setStatus('Signed in');
         clearSelfCheck();
         if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = false;
+        setBillingVisible(true);
+        applyCheckoutStatusFromUrl();
+        refreshBillingStatus();
 
         // Fetch/refresh custom claims for role display + admin gating.
         Promise.resolve(window.PV_AUTH.getIdTokenResult ? window.PV_AUTH.getIdTokenResult(true) : null)
@@ -428,6 +536,45 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     throw error;
                 }
+            });
+        });
+    }
+
+    if (billingSubscribeBtn) {
+        billingSubscribeBtn.addEventListener('click', () => {
+            runBilling(async () => {
+                if (!window?.PV_AUTH?.callFunction) {
+                    throw new Error('Stripe checkout is unavailable (Firebase Functions missing).');
+                }
+
+                setBillingStatus('Opening Stripe checkout...');
+
+                const successUrl = buildAccountUrlWithQuery('checkout', 'success');
+                const cancelUrl = buildAccountUrlWithQuery('checkout', 'cancelled');
+                const result = await window.PV_AUTH.callFunction('createStripeCheckoutSession', { successUrl, cancelUrl });
+                const checkoutUrl = String(result?.url || '').trim();
+                if (!checkoutUrl) throw new Error('Stripe checkout session did not return a URL.');
+
+                window.location.assign(checkoutUrl);
+            });
+        });
+    }
+
+    if (billingManageBtn) {
+        billingManageBtn.addEventListener('click', () => {
+            runBilling(async () => {
+                if (!window?.PV_AUTH?.callFunction) {
+                    throw new Error('Stripe billing portal is unavailable (Firebase Functions missing).');
+                }
+
+                setBillingStatus('Opening billing portal...');
+
+                const returnUrl = buildAccountUrlWithQuery('checkout', 'portal-return');
+                const result = await window.PV_AUTH.callFunction('createStripePortalSession', { returnUrl });
+                const portalUrl = String(result?.url || '').trim();
+                if (!portalUrl) throw new Error('Stripe billing portal session did not return a URL.');
+
+                window.location.assign(portalUrl);
             });
         });
     }
