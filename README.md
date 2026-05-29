@@ -280,6 +280,39 @@ stripe listen --forward-to http://127.0.0.1:5001/YOUR_FIREBASE_PROJECT/us-centra
 
 Use the printed webhook secret from Stripe CLI as `stripe.webhook_secret` for local testing.
 
+### Fast local test (no cloud deploy required)
+
+If you want to validate checkout + webhook quickly before touching production config:
+
+1. Copy `.runtimeconfig.example.json` to `.runtimeconfig.json` and fill Stripe **test mode** values.
+2. Start emulators from repo root:
+
+```bash
+firebase emulators:start --only functions
+```
+
+3. In another terminal, serve static files from repo root:
+
+```bash
+py -3 -m http.server 8080
+```
+
+4. Open:
+
+```text
+http://localhost:8080/account.html?pv_functions_emulator=1
+```
+
+The `pv_functions_emulator=1` flag tells `firebase.js` to route callable functions to the local Functions emulator.
+
+5. Forward Stripe webhooks to emulator:
+
+```bash
+stripe listen --forward-to http://127.0.0.1:5001/pokevaluator-v1/us-central1/stripeWebhook
+```
+
+6. Use test card `4242 4242 4242 4242` in Stripe Checkout.
+
 ### 6) Frontend behavior
 
 On [account.html](account.html), signed-in users now have:

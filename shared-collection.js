@@ -9,6 +9,15 @@
         return text || String(fallback || '');
     }
 
+    function normalizeCollectionItemType(rawType) {
+        const value = String(rawType || '').trim().toLowerCase();
+        return value === 'sealed' ? 'sealed' : 'card';
+    }
+
+    function isSealedCollectionItem(item) {
+        return normalizeCollectionItemType(item?.itemType) === 'sealed';
+    }
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
@@ -154,17 +163,23 @@
     }
 
     function normalizeCollectionEntry(raw) {
+        const itemType = normalizeCollectionItemType(raw?.itemType);
         const conditionQuantities = normalizeConditionQuantities(raw?.conditionQuantities, raw?.selectedCondition);
-        const copies = getTotalCopies(conditionQuantities, raw?.selectedCondition);
+        const sealedQuantity = Math.max(1, Math.floor(Number(raw?.quantity ?? raw?.sealedQuantity ?? 1) || 1));
+        const cardCopies = getTotalCopies(conditionQuantities, raw?.selectedCondition);
+        const copies = itemType === 'sealed' ? sealedQuantity : cardCopies;
         return {
+            itemType,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             rarity: safeString(raw?.rarity, ''),
+            type: safeString(raw?.type, ''),
             setName: getCardSetName(raw),
             number: formatPrintedCardNumber(raw),
             image: pickFrontMediumImage(raw?.images),
             conditionQuantities,
             selectedCondition: normalizeDexConditionCode(raw?.selectedCondition),
+            quantity: sealedQuantity,
             copies,
             raw,
         };
@@ -213,6 +228,36 @@
         `;
     }
 
+    function createSealedHtml(item) {
+        const name = escapeHtml(item.name);
+        const setName = escapeHtml(item.setName);
+        const type = escapeHtml(item.type || 'Sealed product');
+        const quantity = Math.max(0, Math.floor(Number(item.quantity || item.copies || 0)));
+        const imageHtml = item.image
+            ? `<img class="pv-card__img pv-card__img--sealed" src="${escapeHtml(item.image)}" alt="${name} sealed product image" />`
+            : '';
+
+        return `
+            <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-sharedCollectionCol" data-card-id="${escapeHtml(item.id)}" data-card-name="${name}" data-set-name="${setName}" data-card-number="">
+                <article class="pv-card h-100" aria-label="${name}">
+                    ${imageHtml}
+                    <div class="pv-card__body">
+                        <h3 class="pv-card__title">${name}</h3>
+                        <p class="pv-card__text">${setName}</p>
+                        <p class="pv-card__text">Type: ${type}</p>
+                        <p class="pv-card__text">Sealed product</p>
+                        <p class="pv-card__text">Quantity: ${quantity}</p>
+                    </div>
+                </article>
+            </div>
+        `;
+    }
+
+    function createCollectionItemHtml(item) {
+        if (isSealedCollectionItem(item)) return createSealedHtml(item);
+        return createCardHtml(item);
+    }
+
     function applyCollectionFilter(items, queryRaw) {
         const query = String(queryRaw || '').trim().toLowerCase();
         if (!query) return items.slice();
@@ -221,6 +266,7 @@
             const haystack = [
                 safeString(item.name, ''),
                 safeString(item.setName, ''),
+                safeString(item.type, ''),
                 safeString(item.number, ''),
                 safeString(item.id, ''),
             ].join(' ').toLowerCase();
@@ -320,30 +366,30 @@
             const sortedFiltered = sortCollectionItems(filtered, sortMode);
             const totalCopies = allItems.reduce((sum, item) => sum + Math.max(0, Number(item.copies || 0)), 0);
             const filteredCopies = sortedFiltered.reduce((sum, item) => sum + Math.max(0, Number(item.copies || 0)), 0);
-            const cardLabel = allItems.length === 1 ? 'card' : 'cards';
+            const itemLabel = allItems.length === 1 ? 'item' : 'items';
             const copyLabel = totalCopies === 1 ? 'copy' : 'copies';
 
             setText(totalEl, `Total copies: ${totalCopies}`);
 
             if (!allItems.length) {
-                setText(summaryEl, '0 cards shared.');
+                setText(summaryEl, '0 items shared.');
                 gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This shared collection is empty.</div></div>';
                 return;
             }
 
             if (!sortedFiltered.length) {
-                setText(summaryEl, `0 of ${allItems.length} ${cardLabel} shown.`);
-                gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards match that search.</div></div>';
+                setText(summaryEl, `0 of ${allItems.length} ${itemLabel} shown.`);
+                gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items match that search.</div></div>';
                 return;
             }
 
             if (String(query || '').trim()) {
-                setText(summaryEl, `${sortedFiltered.length} of ${allItems.length} ${cardLabel} shown. ${filteredCopies} ${copyLabel} visible.`);
+                setText(summaryEl, `${sortedFiltered.length} of ${allItems.length} ${itemLabel} shown. ${filteredCopies} ${copyLabel} visible.`);
             } else {
-                setText(summaryEl, `${allItems.length} ${cardLabel} shared. ${totalCopies} ${copyLabel}.`);
+                setText(summaryEl, `${allItems.length} ${itemLabel} shared. ${totalCopies} ${copyLabel}.`);
             }
 
-            gridEl.innerHTML = sortedFiltered.map((item) => createCardHtml(item)).join('');
+            gridEl.innerHTML = sortedFiltered.map((item) => createCollectionItemHtml(item)).join('');
         }
 
         try {

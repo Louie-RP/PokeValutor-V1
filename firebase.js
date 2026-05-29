@@ -77,6 +77,47 @@
     const db = window.firebase.firestore ? window.firebase.firestore() : null;
     const functions = window.firebase.functions ? window.firebase.functions() : null;
 
+    function normalizeLocalFlag(value) {
+        const raw = String(value || '').trim().toLowerCase();
+        if (raw === '1' || raw === 'true' || raw === 'on' || raw === 'yes') return true;
+        if (raw === '0' || raw === 'false' || raw === 'off' || raw === 'no') return false;
+        return null;
+    }
+
+    function shouldUseLocalFunctionsEmulator() {
+        if (!functions || typeof functions.useEmulator !== 'function') return false;
+
+        const host = String(window.location.hostname || '').trim().toLowerCase();
+        const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+        if (!isLocalHost) return false;
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const queryOverride = normalizeLocalFlag(params.get('pv_functions_emulator'));
+            if (queryOverride != null) return queryOverride;
+        } catch {
+            // ignore
+        }
+
+        try {
+            const stored = normalizeLocalFlag(window.localStorage.getItem('pv:functions:emulator'));
+            if (stored != null) return stored;
+        } catch {
+            // ignore
+        }
+
+        // Default to emulator on localhost to avoid accidental calls to deployed functions.
+        return true;
+    }
+
+    if (shouldUseLocalFunctionsEmulator()) {
+        try {
+            functions.useEmulator('127.0.0.1', 5001);
+        } catch {
+            // ignore
+        }
+    }
+
     // Keep users signed in across refresh.
     try {
         auth.setPersistence(window.firebase.auth.Auth.Persistence.LOCAL);

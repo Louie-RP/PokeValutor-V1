@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 const Stripe = require('stripe');
+const { FieldValue } = require('firebase-admin/firestore');
 
 admin.initializeApp();
 
@@ -20,6 +21,10 @@ let stripeClient = null;
 
 function normalizeRole(role) {
     return String(role || '').trim().toLowerCase();
+}
+
+function serverTimestamp() {
+    return FieldValue.serverTimestamp();
 }
 
 function configValue(envKey, nestedPath, fallback) {
@@ -194,7 +199,7 @@ async function ensureStripeCustomer(uid, opts) {
             customerId: existingCustomerId,
             email: String(opts?.email || ''),
             displayName: String(opts?.displayName || ''),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: serverTimestamp(),
         }, { merge: true });
         return existingCustomerId;
     }
@@ -212,8 +217,8 @@ async function ensureStripeCustomer(uid, opts) {
         customerId: customer.id,
         email: String(opts?.email || ''),
         displayName: String(opts?.displayName || ''),
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
     }, { merge: true });
 
     return customer.id;
@@ -272,7 +277,7 @@ async function syncUserRoleFromPremium(uid, premiumEntitled, source) {
         role: nextRole,
         premiumEntitled: Boolean(premiumEntitled),
         roleUpdatedFrom: String(source || 'stripe'),
-        roleUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        roleUpdatedAt: serverTimestamp(),
     }, { merge: true });
 
     return { role: nextRole, skipped: false, changed: !unchanged };
@@ -307,7 +312,7 @@ async function writeBillingSnapshot(uid, snapshot) {
     await admin.firestore().collection('stripeBilling').doc(uid).set({
         uid,
         ...snapshot,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: serverTimestamp(),
     }, { merge: true });
 }
 
@@ -322,7 +327,7 @@ async function processSubscriptionSnapshot(uid, customerId, subscription, source
         await admin.firestore().collection('stripeCustomers').doc(uid).set({
             uid,
             customerId,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: serverTimestamp(),
         }, { merge: true });
     }
 
