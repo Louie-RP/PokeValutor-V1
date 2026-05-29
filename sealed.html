@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=2026-05-29-9" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -65,26 +65,13 @@
 
     <main id="pv-sealed-main" class="pv-main" role="main">
         <section id="pv-sealed-hero" class="pv-hero container pv-sealedHero" aria-labelledby="pv-sealed-title">
-            <p class="pv-sealedHero__eyebrow">Sealed Market</p>
-            <h1 id="pv-sealed-title" class="pv-hero__title">Search sealed products and track market-ready values.</h1>
-            <p class="pv-hero__subtitle">Find boxes, packs, and collections by name, then keep top targets in your watchlist.</p>
+            <p class="pv-sealedHero__eyebrow">Sealed</p>
+            <h1 id="pv-sealed-title" class="pv-hero__title">Search sealed products and track watchlist value.</h1>
+            <p class="pv-hero__subtitle">Find boxes, packs, and collections by name.</p>
             <div class="pv-sealedHero__chips" aria-label="Sealed search highlights">
-                <span class="pv-sealedHero__chip">Market pricing</span>
-                <span class="pv-sealedHero__chip">Trade percent controls</span>
-                <span class="pv-sealedHero__chip">Persistent watchlist</span>
-            </div>
-        </section>
-
-        <section class="pv-section container pv-sealedTools" aria-labelledby="pv-sealed-tools-title">
-            <div class="pv-sealedTools__head">
-                <div>
-                    <h2 id="pv-sealed-tools-title" class="pv-section__title">Sealed Workspace</h2>
-                    <p class="pv-section__text">Search product names, tune trade percentages, and monitor totals in one view.</p>
-                </div>
-                <div class="pv-cta pv-sealedTools__actions" role="group" aria-label="Sealed shortcuts">
-                    <a class="pv-button pv-button--secondary btn" href="search.html">Open Cards</a>
-                    <a class="pv-button pv-button--secondary btn" href="dex.html">Open Dex</a>
-                </div>
+                <span class="pv-sealedHero__chip">Market prices</span>
+                <span class="pv-sealedHero__chip">Trade %</span>
+                <span class="pv-sealedHero__chip">Watchlist sync</span>
             </div>
         </section>
 
@@ -92,7 +79,7 @@
             <div class="pv-sealedPanel">
                 <form id="pv-sealed-form" class="pv-form row g-3" role="search">
                     <div class="pv-form__field col-12 col-md-8">
-                        <label for="pv-sealed-query" class="form-label">Product Name</label>
+                        <label for="pv-sealed-query" class="form-label">Product</label>
                         <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
                             placeholder="e.g., Prismatic Evolutions Booster Bundle" aria-controls="pv-sealed-results" />
                     </div>
@@ -101,6 +88,16 @@
                         <button id="pv-sealed-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
                     </div>
                 </form>
+
+                <div id="pv-sealed-sort" class="pv-sortRow" role="group" aria-label="Sort sealed results">
+                    <label for="pv-sealed-sort-select" class="form-label pv-sortLabel">Sort</label>
+                    <select id="pv-sealed-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed results">
+                        <option value="value-desc" selected>High-Low</option>
+                        <option value="value-asc">Low-High</option>
+                        <option value="name-asc">A-Z</option>
+                        <option value="name-desc">Z-A</option>
+                    </select>
+                </div>
 
                 <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
                 <section id="pv-sealed-results" class="pv-section pv-sealedResults" aria-labelledby="pv-sealed-results-title">
@@ -120,6 +117,13 @@
                 <div class="pv-section__header">
                     <h2 id="pv-sealed-favorites-title" class="pv-section__title">Watchlist <span id="pv-sealed-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
                     <div>
+                        <label for="pv-sealed-favorites-sort-select" class="form-label pv-sortLabel">Sort</label>
+                        <select id="pv-sealed-favorites-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed watchlist">
+                            <option value="value-desc" selected>High-Low</option>
+                            <option value="value-asc">Low-High</option>
+                            <option value="name-asc">A-Z</option>
+                            <option value="name-desc">Z-A</option>
+                        </select>
                         <button id="pv-sealed-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
                             aria-controls="pv-sealed-favorites-body" aria-expanded="true">Hide</button>
                         <button id="pv-sealed-favorites-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
@@ -159,7 +163,7 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="sealed.js?v=2026-05-28-3" defer></script>
+    <script src="sealed.js?v=2026-05-29-5" defer></script>
 </body>
 
 </html>

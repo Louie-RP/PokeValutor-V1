@@ -5,6 +5,7 @@
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
+    const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
@@ -52,28 +53,61 @@
         return `$${n.toFixed(2)}`;
     }
 
-    function getNameSortLabel() {
-        return collectionSortState.nameDir === 'asc' ? 'Name: A-Z' : 'Name: Z-A';
+    const COLLECTION_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
+
+    function loadCollectionSortPreference() {
+        try {
+            const raw = localStorage.getItem(COLLECTION_SORT_PREF_KEY);
+            if (!raw) return '';
+            const mode = String(raw || '').trim();
+            return COLLECTION_SORT_MODES.includes(mode) ? mode : '';
+        } catch {
+            return '';
+        }
     }
 
-    function getValueSortLabel() {
-        return collectionSortState.valueDir === 'desc' ? 'Value: High-Low' : 'Value: Low-High';
+    function saveCollectionSortPreference(mode) {
+        try {
+            localStorage.setItem(COLLECTION_SORT_PREF_KEY, String(mode || ''));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getCollectionSortMode() {
+        if (collectionSortState.active === 'name') {
+            return collectionSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
+        }
+        return collectionSortState.valueDir === 'asc' ? 'value-asc' : 'value-desc';
+    }
+
+    function applyCollectionSortMode(modeRaw) {
+        const mode = COLLECTION_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
+        switch (mode) {
+            case 'name-desc':
+                collectionSortState.active = 'name';
+                collectionSortState.nameDir = 'desc';
+                break;
+            case 'name-asc':
+                collectionSortState.active = 'name';
+                collectionSortState.nameDir = 'asc';
+                break;
+            case 'value-asc':
+                collectionSortState.active = 'value';
+                collectionSortState.valueDir = 'asc';
+                break;
+            case 'value-desc':
+            default:
+                collectionSortState.active = 'value';
+                collectionSortState.valueDir = 'desc';
+                break;
+        }
     }
 
     function updateCollectionSortUi() {
-        const nameBtn = document.getElementById('pv-sort-name');
-        const valueBtn = document.getElementById('pv-sort-value');
-        if (nameBtn) {
-            nameBtn.textContent = getNameSortLabel();
-            const active = collectionSortState.active === 'name';
-            nameBtn.classList.toggle('is-active', active);
-            nameBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
-        }
-        if (valueBtn) {
-            valueBtn.textContent = getValueSortLabel();
-            const active = collectionSortState.active === 'value';
-            valueBtn.classList.toggle('is-active', active);
-            valueBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        const sortSelect = document.getElementById('pv-collection-sort-select');
+        if (sortSelect instanceof HTMLSelectElement) {
+            sortSelect.value = getCollectionSortMode();
         }
     }
 
@@ -118,39 +152,21 @@
     }
 
     function bindCollectionSortControls() {
-        const nameBtn = document.getElementById('pv-sort-name');
-        const valueBtn = document.getElementById('pv-sort-value');
+        const sortSelect = document.getElementById('pv-collection-sort-select');
 
-        if (nameBtn && nameBtn.getAttribute('data-bound') !== '1') {
-            nameBtn.setAttribute('data-bound', '1');
-            nameBtn.addEventListener('click', () => {
-                if (collectionSortState.active === 'name') {
-                    collectionSortState.nameDir = collectionSortState.nameDir === 'asc' ? 'desc' : 'asc';
-                } else {
-                    collectionSortState.active = 'name';
-                }
-
+        if (sortSelect instanceof HTMLSelectElement && sortSelect.getAttribute('data-bound') !== '1') {
+            sortSelect.setAttribute('data-bound', '1');
+            sortSelect.addEventListener('change', () => {
+                applyCollectionSortMode(sortSelect.value);
                 updateCollectionSortUi();
                 const grid = document.getElementById('pv-collection-grid');
                 applyCollectionSortToGrid(grid);
+                saveCollectionSortPreference(getCollectionSortMode());
             });
         }
 
-        if (valueBtn && valueBtn.getAttribute('data-bound') !== '1') {
-            valueBtn.setAttribute('data-bound', '1');
-            valueBtn.addEventListener('click', () => {
-                if (collectionSortState.active === 'value') {
-                    collectionSortState.valueDir = collectionSortState.valueDir === 'desc' ? 'asc' : 'desc';
-                } else {
-                    collectionSortState.active = 'value';
-                }
-
-                updateCollectionSortUi();
-                const grid = document.getElementById('pv-collection-grid');
-                applyCollectionSortToGrid(grid);
-            });
-        }
-
+        const storedMode = loadCollectionSortPreference();
+        applyCollectionSortMode(storedMode || (sortSelect instanceof HTMLSelectElement ? sortSelect.value : '') || getCollectionSortMode());
         updateCollectionSortUi();
     }
 
@@ -622,11 +638,11 @@
         }
 
         if (!list.length) {
-            totalEl.textContent = 'Collection Value: $0.00';
+            totalEl.textContent = 'Value: $0.00';
             return;
         }
 
-        totalEl.textContent = 'Collection Value: Loading...';
+        totalEl.textContent = 'Value: Loading...';
 
         let total = 0;
         let totalCopies = 0;
@@ -689,7 +705,7 @@
         }));
 
         const coverage = pricedCopies < totalCopies ? ` (${pricedCopies}/${totalCopies} priced)` : '';
-        totalEl.textContent = `Collection Value: ${formatUsd(total)}${coverage}`;
+        totalEl.textContent = `Value: ${formatUsd(total)}${coverage}`;
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
@@ -1275,7 +1291,7 @@
                 const imageEl = article.querySelector('[data-master-image]');
 
                 if (countEl) {
-                    countEl.textContent = `Collected: ${progress.collectedUnits}/${progress.requiredUnits} master variants`;
+                    countEl.textContent = `Collected: ${progress.collectedUnits}/${progress.requiredUnits}`;
                 }
                 if (barEl instanceof HTMLElement) {
                     barEl.setAttribute('aria-valuenow', String(Math.round(progress.ratio)));
@@ -1284,7 +1300,7 @@
                     fillEl.style.width = `${progress.ratio}%`;
                 }
                 if (ratioEl) {
-                    ratioEl.textContent = `Progress: ${progress.ratioLabel}`;
+                    ratioEl.textContent = `${progress.ratioLabel} complete`;
                 }
 
                 if (imageEl instanceof HTMLImageElement) {
@@ -1356,13 +1372,13 @@
         if (dexCardsStat) dexCardsStat.textContent = String(items.length);
         if (dexCopiesStat) dexCopiesStat.textContent = String(totalCopies);
 
-        summary.textContent = `${items.length} unique card${items.length === 1 ? '' : 's'} • ${totalCopies} total cop${totalCopies === 1 ? 'y' : 'ies'}.`;
+        summary.textContent = `${items.length} card${items.length === 1 ? '' : 's'} • ${totalCopies} cop${totalCopies === 1 ? 'y' : 'ies'}.`;
 
         bindCollectionSortControls();
 
         if (!items.length) {
-            totalEl.textContent = 'Collection Value: $0.00';
-            grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Open Dex, browse a set, and press + on cards you own.</div></div>';
+            totalEl.textContent = 'Value: $0.00';
+            grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No cards tracked yet. Use Search Dex to add cards.</div></div>';
         } else {
             const rows = items.map((item) => {
                 const id = safeString(item?.id, '');
@@ -1395,7 +1411,7 @@
                                     </div>
                                 `;
                     }).join('')
-                    : '<p class="pv-card__text">No condition copies tracked yet.</p>';
+                    : '<p class="pv-card__text">No copies tracked.</p>';
 
                 return `
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}">
@@ -1405,7 +1421,7 @@
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text">${setName}</p>
                                 <p class="pv-card__text">${rarity}</p>
-                                <p class="pv-card__text">Copies tracked: ${copyCount}</p>
+                                <p class="pv-card__text">Copies: ${copyCount}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
                                 <div class="pv-conditionQtyList">
                                     ${conditionRows}
@@ -1431,7 +1447,7 @@
                 btn.addEventListener('click', () => {
                     const id = safeString(btn.getAttribute('data-remove-card-id'), '');
                     if (!id) return;
-                    const ok = window.confirm('Remove this card from Collection and Master Sets?');
+                    const ok = window.confirm('Remove this card from Collection?');
                     if (!ok) return;
                     removeCardFromTrackers(id);
                     renderActivePage();
@@ -1462,7 +1478,7 @@
                     if (!result.changed) return;
 
                     if (result.removeCard) {
-                        const ok = window.confirm('No copies remain. Remove this card from Collection and Master Sets?');
+                        const ok = window.confirm('No copies left. Remove this card from Collection?');
                         if (!ok) return;
                         removeCardFromTrackers(cardId);
                         renderActivePage();
@@ -1500,7 +1516,7 @@
 
         if (clearBtn) {
             clearBtn.onclick = () => {
-                const ok = window.confirm('Clear your entire collection list?');
+                const ok = window.confirm('Clear all tracked cards?');
                 if (!ok) return;
                 writeCollection([]);
                 renderCollectionPage();
@@ -1523,10 +1539,10 @@
                 return bUpdated - aUpdated;
             });
 
-        summary.textContent = `${entries.length} set${entries.length === 1 ? '' : 's'} in your master tracker.`;
+        summary.textContent = `${entries.length} set${entries.length === 1 ? '' : 's'} tracked.`;
 
         if (!entries.length) {
-            grid.innerHTML = '<div class="pv-emptyState">No master set progress yet. Add cards from Dex to start tracking.</div>';
+            grid.innerHTML = '<div class="pv-emptyState">No master sets tracked yet.</div>';
         } else {
             const collection = readCollection();
             const cardsById = buildCollectionIndexById(collection);
@@ -1556,11 +1572,11 @@
                         ${imageHtml}
                         <h3 class="pv-masterSetCard__title"><a class="pv-masterSetCard__titleLink" href="${detailUrl}">${setName}</a></h3>
                         <p class="pv-masterSetCard__meta">${series || 'Series n/a'}</p>
-                        <p class="pv-masterSetCard__meta" data-master-count>Collected: ${escapeHtml(countText)} cards</p>
+                        <p class="pv-masterSetCard__meta" data-master-count>Collected: ${escapeHtml(countText)}</p>
                         <div class="pv-masterSetProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(ratio)}" data-master-progressbar>
                             <span style="width:${ratio}%" data-master-progress-fill></span>
                         </div>
-                        <p class="pv-masterSetCard__meta" data-master-ratio>Progress: ${ratioLabel}</p>
+                        <p class="pv-masterSetCard__meta" data-master-ratio>${ratioLabel} complete</p>
                     </article>
                 `;
             }).join('');
@@ -1571,7 +1587,7 @@
 
         if (clearBtn) {
             clearBtn.onclick = () => {
-                const ok = window.confirm('Clear all master set progress?');
+                const ok = window.confirm('Clear all master sets?');
                 if (!ok) return;
                 writeMasterSets({});
                 renderMasterSetsPage();
@@ -1603,7 +1619,7 @@
 
         if (!expansionId) {
             titleEl.textContent = expansionNameFromQuery || 'Master Set';
-            statusEl.textContent = 'No set selected. Return to Master Sets and pick a set.';
+            statusEl.textContent = 'No set selected.';
             collectedListEl.innerHTML = '<div class="pv-emptyState">No set selected.</div>';
             missingListEl.innerHTML = '<div class="pv-emptyState">No set selected.</div>';
             return;
@@ -1618,7 +1634,7 @@
         const series = safeString(entry?.series, '');
         titleEl.textContent = setName;
         seriesEl.textContent = series || 'Series n/a';
-        statusEl.textContent = 'Loading set cards...';
+        statusEl.textContent = 'Loading cards...';
 
         const collection = readCollection();
         const cardsById = buildCollectionIndexById(collection);
@@ -1626,20 +1642,20 @@
         try {
             const setCards = await fetchSetCardsByExpansion(expansionId);
             if (!setCards.length) {
-                countEl.textContent = 'Collected: 0/0 master variants';
+                countEl.textContent = 'Collected: 0/0 variants';
                 ratioEl.textContent = 'Progress: 0.0%';
                 progressBar.setAttribute('aria-valuenow', '0');
                 progressFill.style.width = '0%';
                 collectedCountEl.textContent = '0 cards';
                 missingCountEl.textContent = '0 cards';
-                collectedListEl.innerHTML = '<div class="pv-emptyState">No cards loaded for this set yet.</div>';
-                missingListEl.innerHTML = '<div class="pv-emptyState">No missing cards to show.</div>';
-                statusEl.textContent = 'Unable to load this set right now. Try again in a moment.';
+                collectedListEl.innerHTML = '<div class="pv-emptyState">No cards loaded.</div>';
+                missingListEl.innerHTML = '<div class="pv-emptyState">No missing cards.</div>';
+                statusEl.textContent = 'Set unavailable right now.';
                 return;
             }
 
             const progress = computeSetVariantProgress(setCards, cardsById);
-            countEl.textContent = `Collected: ${progress.collectedUnits}/${progress.requiredUnits} master variants`;
+            countEl.textContent = `Collected: ${progress.collectedUnits}/${progress.requiredUnits} variants`;
             ratioEl.textContent = `Progress: ${progress.ratioLabel}`;
             progressBar.setAttribute('aria-valuenow', String(Math.round(progress.ratio)));
             progressFill.style.width = `${progress.ratio}%`;
@@ -1657,17 +1673,17 @@
                 }
             }
 
-            statusEl.textContent = `${setCards.length} card${setCards.length === 1 ? '' : 's'} loaded for this set.`;
+            statusEl.textContent = `${setCards.length} card${setCards.length === 1 ? '' : 's'} loaded.`;
         } catch {
-            countEl.textContent = 'Collected: 0/0 master variants';
+            countEl.textContent = 'Collected: 0/0 variants';
             ratioEl.textContent = 'Progress: 0.0%';
             progressBar.setAttribute('aria-valuenow', '0');
             progressFill.style.width = '0%';
             collectedCountEl.textContent = '0 cards';
             missingCountEl.textContent = '0 cards';
-            collectedListEl.innerHTML = '<div class="pv-emptyState">Unable to load collected cards right now.</div>';
-            missingListEl.innerHTML = '<div class="pv-emptyState">Unable to load missing cards right now.</div>';
-            statusEl.textContent = 'Error loading this set. Please refresh and try again.';
+            collectedListEl.innerHTML = '<div class="pv-emptyState">Unable to load collected cards.</div>';
+            missingListEl.innerHTML = '<div class="pv-emptyState">Unable to load missing cards.</div>';
+            statusEl.textContent = 'Unable to load this set.';
         }
     }
 

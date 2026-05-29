@@ -17,10 +17,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesToggle = document.getElementById('pv-favorites-toggle');
     const favoritesClearBtn = document.getElementById('pv-favorites-clear');
     const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
+    const favoritesSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-favorites-sort-select'));
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
-    const searchSortNameBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-search-sort-name'));
-    const searchSortValueBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-search-sort-value'));
+    const searchSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-sort-select'));
     const conditionSummaryEl = document.getElementById('pv-condition-summary');
     const conditionCheckboxEls = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('input[name="pv-condition-filter"]')));
 
@@ -100,6 +100,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const isDexPage = document.body?.id === 'pv-dex-body';
     const isSearchPage = document.body?.id === 'pv-search-body';
     const enableDexTrackingControls = isDexPage || isSearchPage;
+    const SEARCH_SORT_PREF_KEY = isDexPage
+        ? `${CACHE_PREFIX}dexSearchSortMode:v1`
+        : `${CACHE_PREFIX}searchSortMode:v1`;
+    const FAVORITES_SORT_PREF_KEY = `${CACHE_PREFIX}searchWatchlistSortMode:v1`;
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] search.js build', PV_BUILD);
@@ -112,6 +116,12 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentResultsCards = [];
 
     const searchSortState = {
+        active: 'value',
+        nameDir: 'asc',
+        valueDir: 'desc',
+    };
+
+    const favoritesSortState = {
         active: 'value',
         nameDir: 'asc',
         valueDir: 'desc',
@@ -239,27 +249,60 @@ document.addEventListener('DOMContentLoaded', function () {
         if (input) input.value = '';
     }
 
-    function getSearchNameSortLabel() {
-        return searchSortState.nameDir === 'asc' ? 'Name: A-Z' : 'Name: Z-A';
+    function loadSortModePreference(storageKey, allowedModes) {
+        try {
+            const raw = localStorage.getItem(storageKey);
+            if (!raw) return '';
+            const mode = String(raw || '').trim();
+            return allowedModes.includes(mode) ? mode : '';
+        } catch {
+            return '';
+        }
     }
 
-    function getSearchValueSortLabel() {
-        return searchSortState.valueDir === 'desc' ? 'Value: High-Low' : 'Value: Low-High';
+    function saveSortModePreference(storageKey, mode) {
+        try {
+            localStorage.setItem(storageKey, String(mode || ''));
+        } catch {
+            // ignore
+        }
+    }
+
+    const SEARCH_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
+
+    function getSearchSortMode() {
+        if (searchSortState.active === 'name') {
+            return searchSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
+        }
+        return searchSortState.valueDir === 'asc' ? 'value-asc' : 'value-desc';
+    }
+
+    function applySearchSortMode(modeRaw) {
+        const mode = SEARCH_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
+        switch (mode) {
+            case 'name-desc':
+                searchSortState.active = 'name';
+                searchSortState.nameDir = 'desc';
+                break;
+            case 'name-asc':
+                searchSortState.active = 'name';
+                searchSortState.nameDir = 'asc';
+                break;
+            case 'value-asc':
+                searchSortState.active = 'value';
+                searchSortState.valueDir = 'asc';
+                break;
+            case 'value-desc':
+            default:
+                searchSortState.active = 'value';
+                searchSortState.valueDir = 'desc';
+                break;
+        }
     }
 
     function updateSearchSortUi() {
-        if (searchSortNameBtn) {
-            searchSortNameBtn.textContent = getSearchNameSortLabel();
-            const active = searchSortState.active === 'name';
-            searchSortNameBtn.classList.toggle('is-active', active);
-            searchSortNameBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
-        }
-
-        if (searchSortValueBtn) {
-            searchSortValueBtn.textContent = getSearchValueSortLabel();
-            const active = searchSortState.active === 'value';
-            searchSortValueBtn.classList.toggle('is-active', active);
-            searchSortValueBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        if (searchSortSelect) {
+            searchSortSelect.value = getSearchSortMode();
         }
     }
 
@@ -302,33 +345,96 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function bindSearchSortControls() {
-        if (searchSortNameBtn && searchSortNameBtn.getAttribute('data-bound') !== '1') {
-            searchSortNameBtn.setAttribute('data-bound', '1');
-            searchSortNameBtn.addEventListener('click', () => {
-                if (searchSortState.active === 'name') {
-                    searchSortState.nameDir = searchSortState.nameDir === 'asc' ? 'desc' : 'asc';
-                } else {
-                    searchSortState.active = 'name';
-                }
+        if (searchSortSelect && searchSortSelect.getAttribute('data-bound') !== '1') {
+            searchSortSelect.setAttribute('data-bound', '1');
+            searchSortSelect.addEventListener('change', () => {
+                applySearchSortMode(searchSortSelect.value);
                 updateSearchSortUi();
                 applySearchSortToGrid();
+                saveSortModePreference(SEARCH_SORT_PREF_KEY, getSearchSortMode());
             });
         }
 
-        if (searchSortValueBtn && searchSortValueBtn.getAttribute('data-bound') !== '1') {
-            searchSortValueBtn.setAttribute('data-bound', '1');
-            searchSortValueBtn.addEventListener('click', () => {
-                if (searchSortState.active === 'value') {
-                    searchSortState.valueDir = searchSortState.valueDir === 'desc' ? 'asc' : 'desc';
-                } else {
-                    searchSortState.active = 'value';
-                }
-                updateSearchSortUi();
-                applySearchSortToGrid();
-            });
-        }
-
+        const storedMode = loadSortModePreference(SEARCH_SORT_PREF_KEY, SEARCH_SORT_MODES);
+        applySearchSortMode(storedMode || searchSortSelect?.value || getSearchSortMode());
         updateSearchSortUi();
+    }
+
+    const FAVORITES_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
+
+    function getFavoritesSortMode() {
+        if (favoritesSortState.active === 'name') {
+            return favoritesSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
+        }
+        return favoritesSortState.valueDir === 'asc' ? 'value-asc' : 'value-desc';
+    }
+
+    function applyFavoritesSortMode(modeRaw) {
+        const mode = FAVORITES_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
+        switch (mode) {
+            case 'name-desc':
+                favoritesSortState.active = 'name';
+                favoritesSortState.nameDir = 'desc';
+                break;
+            case 'name-asc':
+                favoritesSortState.active = 'name';
+                favoritesSortState.nameDir = 'asc';
+                break;
+            case 'value-asc':
+                favoritesSortState.active = 'value';
+                favoritesSortState.valueDir = 'asc';
+                break;
+            case 'value-desc':
+            default:
+                favoritesSortState.active = 'value';
+                favoritesSortState.valueDir = 'desc';
+                break;
+        }
+    }
+
+    function updateFavoritesSortUi() {
+        if (favoritesSortSelect) {
+            favoritesSortSelect.value = getFavoritesSortMode();
+        }
+    }
+
+    function compareFavoriteCardsForSort(a, b, restoreState) {
+        const nameA = safeString(a?.name, '').toLowerCase();
+        const nameB = safeString(b?.name, '').toLowerCase();
+
+        if (favoritesSortState.active === 'name') {
+            const dir = favoritesSortState.nameDir === 'asc' ? 1 : -1;
+            return nameA.localeCompare(nameB) * dir;
+        }
+
+        const va = Number(getCardMarketValueForSort(a, restoreState));
+        const vb = Number(getCardMarketValueForSort(b, restoreState));
+        const hasA = Number.isFinite(va);
+        const hasB = Number.isFinite(vb);
+
+        if (!hasA && !hasB) return nameA.localeCompare(nameB);
+        if (!hasA) return 1;
+        if (!hasB) return -1;
+
+        const dir = favoritesSortState.valueDir === 'asc' ? 1 : -1;
+        if (va === vb) return nameA.localeCompare(nameB);
+        return (va - vb) * dir;
+    }
+
+    function bindFavoritesSortControls() {
+        if (favoritesSortSelect && favoritesSortSelect.getAttribute('data-bound') !== '1') {
+            favoritesSortSelect.setAttribute('data-bound', '1');
+            favoritesSortSelect.addEventListener('change', () => {
+                applyFavoritesSortMode(favoritesSortSelect.value);
+                updateFavoritesSortUi();
+                renderFavorites(loadLastResults() || undefined);
+                saveSortModePreference(FAVORITES_SORT_PREF_KEY, getFavoritesSortMode());
+            });
+        }
+
+        const storedMode = loadSortModePreference(FAVORITES_SORT_PREF_KEY, FAVORITES_SORT_MODES);
+        applyFavoritesSortMode(storedMode || favoritesSortSelect?.value || getFavoritesSortMode());
+        updateFavoritesSortUi();
     }
 
     function compareSearchCardsForSort(a, b) {
@@ -1972,7 +2078,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (remaining != null && remaining <= 0) {
                 quotaBanner.classList.add('pv-quotaBanner--error');
                 message = isDexPage
-                    ? 'Daily guest allowance reached. Sign in to continue (and sync your collection).'
+                    ? 'Guest limit reached. Sign in to continue and sync Collection.'
                     : 'Daily guest allowance reached. Sign in to continue (and sync your Watchlist).';
             } else if (remaining != null && remaining <= 2) {
                 quotaBanner.classList.add('pv-quotaBanner--warn');
@@ -2265,13 +2371,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!Array.isArray(favorites) || favorites.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'col-12';
-            empty.textContent = 'No watchlist items yet. Click ☆ on a result card to save it here.';
+            empty.textContent = 'No watchlist items yet. Click ☆ to save a card.';
             favoritesGrid.appendChild(empty);
             updateFavoritesTotals(restoreState);
             return;
         }
 
-        for (const fav of favorites) {
+        const sortedFavorites = favorites.slice().sort((a, b) => compareFavoriteCardsForSort(a, b, restoreState));
+
+        for (const fav of sortedFavorites) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-favoritesCol';
 
@@ -2315,7 +2423,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariantHtml}</p>` : ''}
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-fav-trade-${idAttr}">Trade %</label>
-                            <select class="form-select" id="pv-fav-trade-${idAttr}">
+                            <select class="form-select pv-selectCompact pv-selectTrade" id="pv-fav-trade-${idAttr}">
                                 ${TRADE_PERCENT_CHOICES
                                     .map((p) => `<option value="${p}" ${p === pct ? 'selected' : ''}>${p}%</option>`)
                                     .join('')}
@@ -2373,6 +2481,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     updateFavoritesTotals(loadLastResults() || restoreState);
+                    if (favoritesSortState.active === 'value') {
+                        renderFavorites(loadLastResults() || restoreState);
+                    }
                 } catch (e) {
                     pricesEl.textContent = 'Unable to load prices.';
                     console.warn('[PokeValutor] favorite prices preload error', e);
@@ -2437,6 +2548,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         updateFavoritesTotals(loadLastResults() || restoreState);
+                        if (favoritesSortState.active === 'value') {
+                            renderFavorites(loadLastResults() || restoreState);
+                        }
                     } catch (e) {
                         pricesEl.textContent = 'Unable to load prices.';
                         console.warn('[PokeValutor] favorite prices error', e);
@@ -2941,7 +3055,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 : `
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-trade-${idAttr}">Trade %</label>
-                            <select class="form-select" id="pv-trade-${idAttr}">
+                            <select class="form-select pv-selectCompact pv-selectTrade" id="pv-trade-${idAttr}">
                                 ${tradePercentOptions}
                             </select>
                         </div>
@@ -2951,7 +3065,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-condition-${idAttr}">Condition</label>
-                            <select class="form-select" id="pv-condition-${idAttr}">
+                            <select class="form-select pv-selectCompact pv-selectCondition" id="pv-condition-${idAttr}">
                                 ${conditionOptions}
                             </select>
                         </div>
@@ -3005,7 +3119,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <p class="pv-card__text">${rarity ? rarityHtml : 'n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
-                            <select class="form-select" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
+                            <select class="form-select pv-selectCompact pv-selectVariant" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
                                 ${variantOptions}
                             </select>
                         </div>
@@ -3081,14 +3195,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         const cardName = getCardDisplayName(card);
                         const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
                         if (!selectedCondition) {
-                            setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
+                            setStatus('Select a condition (NM, LP, MP, HP, or DM) first.');
                             if (conditionEl) conditionEl.focus();
                             return;
                         }
 
                         const selectedVariant = safeString(selectEl?.value, '');
                         if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
-                            setStatus('Select a card type (variant) before adding to your Collection.');
+                            setStatus('Select a variant first.');
                             if (selectEl) selectEl.focus();
                             return;
                         }
@@ -3115,9 +3229,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             const actionMessage = `${cardName} removed from Collection.`;
                             showActionToast(actionMessage, 'removed');
                         } else if (result.action === 'added') {
-                            setStatus('Card is already in your Collection and Master Sets tracker.');
+                            setStatus('Already in Collection.');
                         } else if (result.action === 'removed') {
-                            setStatus('Card was already removed from your Collection and Master Sets tracker.');
+                            setStatus('Already removed from Collection.');
                         }
                     });
                 } else {
@@ -3131,14 +3245,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     const cardName = getCardDisplayName(card);
                     const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
                     if (!selectedCondition) {
-                        setStatus('Select a card condition (NM, LP, MP, HP, or DM) before adding to your Collection.');
+                        setStatus('Select a condition (NM, LP, MP, HP, or DM) first.');
                         if (conditionEl) conditionEl.focus();
                         return;
                     }
 
                     const selectedVariant = safeString(selectEl?.value, '');
                     if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
-                        setStatus('Select a card type (variant) before adding to your Collection.');
+                        setStatus('Select a variant first.');
                         if (selectEl) selectEl.focus();
                         return;
                     }
@@ -3165,9 +3279,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         const actionMessage = `${cardName} removed from Collection.`;
                         showActionToast(actionMessage, 'removed');
                     } else if (result.action === 'added') {
-                        setStatus('Card is already in your Collection and Master Sets tracker.');
+                        setStatus('Already in Collection.');
                     } else if (result.action === 'removed') {
-                        setStatus('Card was already removed from your Collection and Master Sets tracker.');
+                        setStatus('Already removed from Collection.');
                     }
                 });
             }
@@ -3177,20 +3291,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (actionsMoreEl) actionsMoreEl.open = false;
                     const cardName = getCardDisplayName(card);
                     if (!isInDexCollection(id)) {
-                        setStatus('No tracked copies to remove for this card.');
+                        setStatus('No tracked copies to remove.');
                         return;
                     }
 
                     const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
                     if (!selectedCondition) {
-                        setStatus('Select the condition of the copy you want to remove.');
+                        setStatus('Select the condition to remove.');
                         if (conditionEl) conditionEl.focus();
                         return;
                     }
 
                     const selectedVariant = safeString(selectEl?.value, '');
                     if (Array.isArray(variants) && variants.length > 0 && !selectedVariant) {
-                        setStatus('Select the variant you want to remove.');
+                        setStatus('Select the variant to remove.');
                         if (selectEl) selectEl.focus();
                         return;
                     }
@@ -3210,10 +3324,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         } else if (removed.reason === 'variantNotTracked') {
                             setStatus(`No tracked copy exists for ${removedDetail} on this card.`);
                         } else if (removed.reason === 'variantRequired') {
-                            setStatus('Select the variant you want to remove.');
+                            setStatus('Select the variant to remove.');
                             if (selectEl) selectEl.focus();
                         } else {
-                            setStatus('Unable to remove a copy for this card right now.');
+                            setStatus('Unable to remove copy right now.');
                         }
                         return;
                     }
@@ -3517,12 +3631,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             renderCards(cards);
-            const guidance = 'If your card is not displayed, please search by card number (printed number) instead.';
-            const limitNote = hasMore ? ' Showing first 15 matches. Use Load More to see more.' : '';
+            const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
             const matchNote = matchedBy === 'fallback' && cards.length
-                ? ' Showing closest partial matches.'
+                ? ' Closest matches shown.'
                 : '';
-            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${q}".${limitNote}${matchNote} ${guidance}`;
+            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${q}".${limitNote}${matchNote}`;
             setStatus(statusText);
 
             saveLastResults({
@@ -3630,9 +3743,9 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards(cards);
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
-            const fallbackNote = usedFallback && cards.length ? ' Showing closest partial matches.' : '';
-            const limitNote = hasMore ? ' Showing first 15 matches. Use Load More to see more.' : '';
-            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in set "${label}".${limitNote}${fallbackNote}`;
+            const fallbackNote = usedFallback && cards.length ? ' Closest matches shown.' : '';
+            const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
+            const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in "${label}".${limitNote}${fallbackNote}`;
             setStatus(statusText);
 
             saveLastResults({
@@ -4277,10 +4390,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (isDexPage) {
                 setDexSearchPanelOpen(false);
                 setResultsHeading('Search Results');
-                setDexResultsContext('Use search to browse cards and add them to your collection.');
+                setDexResultsContext('Search and add cards to your collection.');
             }
         });
     }
+
+    bindFavoritesSortControls();
 
     // Render Favorites immediately (persisted across refresh).
     renderFavorites(loadLastResults() || undefined);
@@ -4312,7 +4427,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (isDexPage) {
         setResultsHeading('Search Results');
-        setDexResultsContext('Use search to browse cards and add them to your collection.');
+        setDexResultsContext('Search and add cards to your collection.');
 
         if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);

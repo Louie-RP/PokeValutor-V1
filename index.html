@@ -1,20 +1,20 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Track Pokemon card values, sealed product prices, watchlist items, and collection progress in one dashboard." />
+  <meta name="description" content="Track Pokemon card and sealed prices, watchlists, and Dex progress in one dashboard." />
   <meta name="theme-color" content="#000000" />
   <meta name="color-scheme" content="dark" />
   <meta property="og:title" content="PokéValutor | Pokémon Card and Sealed Price Tracker" />
-  <meta property="og:description" content="Track Pokémon card values, sealed product prices, watchlist items, and collection progress in one dashboard." />
+  <meta property="og:description" content="Track Pokémon card and sealed prices, watchlists, and Dex progress in one dashboard." />
   <meta property="og:image" content="https://www.pokevaluator.com/og/home.png" />
   <meta property="og:image:alt" content="PokeValutor social share preview" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.pokevaluator.com/" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="PokéValutor | Pokémon Card and Sealed Price Tracker" />
-  <meta name="twitter:description" content="Track Pokémon card values, sealed product prices, watchlist items, and collection progress in one dashboard." />
+  <meta name="twitter:description" content="Track Pokémon card and sealed prices, watchlists, and Dex progress in one dashboard." />
   <meta name="twitter:image" content="https://www.pokevaluator.com/og/home.png" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
   <title>PokéValutor | Pokémon Card and Sealed Price Tracker</title>
@@ -25,7 +25,7 @@
       "@type": "WebSite",
       "name": "PokeValutor",
       "url": "https://www.pokevaluator.com/",
-      "description": "Track Pokémon card values, sealed product prices, watchlist items, and collection progress in one dashboard."
+      "description": "Track Pokémon card and sealed prices, watchlists, and Dex progress in one dashboard."
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -62,39 +62,39 @@
     <section id="pv-hero" class="pv-hero pv-hero--home" aria-labelledby="pv-heroTitle">
       <div class="pv-hero__grid">
         <div class="pv-hero__content">
-          <p class="pv-hero__kicker">Pokémon TCG dashboard</p>
-          <h1 id="pv-heroTitle" class="pv-hero__title">Track card values, sealed product prices, favorites, and collection growth in one place.</h1>
-          <p class="pv-hero__subtitle">A cleaner way to track the market without bouncing between tabs.</p>
+          <p class="pv-hero__kicker">Pokémon TCG hub</p>
+          <h1 id="pv-heroTitle" class="pv-hero__title">Track card and sealed values in one place.</h1>
+          <p class="pv-hero__subtitle">Search fast, save watchlists, and monitor movement.</p>
           <div class="pv-cta" role="group" aria-label="Primary actions">
             <a id="pv-cta-cards" class="pv-button pv-button--primary btn" href="search.html">Search Cards</a>
             <a id="pv-cta-sealed" class="pv-button pv-button--secondary btn" href="sealed.html">Search Sealed</a>
           </div>
-          <p class="pv-hero__fineprint">Watchlist and progress stay synced to your account when signed in.</p>
+          <p class="pv-hero__fineprint">Sign in to sync watchlist and Dex progress.</p>
         </div>
 
         <div class="pv-hero__panel" aria-label="Preview">
           <div class="pv-heroCard">
             <div class="pv-heroCard__header">
               <span class="pv-badge" aria-label="Summary">Today</span>
-              <span class="pv-heroCard__title">Value workflow</span>
+              <span class="pv-heroCard__title">Daily snapshot</span>
             </div>
             <div class="pv-heroCard__body" role="presentation">
               <div class="pv-heroCard__row">
                 <span class="pv-heroCard__label">Collectors</span>
-                <span class="pv-heroCard__value">Track value and set progress</span>
+                <span class="pv-heroCard__value">Value + set progress</span>
               </div>
               <div class="pv-heroCard__row">
                 <span class="pv-heroCard__label">Vendors</span>
-                <span class="pv-heroCard__value">Compare cards and sealed quickly</span>
+                <span class="pv-heroCard__value">Cards + sealed side by side</span>
               </div>
               <div class="pv-heroCard__row">
                 <span class="pv-heroCard__label">Latest sets</span>
-                <span class="pv-heroCard__value">New releases + top cards</span>
+                <span class="pv-heroCard__value">New releases and top pulls</span>
               </div>
               <div class="pv-heroCard__divider" aria-hidden="true"></div>
               <div class="pv-heroCard__row">
                 <span class="pv-heroCard__label">Return fast</span>
-                <span class="pv-heroCard__value">Trending movement ready</span>
+                <span class="pv-heroCard__value">Market pulse ready</span>
               </div>
             </div>
           </div>
@@ -114,26 +114,26 @@
     </section>
 
     <section id="pv-audiences" class="pv-section" aria-labelledby="pv-audiencesTitle">
-      <h2 id="pv-audiencesTitle" class="pv-section__title">Built for how you buy and sell</h2>
+      <h2 id="pv-audiencesTitle" class="pv-section__title">Built for daily use</h2>
       <div class="pv-audienceGrid" role="list">
         <article class="pv-audienceCard" role="listitem" aria-labelledby="pv-collectors-title">
           <h3 id="pv-collectors-title" class="pv-audienceCard__title">For Collectors</h3>
           <ul class="pv-pointList">
-            <li>Track collection value over time.</li>
-            <li>Save cards and sealed in one watchlist.</li>
-            <li>See set progress from the Dex.</li>
+            <li>Track collection value.</li>
+            <li>Keep cards and sealed together.</li>
+            <li>Check set progress in Dex.</li>
           </ul>
-          <a class="pv-button pv-button--secondary" href="dex.html">Open Dex</a>
+          <a class="pv-button pv-button--secondary" href="dex.html">Dex</a>
         </article>
 
         <article class="pv-audienceCard" role="listitem" aria-labelledby="pv-vendors-title">
           <h3 id="pv-vendors-title" class="pv-audienceCard__title">For Vendors</h3>
           <ul class="pv-pointList">
-            <li>Compare variants before you price.</li>
-            <li>Spot high-value cards in each set.</li>
-            <li>Check sealed value quickly by name.</li>
+            <li>Compare variants faster.</li>
+            <li>Spot top cards by set.</li>
+            <li>Check sealed values by name.</li>
           </ul>
-          <a class="pv-button pv-button--secondary" href="search.html">Open Market View</a>
+          <a class="pv-button pv-button--secondary" href="search.html">Cards</a>
         </article>
       </div>
     </section>
@@ -143,7 +143,7 @@
         <h2 id="pv-expansionsTitle" class="pv-section__title">Latest Sets</h2>
         <a class="pv-inlineLink" href="search.html">Explore all cards</a>
       </div>
-      <p class="pv-section__text pv-expansions__subtitle">Newest releases with top-value cards ready to open.</p>
+      <p class="pv-section__text pv-expansions__subtitle">New sets with top-value cards.</p>
 
       <div id="pv-latest-spotlights" class="pv-homeDataGrid pv-homeDataGrid--spotlights" aria-live="polite">
         <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
@@ -162,7 +162,7 @@
       <div class="pv-section__header">
         <h2 id="pv-trendingTitle" class="pv-section__title">Trending Cards</h2>
       </div>
-      <p class="pv-section__text pv-expansions__subtitle">Recent value movement from your tracked cards.</p>
+      <p class="pv-section__text pv-expansions__subtitle">Movement from your tracked cards.</p>
       <div id="pv-trending-grid" class="pv-homeDataGrid" aria-live="polite">
         <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
         <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>

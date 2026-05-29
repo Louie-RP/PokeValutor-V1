@@ -4,16 +4,16 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Sign in to your PokeValutor account to sync watchlists, manage profile access, and use cloud features." />
+    <meta name="description" content="Sign in to sync watchlists, Dex progress, and cloud features." />
     <meta property="og:title" content="Account | PokeValutor" />
-    <meta property="og:description" content="Sign in to your PokeValutor account to sync watchlists, manage profile access, and use cloud features." />
+    <meta property="og:description" content="Sign in to sync watchlists, Dex progress, and cloud features." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.pokevaluator.com/account.html" />
     <meta property="og:image" content="https://www.pokevaluator.com/og/account.png" />
     <meta property="og:image:alt" content="PokeValutor account page preview" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Account | PokeValutor" />
-    <meta name="twitter:description" content="Sign in to your PokeValutor account to sync watchlists, manage profile access, and use cloud features." />
+    <meta name="twitter:description" content="Sign in to sync watchlists, Dex progress, and cloud features." />
     <meta name="twitter:image" content="https://www.pokevaluator.com/og/account.png" />
     <title>Account | PokeValutor</title>
     <link rel="canonical" href="https://www.pokevaluator.com/account.html" />
@@ -22,7 +22,7 @@
             "@context": "https://schema.org",
             "@type": "WebPage",
             "name": "Account",
-            "description": "Sign in to your PokeValutor account to sync watchlists, manage profile access, and use cloud features.",
+            "description": "Sign in to sync watchlists, Dex progress, and cloud features.",
             "url": "https://www.pokevaluator.com/account.html",
             "isPartOf": {
                 "@type": "WebSite",
@@ -67,12 +67,12 @@
 
     <main id="pv-account-main" class="pv-main" role="main">
         <section class="pv-hero pv-accountHero container" aria-labelledby="pv-account-title">
-            <p class="pv-accountHero__eyebrow">PokéValutor Cloud</p>
+            <p class="pv-accountHero__eyebrow">Cloud Sync</p>
             <div class="pv-accountHero__titleRow">
-                <h1 id="pv-account-title" class="pv-hero__title">Your account hub</h1>
+                <h1 id="pv-account-title" class="pv-hero__title">Account</h1>
                 <span id="pv-auth-hero-badge" class="pv-authHeroBadge" hidden>Signed in</span>
             </div>
-            <p class="pv-hero__subtitle">Manage secure sign-in and account access.</p>
+            <p class="pv-hero__subtitle">Sign in to sync watchlist and Dex data.</p>
         </section>
 
         <section class="pv-section pv-accountSection container" aria-label="Account login">
@@ -134,13 +134,13 @@
                             out</button>
                         <div class="pv-authDeleteWrap">
                             <button id="pv-auth-delete" class="pv-button pv-button--danger btn" type="button" aria-describedby="pv-auth-delete-help">Delete account</button>
-                            <p id="pv-auth-delete-help" class="pv-section__text pv-authSmall">Delete account permanently.</p>
+                            <p id="pv-auth-delete-help" class="pv-section__text pv-authSmall">Permanent action.</p>
                         </div>
                     </div>
 
                     <div id="pv-billing-panel" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Premium subscription</h3>
-                        <p class="pv-section__text pv-authSmall">Subscribe with Stripe to unlock monthly premium access.</p>
+                        <h3 class="pv-section__title">Premium</h3>
+                        <p class="pv-section__text pv-authSmall">Manage billing in Stripe.</p>
                         <div class="pv-authActions">
                             <button id="pv-billing-subscribe" class="pv-button pv-button--primary btn" type="button">Subscribe monthly</button>
                             <button id="pv-billing-manage" class="pv-button pv-button--secondary btn" type="button">Manage billing</button>
@@ -150,11 +150,11 @@
 
                     <div id="pv-admin-panel" class="pv-authDivider" aria-hidden="true" hidden></div>
                     <div id="pv-admin-tools" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Admin tools</h3>
-                        <p class="pv-section__text pv-authSmall">Assign roles (admin/basic/premium/tester). Admins only.</p>
+                        <h3 class="pv-section__title">Admin</h3>
+                        <p class="pv-section__text pv-authSmall">Assign roles. Admins only.</p>
                         <div class="pv-authField">
                             <label class="form-label" for="pv-admin-uid">Target UID</label>
-                            <input id="pv-admin-uid" class="form-control" type="text" placeholder="Paste a Firebase UID" />
+                            <input id="pv-admin-uid" class="form-control" type="text" placeholder="Paste Firebase UID" />
                         </div>
                         <div class="pv-authField">
                             <label class="form-label" for="pv-admin-role">Role</label>

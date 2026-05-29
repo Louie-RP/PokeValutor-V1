@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=2026-05-29-9" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -66,15 +66,11 @@
     <main id="pv-search-main" class="pv-main" role="main">
         <section id="pv-search-hero" class="pv-hero container pv-dexHero" aria-labelledby="pv-search-title">
             <h1 id="pv-search-title" class="pv-hero__title">Dex Explorer</h1>
-            <p class="pv-hero__subtitle">Your collection loads automatically. Expand search anytime to add new cards.</p>
+            <p class="pv-hero__subtitle">Track your collection and set progress in one place.</p>
         </section>
 
-        <section id="pv-dex-tools" class="pv-section container pv-dexTools" aria-labelledby="pv-dex-tools-title">
+        <section id="pv-dex-tools" class="pv-section container pv-dexTools" aria-label="Dex tools">
             <div class="pv-dexTools__head">
-                <div>
-                    <h2 id="pv-dex-tools-title" class="pv-section__title">Dex Tools</h2>
-                    <p class="pv-section__text">Track what you own and your set completion progress.</p>
-                </div>
                 <div class="pv-cta pv-dexTools__actions" role="group" aria-label="Dex tools">
                     <a id="pv-dex-master-link" class="pv-button pv-button--secondary btn" href="master-sets.html">Master Sets</a>
                 </div>
@@ -95,7 +91,7 @@
             <details id="pv-dex-search-panel" class="pv-dexSearchPanel">
                 <summary class="pv-dexSearchPanel__summary">
                     <span class="pv-dexSearchPanel__title">Search Dex</span>
-                    <span class="pv-dexSearchPanel__hint">Optional • Expand to find and add cards</span>
+                    <span class="pv-dexSearchPanel__hint">Optional • Expand to add cards</span>
                 </summary>
 
                 <div class="pv-dexSearchPanel__body">
@@ -103,7 +99,7 @@
                         <div class="pv-form__field col-12 col-md-4">
                             <label for="pv-search-query" class="form-label">Search</label>
                             <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
-                                placeholder="e.g., pikachu or SWSH101" aria-controls="pv-search-results" />
+                                placeholder="e.g., Pikachu or SWSH101" aria-controls="pv-search-results" />
                         </div>
                         <div class="pv-form__field col-12 col-md-4">
                             <label for="pv-search-series" class="form-label">Series</label>
@@ -112,7 +108,7 @@
                             </select>
                         </div>
                         <div class="pv-form__field col-12 col-md-4">
-                            <label for="pv-search-set" class="form-label">Set (Optional)</label>
+                            <label for="pv-search-set" class="form-label">Set</label>
                             <select id="pv-search-set" name="pv-search-set" class="form-select" aria-label="Choose a set" disabled>
                                 <option value="">Choose a set</option>
                             </select>
@@ -122,25 +118,25 @@
                             <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
                             <details id="pv-condition-filter" class="pv-conditionFilter">
                                 <summary id="pv-condition-toggle" class="pv-conditionFilter__summary">
-                                    <span>Conditions:</span>
+                                    <span>Condition:</span>
                                     <span id="pv-condition-summary">NM</span>
                                 </summary>
                                 <div id="pv-condition-menu" class="pv-conditionFilter__menu" role="group" aria-label="Card conditions to display in price lines">
                                     <label class="pv-conditionFilter__option">
                                         <input type="checkbox" name="pv-condition-filter" value="NM" checked />
-                                        NM (Near Mint)
+                                        NM
                                     </label>
                                     <label class="pv-conditionFilter__option">
                                         <input type="checkbox" name="pv-condition-filter" value="LP" />
-                                        LP (Lightly Played)
+                                        LP
                                     </label>
                                     <label class="pv-conditionFilter__option">
                                         <input type="checkbox" name="pv-condition-filter" value="MP" />
-                                        MP (Moderately Played)
+                                        MP
                                     </label>
                                     <label class="pv-conditionFilter__option">
                                         <input type="checkbox" name="pv-condition-filter" value="OTHER" />
-                                        Other Conditions
+                                        Other
                                     </label>
                                 </div>
                             </details>
@@ -148,8 +144,13 @@
                     </form>
 
                     <div id="pv-search-sort" class="pv-sortRow" role="group" aria-label="Sort search results">
-                        <button id="pv-search-sort-name" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Name: A-Z</button>
-                        <button id="pv-search-sort-value" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Value: High-Low</button>
+                        <label for="pv-search-sort-select" class="form-label pv-sortLabel">Sort</label>
+                        <select id="pv-search-sort-select" class="form-select pv-sortSelect" aria-label="Sort search results">
+                            <option value="value-desc" selected>High-Low</option>
+                            <option value="value-asc">Low-High</option>
+                            <option value="name-asc">A-Z</option>
+                            <option value="name-desc">Z-A</option>
+                        </select>
                     </div>
 
                     <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
@@ -157,7 +158,7 @@
 
                     <section id="pv-search-results" class="pv-dexSearchResults" aria-labelledby="pv-search-results-title">
                         <h2 id="pv-search-results-title" class="pv-section__title">Search Results</h2>
-                        <p id="pv-dex-results-context" class="pv-section__text pv-dexResults__context" aria-live="polite">Use search to browse cards and add them to your collection.</p>
+                        <p id="pv-dex-results-context" class="pv-section__text pv-dexResults__context" aria-live="polite">Search and add cards to your collection.</p>
                         <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
                             <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
                             <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
@@ -173,13 +174,18 @@
 
         <section class="pv-section container" aria-labelledby="pv-collection-list-title">
             <div class="pv-section__header">
-                <h2 id="pv-collection-list-title" class="pv-section__title">My Dex Collection</h2>
+                <h2 id="pv-collection-list-title" class="pv-section__title">Collection</h2>
                 <button id="pv-collection-clear" class="pv-button pv-button--secondary btn" type="button">Clear Collection</button>
             </div>
-            <p id="pv-collection-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Collection Value: $0.00</p>
+            <p id="pv-collection-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Value: $0.00</p>
             <div id="pv-collection-sort" class="pv-sortRow" role="group" aria-label="Sort collection">
-                <button id="pv-sort-name" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Name: A-Z</button>
-                <button id="pv-sort-value" class="pv-button pv-button--secondary btn pv-sortBtn" type="button">Value: High-Low</button>
+                <label for="pv-collection-sort-select" class="form-label pv-sortLabel">Sort</label>
+                <select id="pv-collection-sort-select" class="form-select pv-sortSelect" aria-label="Sort collection">
+                    <option value="value-desc" selected>High-Low</option>
+                    <option value="value-asc">Low-High</option>
+                    <option value="name-asc">A-Z</option>
+                    <option value="name-desc">Z-A</option>
+                </select>
             </div>
             <p id="pv-collection-summary" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></p>
             <div id="pv-collection-grid" class="row g-3" aria-label="Collection grid"></div>
@@ -210,8 +216,8 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="search.js?v=2026-05-12-14" defer></script>
-    <script src="dex-tracker-pages.js?v=2026-05-10-6" defer></script>
+    <script src="search.js?v=2026-05-29-6" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-05-29-4" defer></script>
 </body>
 
 </html>

@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const clearBtn = document.getElementById('pv-sealed-clear');
     const loadMoreBtn = document.getElementById('pv-sealed-load-more');
     const loadMoreWrap = document.getElementById('pv-sealed-load-more-wrap');
+    const sealedSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-sealed-sort-select'));
+    const sealedFavoritesSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-sealed-favorites-sort-select'));
 
     const quotaBanner = document.getElementById('pv-quota-banner');
     const quotaMessageEl = document.getElementById('pv-quota-message');
@@ -69,9 +71,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_KEY = `${CACHE_PREFIX}favorites:v1`;
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
+    const SEALED_RESULTS_SORT_PREF_KEY = `${CACHE_PREFIX}resultsSortMode:v1`;
+    const SEALED_WATCHLIST_SORT_PREF_KEY = `${CACHE_PREFIX}watchlistSortMode:v1`;
 
     /** @type {Array<any>} */
     let currentResultsProducts = [];
+    const sealedSortState = {
+        active: 'value',
+        nameDir: 'asc',
+        valueDir: 'desc',
+    };
+    const sealedFavoritesSortState = {
+        active: 'value',
+        nameDir: 'asc',
+        valueDir: 'desc',
+    };
+    /** @type {Record<string, number>} */
+    const sealedValueById = {};
     let currentSearchQuery = '';
     let currentSearchPage = 0;
     let currentSearchTotalCount = null;
@@ -80,6 +96,227 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setStatus(message) {
         if (status) status.textContent = message;
+    }
+
+    function loadSortModePreference(storageKey, allowedModes) {
+        try {
+            const raw = localStorage.getItem(storageKey);
+            if (!raw) return '';
+            const mode = String(raw || '').trim();
+            return allowedModes.includes(mode) ? mode : '';
+        } catch {
+            return '';
+        }
+    }
+
+    function saveSortModePreference(storageKey, mode) {
+        try {
+            localStorage.setItem(storageKey, String(mode || ''));
+        } catch {
+            // ignore
+        }
+    }
+
+    const SEALED_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
+
+    function getSealedSortMode() {
+        if (sealedSortState.active === 'name') {
+            return sealedSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
+        }
+        return sealedSortState.valueDir === 'asc' ? 'value-asc' : 'value-desc';
+    }
+
+    function applySealedSortMode(modeRaw) {
+        const mode = SEALED_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
+        switch (mode) {
+            case 'name-desc':
+                sealedSortState.active = 'name';
+                sealedSortState.nameDir = 'desc';
+                break;
+            case 'name-asc':
+                sealedSortState.active = 'name';
+                sealedSortState.nameDir = 'asc';
+                break;
+            case 'value-asc':
+                sealedSortState.active = 'value';
+                sealedSortState.valueDir = 'asc';
+                break;
+            case 'value-desc':
+            default:
+                sealedSortState.active = 'value';
+                sealedSortState.valueDir = 'desc';
+                break;
+        }
+    }
+
+    function updateSealedSortUi() {
+        if (sealedSortSelect) {
+            sealedSortSelect.value = getSealedSortMode();
+        }
+    }
+
+    function setSealedProductValue(productId, value) {
+        const id = String(productId || '').trim();
+        if (!id) return;
+        const n = Number(value);
+        if (Number.isFinite(n)) {
+            sealedValueById[id] = n;
+        } else {
+            delete sealedValueById[id];
+        }
+    }
+
+    function compareSealedProductsForSort(a, b) {
+        const idA = String(a?.id || '');
+        const idB = String(b?.id || '');
+        const nameA = safeString(a?.name, '').toLowerCase();
+        const nameB = safeString(b?.name, '').toLowerCase();
+
+        if (sealedSortState.active === 'name') {
+            const dir = sealedSortState.nameDir === 'asc' ? 1 : -1;
+            return nameA.localeCompare(nameB) * dir;
+        }
+
+        const va = Number(sealedValueById[idA]);
+        const vb = Number(sealedValueById[idB]);
+        const hasA = Number.isFinite(va);
+        const hasB = Number.isFinite(vb);
+
+        if (!hasA && !hasB) return nameA.localeCompare(nameB);
+        if (!hasA) return 1;
+        if (!hasB) return -1;
+
+        const dir = sealedSortState.valueDir === 'asc' ? 1 : -1;
+        if (va === vb) return nameA.localeCompare(nameB);
+        return (va - vb) * dir;
+    }
+
+    function applySealedSortToGrid() {
+        if (!grid) return;
+        const cols = Array.from(grid.querySelectorAll('.pv-sealedCol'));
+        if (cols.length <= 1) return;
+
+        cols.sort((a, b) => {
+            const nameA = safeString(a.getAttribute('data-product-name'), '').toLowerCase();
+            const nameB = safeString(b.getAttribute('data-product-name'), '').toLowerCase();
+
+            if (sealedSortState.active === 'name') {
+                const dir = sealedSortState.nameDir === 'asc' ? 1 : -1;
+                return nameA.localeCompare(nameB) * dir;
+            }
+
+            const idA = safeString(a.getAttribute('data-product-id'), '');
+            const idB = safeString(b.getAttribute('data-product-id'), '');
+            const va = Number(sealedValueById[idA]);
+            const vb = Number(sealedValueById[idB]);
+            const hasA = Number.isFinite(va);
+            const hasB = Number.isFinite(vb);
+
+            if (!hasA && !hasB) return nameA.localeCompare(nameB);
+            if (!hasA) return 1;
+            if (!hasB) return -1;
+
+            const dir = sealedSortState.valueDir === 'asc' ? 1 : -1;
+            if (va === vb) return nameA.localeCompare(nameB);
+            return (va - vb) * dir;
+        });
+
+        for (const col of cols) {
+            grid.appendChild(col);
+        }
+    }
+
+    function bindSealedSortControls() {
+        if (sealedSortSelect && sealedSortSelect.getAttribute('data-bound') !== '1') {
+            sealedSortSelect.setAttribute('data-bound', '1');
+            sealedSortSelect.addEventListener('change', () => {
+                applySealedSortMode(sealedSortSelect.value);
+                updateSealedSortUi();
+                applySealedSortToGrid();
+                saveSortModePreference(SEALED_RESULTS_SORT_PREF_KEY, getSealedSortMode());
+            });
+        }
+
+        const storedMode = loadSortModePreference(SEALED_RESULTS_SORT_PREF_KEY, SEALED_SORT_MODES);
+        applySealedSortMode(storedMode || sealedSortSelect?.value || getSealedSortMode());
+        updateSealedSortUi();
+    }
+
+    const SEALED_FAVORITES_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
+
+    function getSealedFavoritesSortMode() {
+        if (sealedFavoritesSortState.active === 'name') {
+            return sealedFavoritesSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
+        }
+        return sealedFavoritesSortState.valueDir === 'asc' ? 'value-asc' : 'value-desc';
+    }
+
+    function applySealedFavoritesSortMode(modeRaw) {
+        const mode = SEALED_FAVORITES_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
+        switch (mode) {
+            case 'name-desc':
+                sealedFavoritesSortState.active = 'name';
+                sealedFavoritesSortState.nameDir = 'desc';
+                break;
+            case 'name-asc':
+                sealedFavoritesSortState.active = 'name';
+                sealedFavoritesSortState.nameDir = 'asc';
+                break;
+            case 'value-asc':
+                sealedFavoritesSortState.active = 'value';
+                sealedFavoritesSortState.valueDir = 'asc';
+                break;
+            case 'value-desc':
+            default:
+                sealedFavoritesSortState.active = 'value';
+                sealedFavoritesSortState.valueDir = 'desc';
+                break;
+        }
+    }
+
+    function updateSealedFavoritesSortUi() {
+        if (sealedFavoritesSortSelect) {
+            sealedFavoritesSortSelect.value = getSealedFavoritesSortMode();
+        }
+    }
+
+    function compareSealedFavoritesForSort(a, b) {
+        const nameA = safeString(a?.name, '').toLowerCase();
+        const nameB = safeString(b?.name, '').toLowerCase();
+
+        if (sealedFavoritesSortState.active === 'name') {
+            const dir = sealedFavoritesSortState.nameDir === 'asc' ? 1 : -1;
+            return nameA.localeCompare(nameB) * dir;
+        }
+
+        const va = Number(getMarketQuote(a)?.market);
+        const vb = Number(getMarketQuote(b)?.market);
+        const hasA = Number.isFinite(va);
+        const hasB = Number.isFinite(vb);
+
+        if (!hasA && !hasB) return nameA.localeCompare(nameB);
+        if (!hasA) return 1;
+        if (!hasB) return -1;
+
+        const dir = sealedFavoritesSortState.valueDir === 'asc' ? 1 : -1;
+        if (va === vb) return nameA.localeCompare(nameB);
+        return (va - vb) * dir;
+    }
+
+    function bindSealedFavoritesSortControls() {
+        if (sealedFavoritesSortSelect && sealedFavoritesSortSelect.getAttribute('data-bound') !== '1') {
+            sealedFavoritesSortSelect.setAttribute('data-bound', '1');
+            sealedFavoritesSortSelect.addEventListener('change', () => {
+                applySealedFavoritesSortMode(sealedFavoritesSortSelect.value);
+                updateSealedFavoritesSortUi();
+                renderFavorites(loadLastResults() || undefined);
+                saveSortModePreference(SEALED_WATCHLIST_SORT_PREF_KEY, getSealedFavoritesSortMode());
+            });
+        }
+
+        const storedMode = loadSortModePreference(SEALED_WATCHLIST_SORT_PREF_KEY, SEALED_FAVORITES_SORT_MODES);
+        applySealedFavoritesSortMode(storedMode || sealedFavoritesSortSelect?.value || getSealedFavoritesSortMode());
+        updateSealedFavoritesSortUi();
     }
 
     function isQuotaExceededError(err) {
@@ -712,8 +949,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function getResultStatusText(resultCount, totalCount) {
         const shown = Number(resultCount) || 0;
         const total = Number.isFinite(Number(totalCount)) ? Number(totalCount) : null;
-        if (total != null && total > shown) return `Found ${total} result(s). Showing ${shown}.`;
-        return `Found ${shown} result(s).`;
+        if (total != null && total > shown) return `${shown} shown of ${total}.`;
+        return `${shown} result${shown === 1 ? '' : 's'}.`;
     }
 
     function shouldShowLoadMore(resultCount, totalCount) {
@@ -937,7 +1174,9 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        for (const fav of favorites) {
+        const sortedFavorites = favorites.slice().sort(compareSealedFavoritesForSort);
+
+        for (const fav of sortedFavorites) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-lg-4';
 
@@ -993,7 +1232,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tradeLabel.textContent = 'Trade %';
 
             const tradeSelect = document.createElement('select');
-            tradeSelect.className = 'form-select';
+            tradeSelect.className = 'form-select pv-selectCompact pv-selectTrade';
             tradeSelect.id = `pv-sealed-trade-${productId}`;
             const pct = getSavedTradePercentForId(productId, restoreState);
             tradeSelect.innerHTML = TRADE_PERCENT_CHOICES
@@ -1028,17 +1267,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderProducts(products, restoreState) {
         if (!grid) return;
-        currentResultsProducts = Array.isArray(products) ? products : [];
+        const sourceProducts = Array.isArray(products) ? products : [];
+        currentResultsProducts = sourceProducts.slice();
         grid.innerHTML = '';
 
-        if (!Array.isArray(products) || products.length === 0) {
+        if (!sourceProducts.length) {
+            for (const key of Object.keys(sealedValueById)) {
+                delete sealedValueById[key];
+            }
             grid.innerHTML = '<div class="col-12"><p class="pv-section__text">No results found.</p></div>';
             return;
         }
 
-        for (const p of products) {
+        const visibleIds = new Set();
+        for (const product of sourceProducts) {
+            const id = safeString(product?.id, '');
+            if (!id) continue;
+            visibleIds.add(id);
+            const market = Number(getMarketQuote(product)?.market);
+            setSealedProductValue(id, market);
+        }
+        for (const key of Object.keys(sealedValueById)) {
+            if (!visibleIds.has(key)) {
+                delete sealedValueById[key];
+            }
+        }
+
+        const sortedProducts = sourceProducts.slice().sort(compareSealedProductsForSort);
+
+        for (const p of sortedProducts) {
             const col = document.createElement('div');
-            col.className = 'col-6 col-sm-6 col-lg-4';
+            col.className = 'col-6 col-sm-6 col-lg-4 pv-sealedCol';
+            const productId = safeString(p?.id, '');
+            col.setAttribute('data-product-id', escapeAttr(productId));
+            col.setAttribute('data-product-name', escapeAttr(safeString(p?.name, '')));
 
             const card = document.createElement('div');
             card.className = 'pv-card pv-card--sealed';
@@ -1086,7 +1348,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `Expansion: ${expName} • ${expSeries}`
                 : (expName ? `Expansion: ${expName}` : (expSeries ? `Series: ${expSeries}` : 'Expansion: N/A'));
 
-            const productId = safeString(p?.id, '');
             const tradeField = document.createElement('div');
             tradeField.className = 'pv-form__field';
             tradeField.style.marginBottom = '0.5rem';
@@ -1097,7 +1358,7 @@ document.addEventListener('DOMContentLoaded', function () {
             tradeLabel.textContent = 'Trade %';
 
             const tradeSelect = document.createElement('select');
-            tradeSelect.className = 'form-select';
+            tradeSelect.className = 'form-select pv-selectCompact pv-selectTrade';
             tradeSelect.id = `pv-sealed-trade-${productId}`;
             const pct = getSavedTradePercentForId(productId, restoreState);
             tradeSelect.innerHTML = TRADE_PERCENT_CHOICES
@@ -1126,12 +1387,14 @@ document.addEventListener('DOMContentLoaded', function () {
             col.appendChild(card);
             grid.appendChild(col);
         }
+
+        applySealedSortToGrid();
     }
 
     async function searchByName(name) {
         const q = (name || '').trim();
         if (!q) {
-            setStatus('Enter a product name to search.');
+            setStatus('Enter a product name.');
             if (grid) grid.innerHTML = '';
             currentSearchHasMore = false;
             updateLoadMoreButton(false, false);
@@ -1178,7 +1441,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateLoadMoreButton(currentSearchHasMore, false);
             } else {
                 currentSearchHasMore = false;
-                setStatus('No results found. Try a different product name.');
+                setStatus('No results found. Try another name.');
                 updateLoadMoreButton(false, false);
             }
 
@@ -1186,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const preservedSelections = (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
             const statusText = list.length
                 ? getResultStatusText(list.length, totalCount)
-                : 'No results found. Try a different product name.';
+                : 'No results found. Try another name.';
 
             saveLastResults({
                 mode: 'name',
@@ -1274,6 +1537,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (grid) grid.innerHTML = '';
         setStatus('');
         currentResultsProducts = [];
+        for (const key of Object.keys(sealedValueById)) {
+            delete sealedValueById[key];
+        }
         currentSearchQuery = '';
         currentSearchPage = 0;
         currentSearchTotalCount = null;
@@ -1302,6 +1568,9 @@ document.addEventListener('DOMContentLoaded', function () {
             void loadMoreResults();
         });
     }
+
+    bindSealedSortControls();
+    bindSealedFavoritesSortControls();
 
     // Render Favorites immediately (persisted across refresh).
     renderFavorites();
