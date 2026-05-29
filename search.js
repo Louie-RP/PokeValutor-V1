@@ -2273,7 +2273,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const fav of favorites) {
             const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3 pv-favoritesCol';
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-favoritesCol';
 
             const id = safeString(fav?.id, '');
             const name = safeString(fav?.name, 'Unknown');
@@ -2875,7 +2875,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const card of sortedCards) {
             const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-md-4 col-lg-3 pv-searchCol';
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-searchCol';
 
             const id = String(card?.id || '');
             const name = String(card?.name || 'Unknown');
@@ -3490,7 +3490,7 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.innerHTML = '';
             for (let i = 0; i < 8; i++) {
                 const col = document.createElement('div');
-                col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
                 grid.appendChild(col);
             }
@@ -3596,7 +3596,7 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.innerHTML = '';
             for (let i = 0; i < 8; i++) {
                 const col = document.createElement('div');
-                col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
                 grid.appendChild(col);
             }
@@ -3727,7 +3727,7 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.innerHTML = '';
             for (let i = 0; i < Math.min(RESULT_LIMIT, 12); i++) {
                 const col = document.createElement('div');
-                col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
                 grid.appendChild(col);
             }
@@ -3911,7 +3911,7 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.innerHTML = '';
             for (let i = 0; i < RESULT_LIMIT; i++) {
                 const col = document.createElement('div');
-                col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
                 grid.appendChild(col);
             }
@@ -3976,7 +3976,7 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.innerHTML = '';
             for (let i = 0; i < 10; i++) {
                 const col = document.createElement('div');
-                col.className = 'col-12 col-sm-6 col-md-4 col-lg-3';
+                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
                 col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
                 grid.appendChild(col);
             }

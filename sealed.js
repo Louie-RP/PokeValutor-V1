@@ -602,7 +602,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function pickFrontSmallImage(images) {
         if (!Array.isArray(images)) return '';
         const front = images.find((img) => (img?.type || '').toLowerCase() === 'front');
-        return front?.small || front?.medium || front?.large || images[0]?.small || images[0]?.medium || images[0]?.large || '';
+        // Prefer larger assets first because some API thumbnails are tightly cropped.
+        return front?.large || front?.medium || front?.small || images[0]?.large || images[0]?.medium || images[0]?.small || '';
     }
 
     function buildFieldQuery(fieldName, value) {
@@ -794,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const fav of favorites) {
             const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-lg-4';
+            col.className = 'col-6 col-sm-6 col-lg-4';
 
             const card = document.createElement('div');
             card.className = 'pv-card pv-card--sealed';
@@ -893,7 +894,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const p of products) {
             const col = document.createElement('div');
-            col.className = 'col-12 col-sm-6 col-lg-4';
+            col.className = 'col-6 col-sm-6 col-lg-4';
 
             const card = document.createElement('div');
             card.className = 'pv-card pv-card--sealed';

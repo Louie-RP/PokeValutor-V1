@@ -1398,7 +1398,7 @@
                     : '<p class="pv-card__text">No condition copies tracked yet.</p>';
 
                 return `
-                    <div class="col-12 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}">
+                    <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}">
                         <article class="pv-card h-100" aria-label="${name}">
                             ${img ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${img}" alt="${name} card image"/></a>` : ''}
                             <div class="pv-card__body">
