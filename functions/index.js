@@ -1,6 +1,7 @@
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 const Stripe = require('stripe');
+const crypto = require('crypto');
 const { FieldValue } = require('firebase-admin/firestore');
 
 admin.initializeApp();
@@ -8,6 +9,10 @@ admin.initializeApp();
 const ALLOWED_ROLES = new Set(['admin', 'tester', 'premium', 'basic']);
 const PREMIUM_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'past_due']);
 const DEFAULT_APP_BASE_URL = 'https://www.pokevaluator.com';
+const SCRYDEX_PRICE_WEBHOOK_EVENTS = new Set([
+    'pokemon.expansions.prices.raw_updated',
+    'pokemon.expansions.prices.graded_updated',
+]);
 
 const runtimeConfig = (() => {
     try {
@@ -51,6 +56,23 @@ function getStripeSecretKey() {
 
 function getStripeWebhookSecret() {
     return configValue('STRIPE_WEBHOOK_SECRET', ['stripe', 'webhook_secret'], '');
+}
+
+function getScrydexWebhookSecret() {
+    return configValue('SCRYDEX_WEBHOOK_SECRET', ['scrydex', 'webhook_secret'], '');
+}
+
+function getUpstashRestUrl() {
+    return configValue('UPSTASH_REDIS_REST_URL', ['upstash', 'redis_rest_url'], '').replace(/\/$/, '');
+}
+
+function getUpstashRestToken() {
+    return configValue('UPSTASH_REDIS_REST_TOKEN', ['upstash', 'redis_rest_token'], '');
+}
+
+function getScrydexDirtyTtlSeconds() {
+    const raw = Number(configValue('SCRYDEX_DIRTY_TTL_SECONDS', ['scrydex', 'dirty_ttl_seconds'], '1209600'));
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 1209600;
 }
 
 function getStripeMonthlyPriceId() {
@@ -127,6 +149,155 @@ function withQuery(url, key, value) {
     const next = new URL(url);
     next.searchParams.set(String(key || ''), String(value || ''));
     return next.href;
+}
+
+function parseSignatureHeader(rawHeader) {
+    const out = {};
+    const header = String(rawHeader || '').trim();
+    if (!header) return out;
+
+    const parts = header.split(',').map((x) => String(x || '').trim()).filter(Boolean);
+    for (const part of parts) {
+        const eq = part.indexOf('=');
+        if (eq <= 0) continue;
+        const key = part.slice(0, eq).trim().toLowerCase();
+        const value = part.slice(eq + 1).trim().replace(/^"|"$/g, '');
+        if (!key || !value) continue;
+        out[key] = value;
+    }
+    return out;
+}
+
+function timingSafeStringEquals(a, b) {
+    const left = Buffer.from(String(a || ''), 'utf8');
+    const right = Buffer.from(String(b || ''), 'utf8');
+    if (left.length !== right.length) return false;
+    return crypto.timingSafeEqual(left, right);
+}
+
+function normalizeSignatureCandidate(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.toLowerCase().replace(/^sha256=/, '');
+}
+
+function buildScrydexSignatureCandidates(secret, timestamp, rawBodyBuffer) {
+    const ts = String(timestamp || '').trim();
+    const payload = Buffer.isBuffer(rawBodyBuffer)
+        ? rawBodyBuffer
+        : Buffer.from(String(rawBodyBuffer || ''), 'utf8');
+
+    /** @type {string[]} */
+    const inputs = [];
+    if (ts) {
+        inputs.push(`${ts}.${payload.toString('utf8')}`);
+    }
+    inputs.push(payload.toString('utf8'));
+
+    /** @type {string[]} */
+    const out = [];
+    for (const input of inputs) {
+        const hex = crypto.createHmac('sha256', secret).update(input, 'utf8').digest('hex');
+        const b64 = crypto.createHmac('sha256', secret).update(input, 'utf8').digest('base64');
+        out.push(hex, `sha256=${hex}`, b64, `sha256=${b64}`);
+    }
+    return Array.from(new Set(out.map(normalizeSignatureCandidate).filter(Boolean)));
+}
+
+function verifyScrydexWebhookSignature(rawBodyBuffer, signatureHeader, secret) {
+    const secretValue = String(secret || '').trim();
+    if (!secretValue) {
+        return { ok: false, error: 'Scrydex webhook secret is not configured.' };
+    }
+
+    const parsed = parseSignatureHeader(signatureHeader);
+    const timestamp = String(parsed.t || '').trim();
+    const provided = normalizeSignatureCandidate(parsed.v1 || signatureHeader);
+    if (!provided) {
+        return { ok: false, error: 'Missing X-Scrydex-Signature value.' };
+    }
+
+    const candidates = buildScrydexSignatureCandidates(secretValue, timestamp, rawBodyBuffer);
+    for (const candidate of candidates) {
+        if (timingSafeStringEquals(candidate, provided)) {
+            return { ok: true };
+        }
+    }
+
+    return { ok: false, error: 'Invalid Scrydex webhook signature.' };
+}
+
+async function upstashPost(pathname) {
+    const base = getUpstashRestUrl();
+    const token = getUpstashRestToken();
+    if (!base || !token) return null;
+
+    const res = await fetch(`${base}${pathname}`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Upstash request failed (${res.status}): ${text || 'unknown error'}`);
+    }
+
+    return res;
+}
+
+async function markScrydexDirtyVersions(expansionIds) {
+    const ids = Array.from(new Set((Array.isArray(expansionIds) ? expansionIds : [])
+        .map((x) => String(x || '').trim().toLowerCase())
+        .filter((x) => /^[a-z0-9_-]{2,64}$/.test(x))));
+
+    const ttlSeconds = getScrydexDirtyTtlSeconds();
+    const hasUpstash = Boolean(getUpstashRestUrl() && getUpstashRestToken());
+    if (!hasUpstash || !ids.length) {
+        return {
+            updatedExpansionCount: 0,
+            updatedGlobal: false,
+            upstashEnabled: hasUpstash,
+        };
+    }
+
+    const expansionTasks = ids.map(async (id) => {
+        const key = `pv:scrydex:dirty:expansion:${encodeURIComponent(id)}:v1`;
+        await upstashPost(`/incr/${key}`);
+        await upstashPost(`/expire/${key}/${encodeURIComponent(String(ttlSeconds))}`);
+    });
+    await Promise.all(expansionTasks);
+
+    const globalKey = 'pv:scrydex:dirty:global:v1';
+    await upstashPost(`/incr/${encodeURIComponent(globalKey)}`);
+    await upstashPost(`/expire/${encodeURIComponent(globalKey)}/${encodeURIComponent(String(ttlSeconds))}`);
+
+    return {
+        updatedExpansionCount: ids.length,
+        updatedGlobal: true,
+        upstashEnabled: true,
+    };
+}
+
+async function claimScrydexEvent(eventId, eventName, expansionIds) {
+    const db = admin.firestore();
+    const ref = db.collection('scrydexWebhookEvents').doc(String(eventId || '').trim());
+    let inserted = false;
+
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (snap.exists) return;
+        inserted = true;
+        tx.set(ref, {
+            id: String(eventId || '').trim(),
+            name: String(eventName || '').trim(),
+            expansionIds: Array.isArray(expansionIds) ? expansionIds : [],
+            createdAt: serverTimestamp(),
+        });
+    });
+
+    return inserted;
 }
 
 function toMillisFromUnixSeconds(value) {
@@ -637,6 +808,93 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
         functions.logger.error('Stripe webhook processing failed', {
             eventId: String(event?.id || ''),
             eventType: String(event?.type || ''),
+            message: String(error?.message || error),
+        });
+        res.status(500).json({ ok: false, error: 'Webhook processing failed.' });
+    }
+});
+
+exports.scrydexWebhook = functions.https.onRequest(async (req, res) => {
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
+
+    const secret = getScrydexWebhookSecret();
+    if (!secret) {
+        res.status(500).json({ ok: false, error: 'Scrydex webhook secret is not configured.' });
+        return;
+    }
+
+    const signatureHeader = String(req.get('x-scrydex-signature') || '').trim();
+    if (!signatureHeader) {
+        res.status(400).json({ ok: false, error: 'Missing X-Scrydex-Signature header.' });
+        return;
+    }
+
+    const rawBody = Buffer.isBuffer(req.rawBody)
+        ? req.rawBody
+        : Buffer.from(String(req.rawBody || ''), 'utf8');
+
+    const verified = verifyScrydexWebhookSignature(rawBody, signatureHeader, secret);
+    if (!verified.ok) {
+        functions.logger.warn('Invalid Scrydex webhook signature', {
+            message: String(verified.error || ''),
+        });
+        res.status(400).json({ ok: false, error: verified.error || 'Invalid webhook signature.' });
+        return;
+    }
+
+    let eventPayload;
+    try {
+        eventPayload = req.body && typeof req.body === 'object'
+            ? req.body
+            : JSON.parse(rawBody.toString('utf8'));
+    } catch {
+        res.status(400).json({ ok: false, error: 'Invalid JSON payload.' });
+        return;
+    }
+
+    const eventId = String(eventPayload?.id || '').trim();
+    const eventName = String(eventPayload?.name || '').trim();
+    const expansionIds = Array.isArray(eventPayload?.data?.expansion_ids)
+        ? eventPayload.data.expansion_ids.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+
+    if (!eventId || !eventName) {
+        res.status(400).json({ ok: false, error: 'Missing event id or name.' });
+        return;
+    }
+
+    try {
+        const inserted = await claimScrydexEvent(eventId, eventName, expansionIds);
+        if (!inserted) {
+            res.status(200).json({ ok: true, duplicate: true, eventId, eventName });
+            return;
+        }
+
+        let dirtyResult = {
+            updatedExpansionCount: 0,
+            updatedGlobal: false,
+            upstashEnabled: Boolean(getUpstashRestUrl() && getUpstashRestToken()),
+        };
+        const isPriceEvent = SCRYDEX_PRICE_WEBHOOK_EVENTS.has(eventName);
+        if (isPriceEvent) {
+            dirtyResult = await markScrydexDirtyVersions(expansionIds);
+        }
+
+        res.status(200).json({
+            ok: true,
+            eventId,
+            eventName,
+            isPriceEvent,
+            expansionCount: expansionIds.length,
+            dirtyResult,
+        });
+    } catch (error) {
+        functions.logger.error('Scrydex webhook processing failed', {
+            eventId,
+            eventName,
             message: String(error?.message || error),
         });
         res.status(500).json({ ok: false, error: 'Webhook processing failed.' });

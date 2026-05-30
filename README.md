@@ -151,6 +151,29 @@ Configure Upstash Redis so quota counters persist across Worker instances:
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 
+### Price freshness invalidation (webhook-driven)
+The Worker now supports cache invalidation versions driven by Scrydex price webhooks.
+
+Worker uses these optional vars:
+- `CACHE_TTL_CARD_PRICES_SECONDS` (default `21600` / 6h)
+- `CACHE_TTL_SEALED_PRICES_SECONDS` (default `21600` / 6h)
+
+Firebase Functions webhook config:
+- `SCRYDEX_WEBHOOK_SECRET` (required to verify `X-Scrydex-Signature`)
+- `SCRYDEX_DIRTY_TTL_SECONDS` (optional, default `1209600` / 14d)
+
+Functions endpoint:
+- `https://<region>-<project>.cloudfunctions.net/scrydexWebhook`
+
+What happens on webhook receipt:
+1. Signature is verified.
+2. Event id is deduped in Firestore (`scrydexWebhookEvents/{eventId}`).
+3. For `pokemon.expansions.prices.raw_updated` and `pokemon.expansions.prices.graded_updated`, dirty version keys are bumped in Upstash:
+	- `pv:scrydex:dirty:expansion:{expansionId}:v1`
+	- `pv:scrydex:dirty:global:v1`
+
+Worker cache keys for price-bearing routes now include these versions, so updated expansions bypass stale cached payloads without fully disabling caching.
+
 ### Roles + limits
 The Worker supports custom-claim roles (from the Firebase ID token):
 - `role=basic`: uses `FREE_DAILY_LIMIT`

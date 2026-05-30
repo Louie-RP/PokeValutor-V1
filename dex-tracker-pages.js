@@ -946,6 +946,27 @@
         return best;
     }
 
+    function getBestSealedMarketFromVariants(variants) {
+        if (!Array.isArray(variants) || !variants.length) return null;
+
+        /** @type {Array<number>} */
+        const markets = [];
+
+        for (const variant of variants) {
+            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
+            for (const price of prices) {
+                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
+                if (Number.isFinite(market) && market > 0) {
+                    markets.push(market);
+                }
+            }
+        }
+
+        if (!markets.length) return null;
+        markets.sort((a, b) => a - b);
+        return markets[0];
+    }
+
     async function fetchCardWithPrices(cardId) {
         const id = safeString(cardId, '');
         if (!id) return null;
@@ -961,6 +982,33 @@
             }
 
             const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+            const res = await fetch(url, headers ? { headers } : undefined);
+            if (!res.ok) return null;
+
+            const text = await res.text();
+            const parsed = safeParseJson(text);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return parsed?.data || parsed;
+        } catch {
+            return null;
+        }
+    }
+
+    async function fetchSealedWithPrices(sealedId) {
+        const id = safeString(sealedId, '');
+        if (!id) return null;
+
+        try {
+            let headers;
+            try {
+                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                const token = String(tokenRaw || '').trim();
+                if (token) headers = { Authorization: `Bearer ${token}` };
+            } catch {
+                // ignore
+            }
+
+            const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
             const res = await fetch(url, headers ? { headers } : undefined);
             if (!res.ok) return null;
 
@@ -997,6 +1045,28 @@
         return best;
     }
 
+    async function getCurrentSealedValue(item) {
+        const id = safeString(item?.id, '');
+        if (!id) return null;
+
+        const cacheKey = `sealed:${id}`;
+        const cached = getCachedValue(cacheKey);
+        if (cached && Number.isFinite(cached.market)) {
+            return { market: cached.market };
+        }
+
+        const fetched = await fetchSealedWithPrices(id);
+        const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
+        const fallbackVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
+
+        const market = getBestSealedMarketFromVariants(sourceVariants);
+        if (!Number.isFinite(market)) return null;
+
+        setCachedValue(cacheKey, market, '');
+        return { market };
+    }
+
     async function refreshCollectionValues(items, totalEl) {
         if (!totalEl) return;
 
@@ -1029,7 +1099,8 @@
                 totalUnits += quantity;
                 if (valueEl) valueEl.textContent = '...';
 
-                const market = getSealedMarketQuote(item);
+                const valueInfo = await getCurrentSealedValue(item);
+                const market = Number(valueInfo?.market ?? null);
                 if (!Number.isFinite(market) || market <= 0) {
                     delete collectionValueById[entryKey];
                     if (valueEl) valueEl.textContent = '--';
@@ -1138,22 +1209,7 @@
 
     function getSealedMarketQuote(item) {
         const variants = Array.isArray(item?.variants) ? item.variants : [];
-        /** @type {Array<number>} */
-        const markets = [];
-
-        for (const variant of variants) {
-            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-            for (const price of prices) {
-                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
-                if (Number.isFinite(market) && market > 0) {
-                    markets.push(market);
-                }
-            }
-        }
-
-        if (!markets.length) return null;
-        markets.sort((a, b) => a - b);
-        return markets[0];
+        return getBestSealedMarketFromVariants(variants);
     }
 
     function slugifyForUrl(value) {
