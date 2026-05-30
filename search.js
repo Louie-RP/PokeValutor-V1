@@ -1086,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', function () {
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(false);
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
     }
 
@@ -1113,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function () {
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(false);
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
     }
 
@@ -1203,6 +1203,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
     }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            queueDexCloudStateSync(true);
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        queueDexCloudStateSync(true);
+    });
 
     function mergeDexCollectionState(localList, cloudList) {
         /** @type {Map<string, any>} */
@@ -1390,7 +1400,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const addVariantName = safeString(normalized?.selectedVariant, '').trim() || getDexDefaultVariantForCard(normalized);
         if (!existsInCollection) {
             collection.push(normalized);
-            saveDexCollection(collection);
+            saveDexCollection(collection, { immediateCloudSync: true });
         } else {
             const existing = normalizeDexCollectionCard(collection[existingIndex]);
             const nextMap = normalizeConditionQuantities(existing?.conditionQuantities, existing?.selectedCondition);
@@ -1418,7 +1428,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 selectedCondition: nextSelectedCondition,
                 updatedAt: Date.now(),
             };
-            saveDexCollection(collection);
+            saveDexCollection(collection, { immediateCloudSync: true });
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1483,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
-            saveDexCollection(nextCollection);
+            saveDexCollection(nextCollection, { immediateCloudSync: true });
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1522,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (removedMasterSet) {
-            saveDexMasterSets(master);
+            saveDexMasterSets(master, { immediateCloudSync: true });
         }
 
         return { removedCollection, removedMasterSet, expansionNames };
@@ -1619,7 +1629,7 @@ document.addEventListener('DOMContentLoaded', function () {
             selectedVariant: getPrimaryVariantName(variantMap, getDexDefaultVariantForCard(existing)),
             updatedAt: Date.now(),
         };
-        saveDexCollection(collection);
+        saveDexCollection(collection, { immediateCloudSync: true });
 
         return {
             removedCopy: true,

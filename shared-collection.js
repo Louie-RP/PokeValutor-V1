@@ -3,15 +3,42 @@
     const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
     const SHARED_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
+    const DEX_DEFAULT_COLLECTION_ID = 'default';
+    const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
 
     function safeString(value, fallback) {
         const text = String(value ?? '');
         return text || String(fallback || '');
     }
 
+    function formatUsd(amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n)) return '$0.00';
+        return `$${n.toFixed(2)}`;
+    }
+
     function normalizeCollectionItemType(rawType) {
         const value = String(rawType || '').trim().toLowerCase();
         return value === 'sealed' ? 'sealed' : 'card';
+    }
+
+    function normalizeCollectionId(rawId, fallbackId) {
+        const normalized = safeString(rawId, '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        if (!normalized) return safeString(fallbackId, DEX_DEFAULT_COLLECTION_ID);
+        return normalized.slice(0, 40);
+    }
+
+    function normalizeCollectionName(rawName, collectionId) {
+        const name = safeString(rawName, '').replace(/\s+/g, ' ').trim();
+        if (name) return name.slice(0, 50);
+        if (collectionId === DEX_DEFAULT_COLLECTION_ID) return DEX_DEFAULT_COLLECTION_NAME;
+        return safeString(collectionId, 'Collection').replace(/[-_]+/g, ' ').trim() || 'Collection';
     }
 
     function isSealedCollectionItem(item) {
@@ -83,10 +110,168 @@
         return entries.reduce((sum, entry) => sum + entry.qty, 0);
     }
 
+    function getPrimaryConditionCode(conditionQuantities, fallbackCondition) {
+        const fallback = normalizeDexConditionCode(fallbackCondition);
+        const entries = getConditionEntries(conditionQuantities, fallback);
+        if (fallback && entries.some((entry) => entry.code === fallback)) return fallback;
+        return entries.length ? entries[0].code : '';
+    }
+
     function formatConditionSummary(conditionQuantities, fallbackCondition) {
         const entries = getConditionEntries(conditionQuantities, fallbackCondition);
         if (!entries.length) return 'Condition breakdown unavailable';
         return entries.map((entry) => `${getConditionLabel(entry.code)} x${entry.qty}`).join(', ');
+    }
+
+    function normalizeVariantNameForCompare(name) {
+        return String(name ?? '').trim().toLowerCase();
+    }
+
+    function findVariantByName(variants, variantName) {
+        if (!Array.isArray(variants)) return null;
+        const wanted = normalizeVariantNameForCompare(variantName);
+        if (!wanted) return null;
+        return variants.find((v) => normalizeVariantNameForCompare(v?.name) === wanted) || null;
+    }
+
+    function getMarketForCondition(prices, conditionCode) {
+        if (!Array.isArray(prices)) return null;
+        const wanted = normalizeDexConditionCode(conditionCode);
+        if (!wanted) return null;
+
+        let best = null;
+        for (const p of prices) {
+            if (!p || typeof p !== 'object') continue;
+            const got = normalizeDexConditionCode(p?.condition);
+            if (got !== wanted) continue;
+
+            const marketRaw = p?.market ?? p?.marketPrice ?? p?.market_price ?? null;
+            const market = typeof marketRaw === 'number' ? marketRaw : Number(marketRaw);
+            if (!Number.isFinite(market) || market <= 0) continue;
+            if (best == null || market > best) best = market;
+        }
+        return best;
+    }
+
+    function getBestVariantMarket(variants, selectedVariant, conditionCode) {
+        if (!Array.isArray(variants) || !variants.length) return null;
+
+        const chosenName = safeString(selectedVariant, '').trim();
+        if (chosenName) {
+            const match = findVariantByName(variants, chosenName);
+            const market = getMarketForCondition(match?.prices, conditionCode);
+            if (market != null) {
+                return {
+                    market,
+                    variantUsed: safeString(match?.name, chosenName),
+                };
+            }
+        }
+
+        let best = null;
+        for (const variant of variants) {
+            const market = getMarketForCondition(variant?.prices, conditionCode);
+            if (market == null) continue;
+            if (!best || market > best.market) {
+                best = {
+                    market,
+                    variantUsed: safeString(variant?.name, ''),
+                };
+            }
+        }
+        return best;
+    }
+
+    function getBestSealedMarketFromVariants(variants) {
+        if (!Array.isArray(variants) || !variants.length) return null;
+
+        const markets = [];
+        for (const variant of variants) {
+            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
+            for (const price of prices) {
+                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
+                if (Number.isFinite(market) && market > 0) {
+                    markets.push(market);
+                }
+            }
+        }
+
+        if (!markets.length) return null;
+        markets.sort((a, b) => a - b);
+        return markets[0];
+    }
+
+    function getFallbackMarket(item) {
+        const candidates = [
+            item?.market,
+            item?.marketPrice,
+            item?.market_price,
+            item?.price,
+            item?.value,
+        ];
+
+        for (const candidate of candidates) {
+            const n = Number(candidate);
+            if (Number.isFinite(n) && n > 0) return n;
+        }
+        return null;
+    }
+
+    function getCardValueInfo(rawItem, conditionQuantities, selectedCondition) {
+        const conditionEntries = getConditionEntries(conditionQuantities, selectedCondition);
+        const totalCopies = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+        const primaryCondition = getPrimaryConditionCode(conditionQuantities, selectedCondition);
+        const selectedVariant = safeString(rawItem?.selectedVariant, '').trim();
+        const variants = Array.isArray(rawItem?.variants) ? rawItem.variants : [];
+
+        let totalValue = 0;
+        let pricedCopies = 0;
+        let unitValue = null;
+
+        for (const entry of conditionEntries) {
+            const best = getBestVariantMarket(variants, selectedVariant, entry.code);
+            const market = Number(best?.market);
+            if (!Number.isFinite(market) || market <= 0) continue;
+
+            totalValue += market * entry.qty;
+            pricedCopies += entry.qty;
+
+            if (entry.code === primaryCondition) {
+                unitValue = market;
+            } else if (unitValue == null) {
+                unitValue = market;
+            }
+        }
+
+        if (unitValue == null && totalCopies > 0) {
+            const fallbackMarket = getFallbackMarket(rawItem);
+            if (Number.isFinite(fallbackMarket) && fallbackMarket > 0) {
+                unitValue = fallbackMarket;
+                totalValue = fallbackMarket * totalCopies;
+                pricedCopies = totalCopies;
+            }
+        }
+
+        return {
+            unitValue: Number.isFinite(unitValue) && unitValue > 0 ? Number(unitValue) : null,
+            totalValue: Number.isFinite(totalValue) && totalValue > 0 ? Number(totalValue) : 0,
+            totalUnits: totalCopies,
+            pricedUnits: pricedCopies,
+        };
+    }
+
+    function getSealedValueInfo(rawItem, quantity) {
+        const marketFromVariants = getBestSealedMarketFromVariants(Array.isArray(rawItem?.variants) ? rawItem.variants : []);
+        const fallbackMarket = getFallbackMarket(rawItem);
+        const unitValue = Number.isFinite(marketFromVariants) ? marketFromVariants : fallbackMarket;
+        const hasUnitValue = Number.isFinite(unitValue) && unitValue > 0;
+
+        return {
+            unitValue: hasUnitValue ? Number(unitValue) : null,
+            totalValue: hasUnitValue ? Number(unitValue) * quantity : 0,
+            totalUnits: quantity,
+            pricedUnits: hasUnitValue ? quantity : 0,
+        };
     }
 
     function pickFrontMediumImage(images) {
@@ -164,12 +349,20 @@
 
     function normalizeCollectionEntry(raw) {
         const itemType = normalizeCollectionItemType(raw?.itemType);
+        const collectionId = normalizeCollectionId(raw?.collectionId, DEX_DEFAULT_COLLECTION_ID);
         const conditionQuantities = normalizeConditionQuantities(raw?.conditionQuantities, raw?.selectedCondition);
         const sealedQuantity = Math.max(1, Math.floor(Number(raw?.quantity ?? raw?.sealedQuantity ?? 1) || 1));
         const cardCopies = getTotalCopies(conditionQuantities, raw?.selectedCondition);
+
+        const valueInfo = itemType === 'sealed'
+            ? getSealedValueInfo(raw, sealedQuantity)
+            : getCardValueInfo(raw, conditionQuantities, raw?.selectedCondition);
+
         const copies = itemType === 'sealed' ? sealedQuantity : cardCopies;
+
         return {
             itemType,
+            collectionId,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             rarity: safeString(raw?.rarity, ''),
@@ -179,8 +372,13 @@
             image: pickFrontMediumImage(raw?.images),
             conditionQuantities,
             selectedCondition: normalizeDexConditionCode(raw?.selectedCondition),
+            selectedVariant: safeString(raw?.selectedVariant, ''),
             quantity: sealedQuantity,
             copies,
+            unitValue: valueInfo.unitValue,
+            totalValue: valueInfo.totalValue,
+            totalUnits: valueInfo.totalUnits,
+            pricedUnits: valueInfo.pricedUnits,
             raw,
         };
     }
@@ -190,6 +388,74 @@
         return raw
             .filter((item) => item && typeof item === 'object' && item.id)
             .map((item) => normalizeCollectionEntry(item));
+    }
+
+    function normalizeCollectionsMeta(rawCollections) {
+        if (!Array.isArray(rawCollections)) return [];
+
+        const out = [];
+        const seen = new Set();
+        for (const entry of rawCollections) {
+            const id = normalizeCollectionId(entry?.id, '');
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            out.push({
+                id,
+                name: normalizeCollectionName(entry?.name, id),
+            });
+        }
+
+        if (!seen.has(DEX_DEFAULT_COLLECTION_ID)) {
+            out.unshift({ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME });
+        }
+
+        return out;
+    }
+
+    function getCollectionPrefKey(shareToken) {
+        return `pv:sharedCollectionSelected:${shareToken}:v1`;
+    }
+
+    function loadSelectedCollectionPreference(shareToken) {
+        try {
+            return normalizeCollectionId(localStorage.getItem(getCollectionPrefKey(shareToken)), '');
+        } catch {
+            return '';
+        }
+    }
+
+    function saveSelectedCollectionPreference(shareToken, collectionId) {
+        const id = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
+        try {
+            localStorage.setItem(getCollectionPrefKey(shareToken), id);
+        } catch {
+            // ignore
+        }
+    }
+
+    function resolveCollectionOptions(items, rawMetaCollections) {
+        const byId = new Map();
+
+        for (const meta of normalizeCollectionsMeta(rawMetaCollections)) {
+            byId.set(meta.id, meta.name);
+        }
+
+        for (const item of items) {
+            const id = normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+            if (!byId.has(id)) {
+                byId.set(id, normalizeCollectionName('', id));
+            }
+        }
+
+        const options = Array.from(byId.entries())
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => {
+                if (a.id === DEX_DEFAULT_COLLECTION_ID) return -1;
+                if (b.id === DEX_DEFAULT_COLLECTION_ID) return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+        return options;
     }
 
     function readShareTokenFromUrl() {
@@ -207,6 +473,8 @@
         const detailPath = buildCardDetailPath(item.raw);
         const detailPathAttr = escapeHtml(detailPath);
         const conditionText = escapeHtml(formatConditionSummary(item.conditionQuantities, item.selectedCondition));
+        const unitValueText = item.unitValue != null ? formatUsd(item.unitValue) : '--';
+        const totalValueText = item.totalValue > 0 ? formatUsd(item.totalValue) : '--';
         const imageHtml = item.image
             ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${name} details"><img class="pv-card__img" src="${escapeHtml(item.image)}" alt="${name} card image" /></a>`
             : '';
@@ -221,6 +489,8 @@
                         <p class="pv-card__text">${rarity}</p>
                         <p class="pv-card__text">Card number: ${number}</p>
                         <p class="pv-card__text">Copies: ${copies}</p>
+                        <p class="pv-card__text">Value per copy: ${escapeHtml(unitValueText)}</p>
+                        <p class="pv-card__text">Item total: ${escapeHtml(totalValueText)}</p>
                         <p class="pv-card__text pv-sharedConditionText">${conditionText}</p>
                     </div>
                 </article>
@@ -233,6 +503,8 @@
         const setName = escapeHtml(item.setName);
         const type = escapeHtml(item.type || 'Sealed product');
         const quantity = Math.max(0, Math.floor(Number(item.quantity || item.copies || 0)));
+        const unitValueText = item.unitValue != null ? formatUsd(item.unitValue) : '--';
+        const totalValueText = item.totalValue > 0 ? formatUsd(item.totalValue) : '--';
         const imageHtml = item.image
             ? `<img class="pv-card__img pv-card__img--sealed" src="${escapeHtml(item.image)}" alt="${name} sealed product image" />`
             : '';
@@ -247,6 +519,8 @@
                         <p class="pv-card__text">Type: ${type}</p>
                         <p class="pv-card__text">Sealed product</p>
                         <p class="pv-card__text">Quantity: ${quantity}</p>
+                        <p class="pv-card__text">Value per product: ${escapeHtml(unitValueText)}</p>
+                        <p class="pv-card__text">Item total: ${escapeHtml(totalValueText)}</p>
                     </div>
                 </article>
             </div>
@@ -307,19 +581,18 @@
                 return nameA.localeCompare(nameB) * dir;
             }
 
-            const copiesA = Number(a?.copies);
-            const copiesB = Number(b?.copies);
-            const hasA = Number.isFinite(copiesA);
-            const hasB = Number.isFinite(copiesB);
+            const totalA = Number(a?.totalValue);
+            const totalB = Number(b?.totalValue);
+            const hasA = Number.isFinite(totalA) && totalA > 0;
+            const hasB = Number.isFinite(totalB) && totalB > 0;
 
             if (!hasA && !hasB) return nameA.localeCompare(nameB);
             if (!hasA) return 1;
             if (!hasB) return -1;
-
-            if (copiesA === copiesB) return nameA.localeCompare(nameB);
+            if (totalA === totalB) return nameA.localeCompare(nameB);
 
             const dir = mode === 'value-asc' ? 1 : -1;
-            return (copiesA - copiesB) * dir;
+            return (totalA - totalB) * dir;
         });
 
         return sorted;
@@ -332,19 +605,22 @@
     document.addEventListener('DOMContentLoaded', async () => {
         const statusEl = document.getElementById('pv-shared-status');
         const totalEl = document.getElementById('pv-shared-total');
+        const valueTotalEl = document.getElementById('pv-shared-value-total');
         const summaryEl = document.getElementById('pv-shared-summary');
         const gridEl = document.getElementById('pv-shared-grid');
         const filterEl = document.getElementById('pv-shared-filter');
         const sortEl = document.getElementById('pv-shared-sort-select');
+        const collectionSelectEl = document.getElementById('pv-shared-collection-select');
 
-        if (!summaryEl || !gridEl || !totalEl) return;
+        if (!summaryEl || !gridEl || !totalEl || !valueTotalEl) return;
 
         const shareToken = readShareTokenFromUrl();
         if (!shareToken) {
             setText(statusEl, 'Invalid share link.');
             setText(summaryEl, 'This collection is not currently shared.');
             gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is not currently shared.</div></div>';
-            setText(totalEl, 'Total copies: 0');
+            setText(totalEl, 'Total units: 0');
+            setText(valueTotalEl, 'Collection value: $0.00');
             return;
         }
 
@@ -352,41 +628,68 @@
             setText(statusEl, 'Sharing service unavailable right now.');
             setText(summaryEl, 'Shared collection data could not be loaded.');
             gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">Shared collection data could not be loaded right now.</div></div>';
-            setText(totalEl, 'Total copies: 0');
+            setText(totalEl, 'Total units: 0');
+            setText(valueTotalEl, 'Collection value: $0.00');
             return;
         }
 
         setText(statusEl, 'Loading shared collection...');
 
         let allItems = [];
+        let collectionOptions = [];
+        let selectedCollectionId = DEX_DEFAULT_COLLECTION_ID;
+
+        function getSelectedCollectionItems() {
+            return allItems.filter((item) => normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === selectedCollectionId);
+        }
+
+        function getSelectedCollectionName() {
+            const match = collectionOptions.find((option) => option.id === selectedCollectionId);
+            return match ? match.name : DEX_DEFAULT_COLLECTION_NAME;
+        }
+
+        function syncCollectionPicker() {
+            if (!(collectionSelectEl instanceof HTMLSelectElement)) return;
+            collectionSelectEl.innerHTML = collectionOptions
+                .map((option) => `<option value="${escapeHtml(option.id)}">${escapeHtml(option.name)}</option>`)
+                .join('');
+            collectionSelectEl.value = selectedCollectionId;
+        }
 
         function render(query) {
-            const filtered = applyCollectionFilter(allItems, query);
+            const selectedItems = getSelectedCollectionItems();
+            const filtered = applyCollectionFilter(selectedItems, query);
             const sortMode = sortEl instanceof HTMLSelectElement ? sortEl.value : 'value-desc';
             const sortedFiltered = sortCollectionItems(filtered, sortMode);
-            const totalCopies = allItems.reduce((sum, item) => sum + Math.max(0, Number(item.copies || 0)), 0);
-            const filteredCopies = sortedFiltered.reduce((sum, item) => sum + Math.max(0, Number(item.copies || 0)), 0);
-            const itemLabel = allItems.length === 1 ? 'item' : 'items';
-            const copyLabel = totalCopies === 1 ? 'copy' : 'copies';
 
-            setText(totalEl, `Total copies: ${totalCopies}`);
+            const totalUnits = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.totalUnits || item.copies || 0)), 0);
+            const filteredUnits = sortedFiltered.reduce((sum, item) => sum + Math.max(0, Number(item.totalUnits || item.copies || 0)), 0);
+            const totalValue = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.totalValue || 0)), 0);
+            const pricedUnits = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.pricedUnits || 0)), 0);
+            const collectionName = getSelectedCollectionName();
+            const itemLabel = selectedItems.length === 1 ? 'item' : 'items';
+            const unitLabel = totalUnits === 1 ? 'unit' : 'units';
+            const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
 
-            if (!allItems.length) {
-                setText(summaryEl, '0 items shared.');
-                gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This shared collection is empty.</div></div>';
+            setText(totalEl, `Total units: ${totalUnits}`);
+            setText(valueTotalEl, `Collection value: ${formatUsd(totalValue)}${coverage}`);
+
+            if (!selectedItems.length) {
+                setText(summaryEl, `${collectionName} has no shared items.`);
+                gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is empty.</div></div>';
                 return;
             }
 
             if (!sortedFiltered.length) {
-                setText(summaryEl, `0 of ${allItems.length} ${itemLabel} shown.`);
+                setText(summaryEl, `0 of ${selectedItems.length} ${itemLabel} shown from ${collectionName}.`);
                 gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items match that search.</div></div>';
                 return;
             }
 
             if (String(query || '').trim()) {
-                setText(summaryEl, `${sortedFiltered.length} of ${allItems.length} ${itemLabel} shown. ${filteredCopies} ${copyLabel} visible.`);
+                setText(summaryEl, `${sortedFiltered.length} of ${selectedItems.length} ${itemLabel} shown from ${collectionName}. ${filteredUnits} ${unitLabel} visible.`);
             } else {
-                setText(summaryEl, `${allItems.length} ${itemLabel} shared. ${totalCopies} ${copyLabel}.`);
+                setText(summaryEl, `${selectedItems.length} ${itemLabel} shared from ${collectionName}. ${totalUnits} ${unitLabel}.`);
             }
 
             gridEl.innerHTML = sortedFiltered.map((item) => createCollectionItemHtml(item)).join('');
@@ -395,7 +698,31 @@
         try {
             const result = await window.PV_AUTH.loadSharedDexCollection(shareToken);
             const rawCollection = Array.isArray(result?.collection) ? result.collection : [];
+            const rawCollectionsMeta = Array.isArray(result?.collections) ? result.collections : [];
+            const activeCollectionId = normalizeCollectionId(result?.activeCollectionId, DEX_DEFAULT_COLLECTION_ID);
             allItems = normalizeCollectionList(rawCollection);
+            collectionOptions = resolveCollectionOptions(allItems, rawCollectionsMeta);
+
+            if (!collectionOptions.length) {
+                collectionOptions = [{ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME }];
+            }
+
+            const itemCollectionIds = new Set(allItems.map((item) => normalizeCollectionId(item.collectionId, DEX_DEFAULT_COLLECTION_ID)));
+            const savedCollectionId = loadSelectedCollectionPreference(shareToken);
+            const preferred = [activeCollectionId, savedCollectionId, DEX_DEFAULT_COLLECTION_ID]
+                .map((id) => normalizeCollectionId(id, ''))
+                .find((id) => id && collectionOptions.some((option) => option.id === id));
+
+            if (preferred && (itemCollectionIds.has(preferred) || !itemCollectionIds.size)) {
+                selectedCollectionId = preferred;
+            } else if (itemCollectionIds.size) {
+                selectedCollectionId = Array.from(itemCollectionIds)[0];
+            } else {
+                selectedCollectionId = collectionOptions[0].id;
+            }
+
+            syncCollectionPicker();
+            saveSelectedCollectionPreference(shareToken, selectedCollectionId);
 
             if (sortEl instanceof HTMLSelectElement) {
                 const savedMode = loadSharedSortPreference();
@@ -405,6 +732,18 @@
 
                 sortEl.addEventListener('change', () => {
                     saveSharedSortPreference(sortEl.value);
+                    const filterValue = filterEl instanceof HTMLInputElement ? filterEl.value : '';
+                    render(filterValue);
+                });
+            }
+
+            if (collectionSelectEl instanceof HTMLSelectElement) {
+                collectionSelectEl.addEventListener('change', () => {
+                    const nextId = normalizeCollectionId(collectionSelectEl.value, selectedCollectionId);
+                    if (collectionOptions.some((option) => option.id === nextId)) {
+                        selectedCollectionId = nextId;
+                        saveSelectedCollectionPreference(shareToken, selectedCollectionId);
+                    }
                     const filterValue = filterEl instanceof HTMLInputElement ? filterEl.value : '';
                     render(filterValue);
                 });
@@ -423,7 +762,8 @@
             setText(statusEl, message);
             setText(summaryEl, 'This collection is not currently shared.');
             gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is not currently shared. The owner can re-enable sharing from their account page at any time.</div></div>';
-            setText(totalEl, 'Total copies: 0');
+            setText(totalEl, 'Total units: 0');
+            setText(valueTotalEl, 'Collection value: $0.00');
         }
     });
 })();

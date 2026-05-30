@@ -62,19 +62,28 @@
             <div class="pv-section__header">
                 <h2 id="pv-shared-collection-title" class="pv-section__title">Collection</h2>
             </div>
-            <p id="pv-shared-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Total copies: 0</p>
-            <div id="pv-shared-sort" class="pv-sortRow" role="group" aria-label="Sort shared collection">
-                <label for="pv-shared-sort-select" class="form-label pv-sortLabel">Sort</label>
-                <select id="pv-shared-sort-select" class="form-select pv-sortSelect" aria-label="Sort shared collection">
-                    <option value="value-desc" selected>High-Low</option>
-                    <option value="value-asc">Low-High</option>
-                    <option value="name-asc">A-Z</option>
-                    <option value="name-desc">Z-A</option>
+            <p id="pv-shared-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Total units: 0</p>
+            <p id="pv-shared-value-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Collection value: $0.00</p>
+            <div id="pv-shared-collection-picker" class="pv-sortRow" role="group" aria-label="Select shared collection">
+                <label for="pv-shared-collection-select" class="form-label pv-sortLabel">Collection</label>
+                <select id="pv-shared-collection-select" class="form-select pv-sortSelect" aria-label="Select shared collection">
+                    <option value="default" selected>Default Collection</option>
                 </select>
             </div>
-            <div class="pv-collectionFilterRow" role="search" aria-label="Filter shared collection">
-                <label for="pv-shared-filter" class="form-label">Find a card</label>
-                <input id="pv-shared-filter" class="form-control" type="search" placeholder="Search by card name, set, number, or id" autocomplete="off" />
+            <div class="pv-collectionFilterRow pv-sharedFilterRow" role="search" aria-label="Filter shared collection">
+                <div class="pv-collectionFilterControl pv-sharedFilterControl--search">
+                    <label for="pv-shared-filter" class="form-label">Find a card or product</label>
+                    <input id="pv-shared-filter" class="form-control" type="search" placeholder="Search by card/product name, set, number, or id" autocomplete="off" />
+                </div>
+                <div id="pv-shared-sort" class="pv-collectionFilterControl pv-sharedFilterControl--sort" role="group" aria-label="Sort shared collection">
+                    <label for="pv-shared-sort-select" class="form-label pv-sortLabel">Sort</label>
+                    <select id="pv-shared-sort-select" class="form-select pv-sortSelect" aria-label="Sort shared collection">
+                        <option value="value-desc" selected>High-Low</option>
+                        <option value="value-asc">Low-High</option>
+                        <option value="name-asc">A-Z</option>
+                        <option value="name-desc">Z-A</option>
+                    </select>
+                </div>
             </div>
             <p id="pv-shared-summary" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading shared collection...</p>
             <div id="pv-shared-grid" class="row g-3" aria-label="Shared collection grid"></div>
@@ -103,8 +112,8 @@
 
     <script src="firebase-config.js" defer></script>
     <script src="firebase-config.local.js" defer></script>
-    <script src="firebase.js" defer></script>
-    <script src="shared-collection.js?v=2026-05-29-4" defer></script>
+    <script src="firebase.js?v=2026-05-30-2" defer></script>
+    <script src="shared-collection.js?v=2026-05-30-2" defer></script>
 </body>
 
 </html>

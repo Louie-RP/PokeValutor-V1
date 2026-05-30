@@ -29,7 +29,11 @@
             saveDexState: async () => { },
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
-            loadSharedDexCollection: async () => ({ collection: [] }),
+            loadSharedDexCollection: async () => ({
+                collection: [],
+                activeCollectionId: 'default',
+                collections: [{ id: 'default', name: 'Default Collection' }],
+            }),
             loadDexCollectionsMeta: async () => ({
                 activeCollectionId: 'default',
                 collections: [{ id: 'default', name: 'Default Collection' }],
@@ -68,7 +72,11 @@
             saveDexState: async () => { },
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
-            loadSharedDexCollection: async () => ({ collection: [] }),
+            loadSharedDexCollection: async () => ({
+                collection: [],
+                activeCollectionId: 'default',
+                collections: [{ id: 'default', name: 'Default Collection' }],
+            }),
             loadDexCollectionsMeta: async () => ({
                 activeCollectionId: 'default',
                 collections: [{ id: 'default', name: 'Default Collection' }],
@@ -696,6 +704,17 @@
         }, { merge: true });
 
         cacheDexCollectionsMeta(uid, normalized);
+
+        try {
+            const [settings, dexState] = await Promise.all([
+                loadDexShareSettingsFromProfile(false),
+                loadDexState(),
+            ]);
+            await syncSharedDexSnapshotForUser(uid, settings, dexState.collection, normalized);
+        } catch {
+            // ignore share-sync failures so metadata save still succeeds
+        }
+
         return buildDexCollectionsMetaResult(normalized);
     }
 
@@ -764,6 +783,272 @@
         dexShareSettingsCache.token = normalizeShareToken(settings?.token);
     }
 
+    const DEX_CLOUD_DOC_SOFT_LIMIT_BYTES = 900000;
+
+    function estimateJsonSizeBytes(value) {
+        try {
+            const text = JSON.stringify(value);
+            if (typeof TextEncoder !== 'undefined') {
+                return new TextEncoder().encode(text).length;
+            }
+            return String(text || '').length;
+        } catch {
+            return Number.MAX_SAFE_INTEGER;
+        }
+    }
+
+    function isFirestorePayloadTooLarge(error) {
+        const code = String(error?.code || '').toLowerCase();
+        const message = String(error?.message || '').toLowerCase();
+        if (code.includes('resource-exhausted') || code.includes('failed-precondition')) return true;
+        return /too large|maximum size|exceeds.*size|larger than/i.test(message);
+    }
+
+    function compactCollectionString(value, maxLength, fallback) {
+        const raw = String(value ?? '').replace(/\s+/g, ' ').trim();
+        const candidate = raw || String(fallback || '').replace(/\s+/g, ' ').trim();
+        if (!candidate) return '';
+        return candidate.slice(0, Math.max(1, Math.floor(Number(maxLength) || 1)));
+    }
+
+    function compactCollectionTimestamp(value, fallback) {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+        const f = Number(fallback);
+        if (Number.isFinite(f) && f > 0) return f;
+        return Date.now();
+    }
+
+    function compactCollectionMarket(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return null;
+        return Math.round(n * 100) / 100;
+    }
+
+    function compactCollectionConditionCode(value) {
+        const upper = String(value || '').trim().toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+        if (!upper) return '';
+        if (upper === 'NM' || upper.startsWith('NEAR MINT')) return 'NM';
+        if (upper === 'LP' || upper.startsWith('LIGHT PLAY')) return 'LP';
+        if (upper === 'MP' || upper.startsWith('MODERATE PLAY') || upper.startsWith('MID PLAY')) return 'MP';
+        if (upper === 'HP' || upper.startsWith('HEAVY PLAY')) return 'HP';
+        if (upper === 'DM' || upper.startsWith('DAMAGE')) return 'DM';
+        return upper.slice(0, 12);
+    }
+
+    function compactCollectionQuantities(rawMap, keyNormalizer, fallbackKey) {
+        const out = {};
+        if (rawMap && typeof rawMap === 'object') {
+            for (const [rawKey, rawQty] of Object.entries(rawMap)) {
+                const key = keyNormalizer(rawKey);
+                if (!key) continue;
+                const qty = Math.floor(Number(rawQty));
+                if (!Number.isFinite(qty) || qty <= 0) continue;
+                out[key] = Math.min(9999, (out[key] || 0) + qty);
+            }
+        }
+
+        if (!Object.keys(out).length) {
+            const fallback = keyNormalizer(fallbackKey);
+            if (fallback) out[fallback] = 1;
+        }
+
+        return out;
+    }
+
+    function compactCollectionImageList(rawImages) {
+        const imageCandidates = [];
+
+        if (Array.isArray(rawImages)) {
+            imageCandidates.push(...rawImages);
+        } else if (typeof rawImages === 'string') {
+            imageCandidates.push({ type: 'front', small: rawImages, medium: rawImages, large: rawImages });
+        } else if (rawImages && typeof rawImages === 'object') {
+            imageCandidates.push(rawImages);
+        }
+
+        if (!imageCandidates.length) return [];
+
+        const front = imageCandidates.find((img) => String(img?.type || '').trim().toLowerCase() === 'front');
+        const chosen = front || imageCandidates[0];
+        const small = compactCollectionString(chosen?.small ?? chosen?.thumbnail ?? chosen?.url ?? chosen?.src, 500, '');
+        const medium = compactCollectionString(chosen?.medium ?? chosen?.small ?? chosen?.url ?? chosen?.src, 500, '');
+        const large = compactCollectionString(chosen?.large ?? chosen?.medium ?? chosen?.small ?? chosen?.url ?? chosen?.src, 500, '');
+
+        if (!small && !medium && !large) return [];
+        return [{ type: 'front', small, medium, large }];
+    }
+
+    function compactCollectionSetLike(rawSet) {
+        if (!rawSet || typeof rawSet !== 'object') return null;
+
+        const out = {
+            id: compactCollectionString(rawSet?.id, 80, ''),
+            name: compactCollectionString(rawSet?.name, 120, ''),
+            series: compactCollectionString(rawSet?.series, 80, ''),
+            printed_total: Math.max(0, Math.floor(Number(rawSet?.printed_total ?? rawSet?.printedTotal ?? 0) || 0)),
+            total: Math.max(0, Math.floor(Number(rawSet?.total ?? 0) || 0)),
+            logo: compactCollectionString(rawSet?.logo ?? rawSet?.images?.logo, 500, ''),
+            symbol: compactCollectionString(rawSet?.symbol ?? rawSet?.images?.symbol, 500, ''),
+            image: compactCollectionString(rawSet?.image ?? rawSet?.images?.logo ?? rawSet?.images?.symbol, 500, ''),
+        };
+
+        if (!out.id && !out.name && !out.series && !out.printed_total && !out.total && !out.logo && !out.symbol && !out.image) {
+            return null;
+        }
+
+        return out;
+    }
+
+    function compactCollectionPrices(rawPrices, maxPrices) {
+        if (!Array.isArray(rawPrices)) return [];
+        const out = [];
+        for (const raw of rawPrices) {
+            if (!raw || typeof raw !== 'object') continue;
+            const market = compactCollectionMarket(raw?.market ?? raw?.marketPrice ?? raw?.market_price);
+            if (market == null) continue;
+            out.push({
+                condition: compactCollectionConditionCode(raw?.condition),
+                market,
+            });
+            if (out.length >= maxPrices) break;
+        }
+        return out;
+    }
+
+    function compactCollectionVariants(rawVariants, aggressive) {
+        if (!Array.isArray(rawVariants)) return [];
+
+        const maxVariants = aggressive ? 8 : 18;
+        const maxPrices = aggressive ? 3 : 8;
+        const out = [];
+
+        for (const raw of rawVariants) {
+            if (!raw || typeof raw !== 'object') continue;
+
+            const name = compactCollectionString(raw?.name, 80, '');
+            const prices = compactCollectionPrices(raw?.prices, maxPrices);
+            const fallbackMarket = compactCollectionMarket(raw?.market ?? raw?.marketPrice ?? raw?.market_price);
+
+            if (!name && !prices.length && fallbackMarket == null) continue;
+
+            const variant = {
+                name,
+                prices,
+            };
+
+            if (!variant.prices.length && fallbackMarket != null) {
+                variant.prices = [{ condition: 'NM', market: fallbackMarket }];
+            }
+
+            if (!variant.prices.length && aggressive) continue;
+
+            out.push(variant);
+            if (out.length >= maxVariants) break;
+        }
+
+        return out;
+    }
+
+    function compactDexCollectionForCloud(rawCollection, aggressive) {
+        if (!Array.isArray(rawCollection)) return [];
+
+        const out = [];
+        for (const raw of rawCollection) {
+            if (!raw || typeof raw !== 'object') continue;
+
+            const id = compactCollectionString(raw?.id, 120, '');
+            if (!id) continue;
+
+            const itemType = String(raw?.itemType || '').trim().toLowerCase() === 'sealed' ? 'sealed' : 'card';
+            const collectionId = normalizeDexCollectionId(raw?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+            const entry = {
+                itemType,
+                collectionId,
+                id,
+                name: compactCollectionString(raw?.name, 160, 'Unknown'),
+                setName: compactCollectionString(raw?.setName, 120, ''),
+                expansionName: compactCollectionString(raw?.expansionName, 120, ''),
+                images: compactCollectionImageList(raw?.images),
+                variants: compactCollectionVariants(raw?.variants, aggressive),
+                selectedVariant: compactCollectionString(raw?.selectedVariant, 80, ''),
+                addedAt: compactCollectionTimestamp(raw?.addedAt, Date.now()),
+                updatedAt: compactCollectionTimestamp(raw?.updatedAt, Date.now()),
+            };
+
+            const directMarket = compactCollectionMarket(raw?.market ?? raw?.marketPrice ?? raw?.market_price ?? raw?.price ?? raw?.value);
+            if (directMarket != null) {
+                entry.market = directMarket;
+            }
+
+            if (itemType === 'sealed') {
+                entry.type = compactCollectionString(raw?.type, 120, 'Sealed product');
+                entry.quantity = Math.max(1, Math.floor(Number(raw?.quantity ?? raw?.sealedQuantity ?? 1) || 1));
+            } else {
+                entry.rarity = compactCollectionString(raw?.rarity, 80, '');
+                entry.type = compactCollectionString(raw?.type, 120, '');
+                entry.card_no = compactCollectionString(raw?.card_no ?? raw?.cardNo ?? raw?.number ?? raw?.cardNumber, 32, '');
+                entry.number = compactCollectionString(raw?.number ?? raw?.card_no ?? raw?.cardNo ?? raw?.cardNumber, 32, '');
+                entry.selectedCondition = compactCollectionConditionCode(raw?.selectedCondition);
+                entry.conditionQuantities = compactCollectionQuantities(
+                    raw?.conditionQuantities,
+                    compactCollectionConditionCode,
+                    raw?.selectedCondition
+                );
+                entry.variantQuantities = compactCollectionQuantities(
+                    raw?.variantQuantities,
+                    (value) => compactCollectionString(value, 80, ''),
+                    ''
+                );
+            }
+
+            const compactExpansion = compactCollectionSetLike(raw?.expansion);
+            if (compactExpansion) entry.expansion = compactExpansion;
+            const compactSet = compactCollectionSetLike(raw?.set);
+            if (compactSet) entry.set = compactSet;
+
+            if (!entry.setName) {
+                entry.setName = compactCollectionString(compactSet?.name || compactExpansion?.name, 120, '');
+            }
+            if (!entry.expansionName) {
+                entry.expansionName = compactCollectionString(compactExpansion?.name || compactSet?.name, 120, '');
+            }
+
+            out.push(entry);
+        }
+
+        return out;
+    }
+
+    function compactDexMasterSetsForCloud(rawMasterSets) {
+        if (!rawMasterSets || typeof rawMasterSets !== 'object') return {};
+
+        const out = {};
+        for (const [key, rawEntry] of Object.entries(rawMasterSets)) {
+            if (!rawEntry || typeof rawEntry !== 'object') continue;
+
+            const expansionId = compactCollectionString(rawEntry?.expansionId ?? key, 80, '');
+            if (!expansionId) continue;
+
+            const cardIds = Array.isArray(rawEntry?.cardIds)
+                ? Array.from(new Set(rawEntry.cardIds.map((id) => compactCollectionString(id, 120, '')).filter(Boolean)))
+                : [];
+
+            out[expansionId] = {
+                expansionId,
+                expansionName: compactCollectionString(rawEntry?.expansionName, 120, 'Unknown Set'),
+                series: compactCollectionString(rawEntry?.series, 80, ''),
+                setImage: compactCollectionString(rawEntry?.setImage, 500, ''),
+                targetCount: Math.max(0, Math.floor(Number(rawEntry?.targetCount || 0) || 0)) || null,
+                cardIds,
+                count: cardIds.length,
+                updatedAt: compactCollectionTimestamp(rawEntry?.updatedAt, Date.now()),
+            };
+        }
+
+        return out;
+    }
+
     async function loadDexShareSettingsFromProfile(forceRefresh) {
         const user = getUser();
         if (!user || !db) return { enabled: false, token: '' };
@@ -792,7 +1077,7 @@
         }
     }
 
-    async function syncSharedDexSnapshotForUser(uid, settings, collection) {
+    async function syncSharedDexSnapshotForUser(uid, settings, collection, collectionsMeta) {
         const ownerUid = String(uid || '').trim();
         const token = normalizeShareToken(settings?.token);
         if (!ownerUid || !token) return;
@@ -801,12 +1086,18 @@
         if (!ref) return;
 
         const canShare = Boolean(settings?.enabled);
-        const safeCollection = Array.isArray(collection) ? collection : [];
+        let safeCollection = canShare ? compactDexCollectionForCloud(collection, false) : [];
+        const normalizedMeta = buildDexCollectionsMetaResult(collectionsMeta || {});
 
         const payload = {
             enabled: canShare,
             ownerUid,
             collection: canShare ? safeCollection : [],
+            activeCollectionId: normalizedMeta.activeCollectionId,
+            collections: normalizedMeta.collections.map((entry) => ({
+                id: entry.id,
+                name: entry.name,
+            })),
             updatedAt: Date.now(),
             updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
         };
@@ -815,7 +1106,18 @@
             payload.disabledAtServer = window.firebase.firestore.FieldValue.serverTimestamp();
         }
 
-        await ref.set(payload, { merge: true });
+        if (canShare && estimateJsonSizeBytes(payload) > DEX_CLOUD_DOC_SOFT_LIMIT_BYTES) {
+            safeCollection = compactDexCollectionForCloud(collection, true);
+            payload.collection = safeCollection;
+        }
+
+        try {
+            await ref.set(payload, { merge: true });
+        } catch (error) {
+            if (!canShare || !isFirestorePayloadTooLarge(error)) throw error;
+            payload.collection = compactDexCollectionForCloud(collection, true);
+            await ref.set(payload, { merge: true });
+        }
     }
 
     async function loadDexShareSettings() {
@@ -850,8 +1152,11 @@
 
         cacheDexShareSettings(uid, settings);
 
-        const dexState = await loadDexState();
-        await syncSharedDexSnapshotForUser(uid, settings, dexState.collection);
+        const [dexState, dexCollectionsMeta] = await Promise.all([
+            loadDexState(),
+            loadDexCollectionsMetaFromProfile(false),
+        ]);
+        await syncSharedDexSnapshotForUser(uid, settings, dexState.collection, dexCollectionsMeta);
 
         return buildDexShareSettingsResult(settings.enabled, settings.token);
     }
@@ -876,7 +1181,25 @@
             }
 
             const collection = Array.isArray(data?.collection) ? data.collection : [];
-            return { collection };
+            const activeCollectionId = normalizeDexCollectionId(
+                data?.activeCollectionId,
+                DEX_DEFAULT_COLLECTION_ID
+            );
+            const collectionsRaw = Array.isArray(data?.collections)
+                ? data.collections
+                : Array.isArray(data?.dexCollections)
+                    ? data.dexCollections
+                    : [defaultDexCollectionEntry()];
+            const collections = normalizeDexCollections(collectionsRaw, DEX_MAX_COLLECTIONS_PREMIUM).map((entry) => ({
+                id: entry.id,
+                name: entry.name,
+            }));
+
+            return {
+                collection,
+                activeCollectionId,
+                collections,
+            };
         } catch (error) {
             const code = String(error?.code || '').toLowerCase();
             if (code === 'permission-denied') {
@@ -928,16 +1251,33 @@
             // ignore role read issues and save the payload as-is
         }
 
-        await ref.set({
-            collection,
-            masterSets,
+        let collectionForCloud = compactDexCollectionForCloud(collection, false);
+        const masterSetsForCloud = compactDexMasterSetsForCloud(masterSets);
+        const basePayload = {
+            collection: collectionForCloud,
+            masterSets: masterSetsForCloud,
             updatedAt: Date.now(),
             updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+        };
+
+        if (estimateJsonSizeBytes(basePayload) > DEX_CLOUD_DOC_SOFT_LIMIT_BYTES) {
+            collectionForCloud = compactDexCollectionForCloud(collection, true);
+            basePayload.collection = collectionForCloud;
+        }
+
+        try {
+            await ref.set(basePayload, { merge: true });
+        } catch (error) {
+            if (!isFirestorePayloadTooLarge(error)) throw error;
+            basePayload.collection = compactDexCollectionForCloud(collection, true);
+            await ref.set(basePayload, { merge: true });
+            collectionForCloud = basePayload.collection;
+        }
 
         try {
             const settings = await loadDexShareSettingsFromProfile(false);
-            await syncSharedDexSnapshotForUser(user.uid, settings, collection);
+            const dexCollectionsMeta = await loadDexCollectionsMetaFromProfile(false);
+            await syncSharedDexSnapshotForUser(user.uid, settings, collectionForCloud, dexCollectionsMeta);
         } catch {
             // ignore share-sync failures so Dex save still succeeds
         }

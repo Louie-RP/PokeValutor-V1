@@ -1348,7 +1348,7 @@
         }
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(false);
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
     }
 
@@ -1411,7 +1411,7 @@
         }
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(false);
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
     }
 
@@ -1455,6 +1455,16 @@
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
     }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            queueDexCloudStateSync(true);
+        }
+    });
+
+    window.addEventListener('pagehide', () => {
+        queueDexCloudStateSync(true);
+    });
 
     function mergeCollectionState(localList, cloudList) {
         /** @type {Map<string, any>} */
@@ -1653,7 +1663,7 @@
         }
 
         if (!removeCard) {
-            writeCollection(nextCollection);
+            writeCollection(nextCollection, { immediateCloudSync: true });
         }
 
         return { changed: true, removeCard };
@@ -1672,7 +1682,7 @@
         });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
-            writeCollection(nextCollection);
+            writeCollection(nextCollection, { immediateCloudSync: true });
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1705,7 +1715,7 @@
         }
 
         if (removedMaster) {
-            writeMasterSets(master);
+            writeMasterSets(master, { immediateCloudSync: true });
         }
 
         return removedCollection || removedMaster;
@@ -1766,11 +1776,11 @@
                     && safeString(entry?.id, '') === id
                     && normalizeCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
             });
-            writeCollection(filtered);
+            writeCollection(filtered, { immediateCloudSync: true });
             return { changed: true, removeProduct: true, quantity: 0 };
         }
 
-        writeCollection(nextCollection);
+        writeCollection(nextCollection, { immediateCloudSync: true });
         return { changed: true, removeProduct: false, quantity: nextQuantity };
     }
 
@@ -1789,7 +1799,7 @@
             return false;
         }
 
-        writeCollection(nextCollection);
+        writeCollection(nextCollection, { immediateCloudSync: true });
         return true;
     }
 

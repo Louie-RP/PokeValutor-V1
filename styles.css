@@ -3868,11 +3868,27 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   color: #dbeafe;
 }
 
+#pv-shared-body .pv-sharedFilterRow {
+  max-width: 760px;
+}
+
+#pv-shared-body .pv-sharedFilterControl--search {
+  min-width: 0;
+}
+
+#pv-shared-body .pv-sharedFilterControl--sort {
+  width: min(100%, 170px);
+}
+
 @media (min-width: 768px) {
-  #pv-shared-body .pv-collectionFilterRow {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    max-width: 420px;
+  #pv-shared-body .pv-sharedFilterRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    max-width: 760px;
+  }
+
+  #pv-shared-body .pv-sharedFilterControl--sort {
+    justify-self: end;
   }
 }
 
