@@ -33,9 +33,11 @@ function serverTimestamp() {
 }
 
 function configValue(envKey, nestedPath, fallback) {
+    // Prefer explicit environment variables.
     const envValue = String(process.env?.[envKey] || '').trim();
     if (envValue) return envValue;
 
+    // Backward-compatibility path for existing projects still using Runtime Config.
     let node = runtimeConfig;
     for (const segment of nestedPath) {
         if (!node || typeof node !== 'object') {

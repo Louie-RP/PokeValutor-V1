@@ -162,6 +162,8 @@ Firebase Functions webhook config:
 - `SCRYDEX_WEBHOOK_SECRET` (required to verify `X-Scrydex-Signature`)
 - `SCRYDEX_DIRTY_TTL_SECONDS` (optional, default `1209600` / 14d)
 
+Set these as Functions environment variables (not `functions.config()`, which is deprecated).
+
 Functions endpoint:
 - `https://<region>-<project>.cloudfunctions.net/scrydexWebhook`
 
@@ -250,22 +252,25 @@ In Stripe Dashboard:
 
 ### 2) Configure Stripe secrets for Firebase Functions
 
-Use Firebase Functions runtime config (recommended with current Functions code):
+Use Functions environment variables:
 
 ```bash
-firebase functions:config:set \
-	stripe.secret_key="sk_live_or_test_..." \
-	stripe.webhook_secret="whsec_..." \
-	stripe.price_id_monthly_premium="price_..." \
-	stripe.app_base_url="https://www.pokevaluator.com" \
-	stripe.allowed_return_origins="https://www.pokevaluator.com,http://localhost:8080"
+STRIPE_SECRET_KEY="sk_live_or_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+STRIPE_PRICE_ID_MONTHLY_PREMIUM="price_..."
+STRIPE_APP_BASE_URL="https://www.pokevaluator.com"
+STRIPE_ALLOWED_RETURN_ORIGINS="https://www.pokevaluator.com,http://localhost:8080"
 ```
 
 Optional (if you use a custom Stripe Billing Portal configuration):
 
 ```bash
-firebase functions:config:set stripe.billing_portal_configuration_id="bpc_..."
+STRIPE_BILLING_PORTAL_CONFIGURATION_ID="bpc_..."
 ```
+
+Recommended setup options:
+- Production: set env vars in Firebase Console for the `scrydexWebhook`, `stripeWebhook`, and Stripe callable functions.
+- Local emulation: create `functions/.env.local` with the same variable names.
 
 ### 3) Deploy Functions
 
@@ -291,7 +296,7 @@ Subscribe the endpoint to these events:
 - `customer.subscription.deleted`
 
 Copy the webhook signing secret (`whsec_...`) into:
-- `stripe.webhook_secret`
+- `STRIPE_WEBHOOK_SECRET`
 
 Then redeploy Functions if you changed config.
 
@@ -307,7 +312,7 @@ Use the printed webhook secret from Stripe CLI as `stripe.webhook_secret` for lo
 
 If you want to validate checkout + webhook quickly before touching production config:
 
-1. Copy `.runtimeconfig.example.json` to `.runtimeconfig.json` and fill Stripe **test mode** values.
+1. Create `functions/.env.local` with Stripe **test mode** values (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_MONTHLY_PREMIUM`, `STRIPE_APP_BASE_URL`, and optional `STRIPE_ALLOWED_RETURN_ORIGINS`).
 2. Start emulators from repo root:
 
 ```bash
