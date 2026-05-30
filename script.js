@@ -146,6 +146,7 @@
       if (!isNavLinkForPage(link, 'pricing.html')) continue;
       const item = link.closest('.pv-nav__item');
       if (item) {
+        item.classList.toggle('pv-nav__item--pricingVisible', !shouldHide);
         item.classList.toggle('pv-nav__item--hiddenByRole', shouldHide);
       } else {
         link.hidden = shouldHide;
@@ -190,7 +191,26 @@
     }
   }
 
+  function pageHasAuthBootstrapScripts() {
+    const scriptEls = Array.from(document.querySelectorAll('script[src]'));
+    for (const el of scriptEls) {
+      const src = String(el.getAttribute('src') || '').toLowerCase();
+      if (!src) continue;
+      if (src.includes('firebase.js')) return true;
+      if (src.includes('firebase-config.js')) return true;
+      if (src.includes('firebase-config.local.js')) return true;
+      if (src.includes('firebase-auth-compat.js')) return true;
+    }
+    return false;
+  }
+
   function setupAuthAwarePricingNavVisibility() {
+    if (!pageHasAuthBootstrapScripts()) {
+      // Pages without auth bootstrap (like Home) should not wait on auth polling.
+      setPricingNavHidden(false);
+      return;
+    }
+
     const deadline = Date.now() + 8000;
 
     const tryAttach = () => {
@@ -200,17 +220,30 @@
           void refreshPricingNavVisibility(authApi);
         };
 
-        runRefresh();
         if (typeof authApi.onAuthStateChanged === 'function') {
+          let firstAuthCallbackReceived = false;
           authApi.onAuthStateChanged(() => {
+            firstAuthCallbackReceived = true;
             runRefresh();
           });
+
+          // Safety fallback in case the provider does not emit quickly.
+          window.setTimeout(() => {
+            if (!firstAuthCallbackReceived) {
+              runRefresh();
+            }
+          }, 1500);
+        } else {
+          runRefresh();
         }
         return;
       }
 
       if (Date.now() < deadline) {
         window.setTimeout(tryAttach, 250);
+      } else {
+        // If auth never becomes available on this page, fall back to visible.
+        setPricingNavHidden(false);
       }
     };
 

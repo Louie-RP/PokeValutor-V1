@@ -106,6 +106,19 @@ body {
   color: #fff4c0;
 }
 
+/* Hide Pricing link until auth-aware nav logic resolves visibility. */
+.pv-nav .pv-nav__item > .pv-nav__link[href="pricing.html"],
+.pv-nav .pv-nav__item > .pv-nav__link[href="./pricing.html"],
+.pv-nav .pv-nav__item > .pv-nav__link[href$="/pricing.html"] {
+  display: none;
+}
+
+.pv-nav .pv-nav__item.pv-nav__item--pricingVisible > .pv-nav__link[href="pricing.html"],
+.pv-nav .pv-nav__item.pv-nav__item--pricingVisible > .pv-nav__link[href="./pricing.html"],
+.pv-nav .pv-nav__item.pv-nav__item--pricingVisible > .pv-nav__link[href$="/pricing.html"] {
+  display: inline-flex;
+}
+
 .pv-nav__link--pricing {
   background: linear-gradient(135deg, #ffd34f 0%, #ffcb05 60%, #f3b800 100%);
   color: #111111;
