@@ -40,20 +40,38 @@ service cloud.firestore {
         && token.matches('^[A-Za-z0-9_-]+$');
     }
 
+    function isValidDexCollectionId(collectionId) {
+      return collectionId is string
+        && collectionId.size() >= 1
+        && collectionId.size() <= 40
+        && collectionId.matches('^[a-z0-9_-]+$');
+    }
+
     function isValidSharedDexDoc(shareToken) {
       return request.resource.data.keys().hasOnly([
           'enabled',
           'ownerUid',
           'collection',
+          'activeCollectionId',
+          'collections',
           'updatedAt',
           'updatedAtServer',
           'disabledAtServer'
         ])
-        && request.resource.data.keys().hasAll(['enabled', 'ownerUid', 'collection', 'updatedAt'])
+        && request.resource.data.keys().hasAll([
+          'enabled',
+          'ownerUid',
+          'collection',
+          'activeCollectionId',
+          'collections',
+          'updatedAt'
+        ])
         && request.resource.data.enabled is bool
         && request.resource.data.ownerUid is string
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.collection is list
+        && isValidDexCollectionId(request.resource.data.activeCollectionId)
+        && request.resource.data.collections is list
         && (request.resource.data.updatedAt is int || request.resource.data.updatedAt is float)
         && request.resource.data.updatedAt > 0
         && isValidShareToken(shareToken);
