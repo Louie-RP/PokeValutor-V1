@@ -14,14 +14,6 @@ const SCRYDEX_PRICE_WEBHOOK_EVENTS = new Set([
     'pokemon.expansions.prices.graded_updated',
 ]);
 
-const runtimeConfig = (() => {
-    try {
-        return functions.config();
-    } catch {
-        return {};
-    }
-})();
-
 let stripeClient = null;
 
 function normalizeRole(role) {
@@ -32,23 +24,10 @@ function serverTimestamp() {
     return FieldValue.serverTimestamp();
 }
 
-function configValue(envKey, nestedPath, fallback) {
+function configValue(envKey, _nestedPath, fallback) {
     // Prefer explicit environment variables.
     const envValue = String(process.env?.[envKey] || '').trim();
     if (envValue) return envValue;
-
-    // Backward-compatibility path for existing projects still using Runtime Config.
-    let node = runtimeConfig;
-    for (const segment of nestedPath) {
-        if (!node || typeof node !== 'object') {
-            node = null;
-            break;
-        }
-        node = node[segment];
-    }
-
-    const configRaw = node == null ? '' : String(node).trim();
-    if (configRaw) return configRaw;
     return String(fallback || '').trim();
 }
 
