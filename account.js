@@ -32,6 +32,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const billingStatusEl = document.getElementById('pv-billing-status');
     const billingSubscribeBtn = document.getElementById('pv-billing-subscribe');
     const billingManageBtn = document.getElementById('pv-billing-manage');
+    const premiumToolsPanelEl = document.getElementById('pv-premium-tools-panel');
+    const premiumToolsStatusEl = document.getElementById('pv-premium-tools-status');
+    const premiumExportCsvBtn = document.getElementById('pv-premium-export-csv');
+    const premiumExportJsonBtn = document.getElementById('pv-premium-export-json');
+    const premiumCollectionSelectEl = /** @type {HTMLSelectElement} */ (document.getElementById('pv-premium-collection-select'));
+    const premiumCollectionNameEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-premium-collection-name'));
+    const premiumCollectionCreateBtn = document.getElementById('pv-premium-collection-create');
+    const premiumCollectionDeleteBtn = document.getElementById('pv-premium-collection-delete');
 
     const signInBtn = document.getElementById('pv-auth-signin');
     const signUpBtn = document.getElementById('pv-auth-signup');
@@ -57,6 +65,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${DEX_CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${DEX_CACHE_PREFIX}masterSets:v1`;
+    const DEX_COLLECTIONS_META_KEY = `${DEX_CACHE_PREFIX}collectionsMeta:v1`;
+    const DEX_ACTIVE_COLLECTION_KEY = `${DEX_CACHE_PREFIX}activeCollectionId:v1`;
+    const DEX_DEFAULT_COLLECTION_ID = 'default';
+    const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
+    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
     const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
     const HOME_LATEST_EXPANSIONS_CACHE_PREFIX = 'pv:expansions:latestEnglish:';
     let localDexPanelVisible = false;
@@ -67,6 +80,12 @@ document.addEventListener('DOMContentLoaded', function () {
         enabled: false,
         token: '',
         shareUrl: '',
+    };
+    let premiumToolsBusy = false;
+    let currentRole = 'basic';
+    let currentPremiumCollectionsMeta = {
+        activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+        collections: [{ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME }],
     };
 
     // Temporary diagnostics helper for startup/auth setup issues.
@@ -282,6 +301,198 @@ document.addEventListener('DOMContentLoaded', function () {
         applyDexShareUiState();
     }
 
+    function isPremiumRole(role) {
+        const normalized = String(role || '').trim().toLowerCase();
+        return normalized === 'admin' || normalized === 'tester' || normalized === 'premium';
+    }
+
+    function setPremiumToolsVisible(isVisible) {
+        if (!premiumToolsPanelEl) return;
+        premiumToolsPanelEl.hidden = !Boolean(isVisible);
+        if (!isVisible) {
+            if (premiumCollectionNameEl instanceof HTMLInputElement) premiumCollectionNameEl.value = '';
+            setPremiumToolsStatus('');
+        }
+    }
+
+    function setPremiumToolsStatus(msg) {
+        if (!premiumToolsStatusEl) return;
+        premiumToolsStatusEl.textContent = String(msg || '');
+    }
+
+    function setPremiumToolsBusy(isBusy) {
+        premiumToolsBusy = Boolean(isBusy);
+        const disableWriteControls = premiumToolsBusy || !isPremiumRole(currentRole);
+
+        if (premiumCollectionSelectEl instanceof HTMLSelectElement) {
+            premiumCollectionSelectEl.disabled = premiumToolsBusy;
+        }
+        if (premiumCollectionNameEl instanceof HTMLInputElement) {
+            premiumCollectionNameEl.disabled = disableWriteControls;
+        }
+        if (premiumCollectionCreateBtn instanceof HTMLButtonElement) {
+            premiumCollectionCreateBtn.disabled = disableWriteControls;
+        }
+        if (premiumCollectionDeleteBtn instanceof HTMLButtonElement) {
+            premiumCollectionDeleteBtn.disabled = disableWriteControls;
+        }
+        if (premiumExportCsvBtn instanceof HTMLButtonElement) {
+            premiumExportCsvBtn.disabled = disableWriteControls;
+        }
+        if (premiumExportJsonBtn instanceof HTMLButtonElement) {
+            premiumExportJsonBtn.disabled = disableWriteControls;
+        }
+    }
+
+    function normalizeCollectionId(value, fallback) {
+        const normalized = String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 40);
+        if (!normalized) return String(fallback || DEX_DEFAULT_COLLECTION_ID);
+        return normalized;
+    }
+
+    function normalizeCollectionName(value, fallback) {
+        const raw = String(value || '').replace(/\s+/g, ' ').trim();
+        const candidate = raw || String(fallback || '').replace(/\s+/g, ' ').trim();
+        if (!candidate) return DEX_DEFAULT_COLLECTION_NAME;
+        return candidate.slice(0, 50);
+    }
+
+    function normalizeCollectionTimestamp(value, fallback) {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+        const f = Number(fallback);
+        if (Number.isFinite(f) && f > 0) return f;
+        return Date.now();
+    }
+
+    function defaultCollectionsMeta() {
+        return {
+            activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+            collections: [{
+                id: DEX_DEFAULT_COLLECTION_ID,
+                name: DEX_DEFAULT_COLLECTION_NAME,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+            }],
+        };
+    }
+
+    function normalizeCollectionsMeta(raw, options) {
+        const maxCollections = options?.premium ? DEX_MAX_COLLECTIONS_PREMIUM : 1;
+        const byId = new Map();
+        const source = Array.isArray(raw?.collections) ? raw.collections : [];
+
+        for (const entry of source) {
+            const id = normalizeCollectionId(entry?.id, '');
+            if (!id) continue;
+
+            const existing = byId.get(id);
+            const createdAt = normalizeCollectionTimestamp(entry?.createdAt, existing?.createdAt || Date.now());
+            const updatedAt = normalizeCollectionTimestamp(entry?.updatedAt, createdAt);
+            const fallbackName = id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id;
+
+            byId.set(id, {
+                id,
+                name: normalizeCollectionName(entry?.name, existing?.name || fallbackName),
+                createdAt,
+                updatedAt,
+            });
+        }
+
+        if (!byId.has(DEX_DEFAULT_COLLECTION_ID)) {
+            byId.set(DEX_DEFAULT_COLLECTION_ID, {
+                id: DEX_DEFAULT_COLLECTION_ID,
+                name: DEX_DEFAULT_COLLECTION_NAME,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+            });
+        } else {
+            const current = byId.get(DEX_DEFAULT_COLLECTION_ID);
+            byId.set(DEX_DEFAULT_COLLECTION_ID, {
+                ...current,
+                id: DEX_DEFAULT_COLLECTION_ID,
+                name: DEX_DEFAULT_COLLECTION_NAME,
+            });
+        }
+
+        const collections = Array.from(byId.values())
+            .sort((a, b) => {
+                if (a.id === DEX_DEFAULT_COLLECTION_ID) return -1;
+                if (b.id === DEX_DEFAULT_COLLECTION_ID) return 1;
+                return Number(a.createdAt || 0) - Number(b.createdAt || 0);
+            })
+            .slice(0, Math.max(1, maxCollections));
+
+        const requestedActive = normalizeCollectionId(raw?.activeCollectionId, DEX_DEFAULT_COLLECTION_ID);
+        const activeCollectionId = collections.some((entry) => entry.id === requestedActive)
+            ? requestedActive
+            : DEX_DEFAULT_COLLECTION_ID;
+
+        return { activeCollectionId, collections };
+    }
+
+    function persistCollectionsMetaLocally(meta) {
+        const normalized = normalizeCollectionsMeta(meta, { premium: true });
+        currentPremiumCollectionsMeta = normalized;
+
+        try {
+            localStorage.setItem(DEX_ACTIVE_COLLECTION_KEY, normalized.activeCollectionId);
+        } catch {
+            // ignore
+        }
+
+        try {
+            localStorage.setItem(DEX_COLLECTIONS_META_KEY, JSON.stringify(normalized));
+        } catch {
+            // ignore
+        }
+
+        try {
+            window.dispatchEvent(new CustomEvent('pv:dex-collection-context-changed'));
+        } catch {
+            // ignore
+        }
+    }
+
+    function restoreCollectionsMetaFromLocal() {
+        try {
+            const raw = localStorage.getItem(DEX_COLLECTIONS_META_KEY);
+            if (!raw) return defaultCollectionsMeta();
+            const parsed = JSON.parse(raw);
+            return normalizeCollectionsMeta(parsed, { premium: true });
+        } catch {
+            return defaultCollectionsMeta();
+        }
+    }
+
+    function readCollectionNameById(collectionId) {
+        const id = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
+        const match = currentPremiumCollectionsMeta.collections.find((entry) => entry.id === id);
+        return match ? match.name : (id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id);
+    }
+
+    function renderPremiumCollectionOptions(meta) {
+        if (!(premiumCollectionSelectEl instanceof HTMLSelectElement)) return;
+        const normalized = normalizeCollectionsMeta(meta, { premium: true });
+
+        premiumCollectionSelectEl.innerHTML = normalized.collections
+            .map((entry) => {
+                const label = entry.id === DEX_DEFAULT_COLLECTION_ID
+                    ? `${entry.name} (included)`
+                    : entry.name;
+                return `<option value="${entry.id}">${label}</option>`;
+            })
+            .join('');
+        premiumCollectionSelectEl.value = normalized.activeCollectionId;
+        persistCollectionsMetaLocally(normalized);
+    }
+
     async function copyTextToClipboard(text) {
         const value = String(text || '');
         if (!value) return false;
@@ -396,6 +607,341 @@ document.addEventListener('DOMContentLoaded', function () {
         setDexShareStatus(copied
             ? 'Share link copied to clipboard.'
             : 'Unable to copy link on this browser.');
+    }
+
+    function downloadTextFile(filename, content, mimeType) {
+        const blob = new Blob([String(content || '')], { type: String(mimeType || 'text/plain;charset=utf-8') });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = String(filename || 'export.txt');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function toCsvCell(value) {
+        const text = String(value == null ? '' : value);
+        if (!/[",\n]/.test(text)) return text;
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function normalizeCollectionEntryId(rawId) {
+        return normalizeCollectionId(rawId, DEX_DEFAULT_COLLECTION_ID);
+    }
+
+    function getCardCopyCount(entry) {
+        const map = (entry?.conditionQuantities && typeof entry.conditionQuantities === 'object')
+            ? entry.conditionQuantities
+            : null;
+        if (!map) return 1;
+
+        let total = 0;
+        for (const value of Object.values(map)) {
+            const qty = Math.max(0, Math.floor(Number(value) || 0));
+            total += qty;
+        }
+        return Math.max(1, total);
+    }
+
+    function getSealedQuantity(entry) {
+        return Math.max(1, Math.floor(Number(entry?.quantity ?? entry?.sealedQuantity) || 1));
+    }
+
+    async function loadCollectionsMetaFromCloud() {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.loadDexCollectionsMeta) {
+            const fallback = restoreCollectionsMetaFromLocal();
+            renderPremiumCollectionOptions(fallback);
+            return fallback;
+        }
+
+        const meta = await authApi.loadDexCollectionsMeta();
+        const normalized = normalizeCollectionsMeta(meta, { premium: true });
+        renderPremiumCollectionOptions(normalized);
+        return normalized;
+    }
+
+    async function saveCollectionsMetaToCloud(nextMeta) {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.saveDexCollectionsMeta) {
+            throw new Error('Collection management is unavailable right now.');
+        }
+
+        const saved = await authApi.saveDexCollectionsMeta(nextMeta);
+        const normalized = normalizeCollectionsMeta(saved, { premium: true });
+        renderPremiumCollectionOptions(normalized);
+        return normalized;
+    }
+
+    function buildExportRows(items) {
+        const list = Array.isArray(items) ? items : [];
+        return list.map((entry) => {
+            const itemType = String(entry?.itemType || 'card').trim().toLowerCase() === 'sealed' ? 'sealed' : 'card';
+            const collectionId = normalizeCollectionEntryId(entry?.collectionId);
+            const collectionName = readCollectionNameById(collectionId);
+            const setName = String(entry?.setName || entry?.expansionName || entry?.set?.name || entry?.expansion?.name || '');
+            const copyCount = itemType === 'sealed' ? getSealedQuantity(entry) : getCardCopyCount(entry);
+
+            return {
+                collectionId,
+                collectionName,
+                itemType,
+                id: String(entry?.id || ''),
+                name: String(entry?.name || ''),
+                setName,
+                rarity: String(entry?.rarity || ''),
+                number: String(entry?.number || entry?.card_no || ''),
+                quantity: copyCount,
+                selectedCondition: String(entry?.selectedCondition || ''),
+                selectedVariant: String(entry?.selectedVariant || ''),
+                conditionQuantities: JSON.stringify(entry?.conditionQuantities || {}),
+                variantQuantities: JSON.stringify(entry?.variantQuantities || {}),
+                addedAt: Number(entry?.addedAt || 0) || '',
+                updatedAt: Number(entry?.updatedAt || 0) || '',
+            };
+        });
+    }
+
+    function buildExportFilePrefix() {
+        const now = new Date();
+        const yyyy = String(now.getFullYear());
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        return `pokevalutor-collection-export-${yyyy}${mm}${dd}`;
+    }
+
+    async function runPremiumExport(format) {
+        if (!isPremiumRole(currentRole)) {
+            setPremiumToolsStatus('Premium plan required. Upgrade to export your collection.');
+            return;
+        }
+
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.loadDexState) {
+            setPremiumToolsStatus('Export is unavailable right now.');
+            return;
+        }
+
+        setPremiumToolsBusy(true);
+        setPremiumToolsStatus('Preparing export...');
+
+        try {
+            await loadCollectionsMetaFromCloud();
+            const state = await authApi.loadDexState();
+            const rows = buildExportRows(state?.collection || []);
+            const prefix = buildExportFilePrefix();
+
+            if (String(format || '').toLowerCase() === 'json') {
+                const payload = {
+                    exportedAt: new Date().toISOString(),
+                    activeCollectionId: currentPremiumCollectionsMeta.activeCollectionId,
+                    collections: currentPremiumCollectionsMeta.collections,
+                    items: rows,
+                };
+                downloadTextFile(`${prefix}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+                setPremiumToolsStatus(`Exported ${rows.length} item${rows.length === 1 ? '' : 's'} to JSON.`);
+                return;
+            }
+
+            const headers = [
+                'collectionId',
+                'collectionName',
+                'itemType',
+                'id',
+                'name',
+                'setName',
+                'rarity',
+                'number',
+                'quantity',
+                'selectedCondition',
+                'selectedVariant',
+                'conditionQuantities',
+                'variantQuantities',
+                'addedAt',
+                'updatedAt',
+            ];
+
+            const lines = [headers.join(',')];
+            for (const row of rows) {
+                lines.push(headers.map((key) => toCsvCell(row[key])).join(','));
+            }
+            downloadTextFile(`${prefix}.csv`, lines.join('\n'), 'text/csv;charset=utf-8');
+            setPremiumToolsStatus(`Exported ${rows.length} item${rows.length === 1 ? '' : 's'} to CSV.`);
+        } catch (error) {
+            setPremiumToolsStatus(String(error?.message || 'Could not export collection.'));
+        } finally {
+            setPremiumToolsBusy(false);
+        }
+    }
+
+    async function refreshPremiumTools() {
+        const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+        const premium = isPremiumRole(currentRole);
+
+        if (!user) {
+            setPremiumToolsVisible(false);
+            return;
+        }
+
+        setPremiumToolsVisible(true);
+        setPremiumToolsBusy(true);
+
+        try {
+            const meta = await loadCollectionsMetaFromCloud();
+            if (!premium) {
+                const normalized = normalizeCollectionsMeta(meta, { premium: false });
+                renderPremiumCollectionOptions(normalized);
+                setPremiumToolsStatus('Upgrade to Premium to create extra collections and export data.');
+                return;
+            }
+
+            setPremiumToolsStatus('Premium tools ready.');
+        } catch (error) {
+            setPremiumToolsStatus(String(error?.message || 'Could not load premium tools.'));
+            renderPremiumCollectionOptions(restoreCollectionsMetaFromLocal());
+        } finally {
+            setPremiumToolsBusy(false);
+        }
+    }
+
+    async function createPremiumCollection() {
+        if (!isPremiumRole(currentRole)) {
+            setPremiumToolsStatus('Premium plan required to create additional collections.');
+            return;
+        }
+
+        const rawName = String(premiumCollectionNameEl?.value || '').trim();
+        if (!rawName) {
+            setPremiumToolsStatus('Enter a collection name first.');
+            return;
+        }
+
+        const currentMeta = normalizeCollectionsMeta(currentPremiumCollectionsMeta, { premium: true });
+        if (currentMeta.collections.length >= DEX_MAX_COLLECTIONS_PREMIUM) {
+            setPremiumToolsStatus(`You can create up to ${DEX_MAX_COLLECTIONS_PREMIUM} collections.`);
+            return;
+        }
+
+        const baseId = normalizeCollectionId(rawName, 'collection');
+        let nextId = baseId;
+        let suffix = 2;
+        const existingIds = new Set(currentMeta.collections.map((entry) => entry.id));
+        while (existingIds.has(nextId)) {
+            nextId = normalizeCollectionId(`${baseId}-${suffix}`, `collection-${suffix}`);
+            suffix += 1;
+        }
+
+        const nextEntry = {
+            id: nextId,
+            name: normalizeCollectionName(rawName, baseId),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+
+        setPremiumToolsBusy(true);
+        setPremiumToolsStatus('Creating collection...');
+
+        try {
+            const saved = await saveCollectionsMetaToCloud({
+                collections: [...currentMeta.collections, nextEntry],
+                activeCollectionId: nextEntry.id,
+            });
+            if (premiumCollectionNameEl instanceof HTMLInputElement) premiumCollectionNameEl.value = '';
+            setPremiumToolsStatus(`Created collection "${readCollectionNameById(saved.activeCollectionId)}".`);
+        } catch (error) {
+            setPremiumToolsStatus(String(error?.message || 'Could not create collection.'));
+        } finally {
+            setPremiumToolsBusy(false);
+        }
+    }
+
+    async function selectActiveCollection(nextCollectionId) {
+        const selectedId = normalizeCollectionId(nextCollectionId, DEX_DEFAULT_COLLECTION_ID);
+        const currentMeta = normalizeCollectionsMeta(currentPremiumCollectionsMeta, { premium: true });
+
+        if (!currentMeta.collections.some((entry) => entry.id === selectedId)) {
+            setPremiumToolsStatus('Selected collection is unavailable.');
+            renderPremiumCollectionOptions(currentMeta);
+            return;
+        }
+
+        setPremiumToolsBusy(true);
+        setPremiumToolsStatus('Updating active collection...');
+
+        try {
+            await saveCollectionsMetaToCloud({
+                collections: currentMeta.collections,
+                activeCollectionId: selectedId,
+            });
+            setPremiumToolsStatus(`Active collection: ${readCollectionNameById(selectedId)}.`);
+        } catch (error) {
+            setPremiumToolsStatus(String(error?.message || 'Could not switch active collection.'));
+            renderPremiumCollectionOptions(currentMeta);
+        } finally {
+            setPremiumToolsBusy(false);
+        }
+    }
+
+    async function deletePremiumCollection() {
+        if (!isPremiumRole(currentRole)) {
+            setPremiumToolsStatus('Premium plan required to delete additional collections.');
+            return;
+        }
+
+        const selectedId = normalizeCollectionId(premiumCollectionSelectEl?.value, DEX_DEFAULT_COLLECTION_ID);
+        if (selectedId === DEX_DEFAULT_COLLECTION_ID) {
+            setPremiumToolsStatus('Default Collection cannot be deleted.');
+            return;
+        }
+
+        const selectedName = readCollectionNameById(selectedId);
+        const confirmed = window.confirm(`Delete "${selectedName}" and remove all its cards/sealed entries from cloud sync?`);
+        if (!confirmed) {
+            setPremiumToolsStatus('Collection deletion canceled.');
+            return;
+        }
+
+        setPremiumToolsBusy(true);
+        setPremiumToolsStatus('Deleting collection...');
+
+        try {
+            const authApi = window?.PV_AUTH;
+            const currentMeta = normalizeCollectionsMeta(currentPremiumCollectionsMeta, { premium: true });
+            const nextCollections = currentMeta.collections.filter((entry) => entry.id !== selectedId);
+
+            await saveCollectionsMetaToCloud({
+                collections: nextCollections,
+                activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+            });
+
+            if (authApi?.loadDexState && authApi?.saveDexState) {
+                const cloudState = await authApi.loadDexState();
+                const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+                const nextCloudCollection = cloudCollection.filter((entry) => {
+                    const entryCollectionId = normalizeCollectionEntryId(entry?.collectionId);
+                    return entryCollectionId !== selectedId;
+                });
+
+                await authApi.saveDexState({
+                    collection: nextCloudCollection,
+                    masterSets: (cloudState?.masterSets && typeof cloudState.masterSets === 'object') ? cloudState.masterSets : {},
+                });
+            }
+
+            const localCollection = readDexCollection();
+            const nextLocalCollection = localCollection.filter((entry) => {
+                return normalizeCollectionEntryId(entry?.collectionId) !== selectedId;
+            });
+            writeDexCollection(nextLocalCollection);
+
+            setPremiumToolsStatus(`Deleted "${selectedName}" and removed its tracked entries.`);
+        } catch (error) {
+            setPremiumToolsStatus(String(error?.message || 'Could not delete collection.'));
+        } finally {
+            setPremiumToolsBusy(false);
+        }
     }
 
     function setLocalDexStatus(msg) {
@@ -844,18 +1390,23 @@ document.addEventListener('DOMContentLoaded', function () {
     setDexVisible(false);
     setDexShareVisible(false);
     setLocalDexVisible(false);
+    renderPremiumCollectionOptions(restoreCollectionsMetaFromLocal());
+    setPremiumToolsVisible(false);
+    setPremiumToolsBusy(false);
 
     if (!window.PV_AUTH || !window.PV_AUTH.onAuthStateChanged) {
         setStatus('Firebase not loaded. Check CSP + firebase-config.js');
         setSelfCheck('Setup check: firebase.js did not initialize. Confirm valid config and Firebase scripts are loading.');
         setLocalDexVisible(true);
         setLocalDexStatus('Auth is unavailable. You can still clear local Dex data below.');
+        setPremiumToolsVisible(false);
         setProfileSignedOut();
         return;
     }
 
     window.PV_AUTH.onAuthStateChanged((user) => {
         if (!user) {
+            currentRole = 'basic';
             setAuthViewMode(false);
             setStatus('Signed out');
             setRoleText('');
@@ -866,6 +1417,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setDexShareVisible(false);
             setLocalDexVisible(true);
             setLocalDexStatus('Safety lock on. Check the acknowledgment box to enable local clear actions.');
+            setPremiumToolsVisible(false);
             setProfileSignedOut();
             if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = true;
             return;
@@ -882,6 +1434,8 @@ document.addEventListener('DOMContentLoaded', function () {
         setDexShareVisible(true);
         void refreshDexShareSettings();
         setLocalDexVisible(false);
+        setPremiumToolsVisible(true);
+        setPremiumToolsStatus('Loading premium tools...');
         applyCheckoutStatusFromUrl();
         refreshBillingStatus();
 
@@ -890,14 +1444,18 @@ document.addEventListener('DOMContentLoaded', function () {
             .then((tokenResult) => {
                 const claims = tokenResult?.claims || null;
                 const role = normalizeRoleFromClaims(claims);
+                currentRole = role;
                 setRoleText(`Role: ${role}`);
                 setUidText(uid);
                 setAdminVisible(role === 'admin');
+                void refreshPremiumTools();
             })
             .catch(() => {
+                currentRole = 'basic';
                 setRoleText('Role: unknown');
                 setUidText(uid);
                 setAdminVisible(false);
+                void refreshPremiumTools();
             });
     });
 
@@ -1146,6 +1704,36 @@ document.addEventListener('DOMContentLoaded', function () {
     if (dexShareCopyBtn) {
         dexShareCopyBtn.addEventListener('click', () => {
             void copyDexShareLink();
+        });
+    }
+
+    if (premiumExportCsvBtn) {
+        premiumExportCsvBtn.addEventListener('click', () => {
+            void runPremiumExport('csv');
+        });
+    }
+
+    if (premiumExportJsonBtn) {
+        premiumExportJsonBtn.addEventListener('click', () => {
+            void runPremiumExport('json');
+        });
+    }
+
+    if (premiumCollectionSelectEl instanceof HTMLSelectElement) {
+        premiumCollectionSelectEl.addEventListener('change', () => {
+            void selectActiveCollection(premiumCollectionSelectEl.value);
+        });
+    }
+
+    if (premiumCollectionCreateBtn) {
+        premiumCollectionCreateBtn.addEventListener('click', () => {
+            void createPremiumCollection();
+        });
+    }
+
+    if (premiumCollectionDeleteBtn) {
+        premiumCollectionDeleteBtn.addEventListener('click', () => {
+            void deletePremiumCollection();
         });
     }
 

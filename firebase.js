@@ -30,6 +30,14 @@
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             loadSharedDexCollection: async () => ({ collection: [] }),
+            loadDexCollectionsMeta: async () => ({
+                activeCollectionId: 'default',
+                collections: [{ id: 'default', name: 'Default Collection' }],
+            }),
+            saveDexCollectionsMeta: async () => ({
+                activeCollectionId: 'default',
+                collections: [{ id: 'default', name: 'Default Collection' }],
+            }),
         };
         return;
     }
@@ -61,6 +69,14 @@
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             loadSharedDexCollection: async () => ({ collection: [] }),
+            loadDexCollectionsMeta: async () => ({
+                activeCollectionId: 'default',
+                collections: [{ id: 'default', name: 'Default Collection' }],
+            }),
+            saveDexCollectionsMeta: async () => ({
+                activeCollectionId: 'default',
+                collections: [{ id: 'default', name: 'Default Collection' }],
+            }),
         };
         return;
     }
@@ -420,6 +436,10 @@
     }
 
     const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
+    const DEX_COLLECTION_ID_REGEX = /^[a-z0-9_-]{1,40}$/;
+    const DEX_DEFAULT_COLLECTION_ID = 'default';
+    const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
+    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
 
     const dexShareSettingsCache = {
         uid: '',
@@ -427,6 +447,257 @@
         enabled: false,
         token: '',
     };
+
+    const dexCollectionsMetaCache = {
+        uid: '',
+        loaded: false,
+        activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+        collections: [
+            {
+                id: DEX_DEFAULT_COLLECTION_ID,
+                name: DEX_DEFAULT_COLLECTION_NAME,
+                createdAt: 0,
+                updatedAt: 0,
+            },
+        ],
+    };
+
+    function normalizeDexCollectionId(value, fallback) {
+        const normalized = String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        const safe = normalized.slice(0, 40);
+        if (!safe || !DEX_COLLECTION_ID_REGEX.test(safe)) {
+            const nextFallback = String(fallback || DEX_DEFAULT_COLLECTION_ID).trim().toLowerCase();
+            return DEX_COLLECTION_ID_REGEX.test(nextFallback) ? nextFallback : DEX_DEFAULT_COLLECTION_ID;
+        }
+
+        return safe;
+    }
+
+    function normalizeDexCollectionName(value, fallback) {
+        const raw = String(value || '').replace(/\s+/g, ' ').trim();
+        const candidate = raw || String(fallback || '').replace(/\s+/g, ' ').trim();
+        if (!candidate) return DEX_DEFAULT_COLLECTION_NAME;
+        return candidate.slice(0, 50);
+    }
+
+    function normalizeDexCollectionTimestamp(value, fallback) {
+        const n = Number(value);
+        if (Number.isFinite(n) && n > 0) return n;
+        const f = Number(fallback);
+        if (Number.isFinite(f) && f > 0) return f;
+        return Date.now();
+    }
+
+    function defaultDexCollectionEntry() {
+        return {
+            id: DEX_DEFAULT_COLLECTION_ID,
+            name: DEX_DEFAULT_COLLECTION_NAME,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+        };
+    }
+
+    function normalizeDexCollections(entriesRaw, maxCollections) {
+        const max = Math.max(1, Math.floor(Number(maxCollections) || 1));
+        const now = Date.now();
+        const byId = new Map();
+
+        const source = Array.isArray(entriesRaw) ? entriesRaw : [];
+        for (const raw of source) {
+            const id = normalizeDexCollectionId(raw?.id, '');
+            if (!id) continue;
+
+            const existing = byId.get(id);
+            const createdAt = normalizeDexCollectionTimestamp(raw?.createdAt, existing?.createdAt || now);
+            const updatedAt = normalizeDexCollectionTimestamp(raw?.updatedAt, createdAt);
+            const fallbackName = id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id;
+            const name = normalizeDexCollectionName(raw?.name, existing?.name || fallbackName);
+
+            byId.set(id, {
+                id,
+                name,
+                createdAt,
+                updatedAt,
+            });
+        }
+
+        if (!byId.has(DEX_DEFAULT_COLLECTION_ID)) {
+            byId.set(DEX_DEFAULT_COLLECTION_ID, defaultDexCollectionEntry());
+        } else {
+            const base = byId.get(DEX_DEFAULT_COLLECTION_ID);
+            byId.set(DEX_DEFAULT_COLLECTION_ID, {
+                ...base,
+                id: DEX_DEFAULT_COLLECTION_ID,
+                name: DEX_DEFAULT_COLLECTION_NAME,
+            });
+        }
+
+        const sorted = Array.from(byId.values())
+            .sort((a, b) => {
+                if (a.id === DEX_DEFAULT_COLLECTION_ID) return -1;
+                if (b.id === DEX_DEFAULT_COLLECTION_ID) return 1;
+                const aCreated = Number(a?.createdAt || 0);
+                const bCreated = Number(b?.createdAt || 0);
+                if (aCreated !== bCreated) return aCreated - bCreated;
+                return String(a?.name || '').localeCompare(String(b?.name || ''));
+            })
+            .slice(0, max);
+
+        const hasDefault = sorted.some((x) => x.id === DEX_DEFAULT_COLLECTION_ID);
+        if (!hasDefault) {
+            sorted.unshift(defaultDexCollectionEntry());
+        }
+
+        return sorted.slice(0, Math.max(1, max));
+    }
+
+    function buildDexCollectionsMeta(activeCollectionIdRaw, collectionsRaw, maxCollections) {
+        const collections = normalizeDexCollections(collectionsRaw, maxCollections);
+        const activeCandidate = normalizeDexCollectionId(activeCollectionIdRaw, DEX_DEFAULT_COLLECTION_ID);
+        const activeExists = collections.some((entry) => entry.id === activeCandidate);
+        const activeCollectionId = activeExists ? activeCandidate : DEX_DEFAULT_COLLECTION_ID;
+        return { activeCollectionId, collections };
+    }
+
+    function cacheDexCollectionsMeta(uid, meta) {
+        const normalized = buildDexCollectionsMeta(
+            meta?.activeCollectionId,
+            meta?.collections,
+            DEX_MAX_COLLECTIONS_PREMIUM
+        );
+
+        dexCollectionsMetaCache.uid = String(uid || '');
+        dexCollectionsMetaCache.loaded = true;
+        dexCollectionsMetaCache.activeCollectionId = normalized.activeCollectionId;
+        dexCollectionsMetaCache.collections = normalized.collections;
+    }
+
+    function buildDexCollectionsMetaResult(meta) {
+        const normalized = buildDexCollectionsMeta(
+            meta?.activeCollectionId,
+            meta?.collections,
+            DEX_MAX_COLLECTIONS_PREMIUM
+        );
+
+        return {
+            activeCollectionId: normalized.activeCollectionId,
+            collections: normalized.collections.map((entry) => ({
+                id: entry.id,
+                name: entry.name,
+                createdAt: Number(entry.createdAt || 0) || Date.now(),
+                updatedAt: Number(entry.updatedAt || 0) || Date.now(),
+            })),
+        };
+    }
+
+    function normalizeRoleFromClaims(claims) {
+        const role = String(claims?.role || claims?.tier || '').trim().toLowerCase();
+        if (role === 'admin' || role === 'tester' || role === 'premium' || role === 'basic') return role;
+        if (claims?.admin === true) return 'admin';
+        if (claims?.tester === true) return 'tester';
+        if (claims?.premium === true) return 'premium';
+        return 'basic';
+    }
+
+    function isPremiumRole(role) {
+        const normalized = String(role || '').trim().toLowerCase();
+        return normalized === 'admin' || normalized === 'tester' || normalized === 'premium';
+    }
+
+    async function loadCurrentRoleFromClaims(forceRefresh) {
+        const tokenResult = await getIdTokenResult(Boolean(forceRefresh));
+        return normalizeRoleFromClaims(tokenResult?.claims || {});
+    }
+
+    async function loadDexCollectionsMetaFromProfile(forceRefresh) {
+        const user = getUser();
+        if (!user || !db) {
+            return buildDexCollectionsMeta(DEX_DEFAULT_COLLECTION_ID, [defaultDexCollectionEntry()], 1);
+        }
+
+        const uid = String(user.uid || '');
+        if (!uid) {
+            return buildDexCollectionsMeta(DEX_DEFAULT_COLLECTION_ID, [defaultDexCollectionEntry()], 1);
+        }
+
+        if (!forceRefresh && dexCollectionsMetaCache.loaded && dexCollectionsMetaCache.uid === uid) {
+            return buildDexCollectionsMeta(
+                dexCollectionsMetaCache.activeCollectionId,
+                dexCollectionsMetaCache.collections,
+                DEX_MAX_COLLECTIONS_PREMIUM
+            );
+        }
+
+        const role = await loadCurrentRoleFromClaims(Boolean(forceRefresh));
+        const maxCollections = isPremiumRole(role) ? DEX_MAX_COLLECTIONS_PREMIUM : 1;
+
+        const root = userRootRef(uid);
+        if (!root) {
+            return buildDexCollectionsMeta(DEX_DEFAULT_COLLECTION_ID, [defaultDexCollectionEntry()], maxCollections);
+        }
+
+        try {
+            const snap = await root.get();
+            const data = snap && snap.exists ? snap.data() : null;
+            const meta = buildDexCollectionsMeta(
+                data?.dexActiveCollectionId,
+                data?.dexCollections,
+                maxCollections
+            );
+            cacheDexCollectionsMeta(uid, meta);
+            return meta;
+        } catch {
+            const fallback = buildDexCollectionsMeta(DEX_DEFAULT_COLLECTION_ID, [defaultDexCollectionEntry()], maxCollections);
+            cacheDexCollectionsMeta(uid, fallback);
+            return fallback;
+        }
+    }
+
+    async function loadDexCollectionsMeta() {
+        const meta = await loadDexCollectionsMetaFromProfile(false);
+        return buildDexCollectionsMetaResult(meta);
+    }
+
+    async function saveDexCollectionsMeta(payload) {
+        const user = getUser();
+        if (!user || !db) throw new Error('Sign in before editing collections.');
+
+        const uid = String(user.uid || '');
+        if (!uid) throw new Error('User session missing UID.');
+
+        const root = userRootRef(uid);
+        if (!root) throw new Error('Firestore unavailable.');
+
+        const role = await loadCurrentRoleFromClaims(true);
+        const maxCollections = isPremiumRole(role) ? DEX_MAX_COLLECTIONS_PREMIUM : 1;
+
+        const current = await loadDexCollectionsMetaFromProfile(false);
+        const requestedCollections = Array.isArray(payload?.collections)
+            ? payload.collections
+            : current.collections;
+        const requestedActiveCollectionId = String(payload?.activeCollectionId || current.activeCollectionId || DEX_DEFAULT_COLLECTION_ID);
+
+        const normalized = buildDexCollectionsMeta(
+            requestedActiveCollectionId,
+            requestedCollections,
+            maxCollections
+        );
+
+        await root.set({
+            dexCollections: normalized.collections,
+            dexActiveCollectionId: normalized.activeCollectionId,
+            dexCollectionsUpdatedAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        cacheDexCollectionsMeta(uid, normalized);
+        return buildDexCollectionsMetaResult(normalized);
+    }
 
     function normalizeShareToken(value) {
         const token = String(value || '').trim();
@@ -639,8 +910,23 @@
         const ref = dexStateDocRef(user.uid);
         if (!ref) return;
 
-        const collection = Array.isArray(payload?.collection) ? payload.collection : [];
+        let collection = Array.isArray(payload?.collection) ? payload.collection : [];
         const masterSets = (payload?.masterSets && typeof payload.masterSets === 'object') ? payload.masterSets : {};
+
+        try {
+            const role = await loadCurrentRoleFromClaims(false);
+            if (!isPremiumRole(role)) {
+                collection = collection.map((entry) => {
+                    if (!entry || typeof entry !== 'object') return entry;
+                    return {
+                        ...entry,
+                        collectionId: DEX_DEFAULT_COLLECTION_ID,
+                    };
+                });
+            }
+        } catch {
+            // ignore role read issues and save the payload as-is
+        }
 
         await ref.set({
             collection,
@@ -682,5 +968,7 @@
         loadDexShareSettings,
         saveDexShareSettings,
         loadSharedDexCollection,
+        loadDexCollectionsMeta,
+        saveDexCollectionsMeta,
     };
 })();

@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-05-29-12" />
+    <link rel="stylesheet" href="styles.css?v=2026-05-30-25" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -79,10 +79,14 @@
         <section id="pv-sealed-section" class="pv-section container pv-sealedWorkspace">
             <div class="pv-sealedPanel">
                 <form id="pv-sealed-form" class="pv-form row g-3" role="search">
-                    <div class="pv-form__field col-12 col-md-8">
+                    <div class="pv-form__field col-12">
                         <label for="pv-sealed-query" class="form-label">Product</label>
                         <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
                             placeholder="e.g., Prismatic Evolutions Booster Bundle" aria-controls="pv-sealed-results" />
+                    </div>
+                    <div id="pv-sealed-collection-context" class="pv-form__field col-12" role="group" aria-label="Active collection context" hidden>
+                        <label for="pv-sealed-collection-select" class="form-label">Collection</label>
+                        <select id="pv-sealed-collection-select" class="form-select" aria-label="Choose active collection context"></select>
                     </div>
                     <div class="col-12 pv-sealedActions">
                         <button id="pv-sealed-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
@@ -90,19 +94,20 @@
                     </div>
                 </form>
 
-                <div id="pv-sealed-sort" class="pv-sortRow" role="group" aria-label="Sort sealed results">
-                    <label for="pv-sealed-sort-select" class="form-label pv-sortLabel">Sort</label>
-                    <select id="pv-sealed-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed results">
-                        <option value="value-desc" selected>High-Low</option>
-                        <option value="value-asc">Low-High</option>
-                        <option value="name-asc">A-Z</option>
-                        <option value="name-desc">Z-A</option>
-                    </select>
-                </div>
-
                 <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
                 <section id="pv-sealed-results" class="pv-section pv-sealedResults" aria-labelledby="pv-sealed-results-title">
-                    <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                    <div class="pv-section__header">
+                        <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                        <div id="pv-sealed-sort" class="pv-sortRow" role="group" aria-label="Sort sealed results">
+                            <label for="pv-sealed-sort-select" class="form-label pv-sortLabel">Sort</label>
+                            <select id="pv-sealed-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed results">
+                                <option value="value-desc" selected>High-Low</option>
+                                <option value="value-asc">Low-High</option>
+                                <option value="name-asc">A-Z</option>
+                                <option value="name-desc">Z-A</option>
+                            </select>
+                        </div>
+                    </div>
                     <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
                         <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
                         <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
@@ -164,7 +169,7 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="sealed.js?v=2026-05-29-9" defer></script>
+    <script src="sealed.js?v=2026-05-30-2" defer></script>
 </body>
 
 </html>

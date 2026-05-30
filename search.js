@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-sort-select'));
     const conditionSummaryEl = document.getElementById('pv-condition-summary');
     const conditionCheckboxEls = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('input[name="pv-condition-filter"]')));
+    const searchCollectionContextEl = document.getElementById('pv-search-collection-context');
+    const searchCollectionSelectEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-collection-select'));
+    const searchCollectionStatusEl = document.getElementById('pv-search-collection-status');
 
     const quotaBanner = document.getElementById('pv-quota-banner');
     const quotaMessageEl = document.getElementById('pv-quota-message');
@@ -91,6 +94,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
+    const DEX_COLLECTIONS_META_KEY = `${CACHE_PREFIX}collectionsMeta:v1`;
+    const DEX_DEFAULT_COLLECTION_ID = 'default';
+    const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
+    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
     const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
@@ -131,6 +139,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {Record<string, number>} */
     const searchValueById = {};
+    let searchCollectionContextBusy = false;
+    let searchCollectionContextMeta = {
+        activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+        collections: [{ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME }],
+    };
 
     let dexSetBrowseState = {
         active: false,
@@ -917,6 +930,34 @@ document.addEventListener('DOMContentLoaded', function () {
         return value === 'sealed' ? 'sealed' : 'card';
     }
 
+    function normalizeDexCollectionId(rawId, fallbackId) {
+        const normalized = safeString(rawId, '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        if (!normalized) return safeString(fallbackId, DEX_DEFAULT_COLLECTION_ID);
+        return normalized.slice(0, 40);
+    }
+
+    function getActiveDexCollectionId() {
+        try {
+            const raw = localStorage.getItem(DEX_ACTIVE_COLLECTION_KEY);
+            return normalizeDexCollectionId(raw, DEX_DEFAULT_COLLECTION_ID);
+        } catch {
+            return DEX_DEFAULT_COLLECTION_ID;
+        }
+    }
+
+    function getDexCollectionEntryKey(item) {
+        const type = normalizeDexCollectionItemType(item?.itemType);
+        const id = safeString(item?.id, '').trim();
+        const collectionId = normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+        return `${collectionId}:${type}:${id}`;
+    }
+
     function isDexCardCollectionItem(item) {
         return normalizeDexCollectionItemType(item?.itemType) === 'card';
     }
@@ -953,10 +994,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const updatedAtRaw = Number(product?.updatedAt || 0);
         const rawQty = product?.quantity ?? product?.sealedQuantity;
         const quantity = Math.max(1, normalizeDexSealedQuantity(rawQty, 1));
+        const collectionId = normalizeDexCollectionId(product?.collectionId, DEX_DEFAULT_COLLECTION_ID);
         const expansionName = safeString(product?.expansionName ?? product?.expansion_name ?? product?.setName ?? product?.set_name, '');
         const setName = safeString(product?.setName ?? product?.set_name ?? product?.expansionName ?? product?.expansion_name, '');
         return {
             itemType: 'sealed',
+            collectionId,
             id: safeString(product?.id, ''),
             name: safeString(product?.name, 'Unknown'),
             type: safeString(product?.type, ''),
@@ -988,6 +1031,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const fallbackVariant = getDexDefaultVariantForCard(card);
         const variantQuantities = normalizeVariantQuantities(card?.variantQuantities, fallbackVariant, totalCopies);
         const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
+        const collectionId = normalizeDexCollectionId(card?.collectionId, DEX_DEFAULT_COLLECTION_ID);
         const cardNumber = getCardDisplayNumber(card);
         const addedAtRaw = Number(card?.addedAt || 0);
         const updatedAtRaw = Number(card?.updatedAt || 0);
@@ -995,6 +1039,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const setName = safeString(card?.setName ?? card?.set_name ?? card?.expansionName ?? card?.expansion_name, '');
         return {
             itemType: 'card',
+            collectionId,
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
             rarity: safeString(card?.rarity ?? card?.rarityName ?? card?.rarity_name, ''),
@@ -1168,8 +1213,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = safeString(normalized?.id, '').trim();
             if (!id) return;
 
-            const type = normalizeDexCollectionItemType(normalized?.itemType);
-            const entryKey = `${type}:${id}`;
+            const entryKey = getDexCollectionEntryKey(normalized);
 
             const existing = byId.get(entryKey);
             if (!existing) {
@@ -1226,6 +1270,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const card of (Array.isArray(mergedCollection) ? mergedCollection : [])) {
             if (!isDexCardCollectionItem(card)) continue;
+            if (normalizeDexCollectionId(card?.collectionId, DEX_DEFAULT_COLLECTION_ID) !== DEX_DEFAULT_COLLECTION_ID) {
+                continue;
+            }
 
             const cardId = safeString(card?.id, '').trim();
             if (!cardId) continue;
@@ -1318,17 +1365,27 @@ document.addEventListener('DOMContentLoaded', function () {
     function isInDexCollection(cardId) {
         const id = safeString(cardId, '');
         if (!id) return false;
+        const activeCollectionId = getActiveDexCollectionId();
         const items = loadDexCollection();
-        return items.some((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id);
+        return items.some((x) => {
+            return isDexCardCollectionItem(x)
+                && safeString(x?.id, '') === id
+                && normalizeDexCollectionId(x?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
+        });
     }
 
     function addDexCardToTrackers(card) {
-        const normalized = normalizeDexCollectionCard(card);
+        const activeCollectionId = getActiveDexCollectionId();
+        const normalized = normalizeDexCollectionCard({ ...card, collectionId: activeCollectionId });
         const id = safeString(normalized.id, '');
         if (!id) return { addedCollection: false, addedMasterSet: false, expansionName: '' };
 
         const collection = loadDexCollection();
-        const existingIndex = collection.findIndex((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id);
+        const existingIndex = collection.findIndex((x) => {
+            return isDexCardCollectionItem(x)
+                && safeString(x?.id, '') === id
+                && normalizeDexCollectionId(x?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
+        });
         const existsInCollection = existingIndex >= 0;
         const addVariantName = safeString(normalized?.selectedVariant, '').trim() || getDexDefaultVariantForCard(normalized);
         if (!existsInCollection) {
@@ -1362,6 +1419,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 updatedAt: Date.now(),
             };
             saveDexCollection(collection);
+        }
+
+        if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
+            const copies = existsInCollection
+                ? getTotalDexConditionCopies(collection[existingIndex]?.conditionQuantities, collection[existingIndex]?.selectedCondition)
+                : getTotalDexConditionCopies(normalized?.conditionQuantities, normalized?.selectedCondition);
+
+            return {
+                addedCollection: true,
+                addedMasterSet: false,
+                expansionName: '',
+                totalCopies: copies,
+            };
         }
 
         const expansion = getDexExpansionInfo(card);
@@ -1403,12 +1473,21 @@ document.addEventListener('DOMContentLoaded', function () {
     function removeDexCardFromTrackers(cardOrId) {
         const id = safeString(cardOrId?.id ?? cardOrId, '');
         if (!id) return { removedCollection: false, removedMasterSet: false, expansionNames: [] };
+        const activeCollectionId = getActiveDexCollectionId();
 
         const collection = loadDexCollection();
-        const nextCollection = collection.filter((x) => !(isDexCardCollectionItem(x) && safeString(x?.id, '') === id));
+        const nextCollection = collection.filter((x) => {
+            if (!isDexCardCollectionItem(x) || safeString(x?.id, '') !== id) return true;
+            const entryCollectionId = normalizeDexCollectionId(x?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+            return entryCollectionId !== activeCollectionId;
+        });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
             saveDexCollection(nextCollection);
+        }
+
+        if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
+            return { removedCollection, removedMasterSet: false, expansionNames: [] };
         }
 
         const master = loadDexMasterSets();
@@ -1454,6 +1533,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!id) {
             return { removedCopy: false, removedCard: false, reason: 'invalidId' };
         }
+        const activeCollectionId = getActiveDexCollectionId();
 
         const code = normalizeDexConditionCode(conditionCode);
         if (!code) {
@@ -1461,7 +1541,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const collection = loadDexCollection();
-        const idx = collection.findIndex((x) => isDexCardCollectionItem(x) && safeString(x?.id, '') === id);
+        const idx = collection.findIndex((x) => {
+            return isDexCardCollectionItem(x)
+                && safeString(x?.id, '') === id
+                && normalizeDexCollectionId(x?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
+        });
         if (idx < 0) {
             return { removedCopy: false, removedCard: false, reason: 'notTracked' };
         }
@@ -2119,7 +2203,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateDexCollectionStats(collectionList) {
         if (!isDexPage) return;
 
-        const list = (Array.isArray(collectionList) ? collectionList : []).filter((item) => isDexCardCollectionItem(item));
+        const activeCollectionId = getActiveDexCollectionId();
+        const list = (Array.isArray(collectionList) ? collectionList : []).filter((item) => {
+            return isDexCardCollectionItem(item)
+                && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
+        });
         let totalCopies = 0;
         for (const card of list) {
             totalCopies += getTotalDexConditionCopies(card?.conditionQuantities, card?.selectedCondition);
@@ -2305,6 +2393,275 @@ document.addEventListener('DOMContentLoaded', function () {
         if (tierRaw === 'premium' || tierRaw === 'pro') return 'premium';
 
         return 'basic';
+    }
+
+    function isPremiumRole(role) {
+        const normalized = String(role || '').trim().toLowerCase();
+        return normalized === 'admin' || normalized === 'tester' || normalized === 'premium';
+    }
+
+    function setSearchCollectionContextVisible(isVisible) {
+        const show = Boolean(isVisible);
+        if (searchCollectionContextEl) searchCollectionContextEl.hidden = !show;
+        if (!show) {
+            setSearchCollectionStatus('');
+        }
+    }
+
+    function setSearchCollectionStatus(message) {
+        if (!searchCollectionStatusEl) return;
+        const text = String(message || '').trim();
+        searchCollectionStatusEl.hidden = text.length === 0;
+        searchCollectionStatusEl.textContent = text;
+    }
+
+    function setSearchCollectionContextBusy(isBusy) {
+        searchCollectionContextBusy = Boolean(isBusy);
+        if (searchCollectionSelectEl) {
+            searchCollectionSelectEl.disabled = searchCollectionContextBusy;
+        }
+    }
+
+    function normalizeCollectionContextMeta(raw, premiumEnabled) {
+        const maxCollections = premiumEnabled ? DEX_MAX_COLLECTIONS_PREMIUM : 1;
+        const byId = new Map();
+        const source = Array.isArray(raw?.collections) ? raw.collections : [];
+
+        for (const entry of source) {
+            const id = normalizeDexCollectionId(entry?.id, '');
+            if (!id) continue;
+
+            byId.set(id, {
+                id,
+                name: safeString(entry?.name, id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id).trim() || (id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id),
+            });
+        }
+
+        if (!byId.has(DEX_DEFAULT_COLLECTION_ID)) {
+            byId.set(DEX_DEFAULT_COLLECTION_ID, { id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME });
+        } else {
+            byId.set(DEX_DEFAULT_COLLECTION_ID, { id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME });
+        }
+
+        const collections = Array.from(byId.values())
+            .sort((a, b) => {
+                if (a.id === DEX_DEFAULT_COLLECTION_ID) return -1;
+                if (b.id === DEX_DEFAULT_COLLECTION_ID) return 1;
+                return String(a?.name || '').localeCompare(String(b?.name || ''));
+            })
+            .slice(0, Math.max(1, maxCollections));
+
+        const candidate = normalizeDexCollectionId(raw?.activeCollectionId, DEX_DEFAULT_COLLECTION_ID);
+        const activeCollectionId = collections.some((entry) => entry.id === candidate)
+            ? candidate
+            : DEX_DEFAULT_COLLECTION_ID;
+
+        return { activeCollectionId, collections };
+    }
+
+    function readCollectionContextMetaLocal() {
+        try {
+            const raw = localStorage.getItem(DEX_COLLECTIONS_META_KEY);
+            const parsed = raw ? safeParseJson(raw) : null;
+            const activeFromKey = normalizeDexCollectionId(localStorage.getItem(DEX_ACTIVE_COLLECTION_KEY), DEX_DEFAULT_COLLECTION_ID);
+            return normalizeCollectionContextMeta({
+                activeCollectionId: activeFromKey,
+                collections: parsed?.collections,
+            }, true);
+        } catch {
+            return normalizeCollectionContextMeta({}, true);
+        }
+    }
+
+    function persistCollectionContextMetaLocal(meta) {
+        const normalized = normalizeCollectionContextMeta(meta, true);
+        searchCollectionContextMeta = normalized;
+
+        try {
+            localStorage.setItem(DEX_ACTIVE_COLLECTION_KEY, normalized.activeCollectionId);
+        } catch {
+            // ignore
+        }
+
+        try {
+            localStorage.setItem(DEX_COLLECTIONS_META_KEY, JSON.stringify(normalized));
+        } catch {
+            // ignore
+        }
+    }
+
+    function renderSearchCollectionContext(meta) {
+        const normalized = normalizeCollectionContextMeta(meta, true);
+        searchCollectionContextMeta = normalized;
+        if (!searchCollectionSelectEl) return;
+
+        searchCollectionSelectEl.innerHTML = normalized.collections.map((entry) => {
+            const label = entry.id === DEX_DEFAULT_COLLECTION_ID
+                ? `${entry.name} (Master Sets)`
+                : entry.name;
+            return `<option value="${escapeAttr(entry.id)}">${escapeHtml(label)}</option>`;
+        }).join('');
+        searchCollectionSelectEl.value = normalized.activeCollectionId;
+    }
+
+    function getActiveCollectionNameFromMeta(meta) {
+        const normalized = normalizeCollectionContextMeta(meta, true);
+        const match = normalized.collections.find((entry) => entry.id === normalized.activeCollectionId);
+        return match ? match.name : DEX_DEFAULT_COLLECTION_NAME;
+    }
+
+    function rerenderForCollectionContext() {
+        const restored = loadLastResults();
+        renderCards(currentResultsCards, restored || undefined);
+        renderFavorites(restored || undefined);
+        if (isDexPage) {
+            updateDexCollectionStats(loadDexCollection());
+        }
+    }
+
+    async function loadCollectionContextMetaFromCloud() {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.loadDexCollectionsMeta) {
+            const fallback = readCollectionContextMetaLocal();
+            renderSearchCollectionContext(fallback);
+            persistCollectionContextMetaLocal(fallback);
+            return fallback;
+        }
+
+        const cloudMeta = await authApi.loadDexCollectionsMeta();
+        const normalized = normalizeCollectionContextMeta(cloudMeta, true);
+        renderSearchCollectionContext(normalized);
+        persistCollectionContextMetaLocal(normalized);
+        return normalized;
+    }
+
+    async function saveCollectionContextMetaToCloud(nextMeta) {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.saveDexCollectionsMeta) {
+            throw new Error('Collection switching is unavailable right now.');
+        }
+
+        const saved = await authApi.saveDexCollectionsMeta(nextMeta);
+        const normalized = normalizeCollectionContextMeta(saved, true);
+        renderSearchCollectionContext(normalized);
+        persistCollectionContextMetaLocal(normalized);
+        return normalized;
+    }
+
+    function forceDefaultCollectionContext() {
+        const fallback = {
+            activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+            collections: [{ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME }],
+        };
+        renderSearchCollectionContext(fallback);
+        persistCollectionContextMetaLocal(fallback);
+    }
+
+    function dispatchCollectionContextChanged(activeCollectionId) {
+        try {
+            window.dispatchEvent(new CustomEvent('pv:dex-collection-context-changed', {
+                detail: { activeCollectionId: normalizeDexCollectionId(activeCollectionId, DEX_DEFAULT_COLLECTION_ID) },
+            }));
+        } catch {
+            // ignore
+        }
+    }
+
+    async function switchActiveCollectionContext(nextCollectionId) {
+        if (!searchCollectionSelectEl) return;
+        if (searchCollectionContextBusy) return;
+
+        const previousCollectionId = normalizeDexCollectionId(
+            searchCollectionContextMeta?.activeCollectionId,
+            DEX_DEFAULT_COLLECTION_ID,
+        );
+        const selectedId = normalizeDexCollectionId(nextCollectionId, DEX_DEFAULT_COLLECTION_ID);
+        if (!isPremiumRole(await readCurrentRole())) {
+            forceDefaultCollectionContext();
+            setSearchCollectionContextVisible(false);
+            rerenderForCollectionContext();
+            if (previousCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
+                dispatchCollectionContextChanged(DEX_DEFAULT_COLLECTION_ID);
+            }
+            return;
+        }
+
+        const currentMeta = normalizeCollectionContextMeta(searchCollectionContextMeta, true);
+        if (!currentMeta.collections.some((entry) => entry.id === selectedId)) {
+            renderSearchCollectionContext(currentMeta);
+            setSearchCollectionStatus('That collection is unavailable right now.');
+            return;
+        }
+
+        setSearchCollectionContextBusy(true);
+        setSearchCollectionStatus('Switching active collection...');
+
+        try {
+            const saved = await saveCollectionContextMetaToCloud({
+                collections: currentMeta.collections,
+                activeCollectionId: selectedId,
+            });
+            const name = getActiveCollectionNameFromMeta(saved);
+            setSearchCollectionStatus(`Active collection: ${name}.`);
+            rerenderForCollectionContext();
+            if (saved.activeCollectionId !== previousCollectionId) {
+                dispatchCollectionContextChanged(saved.activeCollectionId);
+            }
+        } catch (error) {
+            renderSearchCollectionContext(currentMeta);
+            setSearchCollectionStatus(String(error?.message || 'Could not switch collections.'));
+        } finally {
+            setSearchCollectionContextBusy(false);
+        }
+    }
+
+    async function readCurrentRole() {
+        try {
+            const authApi = window?.PV_AUTH;
+            if (!authApi?.getUser) return 'basic';
+            if (!authApi.getUser()) return 'basic';
+            if (!authApi?.getIdTokenResult) return 'basic';
+            const tokenResult = await authApi.getIdTokenResult(false);
+            return getRoleFromClaims(tokenResult?.claims || {});
+        } catch {
+            return 'basic';
+        }
+    }
+
+    async function refreshCollectionContextUi() {
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user) {
+            setSearchCollectionContextVisible(false);
+            return;
+        }
+
+        const role = await readCurrentRole();
+        if (!isPremiumRole(role)) {
+            forceDefaultCollectionContext();
+            setSearchCollectionContextVisible(false);
+            rerenderForCollectionContext();
+            return;
+        }
+
+        setSearchCollectionContextVisible(true);
+        setSearchCollectionContextBusy(true);
+        setSearchCollectionStatus('Loading collections...');
+
+        try {
+            const meta = await loadCollectionContextMetaFromCloud();
+            const name = getActiveCollectionNameFromMeta(meta);
+            setSearchCollectionStatus(`Active collection: ${name}.`);
+            rerenderForCollectionContext();
+        } catch (error) {
+            const fallback = readCollectionContextMetaLocal();
+            renderSearchCollectionContext(fallback);
+            persistCollectionContextMetaLocal(fallback);
+            setSearchCollectionStatus(String(error?.message || 'Could not load collections.'));
+            rerenderForCollectionContext();
+        } finally {
+            setSearchCollectionContextBusy(false);
+        }
     }
 
     async function refreshQuotaBannerForAuthState() {
@@ -4458,6 +4815,37 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     bindSearchSortControls();
+    renderSearchCollectionContext(readCollectionContextMetaLocal());
+    setSearchCollectionContextVisible(false);
+
+    if (searchCollectionSelectEl && searchCollectionSelectEl.getAttribute('data-bound') !== '1') {
+        searchCollectionSelectEl.setAttribute('data-bound', '1');
+        searchCollectionSelectEl.addEventListener('change', () => {
+            void switchActiveCollectionContext(searchCollectionSelectEl.value);
+        });
+    }
+
+    try {
+        if (window?.PV_AUTH?.onAuthStateChanged) {
+            window.PV_AUTH.onAuthStateChanged(() => {
+                void refreshCollectionContextUi();
+            });
+        } else {
+            void refreshCollectionContextUi();
+        }
+    } catch {
+        // ignore
+    }
+
+    window.addEventListener('storage', (event) => {
+        const key = String(event?.key || '');
+        if (key !== DEX_ACTIVE_COLLECTION_KEY && key !== DEX_COLLECTIONS_META_KEY) return;
+        void refreshCollectionContextUi();
+    });
+
+    window.addEventListener('pv:dex-collection-context-changed', () => {
+        void refreshCollectionContextUi();
+    });
 
     if (isDexPage && dexSearchPanel) {
         setDexSearchPanelOpen(loadDexSearchPanelOpenState(), { skipPersist: true });

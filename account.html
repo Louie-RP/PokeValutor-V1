@@ -164,6 +164,37 @@
                         <p id="pv-billing-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                     </div>
 
+                    <div id="pv-premium-tools-panel" class="pv-adminToolsPanel" hidden>
+                        <h3 class="pv-section__title">Premium Collection Tools</h3>
+                        <p class="pv-section__text pv-authSmall">Premium members can export collection data and manage additional collections.</p>
+
+                        <div class="pv-authDivider" aria-hidden="true"></div>
+
+                        <h4 class="pv-section__title" style="font-size:1rem">Export</h4>
+                        <div class="pv-authActions">
+                            <button id="pv-premium-export-csv" class="pv-button pv-button--secondary btn" type="button">Export CSV</button>
+                            <button id="pv-premium-export-json" class="pv-button pv-button--secondary btn" type="button">Export JSON</button>
+                        </div>
+
+                        <div class="pv-authDivider" aria-hidden="true"></div>
+
+                        <h4 class="pv-section__title" style="font-size:1rem">Collections</h4>
+                        <div class="pv-authField">
+                            <label class="form-label" for="pv-premium-collection-select">Active collection</label>
+                            <select id="pv-premium-collection-select" class="form-select"></select>
+                        </div>
+                        <div class="pv-authField">
+                            <label class="form-label" for="pv-premium-collection-name">New collection name</label>
+                            <input id="pv-premium-collection-name" class="form-control" type="text" maxlength="50" placeholder="e.g. Trade Binder" />
+                        </div>
+                        <div class="pv-authActions">
+                            <button id="pv-premium-collection-create" class="pv-button pv-button--primary btn" type="button">Create collection</button>
+                            <button id="pv-premium-collection-delete" class="pv-button pv-button--danger btn" type="button">Delete selected collection</button>
+                        </div>
+
+                        <p id="pv-premium-tools-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                    </div>
+
                     <div id="pv-dex-panel" class="pv-adminToolsPanel" hidden>
                         <h3 class="pv-section__title">Dex Data</h3>
                         <p class="pv-section__text pv-authSmall">These actions permanently remove tracked data from this device and your synced Dex state.</p>

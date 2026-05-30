@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-05-29-12" />
+    <link rel="stylesheet" href="styles.css?v=2026-05-30-23" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -180,6 +180,10 @@
         <section class="pv-section container" aria-labelledby="pv-collection-list-title">
             <div class="pv-section__header">
                 <h2 id="pv-collection-list-title" class="pv-section__title">Collection</h2>
+                <div id="pv-search-collection-context" class="pv-sortRow" role="group" aria-label="Active collection context" hidden>
+                    <label for="pv-search-collection-select" class="form-label pv-sortLabel">Collection</label>
+                    <select id="pv-search-collection-select" class="form-select pv-sortSelect" aria-label="Choose active collection context"></select>
+                </div>
             </div>
             <p id="pv-collection-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Value: $0.00</p>
             <div id="pv-collection-sort" class="pv-sortRow" role="group" aria-label="Sort collection">
@@ -234,8 +238,8 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="search.js?v=2026-05-29-9" defer></script>
-    <script src="dex-tracker-pages.js?v=2026-05-29-13" defer></script>
+    <script src="search.js?v=2026-05-30-2" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-05-30-2" defer></script>
 </body>
 
 </html>

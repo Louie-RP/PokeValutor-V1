@@ -3,6 +3,8 @@
     const CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
+    const DEX_DEFAULT_COLLECTION_ID = 'default';
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
@@ -40,6 +42,31 @@
         return value === 'sealed' ? 'sealed' : 'card';
     }
 
+    function normalizeCollectionId(rawId, fallbackId) {
+        const normalized = safeString(rawId, '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^-+|-+$/g, '');
+        if (!normalized) return safeString(fallbackId, DEX_DEFAULT_COLLECTION_ID);
+        return normalized.slice(0, 40);
+    }
+
+    function getActiveCollectionId() {
+        try {
+            const raw = localStorage.getItem(DEX_ACTIVE_COLLECTION_KEY);
+            return normalizeCollectionId(raw, DEX_DEFAULT_COLLECTION_ID);
+        } catch {
+            return DEX_DEFAULT_COLLECTION_ID;
+        }
+    }
+
+    function isEntryInActiveCollection(item) {
+        const entryCollectionId = normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+        return entryCollectionId === getActiveCollectionId();
+    }
+
     function isCardCollectionItem(item) {
         return normalizeCollectionItemType(item?.itemType) === 'card';
     }
@@ -51,7 +78,8 @@
     function getCollectionEntryKey(item) {
         const type = normalizeCollectionItemType(item?.itemType);
         const id = safeString(item?.id, '').trim();
-        return `${type}:${id}`;
+        const collectionId = normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+        return `${collectionId}:${type}:${id}`;
     }
 
     function normalizeSealedQuantity(rawQty, fallback) {
@@ -1232,11 +1260,13 @@
         const addedAt = Number(raw?.addedAt || 0);
         const updatedAt = Number(raw?.updatedAt || 0);
         const quantity = getSealedCollectionQuantity(raw);
+        const collectionId = normalizeCollectionId(raw?.collectionId, DEX_DEFAULT_COLLECTION_ID);
         const expansionName = safeString(raw?.expansionName ?? raw?.expansion_name ?? raw?.setName ?? raw?.set_name, '');
         const setName = safeString(raw?.setName ?? raw?.set_name ?? raw?.expansionName ?? raw?.expansion_name, '');
 
         return {
             itemType: 'sealed',
+            collectionId,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             type: safeString(raw?.type, ''),
@@ -1265,6 +1295,7 @@
         const fallbackVariant = getDefaultVariantNameForCard(raw);
         const variantQuantities = normalizeVariantQuantities(raw?.variantQuantities, fallbackVariant, totalCopies);
         const selectedVariant = getPrimaryVariantName(variantQuantities, fallbackVariant);
+        const collectionId = normalizeCollectionId(raw?.collectionId, DEX_DEFAULT_COLLECTION_ID);
         const cardNumber = getCardDisplayNumber(raw);
         const addedAt = Number(raw?.addedAt || 0);
         const updatedAt = Number(raw?.updatedAt || 0);
@@ -1273,6 +1304,7 @@
 
         return {
             itemType: 'card',
+            collectionId,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
             rarity: safeString(raw?.rarity ?? raw?.rarityName ?? raw?.rarity_name, ''),
@@ -1490,6 +1522,9 @@
 
         for (const card of (Array.isArray(mergedCollection) ? mergedCollection : [])) {
             if (!isCardCollectionItem(card)) continue;
+            if (normalizeCollectionId(card?.collectionId, DEX_DEFAULT_COLLECTION_ID) !== DEX_DEFAULT_COLLECTION_ID) {
+                continue;
+            }
 
             const cardId = safeString(card?.id, '').trim();
             if (!cardId) continue;
@@ -1569,6 +1604,7 @@
     function updateCollectionConditionQuantity(cardId, conditionCode, delta) {
         const id = safeString(cardId, '');
         const code = normalizeDexConditionCode(conditionCode);
+        const activeCollectionId = getActiveCollectionId();
         const qtyDelta = Math.floor(Number(delta));
         if (!id || !code || !Number.isFinite(qtyDelta) || qtyDelta === 0) {
             return { changed: false, removeCard: false };
@@ -1581,6 +1617,9 @@
 
         const nextCollection = collection.map((entry) => {
             if (!isCardCollectionItem(entry) || safeString(entry?.id, '') !== id) return entry;
+            if (normalizeCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) !== activeCollectionId) {
+                return entry;
+            }
 
             found = true;
             const map = normalizeConditionQuantities(entry?.conditionQuantities, entry?.selectedCondition);
@@ -1623,14 +1662,21 @@
     function removeCardFromTrackers(cardId) {
         const id = safeString(cardId, '');
         if (!id) return false;
+        const activeCollectionId = getActiveCollectionId();
 
         const collection = readCollection();
         const nextCollection = collection.filter((x) => {
-            return !(isCardCollectionItem(x) && safeString(x?.id, '') === id);
+            if (!isCardCollectionItem(x) || safeString(x?.id, '') !== id) return true;
+            const entryCollectionId = normalizeCollectionId(x?.collectionId, DEX_DEFAULT_COLLECTION_ID);
+            return entryCollectionId !== activeCollectionId;
         });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
             writeCollection(nextCollection);
+        }
+
+        if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
+            return removedCollection;
         }
 
         const master = readMasterSets();
@@ -1667,6 +1713,7 @@
 
     function updateSealedCollectionQuantity(productId, delta) {
         const id = safeString(productId, '');
+        const activeCollectionId = getActiveCollectionId();
         const qtyDelta = Math.floor(Number(delta));
         if (!id || !Number.isFinite(qtyDelta) || qtyDelta === 0) {
             return { changed: false, removeProduct: false, quantity: 0 };
@@ -1680,6 +1727,10 @@
 
         const nextCollection = collection.map((entry) => {
             if (!(isSealedCollectionItem(entry) && safeString(entry?.id, '') === id)) {
+                return entry;
+            }
+
+            if (normalizeCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) !== activeCollectionId) {
                 return entry;
             }
 
@@ -1711,7 +1762,9 @@
 
         if (removeProduct) {
             const filtered = nextCollection.filter((entry) => {
-                return !(isSealedCollectionItem(entry) && safeString(entry?.id, '') === id);
+                return !(isSealedCollectionItem(entry)
+                    && safeString(entry?.id, '') === id
+                    && normalizeCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
             });
             writeCollection(filtered);
             return { changed: true, removeProduct: true, quantity: 0 };
@@ -1724,10 +1777,13 @@
     function removeSealedProductFromCollection(productId) {
         const id = safeString(productId, '');
         if (!id) return false;
+        const activeCollectionId = getActiveCollectionId();
 
         const collection = readCollection();
         const nextCollection = collection.filter((item) => {
-            return !(isSealedCollectionItem(item) && safeString(item?.id, '') === id);
+            return !(isSealedCollectionItem(item)
+                && safeString(item?.id, '') === id
+                && normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
         });
         if (nextCollection.length === collection.length) {
             return false;
@@ -1753,6 +1809,7 @@
         const out = {};
         for (const item of (Array.isArray(collection) ? collection : [])) {
             if (!isCardCollectionItem(item)) continue;
+            if (normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) !== DEX_DEFAULT_COLLECTION_ID) continue;
             const id = safeString(item?.id, '');
             if (!id) continue;
             out[id] = item;
@@ -1976,7 +2033,11 @@
         const typeFilterSelect = document.getElementById('pv-collection-type-filter');
         if (!grid || !summary || !totalEl) return;
 
-        const items = readCollection().slice().sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
+        const activeCollectionId = getActiveCollectionId();
+        const items = readCollection()
+            .filter((item) => normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId)
+            .slice()
+            .sort((a, b) => Number(b?.addedAt || 0) - Number(a?.addedAt || 0));
         const cardItems = items.filter((item) => isCardCollectionItem(item));
         const sealedItems = items.filter((item) => isSealedCollectionItem(item));
         const totalCardCopies = cardItems.reduce((sum, item) => {
@@ -2345,6 +2406,13 @@
         const filterInput = document.getElementById('pv-master-sets-filter');
         if (!grid || !summary) return;
 
+        const activeCollectionId = getActiveCollectionId();
+        if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
+            summary.textContent = 'Master Sets are available on the Default Collection.';
+            grid.innerHTML = '<div class="pv-emptyState">Switch back to Default Collection to view Master Sets progress.</div>';
+            return;
+        }
+
         const map = readMasterSets();
         const entries = Object.values(map)
             .filter((x) => x && typeof x === 'object')
@@ -2485,6 +2553,22 @@
             return;
         }
 
+        const activeCollectionId = getActiveCollectionId();
+        if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
+            titleEl.textContent = 'Master Set';
+            seriesEl.textContent = 'Default Collection only';
+            countEl.textContent = 'Collected: 0/0 variants';
+            ratioEl.textContent = 'Progress: 0.0%';
+            progressBar.setAttribute('aria-valuenow', '0');
+            progressFill.style.width = '0%';
+            collectedCountEl.textContent = '0 cards';
+            missingCountEl.textContent = '0 cards';
+            collectedListEl.innerHTML = '<div class="pv-emptyState">Master set details are only available for Default Collection.</div>';
+            missingListEl.innerHTML = '<div class="pv-emptyState">Switch back to Default Collection to continue.</div>';
+            statusEl.textContent = 'Master Sets are tied to Default Collection.';
+            return;
+        }
+
         const params = new URLSearchParams(window.location.search);
         const expansionId = safeString(params.get('expansionId'), '').trim();
         const expansionNameFromQuery = safeString(params.get('expansionName'), '').trim();
@@ -2581,5 +2665,6 @@
 
         window.addEventListener('storage', renderActivePage);
         window.addEventListener('pv:dex-state-changed', renderActivePage);
+        window.addEventListener('pv:dex-collection-context-changed', renderActivePage);
     });
 })();

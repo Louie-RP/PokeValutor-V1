@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const loadMoreWrap = document.getElementById('pv-sealed-load-more-wrap');
     const sealedSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-sealed-sort-select'));
     const sealedFavoritesSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-sealed-favorites-sort-select'));
+    const sealedCollectionContextEl = document.getElementById('pv-sealed-collection-context');
+    const sealedCollectionSelectEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-sealed-collection-select'));
+    const sealedCollectionStatusEl = document.getElementById('pv-sealed-collection-status');
 
     const quotaBanner = document.getElementById('pv-quota-banner');
     const quotaMessageEl = document.getElementById('pv-quota-message');
@@ -72,6 +75,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const DEX_COLLECTION_KEY = 'pv:scrydex:collection:v1';
     const DEX_MASTER_SETS_KEY = 'pv:scrydex:masterSets:v1';
+    const DEX_ACTIVE_COLLECTION_KEY = 'pv:scrydex:activeCollectionId:v1';
+    const DEX_COLLECTIONS_META_KEY = 'pv:scrydex:collectionsMeta:v1';
+    const DEX_DEFAULT_COLLECTION_ID = 'default';
+    const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
+    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const SEALED_RESULTS_SORT_PREF_KEY = `${CACHE_PREFIX}resultsSortMode:v1`;
     const SEALED_WATCHLIST_SORT_PREF_KEY = `${CACHE_PREFIX}watchlistSortMode:v1`;
@@ -95,6 +103,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentSearchTotalCount = null;
     let currentSearchHasMore = false;
     let isLoadingMore = false;
+    let sealedCollectionContextBusy = false;
+    let sealedCollectionContextMeta = {
+        activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+        collections: [{ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME }],
+    };
 
     function setStatus(message) {
         if (status) status.textContent = message;
@@ -483,6 +496,252 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'basic';
     }
 
+    function isPremiumRole(role) {
+        const normalized = String(role || '').trim().toLowerCase();
+        return normalized === 'admin' || normalized === 'tester' || normalized === 'premium';
+    }
+
+    function setSealedCollectionContextVisible(isVisible) {
+        const show = Boolean(isVisible);
+        if (sealedCollectionContextEl) sealedCollectionContextEl.hidden = !show;
+        if (!show) {
+            setSealedCollectionStatus('');
+        }
+    }
+
+    function setSealedCollectionStatus(message) {
+        if (!sealedCollectionStatusEl) return;
+        const text = String(message || '').trim();
+        sealedCollectionStatusEl.hidden = text.length === 0;
+        sealedCollectionStatusEl.textContent = text;
+    }
+
+    function setSealedCollectionBusy(isBusy) {
+        sealedCollectionContextBusy = Boolean(isBusy);
+        if (sealedCollectionSelectEl) {
+            sealedCollectionSelectEl.disabled = sealedCollectionContextBusy;
+        }
+    }
+
+    function normalizeCollectionContextMeta(raw, premiumEnabled) {
+        const maxCollections = premiumEnabled ? DEX_MAX_COLLECTIONS_PREMIUM : 1;
+        const byId = new Map();
+        const source = Array.isArray(raw?.collections) ? raw.collections : [];
+
+        for (const entry of source) {
+            const id = normalizeDexCollectionId(entry?.id, '');
+            if (!id) continue;
+
+            byId.set(id, {
+                id,
+                name: safeString(entry?.name, id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id).trim() || (id === DEX_DEFAULT_COLLECTION_ID ? DEX_DEFAULT_COLLECTION_NAME : id),
+            });
+        }
+
+        if (!byId.has(DEX_DEFAULT_COLLECTION_ID)) {
+            byId.set(DEX_DEFAULT_COLLECTION_ID, { id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME });
+        } else {
+            byId.set(DEX_DEFAULT_COLLECTION_ID, { id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME });
+        }
+
+        const collections = Array.from(byId.values())
+            .sort((a, b) => {
+                if (a.id === DEX_DEFAULT_COLLECTION_ID) return -1;
+                if (b.id === DEX_DEFAULT_COLLECTION_ID) return 1;
+                return String(a?.name || '').localeCompare(String(b?.name || ''));
+            })
+            .slice(0, Math.max(1, maxCollections));
+
+        const candidate = normalizeDexCollectionId(raw?.activeCollectionId, DEX_DEFAULT_COLLECTION_ID);
+        const activeCollectionId = collections.some((entry) => entry.id === candidate)
+            ? candidate
+            : DEX_DEFAULT_COLLECTION_ID;
+
+        return { activeCollectionId, collections };
+    }
+
+    function readCollectionContextMetaLocal() {
+        try {
+            const raw = localStorage.getItem(DEX_COLLECTIONS_META_KEY);
+            const parsed = raw ? safeParseJson(raw) : null;
+            const activeFromKey = normalizeDexCollectionId(localStorage.getItem(DEX_ACTIVE_COLLECTION_KEY), DEX_DEFAULT_COLLECTION_ID);
+            return normalizeCollectionContextMeta({
+                activeCollectionId: activeFromKey,
+                collections: parsed?.collections,
+            }, true);
+        } catch {
+            return normalizeCollectionContextMeta({}, true);
+        }
+    }
+
+    function persistCollectionContextMetaLocal(meta) {
+        const normalized = normalizeCollectionContextMeta(meta, true);
+        sealedCollectionContextMeta = normalized;
+
+        try {
+            localStorage.setItem(DEX_ACTIVE_COLLECTION_KEY, normalized.activeCollectionId);
+        } catch {
+            // ignore
+        }
+
+        try {
+            localStorage.setItem(DEX_COLLECTIONS_META_KEY, JSON.stringify(normalized));
+        } catch {
+            // ignore
+        }
+    }
+
+    function renderSealedCollectionContext(meta) {
+        const normalized = normalizeCollectionContextMeta(meta, true);
+        sealedCollectionContextMeta = normalized;
+        if (!sealedCollectionSelectEl) return;
+
+        sealedCollectionSelectEl.innerHTML = normalized.collections.map((entry) => {
+            const label = entry.id === DEX_DEFAULT_COLLECTION_ID
+                ? `${entry.name} (Master Sets)`
+                : entry.name;
+            return `<option value="${escapeAttr(entry.id)}">${escapeHtml(label)}</option>`;
+        }).join('');
+        sealedCollectionSelectEl.value = normalized.activeCollectionId;
+    }
+
+    function getActiveCollectionNameFromMeta(meta) {
+        const normalized = normalizeCollectionContextMeta(meta, true);
+        const match = normalized.collections.find((entry) => entry.id === normalized.activeCollectionId);
+        return match ? match.name : DEX_DEFAULT_COLLECTION_NAME;
+    }
+
+    function rerenderForCollectionContext() {
+        const restored = loadLastResults();
+        renderProducts(currentResultsProducts, restored || undefined);
+        renderFavorites(restored || undefined);
+    }
+
+    async function loadCollectionContextMetaFromCloud() {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.loadDexCollectionsMeta) {
+            const fallback = readCollectionContextMetaLocal();
+            renderSealedCollectionContext(fallback);
+            persistCollectionContextMetaLocal(fallback);
+            return fallback;
+        }
+
+        const cloudMeta = await authApi.loadDexCollectionsMeta();
+        const normalized = normalizeCollectionContextMeta(cloudMeta, true);
+        renderSealedCollectionContext(normalized);
+        persistCollectionContextMetaLocal(normalized);
+        return normalized;
+    }
+
+    async function saveCollectionContextMetaToCloud(nextMeta) {
+        const authApi = window?.PV_AUTH;
+        if (!authApi?.saveDexCollectionsMeta) {
+            throw new Error('Collection switching is unavailable right now.');
+        }
+
+        const saved = await authApi.saveDexCollectionsMeta(nextMeta);
+        const normalized = normalizeCollectionContextMeta(saved, true);
+        renderSealedCollectionContext(normalized);
+        persistCollectionContextMetaLocal(normalized);
+        return normalized;
+    }
+
+    function forceDefaultCollectionContext() {
+        const fallback = {
+            activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
+            collections: [{ id: DEX_DEFAULT_COLLECTION_ID, name: DEX_DEFAULT_COLLECTION_NAME }],
+        };
+        renderSealedCollectionContext(fallback);
+        persistCollectionContextMetaLocal(fallback);
+    }
+
+    async function readCurrentRole() {
+        try {
+            const authApi = window?.PV_AUTH;
+            if (!authApi?.getUser) return 'basic';
+            if (!authApi.getUser()) return 'basic';
+            if (!authApi?.getIdTokenResult) return 'basic';
+            const tokenResult = await authApi.getIdTokenResult(false);
+            return getRoleFromClaims(tokenResult?.claims || {});
+        } catch {
+            return 'basic';
+        }
+    }
+
+    async function switchActiveCollectionContext(nextCollectionId) {
+        if (!sealedCollectionSelectEl) return;
+        if (sealedCollectionContextBusy) return;
+
+        const selectedId = normalizeDexCollectionId(nextCollectionId, DEX_DEFAULT_COLLECTION_ID);
+        if (!isPremiumRole(await readCurrentRole())) {
+            forceDefaultCollectionContext();
+            setSealedCollectionContextVisible(false);
+            rerenderForCollectionContext();
+            return;
+        }
+
+        const currentMeta = normalizeCollectionContextMeta(sealedCollectionContextMeta, true);
+        if (!currentMeta.collections.some((entry) => entry.id === selectedId)) {
+            renderSealedCollectionContext(currentMeta);
+            setSealedCollectionStatus('That collection is unavailable right now.');
+            return;
+        }
+
+        setSealedCollectionBusy(true);
+        setSealedCollectionStatus('Switching active collection...');
+
+        try {
+            const saved = await saveCollectionContextMetaToCloud({
+                collections: currentMeta.collections,
+                activeCollectionId: selectedId,
+            });
+            const name = getActiveCollectionNameFromMeta(saved);
+            setSealedCollectionStatus(`Active collection: ${name}.`);
+            rerenderForCollectionContext();
+        } catch (error) {
+            renderSealedCollectionContext(currentMeta);
+            setSealedCollectionStatus(String(error?.message || 'Could not switch collections.'));
+        } finally {
+            setSealedCollectionBusy(false);
+        }
+    }
+
+    async function refreshCollectionContextUi() {
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user) {
+            setSealedCollectionContextVisible(false);
+            return;
+        }
+
+        const role = await readCurrentRole();
+        if (!isPremiumRole(role)) {
+            forceDefaultCollectionContext();
+            setSealedCollectionContextVisible(false);
+            rerenderForCollectionContext();
+            return;
+        }
+
+        setSealedCollectionContextVisible(true);
+        setSealedCollectionBusy(true);
+        setSealedCollectionStatus('Loading collections...');
+
+        try {
+            const meta = await loadCollectionContextMetaFromCloud();
+            const name = getActiveCollectionNameFromMeta(meta);
+            setSealedCollectionStatus(`Active collection: ${name}.`);
+            rerenderForCollectionContext();
+        } catch (error) {
+            const fallback = readCollectionContextMetaLocal();
+            renderSealedCollectionContext(fallback);
+            persistCollectionContextMetaLocal(fallback);
+            setSealedCollectionStatus(String(error?.message || 'Could not load collections.'));
+            rerenderForCollectionContext();
+        } finally {
+            setSealedCollectionBusy(false);
+        }
+    }
+
     async function refreshQuotaBannerForAuthState() {
         try {
             const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
@@ -543,6 +802,27 @@ document.addEventListener('DOMContentLoaded', function () {
         return value === 'sealed' ? 'sealed' : 'card';
     }
 
+    function normalizeDexCollectionId(rawId, fallbackId) {
+        const normalized = String(rawId || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/-{2,}/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+        if (!normalized) return String(fallbackId || DEX_DEFAULT_COLLECTION_ID);
+        return normalized.slice(0, 40);
+    }
+
+    function getActiveDexCollectionId() {
+        try {
+            const raw = localStorage.getItem(DEX_ACTIVE_COLLECTION_KEY);
+            return normalizeDexCollectionId(raw, DEX_DEFAULT_COLLECTION_ID);
+        } catch {
+            return DEX_DEFAULT_COLLECTION_ID;
+        }
+    }
+
     function normalizeSealedQuantity(rawQty, fallback) {
         const fallbackQty = Math.max(0, Math.floor(Number(fallback) || 0));
         const parsed = Math.floor(Number(rawQty));
@@ -556,8 +836,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const timestamp = Date.now();
         const rawQty = product?.quantity ?? product?.sealedQuantity;
         const quantity = Math.max(1, normalizeSealedQuantity(rawQty, 1));
+        const collectionId = normalizeDexCollectionId(product?.collectionId, DEX_DEFAULT_COLLECTION_ID);
         return {
             itemType: 'sealed',
+            collectionId,
             id: safeString(product?.id, ''),
             name: safeString(product?.name, 'Unknown'),
             type: safeString(product?.type, ''),
@@ -602,17 +884,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const id = safeString(entryOrId?.id ?? entryOrId, '').trim();
         if (!id) return;
+        const activeCollectionId = normalizeDexCollectionId(entryOrId?.collectionId, getActiveDexCollectionId());
 
         const nextQuantity = normalizeSealedQuantity(nextQuantityRaw, 0);
         const normalized = nextQuantity > 0
-            ? normalizeSealedCollectionProduct({ ...entryOrId, quantity: nextQuantity, updatedAt: Date.now() })
+            ? normalizeSealedCollectionProduct({ ...entryOrId, collectionId: activeCollectionId, quantity: nextQuantity, updatedAt: Date.now() })
             : null;
 
         Promise.resolve(authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
                 const nextCollection = cloudCollection.filter((item) => {
-                    return !(normalizeCollectionItemType(item?.itemType) === 'sealed' && safeString(item?.id, '').trim() === id);
+                    return !(normalizeCollectionItemType(item?.itemType) === 'sealed'
+                        && safeString(item?.id, '').trim() === id
+                        && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
                 });
 
                 if (normalized) {
@@ -650,9 +935,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function getSealedCollectionQuantityMap() {
         /** @type {Record<string, number>} */
         const out = {};
+        const activeCollectionId = getActiveDexCollectionId();
         const entries = readDexCollection();
         for (const entry of entries) {
             if (normalizeCollectionItemType(entry?.itemType) !== 'sealed') continue;
+            if (normalizeDexCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) !== activeCollectionId) continue;
             const id = safeString(entry?.id, '').trim();
             if (!id) continue;
             const qty = Math.max(1, normalizeSealedQuantity(entry?.quantity ?? entry?.sealedQuantity, 1));
@@ -663,6 +950,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateSealedCollectionQuantity(product, delta) {
         const id = safeString(product?.id, '').trim();
+        const activeCollectionId = getActiveDexCollectionId();
         const qtyDelta = Math.floor(Number(delta));
         if (!Number.isFinite(qtyDelta) || qtyDelta === 0) {
             return { changed: false, quantity: 0 };
@@ -675,7 +963,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const list = readDexCollection();
         const existingIndex = list.findIndex((entry) => {
             return normalizeCollectionItemType(entry?.itemType) === 'sealed'
-                && safeString(entry?.id, '').trim() === id;
+                && safeString(entry?.id, '').trim() === id
+                && normalizeDexCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
         });
 
         const existingEntry = existingIndex >= 0 ? list[existingIndex] : null;
@@ -700,6 +989,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const updated = normalizeSealedCollectionProduct({
                 ...existingEntry,
                 ...product,
+                collectionId: activeCollectionId,
                 quantity: nextQty,
                 addedAt: existingEntry?.addedAt,
                 updatedAt: Date.now(),
@@ -714,7 +1004,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return { changed: false, quantity: 0 };
         }
 
-        const normalized = normalizeSealedCollectionProduct({ ...product, quantity: nextQty });
+        const normalized = normalizeSealedCollectionProduct({ ...product, collectionId: activeCollectionId, quantity: nextQty });
         list.push(normalized);
         writeDexCollection(list);
         syncSealedCollectionInCloud(normalized, nextQty);
@@ -1814,6 +2104,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindSealedSortControls();
     bindSealedFavoritesSortControls();
+    renderSealedCollectionContext(readCollectionContextMetaLocal());
+    setSealedCollectionContextVisible(false);
+
+    if (sealedCollectionSelectEl && sealedCollectionSelectEl.getAttribute('data-bound') !== '1') {
+        sealedCollectionSelectEl.setAttribute('data-bound', '1');
+        sealedCollectionSelectEl.addEventListener('change', () => {
+            void switchActiveCollectionContext(sealedCollectionSelectEl.value);
+        });
+    }
+
+    try {
+        if (window?.PV_AUTH?.onAuthStateChanged) {
+            window.PV_AUTH.onAuthStateChanged(() => {
+                void refreshCollectionContextUi();
+            });
+        } else {
+            void refreshCollectionContextUi();
+        }
+    } catch {
+        // ignore
+    }
+
+    window.addEventListener('storage', (event) => {
+        const key = String(event?.key || '');
+        if (key !== DEX_ACTIVE_COLLECTION_KEY && key !== DEX_COLLECTIONS_META_KEY) return;
+        void refreshCollectionContextUi();
+    });
+
+    window.addEventListener('pv:dex-collection-context-changed', () => {
+        void refreshCollectionContextUi();
+    });
 
     // Render Favorites immediately (persisted across refresh).
     renderFavorites();
