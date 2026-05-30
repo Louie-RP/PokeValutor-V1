@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_COLLECTIONS_META_KEY = 'pv:scrydex:collectionsMeta:v1';
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
-    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
+    const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const SEALED_RESULTS_SORT_PREF_KEY = `${CACHE_PREFIX}resultsSortMode:v1`;
     const SEALED_WATCHLIST_SORT_PREF_KEY = `${CACHE_PREFIX}watchlistSortMode:v1`;

@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const premiumToolsStatusEl = document.getElementById('pv-premium-tools-status');
     const premiumExportCsvBtn = document.getElementById('pv-premium-export-csv');
     const premiumExportJsonBtn = document.getElementById('pv-premium-export-json');
+    const premiumExportCollectionSelectEl = /** @type {HTMLSelectElement} */ (document.getElementById('pv-premium-export-collection-select'));
     const premiumCollectionSelectEl = /** @type {HTMLSelectElement} */ (document.getElementById('pv-premium-collection-select'));
     const premiumCollectionNameEl = /** @type {HTMLInputElement} */ (document.getElementById('pv-premium-collection-name'));
     const premiumCollectionCreateBtn = document.getElementById('pv-premium-collection-create');
@@ -69,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_ACTIVE_COLLECTION_KEY = `${DEX_CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
-    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
+    const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
     const HOME_LATEST_EXPANSIONS_CACHE_PREFIX = 'pv:expansions:latestEnglish:';
     let localDexPanelVisible = false;
@@ -324,6 +325,9 @@ document.addEventListener('DOMContentLoaded', function () {
         premiumToolsBusy = Boolean(isBusy);
         const disableWriteControls = premiumToolsBusy || !isPremiumRole(currentRole);
 
+        if (premiumExportCollectionSelectEl instanceof HTMLSelectElement) {
+            premiumExportCollectionSelectEl.disabled = disableWriteControls;
+        }
         if (premiumCollectionSelectEl instanceof HTMLSelectElement) {
             premiumCollectionSelectEl.disabled = premiumToolsBusy;
         }
@@ -478,10 +482,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderPremiumCollectionOptions(meta) {
-        if (!(premiumCollectionSelectEl instanceof HTMLSelectElement)) return;
         const normalized = normalizeCollectionsMeta(meta, { premium: true });
-
-        premiumCollectionSelectEl.innerHTML = normalized.collections
+        const optionsHtml = normalized.collections
             .map((entry) => {
                 const label = entry.id === DEX_DEFAULT_COLLECTION_ID
                     ? `${entry.name} (included)`
@@ -489,7 +491,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 return `<option value="${entry.id}">${label}</option>`;
             })
             .join('');
-        premiumCollectionSelectEl.value = normalized.activeCollectionId;
+
+        if (premiumCollectionSelectEl instanceof HTMLSelectElement) {
+            premiumCollectionSelectEl.innerHTML = optionsHtml;
+            premiumCollectionSelectEl.value = normalized.activeCollectionId;
+        }
+
+        if (premiumExportCollectionSelectEl instanceof HTMLSelectElement) {
+            const previousExportId = normalizeCollectionId(
+                premiumExportCollectionSelectEl.value,
+                normalized.activeCollectionId
+            );
+            const hasPreviousExportId = normalized.collections.some((entry) => entry.id === previousExportId);
+
+            premiumExportCollectionSelectEl.innerHTML = optionsHtml;
+            premiumExportCollectionSelectEl.value = hasPreviousExportId
+                ? previousExportId
+                : normalized.activeCollectionId;
+        }
+
         persistCollectionsMetaLocally(normalized);
     }
 
@@ -704,12 +724,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function buildExportFilePrefix() {
+    function buildExportFilePrefix(collectionId) {
         const now = new Date();
+        const normalizedCollectionId = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
         const yyyy = String(now.getFullYear());
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
-        return `pokevalutor-collection-export-${yyyy}${mm}${dd}`;
+        return `pokevalutor-${normalizedCollectionId}-export-${yyyy}${mm}${dd}`;
     }
 
     async function runPremiumExport(format) {
@@ -730,18 +751,25 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             await loadCollectionsMetaFromCloud();
             const state = await authApi.loadDexState();
-            const rows = buildExportRows(state?.collection || []);
-            const prefix = buildExportFilePrefix();
+            const selectedCollectionId = normalizeCollectionEntryId(
+                premiumExportCollectionSelectEl instanceof HTMLSelectElement
+                    ? premiumExportCollectionSelectEl.value
+                    : currentPremiumCollectionsMeta.activeCollectionId
+            );
+            const selectedCollectionName = readCollectionNameById(selectedCollectionId);
+            const rows = buildExportRows(state?.collection || [])
+                .filter((entry) => entry.collectionId === selectedCollectionId);
+            const prefix = buildExportFilePrefix(selectedCollectionId);
 
             if (String(format || '').toLowerCase() === 'json') {
                 const payload = {
                     exportedAt: new Date().toISOString(),
-                    activeCollectionId: currentPremiumCollectionsMeta.activeCollectionId,
-                    collections: currentPremiumCollectionsMeta.collections,
+                    collectionId: selectedCollectionId,
+                    collectionName: selectedCollectionName,
                     items: rows,
                 };
                 downloadTextFile(`${prefix}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
-                setPremiumToolsStatus(`Exported ${rows.length} item${rows.length === 1 ? '' : 's'} to JSON.`);
+                setPremiumToolsStatus(`Exported ${rows.length} item${rows.length === 1 ? '' : 's'} from "${selectedCollectionName}" to JSON.`);
                 return;
             }
 
@@ -768,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 lines.push(headers.map((key) => toCsvCell(row[key])).join(','));
             }
             downloadTextFile(`${prefix}.csv`, lines.join('\n'), 'text/csv;charset=utf-8');
-            setPremiumToolsStatus(`Exported ${rows.length} item${rows.length === 1 ? '' : 's'} to CSV.`);
+            setPremiumToolsStatus(`Exported ${rows.length} item${rows.length === 1 ? '' : 's'} from "${selectedCollectionName}" to CSV.`);
         } catch (error) {
             setPremiumToolsStatus(String(error?.message || 'Could not export collection.'));
         } finally {
@@ -820,7 +848,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const currentMeta = normalizeCollectionsMeta(currentPremiumCollectionsMeta, { premium: true });
         if (currentMeta.collections.length >= DEX_MAX_COLLECTIONS_PREMIUM) {
-            setPremiumToolsStatus(`You can create up to ${DEX_MAX_COLLECTIONS_PREMIUM} collections.`);
+            const extraCollections = Math.max(0, DEX_MAX_COLLECTIONS_PREMIUM - 1);
+            setPremiumToolsStatus(`Premium allows up to ${DEX_MAX_COLLECTIONS_PREMIUM} total collections (Default + ${extraCollections} additional).`);
             return;
         }
 

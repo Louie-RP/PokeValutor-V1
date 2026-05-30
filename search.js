@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_COLLECTIONS_META_KEY = `${CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
-    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
+    const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
     const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;

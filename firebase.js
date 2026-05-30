@@ -439,7 +439,7 @@
     const DEX_COLLECTION_ID_REGEX = /^[a-z0-9_-]{1,40}$/;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
-    const DEX_MAX_COLLECTIONS_PREMIUM = 8;
+    const DEX_MAX_COLLECTIONS_PREMIUM = 3;
 
     const dexShareSettingsCache = {
         uid: '',
