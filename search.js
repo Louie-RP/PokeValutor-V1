@@ -112,8 +112,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
     const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
 
-    const CONDITION_FILTER_KEYS = ['NM', 'LP', 'MP', 'OTHER'];
-    const DEFAULT_CONDITION_FILTERS = ['NM'];
+    const CONDITION_FILTER_KEYS_FALLBACK = ['NM', 'LP', 'MP', 'OTHER'];
+    const CONDITION_FILTER_KEYS = (() => {
+        const keys = Array.from(new Set(
+            conditionCheckboxEls
+                .map((cb) => String(cb?.value || '').trim().toUpperCase())
+                .filter(Boolean)
+        ));
+        return keys.length ? keys : CONDITION_FILTER_KEYS_FALLBACK.slice();
+    })();
+    const DEFAULT_CONDITION_FILTERS = CONDITION_FILTER_KEYS.includes('NM')
+        ? ['NM']
+        : [CONDITION_FILTER_KEYS[0] || 'NM'];
+    const DEFAULT_CONDITION_FILTER_KEY = DEFAULT_CONDITION_FILTERS[0] || 'NM';
 
     const PV_BUILD = '2026-05-09-1';
     const isDexPage = document.body?.id === 'pv-dex-body';
@@ -126,6 +137,53 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] search.js build', PV_BUILD);
+        }
+    } catch {
+        // ignore
+    }
+
+    let startupStatusNotice = '';
+
+    function clearSearchBootCacheForRecovery() {
+        const keys = [
+            LAST_RESULTS_KEY,
+            WATCHLIST_KEY,
+            LEGACY_FAVORITES_KEY,
+            CONDITION_FILTER_KEY,
+            TRADE_PERCENT_MAP_KEY,
+        ];
+
+        try {
+            for (const key of keys) {
+                try { localStorage.removeItem(key); } catch {}
+            }
+
+            const urlCachePrefix = `${CACHE_PREFIX}url:`;
+            const urlCacheKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(urlCachePrefix)) {
+                    urlCacheKeys.push(key);
+                }
+            }
+            for (const key of urlCacheKeys) {
+                try { localStorage.removeItem(key); } catch {}
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        if (params.get('pvSafeReset') === '1') {
+            clearSearchBootCacheForRecovery();
+            startupStatusNotice = 'Local Search cache was reset. You can use the page normally now.';
+
+            params.delete('pvSafeReset');
+            const query = params.toString();
+            const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+            window.history.replaceState(null, '', nextUrl);
         }
     } catch {
         // ignore
@@ -209,10 +267,17 @@ document.addEventListener('DOMContentLoaded', function () {
         return upper;
     }
 
+    function formatConditionFilterLabel(key) {
+        const normalizedKey = String(key || '').trim().toUpperCase();
+        return normalizedKey === 'OTHER' ? 'Other' : normalizedKey;
+    }
+
     function toConditionFilterKey(conditionKey) {
-        const key = String(conditionKey || '').trim().toUpperCase();
-        if (key === 'NM' || key === 'LP' || key === 'MP') return key;
-        return 'OTHER';
+        const key = normalizeConditionKey(conditionKey);
+        if (!key) return '';
+        if (CONDITION_FILTER_KEYS.includes(key)) return key;
+        if (CONDITION_FILTER_KEYS.includes('OTHER')) return 'OTHER';
+        return '';
     }
 
     function loadConditionFilterSet() {
@@ -243,8 +308,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function getConditionSummaryText() {
         const labels = CONDITION_FILTER_KEYS
             .filter((k) => selectedConditionFilters.has(k))
-            .map((k) => (k === 'OTHER' ? 'Other' : k));
-        if (!labels.length) return 'NM';
+            .map((k) => formatConditionFilterLabel(k));
+        if (!labels.length) return formatConditionFilterLabel(DEFAULT_CONDITION_FILTER_KEY);
 
         const maxVisible = 3;
 
@@ -268,13 +333,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function passesConditionFilter(conditionKey) {
         const filterKey = toConditionFilterKey(conditionKey);
+        if (!filterKey) return false;
         return selectedConditionFilters.has(filterKey);
     }
 
     function applyConditionFilterToVisibleCards() {
-        const restoredState = loadLastResults();
-        renderCards(currentResultsCards, restoredState || undefined);
-        renderFavorites(restoredState || undefined);
+        try {
+            const restoredState = loadLastResults();
+            renderCards(currentResultsCards, restoredState || undefined);
+            renderFavorites(restoredState || undefined);
+        } catch (error) {
+            console.error('[PokeValutor] condition filter re-render failed', error);
+        }
     }
 
     function clearSearchInputs() {
@@ -3121,23 +3191,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
-        favoritesGrid.innerHTML = '';
-        let favoritePricePreloadCount = 0;
 
-        if (!Array.isArray(favorites) || favorites.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'col-12';
-            empty.textContent = 'No watchlist items yet. Click ☆ to save a card.';
-            favoritesGrid.appendChild(empty);
-            updateFavoritesTotals(restoreState);
-            return;
-        }
+        try {
+            favoritesGrid.innerHTML = '';
+            let favoritePricePreloadCount = 0;
 
-        const sortedFavorites = favorites.slice().sort((a, b) => compareFavoriteCardsForSort(a, b, restoreState));
+            if (!Array.isArray(favorites) || favorites.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'col-12';
+                empty.textContent = 'No watchlist items yet. Click ☆ to save a card.';
+                favoritesGrid.appendChild(empty);
+                updateFavoritesTotals(restoreState);
+                return;
+            }
 
-        for (const fav of sortedFavorites) {
-            const col = document.createElement('div');
-            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-favoritesCol';
+            const sortedFavorites = favorites.slice().sort((a, b) => compareFavoriteCardsForSort(a, b, restoreState));
+
+            for (const fav of sortedFavorites) {
+                const col = document.createElement('div');
+                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-favoritesCol';
 
             const id = safeString(fav?.id, '');
             const name = safeString(fav?.name, 'Unknown');
@@ -3203,13 +3275,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!pricesEl) return;
                 // If we already have real prices text, don't refetch.
                 const currentText = String(pricesEl.textContent || '').trim();
-                const looksPlaceholder = !currentText
-                    || /select a holo type/i.test(currentText)
-                    || /no prices loaded yet/i.test(currentText)
-                    || /loading prices/i.test(currentText)
-                    || /unable to load prices/i.test(currentText);
-                const missingSelectedConditions = selectedVariant && !doesPriceTextCoverSelectedFilters(currentText);
-                if (!looksPlaceholder && !missingSelectedConditions) return;
+                const looksPlaceholder = isPriceTextPlaceholder(currentText);
+                if (!looksPlaceholder) return;
                 if (!selectedVariant) return;
 
                 setCardPricesDisplay(pricesEl, 'Loading prices…');
@@ -3319,17 +3386,30 @@ document.addEventListener('DOMContentLoaded', function () {
             // If a favorite has a known variant but no stored prices, fetch once to populate.
             if (
                 selectedVariant
-                && (!pricesText || !doesPriceTextCoverSelectedFilters(pricesDisplayText))
+                && isPriceTextPlaceholder(pricesDisplayText)
                 && favoritePricePreloadCount < FAVORITE_PRICE_PRELOAD_LIMIT
             ) {
                 favoritePricePreloadCount += 1;
                 void ensureFavoritePricesLoaded();
             }
 
-            favoritesGrid.appendChild(col);
-        }
+                favoritesGrid.appendChild(col);
+            }
 
-        updateFavoritesTotals(restoreState);
+            updateFavoritesTotals(restoreState);
+        } catch (error) {
+            console.error('[PokeValutor] renderFavorites failed', error);
+            favoritesGrid.innerHTML = '';
+            const fallback = document.createElement('div');
+            fallback.className = 'col-12';
+            fallback.textContent = 'Watchlist is temporarily unavailable. Reload the page to retry.';
+            favoritesGrid.appendChild(fallback);
+            try {
+                updateFavoritesTotals(restoreState);
+            } catch {
+                // ignore
+            }
+        }
     }
 
     async function fetchJsonWithCache(url, ttlMs) {
@@ -3537,6 +3617,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (shorthand) return String(shorthand[1] || '').toUpperCase();
 
         return normalizeConditionKey(label);
+    }
+
+    function isPriceTextPlaceholder(rawText) {
+        const text = safeString(rawText, '').trim();
+        if (!text) return true;
+        return /select a holo type|no prices loaded yet|loading prices|unable to load prices/i.test(text);
     }
 
     function doesPriceTextCoverSelectedFilters(rawText) {
@@ -4396,7 +4482,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             // ignore
                         }
 
-                        if (!doesPriceTextCoverSelectedFilters(restoredSelection.pricesText)) {
+                        if (isPriceTextPlaceholder(restoredSelection.pricesText)) {
                             void showPricesForSelectedVariant();
                         }
                     } else {
@@ -5284,7 +5370,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Always keep at least one option selected.
                 if (selectedConditionFilters.size === 0) {
-                    selectedConditionFilters.add('NM');
+                    selectedConditionFilters.add(DEFAULT_CONDITION_FILTER_KEY);
                 }
 
                 saveConditionFilterSet(selectedConditionFilters);
@@ -5387,44 +5473,56 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     } else {
         // Restore last results after refresh.
-        const restored = loadLastResults();
-        if (restored && Array.isArray(restored.cards) && restored.cards.length) {
-            const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
-                ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
-                : restored.cards;
-            const restoredView = restoredCards === restored.cards
-                ? restored
-                : { ...restored, cards: restoredCards };
+        try {
+            const restored = loadLastResults();
+            if (restored && Array.isArray(restored.cards) && restored.cards.length) {
+                const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
+                    ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
+                    : restored.cards;
+                const restoredView = restoredCards === restored.cards
+                    ? restored
+                    : { ...restored, cards: restoredCards };
 
-            if (restored.mode === 'name' && input) input.value = String(restored.query || '');
-            if (restored.mode === 'number' && input) input.value = String(restored.query || '');
-            if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
-            if (restored.mode === 'set' && restored.expansionId) {
-                pendingRestoredExpansionId = String(restored.expansionId || '');
-                void ensureExpansionCatalogLoaded().catch((e) => {
-                    console.warn('[PokeValutor] expansions load error', e);
-                });
-            }
-            if (restored.mode === 'setName' && restored.expansionId) {
-                pendingRestoredExpansionId = String(restored.expansionId || '');
-                void ensureExpansionCatalogLoaded().catch((e) => {
-                    console.warn('[PokeValutor] expansions load error', e);
-                });
-            }
-            renderCards(restoredCards, restoredView);
-            renderFavorites(restoredView);
+                if (restored.mode === 'name' && input) input.value = String(restored.query || '');
+                if (restored.mode === 'number' && input) input.value = String(restored.query || '');
+                if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
+                if (restored.mode === 'set' && restored.expansionId) {
+                    pendingRestoredExpansionId = String(restored.expansionId || '');
+                    void ensureExpansionCatalogLoaded().catch((e) => {
+                        console.warn('[PokeValutor] expansions load error', e);
+                    });
+                }
+                if (restored.mode === 'setName' && restored.expansionId) {
+                    pendingRestoredExpansionId = String(restored.expansionId || '');
+                    void ensureExpansionCatalogLoaded().catch((e) => {
+                        console.warn('[PokeValutor] expansions load error', e);
+                    });
+                }
+                renderCards(restoredCards, restoredView);
+                renderFavorites(restoredView);
 
-            if (restored.cards.length > restoredCards.length) {
-                setStatus(`Restored ${restoredCards.length} of ${restored.cards.length} previous results to keep this page responsive.`);
-            } else if (restored.statusText) {
-                setStatus(String(restored.statusText));
+                if (restored.cards.length > restoredCards.length) {
+                    setStatus(`Restored ${restoredCards.length} of ${restored.cards.length} previous results to keep this page responsive.`);
+                } else if (restored.statusText) {
+                    setStatus(String(restored.statusText));
+                }
             }
+        } catch (error) {
+            console.error('[PokeValutor] failed to restore previous results', error);
+            clearLastResults();
+            if (grid) grid.innerHTML = '';
+            currentResultsCards = [];
+            setStatus('Previous results cache was reset. Search again to continue.');
         }
 
         // Deep-link support: /search.html?expansionId=...&expansionName=...
         if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
         }
+    }
+
+    if (startupStatusNotice) {
+        setStatus(startupStatusNotice);
     }
 
     if (scrollTopBtn) {
