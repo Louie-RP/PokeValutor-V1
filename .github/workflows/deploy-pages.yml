@@ -42,6 +42,11 @@ jobs:
             --exclude '.github/' \
             --exclude 'functions/' \
             --exclude 'node_modules/' \
+            --exclude '.gitignore' \
+            --exclude 'README.md' \
+            --exclude 'firebase.json' \
+            --exclude 'firestore.rules' \
+            --exclude 'firebase-config.local.example.js' \
             --exclude 'dist/' \
             ./ dist/
 
@@ -83,6 +88,16 @@ jobs:
 
           p.write_text(s, encoding='utf-8')
           PY
+
+            # Create safe no-op files for optional local-only script tags used by pages.
+            cat > dist/firebase-config.local.js <<'EOF'
+            // Optional local Firebase override placeholder for production deploys.
+            EOF
+
+            cat > dist/secrets.js <<'EOF'
+            // Optional local secrets placeholder for production deploys.
+            window.PV_SECRETS = window.PV_SECRETS || {};
+            EOF
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
