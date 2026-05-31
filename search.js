@@ -3277,7 +3277,42 @@ document.addEventListener('DOMContentLoaded', function () {
                 const currentText = String(pricesEl.textContent || '').trim();
                 const looksPlaceholder = isPriceTextPlaceholder(currentText);
                 if (!looksPlaceholder) return;
-                if (!selectedVariant) return;
+
+                let variantName = selectedVariant;
+                let loadedPrices = variantName ? getPricesForVariant(fav, variantName) : null;
+
+                if ((!variantName || !Array.isArray(loadedPrices) || loadedPrices.length === 0) && Array.isArray(fav?.variants)) {
+                    const bestLocal = getBestVariantWithPrices(fav.variants);
+                    if (bestLocal?.name) {
+                        variantName = bestLocal.name;
+                        loadedPrices = bestLocal.prices;
+                    }
+                }
+
+                if (variantName && Array.isArray(loadedPrices) && loadedPrices.length > 0) {
+                    const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
+                    setCardPricesDisplay(pricesEl, formatted);
+
+                    favorites = favorites.map((f) => {
+                        if (String(f?.id || '') !== id) return f;
+                        return { ...f, selectedVariant: variantName, pricesText: formatted };
+                    });
+                    saveFavorites(favorites);
+
+                    const prev = loadLastResults();
+                    if (prev && Array.isArray(prev.cards)) {
+                        const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                        const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
+                        selections[id] = { ...prevSel, pricesText: formatted, holoType: prevSel.holoType || variantName };
+                        saveLastResults({ ...prev, selections });
+                    }
+
+                    updateFavoritesTotals(loadLastResults() || restoreState);
+                    if (favoritesSortState.active === 'value') {
+                        renderFavorites(loadLastResults() || restoreState);
+                    }
+                    return;
+                }
 
                 setCardPricesDisplay(pricesEl, 'Loading prices…');
                 try {
@@ -3286,14 +3321,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     const data = await fetchJsonWithCache(url, CARD_TTL_MS);
                     const cardObj = data?.data || data;
                     const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
-                    const match = findVariantByName(allVariants, selectedVariant);
-                    const loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
+                    if (!variantName || !findVariantByName(allVariants, variantName)) {
+                        const bestFetched = getBestVariantWithPrices(allVariants);
+                        if (bestFetched?.name) {
+                            variantName = bestFetched.name;
+                        }
+                    }
+
+                    const match = variantName ? findVariantByName(allVariants, variantName) : null;
+                    loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
                     setCardPricesDisplay(pricesEl, formatted);
 
                     favorites = favorites.map((f) => {
                         if (String(f?.id || '') !== id) return f;
-                        return { ...f, variants: allVariants, selectedVariant, pricesText: formatted };
+                        return { ...f, variants: allVariants, selectedVariant: variantName, pricesText: formatted };
                     });
                     saveFavorites(favorites);
 
@@ -3301,7 +3343,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (prev && Array.isArray(prev.cards)) {
                         const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
                         const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
-                        selections[id] = { ...prevSel, pricesText: formatted, holoType: prevSel.holoType || selectedVariant };
+                        selections[id] = { ...prevSel, pricesText: formatted, holoType: prevSel.holoType || variantName };
                         saveLastResults({ ...prev, selections });
                     }
 
@@ -3383,10 +3425,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            // If a favorite has a known variant but no stored prices, fetch once to populate.
+            // If a favorite has missing/placeholder prices, preload once.
             if (
-                selectedVariant
-                && isPriceTextPlaceholder(pricesDisplayText)
+                isPriceTextPlaceholder(pricesDisplayText)
                 && favoritePricePreloadCount < FAVORITE_PRICE_PRELOAD_LIMIT
             ) {
                 favoritePricePreloadCount += 1;
@@ -3765,6 +3806,26 @@ document.addEventListener('DOMContentLoaded', function () {
         const vars = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
         const match = findVariantByName(vars, variantName);
         return Array.isArray(match?.prices) ? match.prices : null;
+    }
+
+    function getBestVariantWithPrices(variants) {
+        const list = Array.isArray(variants) ? variants : [];
+        let best = null;
+
+        for (const v of list) {
+            const name = safeString(v?.name, '').trim();
+            if (!name) continue;
+
+            const prices = Array.isArray(v?.prices) ? v.prices : null;
+            const market = getMarketFromPricesForTotals(prices);
+            if (market == null) continue;
+
+            if (!best || market > best.market) {
+                best = { name, prices, market };
+            }
+        }
+
+        return best;
     }
 
     function getMarketFromPricesText(rawText) {
