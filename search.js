@@ -305,13 +305,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function getConditionSummaryMaxVisible() {
+        if (window.matchMedia('(max-width: 767.98px)').matches) {
+            return 2;
+        }
+
+        return 3;
+    }
+
     function getConditionSummaryText() {
         const labels = CONDITION_FILTER_KEYS
             .filter((k) => selectedConditionFilters.has(k))
             .map((k) => formatConditionFilterLabel(k));
         if (!labels.length) return formatConditionFilterLabel(DEFAULT_CONDITION_FILTER_KEY);
 
-        const maxVisible = 3;
+        const maxVisible = getConditionSummaryMaxVisible();
 
         if (labels.length <= maxVisible) {
             return labels.join(', ');

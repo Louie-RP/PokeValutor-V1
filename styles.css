@@ -2935,7 +2935,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 #pv-search-body .pv-searchField--condition .pv-conditionFilter {
-  width: 138px;
+  width: fit-content;
+  min-width: 138px;
+  max-width: 188px;
   min-height: 34px;
   margin-left: 0;
 }
@@ -2945,6 +2947,11 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   gap: 0.3rem;
   font-size: 0.82rem;
   line-height: 1.2;
+  white-space: nowrap;
+}
+
+#pv-search-body #pv-condition-summary {
+  white-space: nowrap;
 }
 
 #pv-search-body #pv-search-sort {
