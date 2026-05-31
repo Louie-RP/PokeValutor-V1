@@ -3807,11 +3807,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // (from lastResults/favorites snapshot) to derive a market value.
             if (market == null) {
                 const text = safeString(restoreState?.selections?.[id]?.pricesText ?? fav?.pricesText, '');
-                const m = text.match(/market\s+\$([0-9]+(?:\.[0-9]+)?)/i);
-                if (m) {
-                    const parsed = Number(m[1]);
-                    if (Number.isFinite(parsed)) market = parsed;
-                }
+                market = getMarketFromPricesText(text);
             }
 
             if (market == null) continue;
