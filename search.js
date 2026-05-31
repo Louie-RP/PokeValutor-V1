@@ -48,10 +48,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const NUMBER_SEARCH_PAGE_SIZE = 15;
     const SET_SEARCH_MAX_PAGES = 10;
     const MAX_CACHE_ENTRIES = 250;
+    const MAX_SAVED_RESULTS_CARDS = 250;
+    const MAX_RESTORE_RENDER_CARDS = 120;
+    const FAVORITE_PRICE_PRELOAD_LIMIT = 12;
+    const MAX_STORAGE_JSON_CHARS = 800000;
+    const MAX_LAST_RESULTS_JSON_CHARS = 220000;
+    const MAX_CACHE_ITEM_JSON_CHARS = 240000;
+    const MAX_SAVED_SELECTIONS = 500;
+    const MAX_SAVED_PRICES_TEXT_CHARS = 240;
+    const LAST_RESULTS_PERSIST_DELAY_MS = 140;
 
     const QUOTA_STORAGE_KEY = 'pv:quota:last:v1';
     const SET_FILTER_STATE_KEY = `${CACHE_PREFIX}setFilterState:v1`;
     const SEARCH_SERIES_SET_VISIBLE_KEY = `${CACHE_PREFIX}searchSeriesSetVisibleMobile:v1`;
+    const SEARCH_SAFE_MODE_SESSION_KEY = 'pv:search:safeMode';
 
     // Hide quota banner by default; only show for signed-out users after auth resolves.
     function forceHideQuotaBanner() {
@@ -114,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ? `${CACHE_PREFIX}dexSearchSortMode:v1`
         : `${CACHE_PREFIX}searchSortMode:v1`;
     const FAVORITES_SORT_PREF_KEY = `${CACHE_PREFIX}searchWatchlistSortMode:v1`;
+    const searchSafeMode = isSearchSafeModeEnabled();
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] search.js build', PV_BUILD);
@@ -137,8 +148,17 @@ document.addEventListener('DOMContentLoaded', function () {
         valueDir: 'desc',
     };
 
+    /** @type {any|null|undefined} undefined=not loaded yet */
+    let lastResultsCache = undefined;
+    /** @type {Record<string, number>|null} */
+    let tradePercentMapCache = null;
+    let tradePercentMapLoaded = false;
+    let lastResultsPersistScheduled = false;
+    let lastResultsPersistTimer = 0;
+
     /** @type {Record<string, number>} */
     const searchValueById = {};
+    let cacheWritesSinceSweep = 0;
     let searchCollectionContextBusy = false;
     let searchCollectionContextMeta = {
         activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
@@ -261,6 +281,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearSearchInputs() {
         if (input) input.value = '';
+    }
+
+    function parseFlagValue(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) return null;
+        if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
+        if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
+        return null;
+    }
+
+    function isSearchSafeModeEnabled() {
+        try {
+            const params = new URLSearchParams(window.location.search || '');
+            const fromQuery = parseFlagValue(params.get('pv_safe_mode'));
+            if (fromQuery === true) {
+                try { sessionStorage.setItem(SEARCH_SAFE_MODE_SESSION_KEY, '1'); } catch {}
+                return true;
+            }
+            if (fromQuery === false) {
+                try { sessionStorage.removeItem(SEARCH_SAFE_MODE_SESSION_KEY); } catch {}
+                return false;
+            }
+        } catch {
+            // ignore
+        }
+
+        try {
+            return sessionStorage.getItem(SEARCH_SAFE_MODE_SESSION_KEY) === '1';
+        } catch {
+            return false;
+        }
     }
 
     function loadSortModePreference(storageKey, allowedModes) {
@@ -1063,9 +1114,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function loadDexCollection() {
         try {
-            const raw = localStorage.getItem(DEX_COLLECTION_KEY);
-            if (!raw) return [];
-            const parsed = safeParseJson(raw);
+            const parsed = loadJsonFromStorage(DEX_COLLECTION_KEY, []);
             if (!Array.isArray(parsed)) return [];
             return parsed
                 .filter((x) => x && typeof x === 'object' && x.id)
@@ -1092,9 +1141,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function loadDexMasterSets() {
         try {
-            const raw = localStorage.getItem(DEX_MASTER_SETS_KEY);
-            if (!raw) return {};
-            const parsed = safeParseJson(raw);
+            const parsed = loadJsonFromStorage(DEX_MASTER_SETS_KEY, {});
             if (!parsed || typeof parsed !== 'object') return {};
             return normalizeDexMasterSetsMap(parsed);
         } catch {
@@ -1829,17 +1876,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const watchRaw = localStorage.getItem(WATCHLIST_KEY);
-            if (watchRaw) {
-                const watchParsed = safeParseJson(watchRaw);
-                addList(watchParsed);
-            }
-
-            const legacyRaw = localStorage.getItem(LEGACY_FAVORITES_KEY);
-            if (legacyRaw) {
-                const legacyParsed = safeParseJson(legacyRaw);
-                addList(legacyParsed);
-            }
+            addList(loadJsonFromStorage(WATCHLIST_KEY, []));
+            addList(loadJsonFromStorage(LEGACY_FAVORITES_KEY, []));
 
             // Migrate/normalize into the Watchlist key.
             try {
@@ -2708,29 +2746,229 @@ document.addEventListener('DOMContentLoaded', function () {
         try { return JSON.parse(value); } catch { return null; }
     }
 
-    function loadLastResults() {
+    function loadJsonFromStorage(key, fallbackValue) {
         try {
-            const raw = localStorage.getItem(LAST_RESULTS_KEY);
-            if (!raw) return null;
+            const raw = localStorage.getItem(key);
+            if (!raw) return fallbackValue;
+
+            // Guard against legacy oversized payloads that can stall startup parsing.
+            if (raw.length > MAX_STORAGE_JSON_CHARS) {
+                try { localStorage.removeItem(key); } catch {}
+                console.warn('[PokeValutor] cleared oversized local storage key', key);
+                return fallbackValue;
+            }
+
             const parsed = safeParseJson(raw);
-            if (!parsed || typeof parsed !== 'object') return null;
-            if (!Array.isArray(parsed.cards)) return null;
+            return parsed == null ? fallbackValue : parsed;
+        } catch {
+            return fallbackValue;
+        }
+    }
+
+    function loadLastResults() {
+        if (searchSafeMode) return null;
+        if (lastResultsCache !== undefined) return lastResultsCache;
+        try {
+            const parsed = loadJsonFromStorage(LAST_RESULTS_KEY, null);
+            if (!parsed || typeof parsed !== 'object') {
+                lastResultsCache = null;
+                return null;
+            }
+            if (!Array.isArray(parsed.cards)) {
+                lastResultsCache = null;
+                return null;
+            }
+            if (parsed.cards.length > MAX_SAVED_RESULTS_CARDS) {
+                const trimmed = { ...parsed, cards: parsed.cards.slice(0, MAX_SAVED_RESULTS_CARDS) };
+                try {
+                    localStorage.setItem(LAST_RESULTS_KEY, JSON.stringify(trimmed));
+                } catch {
+                    // ignore
+                }
+                lastResultsCache = trimmed;
+                return trimmed;
+            }
+            lastResultsCache = parsed;
             return parsed;
         } catch {
+            lastResultsCache = null;
             return null;
         }
     }
 
-    function saveLastResults(next) {
+    function compactSavedResultCard(cardLike) {
+        const id = safeString(cardLike?.id, '').trim();
+        if (!id) return null;
+
+        const expansionName = safeString(cardLike?.expansion?.name ?? cardLike?.expansionName, '');
+        const setName = safeString(cardLike?.set?.name ?? cardLike?.setName, '');
+        const img = sanitizeUrl(pickFrontMediumImage(cardLike?.images));
+
+        const variantsRaw = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+        const variants = [];
+        const seen = new Set();
+        for (const v of variantsRaw) {
+            const name = safeString(v?.name ?? v, '').trim();
+            if (!name || seen.has(name)) continue;
+            seen.add(name);
+            variants.push({ name });
+            if (variants.length >= 12) break;
+        }
+
+        return {
+            id,
+            name: safeString(cardLike?.name, 'Unknown'),
+            rarity: safeString(cardLike?.rarity, ''),
+            expansion: expansionName ? { name: expansionName } : null,
+            set: setName ? { name: setName } : null,
+            expansionName,
+            setName,
+            images: img ? [{ type: 'front', medium: img, large: img, small: img }] : [],
+            variants,
+            selectedVariant: safeString(cardLike?.selectedVariant, ''),
+            pricesText: safeString(cardLike?.pricesText, ''),
+        };
+    }
+
+    function normalizeSavedSelections(rawSelections, allowedCardIds) {
+        const out = {};
+        if (!rawSelections || typeof rawSelections !== 'object') return out;
+
+        let kept = 0;
+        for (const [id, raw] of Object.entries(rawSelections)) {
+            const cardId = safeString(id, '').trim();
+            if (!cardId) continue;
+            if (allowedCardIds && !allowedCardIds.has(cardId)) continue;
+            if (!raw || typeof raw !== 'object') continue;
+
+            const next = {};
+            const holoType = safeString(raw?.holoType, '').trim();
+            if (holoType) next.holoType = holoType;
+
+            const pct = Number(raw?.tradePercent);
+            if (Number.isFinite(pct)) next.tradePercent = normalizeTradePercent(pct);
+
+            const pricesText = safeString(raw?.pricesText, '').trim();
+            if (pricesText) next.pricesText = pricesText.slice(0, MAX_SAVED_PRICES_TEXT_CHARS);
+
+            if (Object.keys(next).length === 0) continue;
+            out[cardId] = next;
+
+            kept += 1;
+            if (kept >= MAX_SAVED_SELECTIONS) break;
+        }
+
+        return out;
+    }
+
+    function saveLastResultsNow(next) {
         try {
-            localStorage.setItem(LAST_RESULTS_KEY, JSON.stringify(next));
+            const payload = (next && typeof next === 'object') ? { ...next } : {};
+            const sourceCards = Array.isArray(payload.cards) ? payload.cards.slice(0, MAX_SAVED_RESULTS_CARDS) : [];
+            const compactCards = [];
+            for (const c of sourceCards) {
+                const compact = compactSavedResultCard(c);
+                if (compact) compactCards.push(compact);
+            }
+
+            payload.cards = compactCards;
+            const allowedCardIds = new Set(compactCards.map((c) => safeString(c?.id, '')));
+            payload.selections = normalizeSavedSelections(payload.selections, allowedCardIds);
+
+            let serialized = JSON.stringify(payload);
+            if (serialized.length > MAX_LAST_RESULTS_JSON_CHARS && payload.cards.length > 80) {
+                payload.cards = payload.cards.slice(0, 80);
+                const reducedIds = new Set(payload.cards.map((c) => safeString(c?.id, '')));
+                payload.selections = normalizeSavedSelections(payload.selections, reducedIds);
+                serialized = JSON.stringify(payload);
+            }
+
+            if (serialized.length > MAX_LAST_RESULTS_JSON_CHARS) {
+                payload.selections = {};
+                serialized = JSON.stringify(payload);
+            }
+
+            if (serialized.length > MAX_LAST_RESULTS_JSON_CHARS) {
+                console.warn('[PokeValutor] skipped oversized last results save');
+                return;
+            }
+
+            localStorage.setItem(LAST_RESULTS_KEY, serialized);
+            lastResultsCache = payload;
+            return true;
         } catch {
             // ignore
+            return false;
+        }
+    }
+
+    function queueLastResultsPersist() {
+        if (searchSafeMode) return;
+        if (lastResultsPersistScheduled) return;
+
+        lastResultsPersistScheduled = true;
+
+        const flush = () => {
+            lastResultsPersistScheduled = false;
+            lastResultsPersistTimer = 0;
+
+            const snapshot = lastResultsCache;
+            if (!snapshot || !Array.isArray(snapshot.cards)) return;
+            void saveLastResultsNow(snapshot);
+        };
+
+        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+            try {
+                lastResultsPersistTimer = window.requestIdleCallback(flush, { timeout: 500 });
+                return;
+            } catch {
+                // fall through to setTimeout
+            }
+        }
+
+        lastResultsPersistTimer = window.setTimeout(flush, LAST_RESULTS_PERSIST_DELAY_MS);
+    }
+
+    function saveLastResults(next) {
+        if (searchSafeMode) return;
+
+        const payload = (next && typeof next === 'object') ? next : null;
+        if (!payload || !Array.isArray(payload.cards)) return;
+
+        const sameCardsRef = !!(
+            lastResultsCache
+            && typeof lastResultsCache === 'object'
+            && Array.isArray(lastResultsCache.cards)
+            && payload.cards === lastResultsCache.cards
+        );
+
+        if (sameCardsRef) {
+            lastResultsCache = payload;
+            queueLastResultsPersist();
+            return;
+        }
+
+        if (!saveLastResultsNow(payload)) {
+            queueLastResultsPersist();
         }
     }
 
     function clearLastResults() {
         try { localStorage.removeItem(LAST_RESULTS_KEY); } catch {}
+        lastResultsCache = null;
+        if (lastResultsPersistTimer) {
+            try {
+                if (typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+                    window.cancelIdleCallback(lastResultsPersistTimer);
+                } else {
+                    window.clearTimeout(lastResultsPersistTimer);
+                }
+            } catch {
+                // ignore
+            }
+            lastResultsPersistTimer = 0;
+        }
+        lastResultsPersistScheduled = false;
     }
 
     function normalizeTradePercent(raw) {
@@ -2740,19 +2978,31 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function loadTradePercentMap() {
+        if (tradePercentMapLoaded) {
+            return tradePercentMapCache && typeof tradePercentMapCache === 'object'
+                ? tradePercentMapCache
+                : {};
+        }
+
         try {
-            const raw = localStorage.getItem(TRADE_PERCENT_MAP_KEY);
-            if (!raw) return {};
-            const parsed = safeParseJson(raw);
-            return (parsed && typeof parsed === 'object') ? parsed : {};
+            const parsed = loadJsonFromStorage(TRADE_PERCENT_MAP_KEY, {});
+            const out = (parsed && typeof parsed === 'object') ? parsed : {};
+            tradePercentMapCache = out;
+            tradePercentMapLoaded = true;
+            return out;
         } catch {
+            tradePercentMapCache = {};
+            tradePercentMapLoaded = true;
             return {};
         }
     }
 
     function saveTradePercentMap(map) {
         try {
-            localStorage.setItem(TRADE_PERCENT_MAP_KEY, JSON.stringify(map && typeof map === 'object' ? map : {}));
+            const safeMap = (map && typeof map === 'object') ? map : {};
+            localStorage.setItem(TRADE_PERCENT_MAP_KEY, JSON.stringify(safeMap));
+            tradePercentMapCache = safeMap;
+            tradePercentMapLoaded = true;
         } catch {
             // ignore
         }
@@ -2779,18 +3029,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const map = loadTradePercentMap();
         map[id] = nextPct;
         saveTradePercentMap(map);
-
-        // Also persist into lastResults when available.
-        const prev = loadLastResults();
-        if (prev && Array.isArray(prev.cards)) {
-            const selections = (prev.selections && typeof prev.selections === 'object') ? prev.selections : {};
-            const prevSel = (selections[id] && typeof selections[id] === 'object') ? selections[id] : {};
-            selections[id] = { ...prevSel, tradePercent: nextPct };
-            saveLastResults({ ...prev, selections });
-        }
     }
 
     function cacheGet(key) {
+        if (searchSafeMode) return null;
         try {
             const raw = localStorage.getItem(key);
             if (!raw) return null;
@@ -2808,15 +3050,26 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cacheSet(key, value, ttlMs) {
+        if (searchSafeMode) return;
         try {
             const payload = { value, expiresAt: Date.now() + ttlMs, savedAt: Date.now() };
-            localStorage.setItem(key, JSON.stringify(payload));
+            const serialized = JSON.stringify(payload);
+            if (serialized.length > MAX_CACHE_ITEM_JSON_CHARS) return;
+
+            localStorage.setItem(key, serialized);
+
+            cacheWritesSinceSweep += 1;
+            if (cacheWritesSinceSweep >= 4) {
+                cacheWritesSinceSweep = 0;
+                cacheSweep();
+            }
         } catch {
             // ignore
         }
     }
 
     function cacheSweep() {
+        if (searchSafeMode) return;
         try {
             const keys = [];
             for (let i = 0; i < localStorage.length; i++) {
@@ -2868,6 +3121,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
+        let favoritePricePreloadCount = 0;
 
         if (!Array.isArray(favorites) || favorites.length === 0) {
             const empty = document.createElement('div');
@@ -3062,7 +3316,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // If a favorite has a known variant but no stored prices, fetch once to populate.
-            if (selectedVariant && (!pricesText || !doesPriceTextCoverSelectedFilters(pricesDisplayText))) {
+            if (
+                selectedVariant
+                && (!pricesText || !doesPriceTextCoverSelectedFilters(pricesDisplayText))
+                && favoritePricePreloadCount < FAVORITE_PRICE_PRELOAD_LIMIT
+            ) {
+                favoritePricePreloadCount += 1;
                 void ensureFavoritePricesLoaded();
             }
 
@@ -3137,7 +3396,6 @@ document.addEventListener('DOMContentLoaded', function () {
             throw err;
         }
         cacheSet(cacheKey, data, ttlMs);
-        cacheSweep();
         return data;
     }
 
@@ -5091,6 +5349,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // Restore last results after refresh.
         const restored = loadLastResults();
         if (restored && Array.isArray(restored.cards) && restored.cards.length) {
+            const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
+                ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
+                : restored.cards;
+            const restoredView = restoredCards === restored.cards
+                ? restored
+                : { ...restored, cards: restoredCards };
+
             if (restored.mode === 'name' && input) input.value = String(restored.query || '');
             if (restored.mode === 'number' && input) input.value = String(restored.query || '');
             if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
@@ -5106,9 +5371,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.warn('[PokeValutor] expansions load error', e);
                 });
             }
-            renderCards(restored.cards, restored);
-            renderFavorites(restored);
-            if (restored.statusText) setStatus(String(restored.statusText));
+            renderCards(restoredCards, restoredView);
+            renderFavorites(restoredView);
+
+            if (restored.cards.length > restoredCards.length) {
+                setStatus(`Restored ${restoredCards.length} of ${restored.cards.length} previous results to keep this page responsive.`);
+            } else if (restored.statusText) {
+                setStatus(String(restored.statusText));
+            }
         }
 
         // Deep-link support: /search.html?expansionId=...&expansionName=...
@@ -5121,5 +5391,9 @@ document.addEventListener('DOMContentLoaded', function () {
         scrollTopBtn.addEventListener('click', () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
+    }
+
+    if (searchSafeMode && status && !String(status.textContent || '').trim()) {
+        setStatus('Search safe mode is enabled. Local search cache restore is paused for stability.');
     }
 });
