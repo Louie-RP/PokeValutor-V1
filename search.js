@@ -61,7 +61,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const QUOTA_STORAGE_KEY = 'pv:quota:last:v1';
     const SET_FILTER_STATE_KEY = `${CACHE_PREFIX}setFilterState:v1`;
     const SEARCH_SERIES_SET_VISIBLE_KEY = `${CACHE_PREFIX}searchSeriesSetVisibleMobile:v1`;
-    const SEARCH_SAFE_MODE_SESSION_KEY = 'pv:search:safeMode';
 
     // Hide quota banner by default; only show for signed-out users after auth resolves.
     function forceHideQuotaBanner() {
@@ -124,7 +123,6 @@ document.addEventListener('DOMContentLoaded', function () {
         ? `${CACHE_PREFIX}dexSearchSortMode:v1`
         : `${CACHE_PREFIX}searchSortMode:v1`;
     const FAVORITES_SORT_PREF_KEY = `${CACHE_PREFIX}searchWatchlistSortMode:v1`;
-    const searchSafeMode = isSearchSafeModeEnabled();
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] search.js build', PV_BUILD);
@@ -281,37 +279,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearSearchInputs() {
         if (input) input.value = '';
-    }
-
-    function parseFlagValue(value) {
-        const normalized = String(value || '').trim().toLowerCase();
-        if (!normalized) return null;
-        if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') return true;
-        if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') return false;
-        return null;
-    }
-
-    function isSearchSafeModeEnabled() {
-        try {
-            const params = new URLSearchParams(window.location.search || '');
-            const fromQuery = parseFlagValue(params.get('pv_safe_mode'));
-            if (fromQuery === true) {
-                try { sessionStorage.setItem(SEARCH_SAFE_MODE_SESSION_KEY, '1'); } catch {}
-                return true;
-            }
-            if (fromQuery === false) {
-                try { sessionStorage.removeItem(SEARCH_SAFE_MODE_SESSION_KEY); } catch {}
-                return false;
-            }
-        } catch {
-            // ignore
-        }
-
-        try {
-            return sessionStorage.getItem(SEARCH_SAFE_MODE_SESSION_KEY) === '1';
-        } catch {
-            return false;
-        }
     }
 
     function loadSortModePreference(storageKey, allowedModes) {
@@ -2766,7 +2733,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function loadLastResults() {
-        if (searchSafeMode) return null;
         if (lastResultsCache !== undefined) return lastResultsCache;
         try {
             const parsed = loadJsonFromStorage(LAST_RESULTS_KEY, null);
@@ -2903,7 +2869,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function queueLastResultsPersist() {
-        if (searchSafeMode) return;
         if (lastResultsPersistScheduled) return;
 
         lastResultsPersistScheduled = true;
@@ -2930,8 +2895,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveLastResults(next) {
-        if (searchSafeMode) return;
-
         const payload = (next && typeof next === 'object') ? next : null;
         if (!payload || !Array.isArray(payload.cards)) return;
 
@@ -3032,7 +2995,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cacheGet(key) {
-        if (searchSafeMode) return null;
         try {
             const raw = localStorage.getItem(key);
             if (!raw) return null;
@@ -3050,7 +3012,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cacheSet(key, value, ttlMs) {
-        if (searchSafeMode) return;
         try {
             const payload = { value, expiresAt: Date.now() + ttlMs, savedAt: Date.now() };
             const serialized = JSON.stringify(payload);
@@ -3069,7 +3030,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cacheSweep() {
-        if (searchSafeMode) return;
         try {
             const keys = [];
             for (let i = 0; i < localStorage.length; i++) {
@@ -5393,7 +5353,4 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    if (searchSafeMode && status && !String(status.textContent || '').trim()) {
-        setStatus('Search safe mode is enabled. Local search cache restore is paused for stability.');
-    }
 });
