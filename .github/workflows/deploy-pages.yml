@@ -89,15 +89,46 @@ jobs:
           p.write_text(s, encoding='utf-8')
           PY
 
-            # Create safe no-op files for optional local-only script tags used by pages.
-            cat > dist/firebase-config.local.js <<'EOF'
-            // Optional local Firebase override placeholder for production deploys.
-            EOF
+          # Production hardening: strip local-only script tags and localhost emulator CSP allowances.
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
 
-            cat > dist/secrets.js <<'EOF'
-            // Optional local secrets placeholder for production deploys.
-            window.PV_SECRETS = window.PV_SECRETS || {};
-            EOF
+          html_files = sorted(Path('dist').glob('*.html'))
+          changed = 0
+
+          for p in html_files:
+            s = p.read_text(encoding='utf-8')
+            original = s
+
+            s = re.sub(
+              r'^[^\n]*src="firebase-config\.local\.js"[^\n]*\n?',
+              '',
+              s,
+              flags=re.MULTILINE,
+            )
+            s = re.sub(
+              r'^[^\n]*src="secrets\.js"[^\n]*\n?',
+              '',
+              s,
+              flags=re.MULTILINE,
+            )
+            s = re.sub(
+              r'^[ \t]*<!--[^\n]*(?:local override|local secrets)[^\n]*-->\s*\n?',
+              '',
+              s,
+              flags=re.MULTILINE | re.IGNORECASE,
+            )
+
+            s = s.replace(' http://127.0.0.1:5001', '')
+            s = s.replace(' http://localhost:5001', '')
+
+            if s != original:
+              p.write_text(s, encoding='utf-8')
+              changed += 1
+
+          print(f'Hardening sanitized {changed} HTML files')
+          PY
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
