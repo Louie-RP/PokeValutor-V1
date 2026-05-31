@@ -1872,7 +1872,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function clearFavorites() {
+    async function clearFavorites() {
+        const idsToRemove = favorites
+            .map((card) => safeString(card?.id, ''))
+            .filter(Boolean);
+        const removedCount = idsToRemove.length;
+
+        if (removedCount > 0) {
+            setStatus('Clearing Watchlist...');
+        }
+
         favorites = [];
         try { localStorage.removeItem(WATCHLIST_KEY); } catch {}
         try { localStorage.removeItem(LEGACY_FAVORITES_KEY); } catch {}
@@ -1881,6 +1890,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Keep results stars in sync.
         renderCards(currentResultsCards, restoredState || undefined);
+
+        try {
+            if (idsToRemove.length && window?.PV_AUTH?.removeWatchlistItem) {
+                const settled = await Promise.allSettled(idsToRemove.map((id) => window.PV_AUTH.removeWatchlistItem('card', id)));
+                const failedCount = settled.filter((result) => result.status === 'rejected').length;
+                if (failedCount > 0) {
+                    const noun = failedCount === 1 ? 'item' : 'items';
+                    setStatus(`Watchlist cleared locally. ${failedCount} ${noun} could not be removed from cloud.`);
+                } else {
+                    setStatus('Watchlist cleared.');
+                }
+                return;
+            }
+        } catch {
+            setStatus('Watchlist cleared locally. Cloud sync is currently unavailable.');
+            return;
+        }
+
+        setStatus(removedCount > 0 ? 'Watchlist cleared.' : 'Watchlist already empty.');
     }
 
     /** @type {Array<any>} */
@@ -5281,8 +5309,31 @@ document.addEventListener('DOMContentLoaded', function () {
     setFavoritesCollapsed(loadFavoritesCollapsed());
 
     if (favoritesClearBtn) {
-        favoritesClearBtn.addEventListener('click', () => {
-            clearFavorites();
+        favoritesClearBtn.addEventListener('click', async () => {
+            const itemCount = Array.isArray(favorites) ? favorites.length : 0;
+            if (itemCount > 0) {
+                const noun = itemCount === 1 ? 'item' : 'items';
+                const signedIn = Boolean(window?.PV_AUTH?.getUser && window.PV_AUTH.getUser());
+                const confirmMessage = signedIn
+                    ? `Clear ${itemCount} watchlist ${noun}? This will remove ${itemCount === 1 ? 'it' : 'them'} from this device and your cloud watchlist.`
+                    : `Clear ${itemCount} watchlist ${noun} from this browser?`;
+                const confirmed = window.confirm(confirmMessage);
+                if (!confirmed) {
+                    setStatus('Watchlist clear canceled.');
+                    return;
+                }
+            }
+
+            if (favoritesClearBtn instanceof HTMLButtonElement) {
+                favoritesClearBtn.disabled = true;
+            }
+            try {
+                await clearFavorites();
+            } finally {
+                if (favoritesClearBtn instanceof HTMLButtonElement) {
+                    favoritesClearBtn.disabled = false;
+                }
+            }
         });
     }
 
