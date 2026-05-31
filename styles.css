@@ -3036,12 +3036,12 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 #pv-search-body .pv-searchCol .pv-priceToken--market .pv-priceToken__amount,
 #pv-search-body .pv-favoritesCol .pv-priceToken--market .pv-priceToken__amount {
-  color: #fde68a;
+  color: #86efac;
 }
 
 #pv-search-body .pv-searchCol .pv-priceToken--trade .pv-priceToken__amount,
 #pv-search-body .pv-favoritesCol .pv-priceToken--trade .pv-priceToken__amount {
-  color: #86efac;
+  color: #fde68a;
 }
 
 #pv-search-body .pv-searchCol .pv-priceToken--trade .pv-priceToken__label,
