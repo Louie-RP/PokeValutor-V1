@@ -333,10 +333,8 @@
   const trendingGrid = document.getElementById('pv-trending-grid');
 
   const HOME_CARD_WATCHLIST_KEY = 'pv:scrydex:watchlist:v1';
-  const HOME_CARD_LAST_RESULTS_KEY = 'pv:scrydex:lastResults:v1';
   const HOME_MARKET_SNAPSHOT_KEY = 'pv:home:cardMarketSnapshots:v1';
   const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
-  const HOME_TRENDING_CARD_TTL_MS = 15 * 60 * 1000;
   const HOME_SPOTLIGHTS_TTL_MS = 60 * 60 * 1000;
   const HOME_LATEST_EXPANSIONS_CACHE_KEY = 'pv:expansions:latestEnglish:v6';
   const HOME_LATEST_EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -486,7 +484,7 @@
   }
 
 
-  async function fetchJsonWithOptionalAuth(url) {
+  async function fetchJsonWithOptionalAuth(url, initOverrides) {
     /** @type {Record<string, string>|undefined} */
     let headers;
     try {
@@ -497,7 +495,13 @@
       // ignore
     }
 
-    const res = await fetch(url, { method: 'GET', headers });
+    const init = {
+      method: 'GET',
+      headers,
+      ...(initOverrides && typeof initOverrides === 'object' ? initOverrides : {}),
+    };
+
+    const res = await fetch(url, init);
     const text = await res.text();
     const data = safeParseJson(text);
     if (!res.ok) {
@@ -590,13 +594,10 @@
     if (!trendingGrid) return;
 
     const watchlist = readArrayStorage(HOME_CARD_WATCHLIST_KEY);
-    const cardState = readObjectStorage(HOME_CARD_LAST_RESULTS_KEY);
-    const stateCards = Array.isArray(cardState?.cards) ? cardState.cards : [];
 
     /** @type {Map<string, any>} */
     const byId = new Map();
-    const seed = watchlist.length ? watchlist : stateCards;
-    for (const item of seed) {
+    for (const item of watchlist) {
       const id = String(item?.id || '').trim();
       if (!id || byId.has(id)) continue;
       byId.set(id, item);
@@ -617,7 +618,7 @@
       candidates.map(async (item) => {
         const id = String(item?.id || '').trim();
         const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-        const data = await fetchJsonWithOptionalAuthAndCache(url, HOME_TRENDING_CARD_TTL_MS);
+        const data = await fetchJsonWithOptionalAuth(url, { cache: 'no-store' });
         const card = data?.data || data || item;
         const market = getBestMarketFromCard(card);
 
