@@ -2908,8 +2908,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const pricesText = maybePrices
                 ? formatPriceList(maybePrices, pct)
                 : (restoredPricesText || safeString(fav?.pricesText, ''));
-
-            const pricesTextHtml = escapeHtml(pricesText);
+            const pricesDisplayText = pricesText || 'No prices loaded yet. Load prices in Results to show them here.';
 
             col.innerHTML = `
                 <div class="pv-card h-100">
@@ -2919,9 +2918,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
                             <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
                         </div>
-                        <p class="pv-card__text">${setNameHtml}</p>
-                        <p class="pv-card__text">${rarity ? rarityHtml : 'n/a'}</p>
-                        ${selectedVariant ? `<p class="pv-card__text">Variant: ${selectedVariantHtml}</p>` : ''}
+                        <p class="pv-card__text pv-card__setName">${setNameHtml}</p>
+                        <p class="pv-card__text pv-card__rarity">${rarity ? rarityHtml : 'n/a'}</p>
+                        ${selectedVariant ? `<p class="pv-card__text pv-card__variant">Variant: ${selectedVariantHtml}</p>` : ''}
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-fav-trade-${idAttr}">Trade %</label>
                             <select class="form-select pv-selectCompact pv-selectTrade" id="pv-fav-trade-${idAttr}">
@@ -2930,7 +2929,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     .join('')}
                             </select>
                         </div>
-                        <pre class="pv-card__text" id="pv-fav-prices-${idAttr}" style="white-space:pre-wrap;margin:0">${pricesText ? pricesTextHtml : 'No prices loaded yet. Load prices in Results to show them here.'}</pre>
+                        <div class="pv-card__text pv-card__prices" id="pv-fav-prices-${idAttr}" aria-live="polite"></div>
                     </div>
                 </div>
             `;
@@ -2943,6 +2942,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-fav-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-fav-prices-${CSS.escape(id)}`));
 
+            setCardPricesDisplay(pricesEl, pricesDisplayText);
+
             async function ensureFavoritePricesLoaded() {
                 if (!pricesEl) return;
                 // If we already have real prices text, don't refetch.
@@ -2952,10 +2953,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     || /no prices loaded yet/i.test(currentText)
                     || /loading prices/i.test(currentText)
                     || /unable to load prices/i.test(currentText);
-                if (!looksPlaceholder) return;
+                const missingSelectedConditions = selectedVariant && !doesPriceTextCoverSelectedFilters(currentText);
+                if (!looksPlaceholder && !missingSelectedConditions) return;
                 if (!selectedVariant) return;
 
-                pricesEl.textContent = 'Loading prices…';
+                setCardPricesDisplay(pricesEl, 'Loading prices…');
                 try {
                     const base = getWorkerBase();
                     const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
@@ -2965,7 +2967,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const match = findVariantByName(allVariants, selectedVariant);
                     const loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
-                    pricesEl.textContent = formatted;
+                    setCardPricesDisplay(pricesEl, formatted);
 
                     favorites = favorites.map((f) => {
                         if (String(f?.id || '') !== id) return f;
@@ -2986,7 +2988,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         renderFavorites(loadLastResults() || restoreState);
                     }
                 } catch (e) {
-                    pricesEl.textContent = 'Unable to load prices.';
+                    setCardPricesDisplay(pricesEl, 'Unable to load prices.');
                     console.warn('[PokeValutor] favorite prices preload error', e);
                 }
             }
@@ -3002,7 +3004,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const cachedPrices = getPricesForVariant(fav, selectedVariant);
                         if (Array.isArray(cachedPrices) && cachedPrices.length > 0) {
                             const formatted = formatPriceList(cachedPrices, nextPct);
-                            pricesEl.textContent = formatted;
+                            setCardPricesDisplay(pricesEl, formatted);
                             favorites = favorites.map((f) => (String(f?.id || '') === id ? { ...f, pricesText: formatted } : f));
                             saveFavorites(favorites);
 
@@ -3022,7 +3024,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     // Otherwise fetch prices for the selected variant (if known) so we can compute trade values.
                     if (!selectedVariant) return;
-                    pricesEl.textContent = 'Loading prices…';
+                    setCardPricesDisplay(pricesEl, 'Loading prices…');
                     try {
                         const base = getWorkerBase();
                         const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
@@ -3032,7 +3034,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const match = findVariantByName(allVariants, selectedVariant);
                         const loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                         const formatted = formatPriceList(loadedPrices, nextPct);
-                        pricesEl.textContent = formatted;
+                        setCardPricesDisplay(pricesEl, formatted);
                         favorites = favorites.map((f) => {
                             if (String(f?.id || '') !== id) return f;
                             return { ...f, variants: allVariants, selectedVariant, pricesText: formatted };
@@ -3053,14 +3055,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             renderFavorites(loadLastResults() || restoreState);
                         }
                     } catch (e) {
-                        pricesEl.textContent = 'Unable to load prices.';
+                        setCardPricesDisplay(pricesEl, 'Unable to load prices.');
                         console.warn('[PokeValutor] favorite prices error', e);
                     }
                 });
             }
 
             // If a favorite has a known variant but no stored prices, fetch once to populate.
-            if (!pricesText && selectedVariant) {
+            if (selectedVariant && (!pricesText || !doesPriceTextCoverSelectedFilters(pricesDisplayText))) {
                 void ensureFavoritePricesLoaded();
             }
 
@@ -3225,7 +3227,6 @@ document.addEventListener('DOMContentLoaded', function () {
         for (const p of prices) {
             if (!p || typeof p !== 'object') continue;
             const condition = p?.condition != null ? String(p.condition) : '';
-            const type = p?.type != null ? String(p.type) : '';
             const currency = p?.currency != null ? String(p.currency) : '';
             const market = (p?.market ?? p?.marketPrice ?? p?.market_price ?? null);
             // const low = p?.low ?? null; // intentionally hidden (market only)
@@ -3245,16 +3246,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? formatMoney(currency, (typeof market === 'number' ? market : Number(market)) * (pct / 100))
                 : null;
 
-            const bits = [
-                marketText ? `market ${marketText}` : null,
-                tradeText ? `@${pct}% ${tradeText}` : null,
-            ].filter(Boolean);
-
-            if (bits.length) {
-                const prefix = conditionKey
-                    ? (type ? `${conditionKey} (${type})` : conditionKey)
-                    : (type ? `(${type})` : '');
-                const line = prefix ? `${prefix}: ${bits.join(' • ')}` : bits.join(' • ');
+            if (marketText) {
+                const prefix = conditionKey || 'VALUE';
+                const line = tradeText
+                    ? `${prefix}: ${marketText} @${pct}% ${tradeText}`
+                    : `${prefix}: ${marketText}`;
                 lines.push({ rank, line });
                 continue;
             }
@@ -3272,6 +3268,113 @@ document.addEventListener('DOMContentLoaded', function () {
             return lines.map((x) => x.line).join('\n');
         }
         return 'No prices available for the selected conditions';
+    }
+
+    function extractConditionCodeFromLabel(labelText) {
+        const label = safeString(labelText, '').trim();
+        if (!label) return '';
+
+        const shorthand = label.match(/^(NM|LP|MP|HP|DM)\b/i);
+        if (shorthand) return String(shorthand[1] || '').toUpperCase();
+
+        return normalizeConditionKey(label);
+    }
+
+    function doesPriceTextCoverSelectedFilters(rawText) {
+        const text = safeString(rawText, '').trim();
+        if (!text) return false;
+
+        const lines = text
+            .split(/\r?\n/)
+            .map((line) => safeString(line, '').trim())
+            .filter(Boolean);
+        if (!lines.length) return false;
+
+        const coveredFilterKeys = new Set();
+        for (const line of lines) {
+            const colonAt = line.indexOf(':');
+            const prefix = colonAt > 0 ? safeString(line.slice(0, colonAt), '').trim() : '';
+            const code = extractConditionCodeFromLabel(prefix);
+            if (!code) continue;
+            coveredFilterKeys.add(toConditionFilterKey(code));
+        }
+
+        if (coveredFilterKeys.size === 0) return false;
+
+        for (const selectedKey of selectedConditionFilters) {
+            if (!coveredFilterKeys.has(selectedKey)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function formatPriceDisplayHtml(rawText) {
+        const text = safeString(rawText, '').trim();
+        if (!text) return '';
+
+        if (/loading prices|unable to load prices|select a holo type|no prices/i.test(text)) {
+            return `<span class="pv-priceMessage">${escapeHtml(text)}</span>`;
+        }
+
+        const lines = text
+            .split(/\r?\n/)
+            .map((line) => safeString(line, '').trim())
+            .filter(Boolean);
+
+        if (!lines.length) {
+            return `<span class="pv-priceMessage">${escapeHtml(text)}</span>`;
+        }
+
+        const out = [];
+        for (const line of lines) {
+            const colonAt = line.indexOf(':');
+            const hasPrefix = colonAt > 0;
+            const prefix = hasPrefix ? safeString(line.slice(0, colonAt), '').trim() : '';
+            const body = hasPrefix ? safeString(line.slice(colonAt + 1), '').trim() : line;
+
+            const code = extractConditionCodeFromLabel(prefix);
+            const conditionLabel = code || prefix;
+            const marketMatch = body.match(/(\$[0-9]+(?:\.[0-9]+)?)/);
+            const tradeMatch = body.match(/@([0-9]+(?:\.[0-9]+)?)%\s*(\$[0-9]+(?:\.[0-9]+)?)/i);
+
+            if (!marketMatch) {
+                out.push(`<div class="pv-priceLine pv-priceLine--raw">${escapeHtml(line)}</div>`);
+                continue;
+            }
+
+            const marketValue = safeString(marketMatch[1], '').trim();
+            const tradePct = tradeMatch ? safeString(tradeMatch[1], '').trim() : '';
+            const tradeValue = tradeMatch ? safeString(tradeMatch[2], '').trim() : '';
+
+            const valueBits = [
+                `<span class="pv-priceToken pv-priceToken--market"><span class="pv-priceToken__amount">${escapeHtml(marketValue)}</span></span>`,
+                tradeMatch
+                    ? `<span class="pv-priceToken pv-priceToken--trade"><span class="pv-priceToken__label">@${escapeHtml(tradePct)}%</span><span class="pv-priceToken__amount">${escapeHtml(tradeValue)}</span></span>`
+                    : '',
+            ].filter(Boolean);
+
+            const valuesHtml = valueBits.join(' ');
+
+            if (conditionLabel) {
+                out.push(`<div class="pv-priceLine"><span class="pv-priceLine__condition">${escapeHtml(conditionLabel)}:</span><span class="pv-priceLine__values">${valuesHtml}</span></div>`);
+            } else {
+                out.push(`<div class="pv-priceLine"><span class="pv-priceLine__values">${valuesHtml}</span></div>`);
+            }
+        }
+
+        return out.join('\n');
+    }
+
+    function setCardPricesDisplay(pricesEl, text) {
+        if (!pricesEl) return;
+        const formattedText = safeString(text, '');
+        if (!formattedText.trim()) {
+            pricesEl.textContent = '';
+            return;
+        }
+        pricesEl.innerHTML = formatPriceDisplayHtml(formattedText);
     }
 
     function formatUsd(amount) {
@@ -3617,8 +3720,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </details>
                             </div>
                         </div>
-                        <p class="pv-card__text pv-dexCard__setName">${setNameHtml}</p>
-                        <p class="pv-card__text pv-dexCard__meta">${rarity ? rarityHtml : 'n/a'}</p>
+                        <p class="pv-card__text pv-dexCard__setName pv-card__setName">${setNameHtml}</p>
+                        <p class="pv-card__text pv-dexCard__meta pv-card__rarity">${rarity ? rarityHtml : 'n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
                             <select class="form-select pv-selectCompact pv-selectVariant" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
@@ -3627,7 +3730,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                         ${conditionFieldHtml}
                         ${tradeFieldHtml}
-                        <pre class="pv-card__text pv-dexCard__prices" id="pv-prices-${idAttr}" style="white-space:pre-wrap;margin:0"></pre>
+                        <div class="pv-card__text pv-dexCard__prices pv-card__prices" id="pv-prices-${idAttr}" aria-live="polite"></div>
                     </div>
                 </div>
             `;
@@ -3901,7 +4004,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!pricesEl) return;
                 if (!lastLoadedPrices || !Array.isArray(lastLoadedPrices)) return;
                 const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
-                pricesEl.textContent = formatted;
+                setCardPricesDisplay(pricesEl, formatted);
                 const market = getMarketFromPricesForTotals(lastLoadedPrices);
                 setSearchCardValue(id, market);
                 if (searchSortState.active === 'value') {
@@ -3917,7 +4020,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
                 if (!variantName) {
-                    pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
+                    setCardPricesDisplay(pricesEl, variants.length ? 'Select a holo type to load prices.' : '');
                     return;
                 }
 
@@ -3931,7 +4034,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     lastLoadedVariantName = variantName;
                     lastLoadedPrices = localPrices;
                     const formatted = formatPriceList(localPrices, getSelectedTradePercent());
-                    pricesEl.textContent = formatted;
+                    setCardPricesDisplay(pricesEl, formatted);
                     const market = getMarketFromPricesForTotals(localPrices);
                     setSearchCardValue(id, market);
                     if (searchSortState.active === 'value') {
@@ -3941,7 +4044,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                pricesEl.textContent = 'Loading prices…';
+                setCardPricesDisplay(pricesEl, 'Loading prices…');
                 try {
                     const base = getWorkerBase();
                     const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
@@ -3952,7 +4055,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     lastLoadedVariantName = variantName;
                     lastLoadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(lastLoadedPrices, getSelectedTradePercent());
-                    pricesEl.textContent = formatted;
+                    setCardPricesDisplay(pricesEl, formatted);
                     const market = getMarketFromPricesForTotals(lastLoadedPrices);
                     setSearchCardValue(id, market);
                     if (searchSortState.active === 'value') {
@@ -3978,7 +4081,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         renderFavorites(restored || undefined);
                     }
                 } catch (e) {
-                    pricesEl.textContent = 'Unable to load prices.';
+                    setCardPricesDisplay(pricesEl, 'Unable to load prices.');
                     console.warn('[PokeValutor] prices error', e);
                 }
             }
@@ -3994,7 +4097,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedVariantName = restoredVariant;
                         lastLoadedPrices = restoredPrices;
                         const formatted = formatPriceList(restoredPrices, getSelectedTradePercent());
-                        pricesEl.textContent = formatted;
+                        setCardPricesDisplay(pricesEl, formatted);
                         const market = getMarketFromPricesForTotals(restoredPrices);
                         setSearchCardValue(id, market);
                         if (searchSortState.active === 'value') {
@@ -4002,7 +4105,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         persistSelection(restoredVariant, formatted);
                     } else if (restoredSelection.pricesText && !isDexPage) {
-                        pricesEl.textContent = String(restoredSelection.pricesText);
+                        setCardPricesDisplay(pricesEl, String(restoredSelection.pricesText));
                         lastLoadedVariantName = restoredVariant;
                         const market = getMarketFromPricesText(restoredSelection.pricesText);
                         setSearchCardValue(id, market);
@@ -4016,6 +4119,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             card.pricesText = String(restoredSelection.pricesText);
                         } catch {
                             // ignore
+                        }
+
+                        if (!doesPriceTextCoverSelectedFilters(restoredSelection.pricesText)) {
+                            void showPricesForSelectedVariant();
                         }
                     } else {
                         // If pricesText is missing, trigger loading
@@ -4050,7 +4157,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedVariantName = bestVariant;
                         lastLoadedPrices = p;
                         const formatted = formatPriceList(p, getSelectedTradePercent());
-                        pricesEl.textContent = formatted;
+                        setCardPricesDisplay(pricesEl, formatted);
                         const market = getMarketFromPricesForTotals(p);
                         setSearchCardValue(id, market);
                         if (searchSortState.active === 'value') {
@@ -4058,7 +4165,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         persistSelection(bestVariant, formatted);
                     } else {
-                        pricesEl.textContent = variants.length ? 'Select a holo type to load prices.' : '';
+                        setCardPricesDisplay(pricesEl, variants.length ? 'Select a holo type to load prices.' : '');
                     }
                     }
                 }

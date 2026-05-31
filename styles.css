@@ -2930,6 +2930,161 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin: 0.18rem 0;
 }
 
+#pv-search-body .pv-searchCol .pv-card__title,
+#pv-search-body .pv-favoritesCol .pv-card__title {
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+#pv-search-body .pv-searchCol .pv-card__titleLink,
+#pv-search-body .pv-favoritesCol .pv-card__titleLink {
+  color: #f8fafc;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+#pv-search-body .pv-searchCol .pv-card__setName,
+#pv-search-body .pv-favoritesCol .pv-card__setName {
+  color: #dbeafe;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.32;
+  margin: 0.22rem 0 0.44rem;
+}
+
+#pv-search-body .pv-searchCol .pv-card__rarity,
+#pv-search-body .pv-favoritesCol .pv-card__rarity,
+#pv-search-body .pv-searchCol .pv-card__variant,
+#pv-search-body .pv-favoritesCol .pv-card__variant {
+  color: #bfccde;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.28;
+  margin: 0;
+}
+
+#pv-search-body .pv-searchCol .pv-card__prices,
+#pv-search-body .pv-favoritesCol .pv-card__prices {
+  margin: 0.28rem 0 0;
+  padding: 0.5rem 0.56rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 203, 5, 0.42);
+  background: linear-gradient(160deg, rgba(35, 26, 7, 0.95), rgba(13, 20, 34, 0.94));
+  color: #f8fafc;
+  display: grid;
+  gap: 0.2rem;
+  min-height: 3.2em;
+}
+
+#pv-search-body .pv-searchCol .pv-priceMessage,
+#pv-search-body .pv-favoritesCol .pv-priceMessage {
+  color: #dbeafe;
+  font-size: 0.79rem;
+  line-height: 1.32;
+}
+
+#pv-search-body .pv-searchCol .pv-priceLine,
+#pv-search-body .pv-favoritesCol .pv-priceLine {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.24rem;
+}
+
+#pv-search-body .pv-searchCol .pv-priceLine__condition,
+#pv-search-body .pv-favoritesCol .pv-priceLine__condition {
+  color: #cbd5e1;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#pv-search-body .pv-searchCol .pv-priceLine__values,
+#pv-search-body .pv-favoritesCol .pv-priceLine__values {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0.24rem;
+  white-space: nowrap;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken,
+#pv-search-body .pv-favoritesCol .pv-priceToken {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.18rem;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken__label,
+#pv-search-body .pv-favoritesCol .pv-priceToken__label {
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken__amount,
+#pv-search-body .pv-favoritesCol .pv-priceToken__amount {
+  font-size: 0.9rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken--market .pv-priceToken__amount,
+#pv-search-body .pv-favoritesCol .pv-priceToken--market .pv-priceToken__amount {
+  color: #fde68a;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken--trade .pv-priceToken__amount,
+#pv-search-body .pv-favoritesCol .pv-priceToken--trade .pv-priceToken__amount {
+  color: #86efac;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken--trade .pv-priceToken__label,
+#pv-search-body .pv-favoritesCol .pv-priceToken--trade .pv-priceToken__label {
+  color: #94a3b8;
+}
+
+#pv-search-body .pv-searchCol .pv-priceToken__sep,
+#pv-search-body .pv-favoritesCol .pv-priceToken__sep {
+  color: rgba(148, 163, 184, 0.68);
+  font-size: 0.64rem;
+  transform: translateY(-1px);
+  display: none;
+}
+
+@media (max-width: 575.98px) {
+  #pv-search-body .pv-searchCol .pv-card__prices,
+  #pv-search-body .pv-favoritesCol .pv-card__prices {
+    padding: 0.44rem 0.5rem;
+  }
+
+  #pv-search-body .pv-searchCol .pv-priceLine,
+  #pv-search-body .pv-favoritesCol .pv-priceLine {
+    gap: 0.22rem;
+  }
+
+  #pv-search-body .pv-searchCol .pv-priceLine__condition,
+  #pv-search-body .pv-favoritesCol .pv-priceLine__condition {
+    font-size: 0.64rem;
+  }
+
+  #pv-search-body .pv-searchCol .pv-priceLine__values,
+  #pv-search-body .pv-favoritesCol .pv-priceLine__values {
+    flex-wrap: wrap;
+    gap: 0.24rem;
+  }
+
+  #pv-search-body .pv-searchCol .pv-priceToken__amount,
+  #pv-search-body .pv-favoritesCol .pv-priceToken__amount {
+    font-size: 0.91rem;
+  }
+}
+
 #pv-sealed-body #pv-sealed-grid .pv-qtyStepper--sealed,
 #pv-sealed-body #pv-sealed-favorites-grid .pv-qtyStepper--sealed {
   gap: 0.24rem;
