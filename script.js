@@ -43,6 +43,30 @@
     }
   }
 
+  function ensureHeaderDiscordNavLink() {
+    const navLists = Array.from(document.querySelectorAll('.pv-nav__list'));
+
+    for (const navList of navLists) {
+      if (!(navList instanceof HTMLElement)) continue;
+      if (navList.querySelector('a[data-pv-discord-nav="1"]')) continue;
+
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+
+      item.className = 'pv-nav__item';
+      link.className = 'pv-nav__link';
+      link.href = DISCORD_INVITE_URL;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.dataset.pvDiscordNav = '1';
+      link.setAttribute('aria-label', 'Join our Discord community (opens in a new tab)');
+      link.textContent = 'Discord';
+
+      item.appendChild(link);
+      navList.appendChild(item);
+    }
+  }
+
   // Mobile nav toggles with ARIA sync (works across pages)
   const navToggles = Array.from(document.querySelectorAll('.pv-navToggle'));
   for (const btn of navToggles) {
@@ -99,6 +123,13 @@
       }
     }
 
+    // Keep Discord in the desktop overflow menu and place it last.
+    const discordLink = topLevelLinks.find((candidate) => candidate.dataset.pvDiscordNav === '1');
+    const discordItem = discordLink?.closest('.pv-nav__item');
+    if (discordItem && !overflowItems.includes(discordItem)) {
+      overflowItems.push(discordItem);
+    }
+
     if (!overflowItems.length) return;
 
     const moreItem = document.createElement('li');
@@ -127,6 +158,16 @@
       menuLink.className = 'pv-navMore__link';
       menuLink.href = String(sourceLink.getAttribute('href') || '#');
       menuLink.textContent = String(sourceLink.textContent || '').trim() || 'Link';
+
+      if (sourceLink.hasAttribute('target')) {
+        menuLink.setAttribute('target', String(sourceLink.getAttribute('target') || ''));
+      }
+      if (sourceLink.hasAttribute('rel')) {
+        menuLink.setAttribute('rel', String(sourceLink.getAttribute('rel') || ''));
+      }
+      if (sourceLink.hasAttribute('aria-label')) {
+        menuLink.setAttribute('aria-label', String(sourceLink.getAttribute('aria-label') || ''));
+      }
 
       if (sourceLink.hasAttribute('aria-current')) {
         menuLink.setAttribute('aria-current', String(sourceLink.getAttribute('aria-current') || 'page'));
@@ -285,6 +326,7 @@
   }
 
   markPricingNavLinks();
+  ensureHeaderDiscordNavLink();
   setupDesktopNavOverflow();
   setupAuthAwarePricingNavVisibility();
   ensureFooterDiscordLink();
