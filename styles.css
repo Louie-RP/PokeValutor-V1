@@ -3119,6 +3119,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   display: grid;
   gap: 0.2rem;
   min-height: 3.2em;
+  overflow: hidden;
 }
 
 #pv-search-body .pv-searchCol .pv-priceMessage,
@@ -3130,10 +3131,11 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 #pv-search-body .pv-searchCol .pv-priceLine,
 #pv-search-body .pv-favoritesCol .pv-priceLine {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
   gap: 0.24rem;
+  min-width: 0;
 }
 
 #pv-search-body .pv-searchCol .pv-priceLine__condition,
@@ -3148,11 +3150,15 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 #pv-search-body .pv-searchCol .pv-priceLine__values,
 #pv-search-body .pv-favoritesCol .pv-priceLine__values {
-  display: inline-flex;
+  display: flex;
   flex-wrap: nowrap;
   align-items: baseline;
   gap: 0.24rem;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-end;
+  overflow: hidden;
 }
 
 #pv-search-body .pv-searchCol .pv-priceToken,
@@ -3160,6 +3166,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   display: inline-flex;
   align-items: baseline;
   gap: 0.18rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 #pv-search-body .pv-searchCol .pv-priceToken__label,
@@ -3177,6 +3185,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   font-weight: 850;
   letter-spacing: 0.01em;
   font-variant-numeric: tabular-nums;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
 }
 
 #pv-search-body .pv-searchCol .pv-priceToken--market .pv-priceToken__amount,
@@ -3205,28 +3216,40 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 @media (max-width: 575.98px) {
   #pv-search-body .pv-searchCol .pv-card__prices,
   #pv-search-body .pv-favoritesCol .pv-card__prices {
-    padding: 0.44rem 0.5rem;
+    padding: 0.4rem 0.44rem;
   }
 
   #pv-search-body .pv-searchCol .pv-priceLine,
   #pv-search-body .pv-favoritesCol .pv-priceLine {
-    gap: 0.22rem;
+    gap: 0.16rem;
   }
 
   #pv-search-body .pv-searchCol .pv-priceLine__condition,
   #pv-search-body .pv-favoritesCol .pv-priceLine__condition {
-    font-size: 0.64rem;
+    font-size: clamp(0.56rem, 2.15vw, 0.62rem);
+    letter-spacing: 0.04em;
   }
 
   #pv-search-body .pv-searchCol .pv-priceLine__values,
   #pv-search-body .pv-favoritesCol .pv-priceLine__values {
-    flex-wrap: wrap;
-    gap: 0.24rem;
+    flex-wrap: nowrap;
+    gap: 0.1rem;
+  }
+
+  #pv-search-body .pv-searchCol .pv-priceToken,
+  #pv-search-body .pv-favoritesCol .pv-priceToken {
+    gap: 0.1rem;
   }
 
   #pv-search-body .pv-searchCol .pv-priceToken__amount,
   #pv-search-body .pv-favoritesCol .pv-priceToken__amount {
-    font-size: 0.91rem;
+    font-size: clamp(0.68rem, 2.55vw, 0.82rem);
+  }
+
+  #pv-search-body .pv-searchCol .pv-priceToken__label,
+  #pv-search-body .pv-favoritesCol .pv-priceToken__label {
+    font-size: clamp(0.5rem, 1.95vw, 0.62rem);
+    letter-spacing: 0.04em;
   }
 }
 
