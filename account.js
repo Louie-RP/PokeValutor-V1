@@ -483,17 +483,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderPremiumCollectionOptions(meta) {
         const normalized = normalizeCollectionsMeta(meta, { premium: true });
-        const optionsHtml = normalized.collections
-            .map((entry) => {
+
+        const buildOptionNodes = () => {
+            return normalized.collections.map((entry) => {
+                const option = document.createElement('option');
                 const label = entry.id === DEX_DEFAULT_COLLECTION_ID
                     ? `${entry.name} (included)`
                     : entry.name;
-                return `<option value="${entry.id}">${label}</option>`;
-            })
-            .join('');
+                option.value = entry.id;
+                option.textContent = label;
+                return option;
+            });
+        };
 
         if (premiumCollectionSelectEl instanceof HTMLSelectElement) {
-            premiumCollectionSelectEl.innerHTML = optionsHtml;
+            premiumCollectionSelectEl.replaceChildren(...buildOptionNodes());
             premiumCollectionSelectEl.value = normalized.activeCollectionId;
         }
 
@@ -504,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function () {
             );
             const hasPreviousExportId = normalized.collections.some((entry) => entry.id === previousExportId);
 
-            premiumExportCollectionSelectEl.innerHTML = optionsHtml;
+            premiumExportCollectionSelectEl.replaceChildren(...buildOptionNodes());
             premiumExportCollectionSelectEl.value = hasPreviousExportId
                 ? previousExportId
                 : normalized.activeCollectionId;
