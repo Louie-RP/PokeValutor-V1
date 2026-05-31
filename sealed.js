@@ -1538,6 +1538,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return formatCurrency(quote.market, quote.currency);
     }
 
+    function getSealedSetName(productLike) {
+        const expansionName = safeString(productLike?.expansion?.name, '');
+        const setName = safeString(productLike?.set?.name, '');
+        const directSetName = safeString(productLike?.setName ?? productLike?.set_name, '');
+        const directExpansionName = safeString(productLike?.expansionName ?? productLike?.expansion_name, '');
+        return expansionName || setName || directSetName || directExpansionName || 'n/a';
+    }
+
+    function getSealedSeriesLabel(productLike) {
+        const series = safeString(productLike?.expansion?.series ?? productLike?.series, '');
+        return series || 'Sealed product';
+    }
+
     function normalizeTradePercent(raw) {
         const n = Number(raw);
         if (!Number.isFinite(n)) return DEFAULT_TRADE_PERCENT;
@@ -1594,14 +1607,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function buildMarketLine(product, tradePercent) {
+    function buildMarketLineHtml(product, tradePercent) {
         const quote = getMarketQuote(product);
-        if (!quote) return 'Market: N/A';
+        if (!quote) {
+            return '<span class="pv-priceMessage">Market price unavailable.</span>';
+        }
 
         const pct = normalizeTradePercent(tradePercent);
         const marketText = formatCurrency(quote.market, quote.currency);
         const tradeText = formatCurrency(quote.market * (pct / 100), quote.currency);
-        return `Market: ${marketText} • @${pct}% ${tradeText}`;
+
+        return `<div class="pv-priceLine"><span class="pv-priceLine__condition">Value:</span><span class="pv-priceLine__values"><span class="pv-priceToken pv-priceToken--market"><span class="pv-priceToken__amount">${escapeHtml(marketText)}</span></span></span></div><div class="pv-priceLine pv-priceLine--tradeRow"><span class="pv-priceLine__condition">Trade:</span><span class="pv-priceLine__values"><span class="pv-priceToken pv-priceToken--trade"><span class="pv-priceToken__label">@${escapeHtml(String(pct))}%</span><span class="pv-priceToken__amount">${escapeHtml(tradeText)}</span></span></span></div>`;
     }
 
     function setFavoritesTotalsText(totalText, tradeText) {
@@ -1716,10 +1732,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const fav of sortedFavorites) {
             const col = document.createElement('div');
-            col.className = 'col-6 col-sm-6 col-lg-4';
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-sealedCol';
 
             const card = document.createElement('div');
-            card.className = 'pv-card pv-card--sealed';
+            card.className = 'pv-card pv-card--sealed h-100';
+
+            const mediaWrap = document.createElement('div');
+            mediaWrap.className = 'pv-card__imgLink pv-card__imgLink--sealed';
+            mediaWrap.setAttribute('aria-hidden', 'true');
 
             const imgUrl = pickFrontSmallImage(fav?.images);
             if (imgUrl) {
@@ -1728,8 +1748,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 img.loading = 'lazy';
                 img.alt = String(fav?.name || 'Sealed product');
                 img.src = imgUrl;
-                card.appendChild(img);
+                mediaWrap.appendChild(img);
             }
+
+            card.appendChild(mediaWrap);
 
             const body = document.createElement('div');
             body.className = 'pv-card__body';
@@ -1765,13 +1787,13 @@ document.addEventListener('DOMContentLoaded', function () {
             header.appendChild(title);
             header.appendChild(actions);
 
-            const expName = String(fav?.expansion?.name || '');
-            const expSeries = String(fav?.expansion?.series || '');
-            const expansionLine = document.createElement('p');
-            expansionLine.className = 'pv-card__text';
-            expansionLine.textContent = expName && expSeries
-                ? `Expansion: ${expName} • ${expSeries}`
-                : (expName ? `Expansion: ${expName}` : (expSeries ? `Series: ${expSeries}` : 'Expansion: N/A'));
+            const setNameLine = document.createElement('p');
+            setNameLine.className = 'pv-card__text pv-card__setName';
+            setNameLine.textContent = getSealedSetName(fav);
+
+            const metaLine = document.createElement('p');
+            metaLine.className = 'pv-card__text pv-card__rarity';
+            metaLine.textContent = getSealedSeriesLabel(fav);
 
             const tradeField = document.createElement('div');
             tradeField.className = 'pv-form__field';
@@ -1793,19 +1815,20 @@ document.addEventListener('DOMContentLoaded', function () {
             tradeField.appendChild(tradeLabel);
             tradeField.appendChild(tradeSelect);
 
-            const marketLine = document.createElement('p');
-            marketLine.className = 'pv-card__text';
-            marketLine.textContent = buildMarketLine(fav, pct);
+            const marketLine = document.createElement('div');
+            marketLine.className = 'pv-card__text pv-card__prices';
+            marketLine.innerHTML = buildMarketLineHtml(fav, pct);
 
             tradeSelect.addEventListener('change', () => {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
-                marketLine.textContent = buildMarketLine(fav, nextPct);
+                marketLine.innerHTML = buildMarketLineHtml(fav, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
                 updateFavoritesTotals(loadLastResults() || restoreState);
             });
 
             body.appendChild(header);
-            body.appendChild(expansionLine);
+            body.appendChild(setNameLine);
+            body.appendChild(metaLine);
             body.appendChild(tradeField);
             body.appendChild(marketLine);
             card.appendChild(body);
@@ -1849,13 +1872,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
         for (const p of sortedProducts) {
             const col = document.createElement('div');
-            col.className = 'col-6 col-sm-6 col-lg-4 pv-sealedCol';
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-sealedCol';
             const productId = safeString(p?.id, '');
             col.setAttribute('data-product-id', escapeAttr(productId));
             col.setAttribute('data-product-name', escapeAttr(safeString(p?.name, '')));
 
             const card = document.createElement('div');
-            card.className = 'pv-card pv-card--sealed';
+            card.className = 'pv-card pv-card--sealed h-100';
+
+            const mediaWrap = document.createElement('div');
+            mediaWrap.className = 'pv-card__imgLink pv-card__imgLink--sealed';
+            mediaWrap.setAttribute('aria-hidden', 'true');
 
             const imgUrl = pickFrontSmallImage(p?.images);
             if (imgUrl) {
@@ -1864,8 +1891,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 img.loading = 'lazy';
                 img.alt = String(p?.name || 'Sealed product');
                 img.src = imgUrl;
-                card.appendChild(img);
+                mediaWrap.appendChild(img);
             }
+
+            card.appendChild(mediaWrap);
 
             const body = document.createElement('div');
             body.className = 'pv-card__body';
@@ -1901,13 +1930,13 @@ document.addEventListener('DOMContentLoaded', function () {
             header.appendChild(title);
             header.appendChild(actions);
 
-            const expName = String(p?.expansion?.name || '');
-            const expSeries = String(p?.expansion?.series || '');
-            const expansionLine = document.createElement('p');
-            expansionLine.className = 'pv-card__text';
-            expansionLine.textContent = expName && expSeries
-                ? `Expansion: ${expName} • ${expSeries}`
-                : (expName ? `Expansion: ${expName}` : (expSeries ? `Series: ${expSeries}` : 'Expansion: N/A'));
+            const setNameLine = document.createElement('p');
+            setNameLine.className = 'pv-card__text pv-card__setName';
+            setNameLine.textContent = getSealedSetName(p);
+
+            const metaLine = document.createElement('p');
+            metaLine.className = 'pv-card__text pv-card__rarity';
+            metaLine.textContent = getSealedSeriesLabel(p);
 
             const tradeField = document.createElement('div');
             tradeField.className = 'pv-form__field';
@@ -1929,18 +1958,19 @@ document.addEventListener('DOMContentLoaded', function () {
             tradeField.appendChild(tradeLabel);
             tradeField.appendChild(tradeSelect);
 
-            const marketLine = document.createElement('p');
-            marketLine.className = 'pv-card__text';
-            marketLine.textContent = buildMarketLine(p, pct);
+            const marketLine = document.createElement('div');
+            marketLine.className = 'pv-card__text pv-card__prices';
+            marketLine.innerHTML = buildMarketLineHtml(p, pct);
 
             tradeSelect.addEventListener('change', () => {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
-                marketLine.textContent = buildMarketLine(p, nextPct);
+                marketLine.innerHTML = buildMarketLineHtml(p, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
             });
 
             body.appendChild(header);
-            body.appendChild(expansionLine);
+            body.appendChild(setNameLine);
+            body.appendChild(metaLine);
             body.appendChild(tradeField);
             body.appendChild(marketLine);
 
