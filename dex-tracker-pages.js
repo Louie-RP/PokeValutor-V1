@@ -2190,24 +2190,31 @@
 
                     return `
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-entry-key="${escapeAttr(entryKey)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
-                        <article class="pv-card h-100" aria-label="${namePlain}">
-                            ${img ? `<img class="pv-card__img pv-card__img--sealed" src="${img}" alt="${namePlain} sealed product image"/>` : ''}
+                        <article class="pv-card pv-dexCard pv-dexCard--sealed h-100" aria-label="${namePlain}">
+                            <div class="pv-card__imgLink pv-card__imgLink--sealed" aria-hidden="true">
+                                ${img ? `<img class="pv-card__img pv-card__img--sealed" src="${img}" alt="${namePlain} sealed product image"/>` : ''}
+                            </div>
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
-                                <p class="pv-card__text">${setName}</p>
-                                <p class="pv-card__text">Type: ${typeLabel}</p>
-                                <p class="pv-card__text">Sealed product</p>
-                                <p class="pv-card__text">Quantity: ${quantity}</p>
-                                <div class="pv-conditionQtyRow">
-                                    <p class="pv-card__text pv-conditionQtyLabel">Collection Qty</p>
-                                    <div class="pv-qtyStepper" role="group" aria-label="Adjust sealed quantity for ${nameAttr}">
-                                        <button class="pv-button btn pv-qtyBtn" type="button" data-qty-dec-sealed-id="${escapeAttr(id)}" aria-label="Decrease sealed quantity for ${nameAttr}">-</button>
-                                        <span class="pv-qtyValue">${quantity}</span>
-                                        <button class="pv-button btn pv-qtyBtn" type="button" data-qty-inc-sealed-id="${escapeAttr(id)}" aria-label="Increase sealed quantity for ${nameAttr}">+</button>
-                                    </div>
-                                </div>
+                                <p class="pv-card__text pv-dexCard__setName">${setName}</p>
+                                <p class="pv-card__text pv-dexCard__meta">Type: ${typeLabel}</p>
+                                <p class="pv-card__text pv-dexCard__meta">Sealed product</p>
+                                <p class="pv-card__text pv-dexCard__meta">Quantity: ${quantity}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
-                                <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-sealed-id="${escapeAttr(id)}">Remove Sealed</button>
+                                <details class="pv-dexCard__manage">
+                                    <summary class="pv-dexCard__manageSummary">Manage quantity</summary>
+                                    <div class="pv-dexCard__manageBody">
+                                        <div class="pv-conditionQtyRow">
+                                            <p class="pv-card__text pv-conditionQtyLabel">Collection Qty</p>
+                                            <div class="pv-qtyStepper" role="group" aria-label="Adjust sealed quantity for ${nameAttr}">
+                                                <button class="pv-button btn pv-qtyBtn" type="button" data-qty-dec-sealed-id="${escapeAttr(id)}" aria-label="Decrease sealed quantity for ${nameAttr}">-</button>
+                                                <span class="pv-qtyValue">${quantity}</span>
+                                                <button class="pv-button btn pv-qtyBtn" type="button" data-qty-inc-sealed-id="${escapeAttr(id)}" aria-label="Increase sealed quantity for ${nameAttr}">+</button>
+                                            </div>
+                                        </div>
+                                        <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-sealed-id="${escapeAttr(id)}">Remove Sealed</button>
+                                    </div>
+                                </details>
                             </div>
                         </article>
                     </div>
@@ -2243,24 +2250,29 @@
 
                 return `
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-collectionCol" data-entry-key="${escapeAttr(entryKey)}" data-card-id="${escapeAttr(id)}" data-card-name="${escapeAttr(cardName)}" data-search-score="${relevanceScore}">
-                        <article class="pv-card h-100" aria-label="${namePlain}">
+                        <article class="pv-card pv-dexCard pv-dexCard--card h-100" aria-label="${namePlain}">
                             ${img ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${img}" alt="${namePlain} card image"/></a>` : ''}
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
-                                <p class="pv-card__text">${setName}</p>
-                                <p class="pv-card__text">${rarity}</p>
-                                <p class="pv-card__text">Copies: ${copyCount}</p>
+                                <p class="pv-card__text pv-dexCard__setName">${setName}</p>
+                                <p class="pv-card__text pv-dexCard__meta">${rarity}</p>
+                                <p class="pv-card__text pv-dexCard__meta">Copies: ${copyCount}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
-                                <div class="pv-conditionQtyList">
-                                    ${conditionRows}
-                                </div>
-                                <div class="pv-conditionAddRow">
-                                    <select id="${escapeAttr(addConditionSelectId)}" class="form-select pv-conditionSelect" aria-label="Select condition to add for ${nameAttr}">
-                                        ${addConditionOptions}
-                                    </select>
-                                    <button class="pv-button btn pv-addConditionBtn" type="button" data-add-condition-card-id="${escapeAttr(id)}" data-add-condition-select-id="${escapeAttr(addConditionSelectId)}">Add Copy</button>
-                                </div>
-                                <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-card-id="${escapeHtml(id)}">Remove Card</button>
+                                <details class="pv-dexCard__manage">
+                                    <summary class="pv-dexCard__manageSummary">Manage copies</summary>
+                                    <div class="pv-dexCard__manageBody">
+                                        <div class="pv-conditionQtyList">
+                                            ${conditionRows}
+                                        </div>
+                                        <div class="pv-conditionAddRow">
+                                            <select id="${escapeAttr(addConditionSelectId)}" class="form-select pv-conditionSelect" aria-label="Select condition to add for ${nameAttr}">
+                                                ${addConditionOptions}
+                                            </select>
+                                            <button class="pv-button btn pv-addConditionBtn" type="button" data-add-condition-card-id="${escapeAttr(id)}" data-add-condition-select-id="${escapeAttr(addConditionSelectId)}">Add Copy</button>
+                                        </div>
+                                        <button class="pv-button btn pv-removeCardBtn" type="button" data-remove-card-id="${escapeHtml(id)}">Remove Card</button>
+                                    </div>
+                                </details>
                             </div>
                         </article>
                     </div>

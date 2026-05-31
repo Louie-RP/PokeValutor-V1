@@ -3583,12 +3583,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const detailPath = buildCardDetailPath(card);
             const detailPathAttr = escapeAttr(detailPath);
             const moreActionsLabelAttr = escapeAttr('More card actions');
+            const dexCardClass = isDexPage ? ' pv-dexCard pv-dexCard--search' : '';
 
             col.setAttribute('data-card-id', id);
             col.setAttribute('data-card-name', name);
 
             col.innerHTML = `
-                <div class="pv-card h-100">
+                <div class="pv-card h-100${dexCardClass}">
                     ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
                     <div class="pv-card__body">
                         <div class="pv-card__header">
@@ -3616,8 +3617,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </details>
                             </div>
                         </div>
-                        <p class="pv-card__text">${setNameHtml}</p>
-                        <p class="pv-card__text">${rarity ? rarityHtml : 'n/a'}</p>
+                        <p class="pv-card__text pv-dexCard__setName">${setNameHtml}</p>
+                        <p class="pv-card__text pv-dexCard__meta">${rarity ? rarityHtml : 'n/a'}</p>
                         <div class="pv-form__field" style="margin-bottom:0.5rem">
                             <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
                             <select class="form-select pv-selectCompact pv-selectVariant" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
@@ -3626,7 +3627,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                         ${conditionFieldHtml}
                         ${tradeFieldHtml}
-                        <pre class="pv-card__text" id="pv-prices-${idAttr}" style="white-space:pre-wrap;margin:0"></pre>
+                        <pre class="pv-card__text pv-dexCard__prices" id="pv-prices-${idAttr}" style="white-space:pre-wrap;margin:0"></pre>
                     </div>
                 </div>
             `;
