@@ -5,6 +5,7 @@
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
+    const CONDITION_CODE_ORDER = ['NM', 'LP', 'MP', 'HP', 'DM'];
 
     function safeString(value, fallback) {
         const text = String(value ?? '');
@@ -108,6 +109,63 @@
     function getTotalCopies(conditionQuantities, fallbackCondition) {
         const entries = getConditionEntries(conditionQuantities, fallbackCondition);
         return entries.reduce((sum, entry) => sum + entry.qty, 0);
+    }
+
+    function sortConditionEntries(entries) {
+        return entries.slice().sort((a, b) => {
+            const ai = CONDITION_CODE_ORDER.indexOf(a.code);
+            const bi = CONDITION_CODE_ORDER.indexOf(b.code);
+            const aRank = ai >= 0 ? ai : CONDITION_CODE_ORDER.length;
+            const bRank = bi >= 0 ? bi : CONDITION_CODE_ORDER.length;
+            if (aRank !== bRank) return aRank - bRank;
+            return a.code.localeCompare(b.code);
+        });
+    }
+
+    function getConditionValueBreakdown(item) {
+        const source = item?.raw || item || {};
+        const entries = sortConditionEntries(getConditionEntries(item?.conditionQuantities, item?.selectedCondition));
+        const selectedVariant = safeString(source?.selectedVariant ?? item?.selectedVariant, '').trim();
+        const variants = Array.isArray(source?.variants) ? source.variants : [];
+        const fallbackMarket = getFallbackMarket(source);
+
+        let pricedUnits = 0;
+        let computedTotal = 0;
+
+        const lines = entries.map((entry) => {
+            const best = getBestVariantMarket(variants, selectedVariant, entry.code);
+            const bestMarket = Number(best?.market);
+            const unitValue = Number.isFinite(bestMarket) && bestMarket > 0
+                ? bestMarket
+                : (Number.isFinite(fallbackMarket) && fallbackMarket > 0 ? fallbackMarket : null);
+            const totalValue = unitValue != null ? unitValue * entry.qty : null;
+
+            if (totalValue != null) {
+                pricedUnits += entry.qty;
+                computedTotal += totalValue;
+            }
+
+            return {
+                code: entry.code,
+                qty: entry.qty,
+                unitValue,
+                totalValue,
+            };
+        });
+
+        const totalUnits = entries.reduce((sum, entry) => sum + entry.qty, 0);
+        const itemTotalRaw = Number(item?.totalValue);
+        const itemTotal = Number.isFinite(itemTotalRaw) && itemTotalRaw > 0 ? itemTotalRaw : null;
+        const grandTotal = computedTotal > 0 ? computedTotal : itemTotal;
+        const fallbackPricedUnits = Math.max(0, Math.floor(Number(item?.pricedUnits || 0)));
+        const finalPricedUnits = pricedUnits > 0 ? pricedUnits : fallbackPricedUnits;
+
+        return {
+            lines,
+            totalUnits,
+            pricedUnits: Math.min(finalPricedUnits, totalUnits || finalPricedUnits),
+            grandTotal,
+        };
     }
 
     function getPrimaryConditionCode(conditionQuantities, fallbackCondition) {
@@ -464,17 +522,32 @@
         return SHARE_TOKEN_REGEX.test(token) ? token : '';
     }
 
-    function createCardHtml(item) {
+    function createCardHtml(item, itemKey) {
         const name = escapeHtml(item.name);
         const setName = escapeHtml(item.setName);
         const rarity = escapeHtml(item.rarity || 'n/a');
-        const number = escapeHtml(item.number || 'n/a');
+        const numberRaw = safeString(item.number, '').trim();
+        const number = escapeHtml(numberRaw);
         const copies = Math.max(0, Math.floor(Number(item.copies || 0)));
         const detailPath = buildCardDetailPath(item.raw);
         const detailPathAttr = escapeHtml(detailPath);
-        const conditionText = escapeHtml(formatConditionSummary(item.conditionQuantities, item.selectedCondition));
-        const unitValueText = item.unitValue != null ? formatUsd(item.unitValue) : '--';
-        const totalValueText = item.totalValue > 0 ? formatUsd(item.totalValue) : '--';
+        const conditionBreakdown = getConditionValueBreakdown(item);
+        const highestConditionLine = conditionBreakdown.lines.find((line) => line.unitValue != null)
+            || conditionBreakdown.lines[0]
+            || null;
+        const highestConditionValueText = highestConditionLine?.unitValue != null
+            ? formatUsd(highestConditionLine.unitValue)
+            : '--';
+        const highestConditionCode = safeString(highestConditionLine?.code, '');
+        const valueHint = highestConditionCode
+            ? `Highest-condition value shown (${highestConditionCode}).`
+            : 'Highest-condition value shown.';
+        const valueHintAttr = escapeHtml(valueHint);
+        const rarityMetaHtml = number
+            ? `<p class="pv-card__text pv-sharedMetaLine"><span class="pv-sharedRarity">${rarity}</span><span class="pv-sharedMetaDivider" aria-hidden="true">&#8226;</span><span class="pv-sharedCardNo">#${number}</span></p>`
+            : `<p class="pv-card__text pv-sharedMetaLine"><span class="pv-sharedRarity">${rarity}</span></p>`;
+        const copiesText = `${copies} ${copies === 1 ? 'copy' : 'copies'}`;
+        const copiesHtml = `<button type="button" class="pv-sharedCopiesBtn" data-shared-item-key="${escapeHtml(itemKey)}" aria-label="View condition breakdown for ${name}">${escapeHtml(copiesText)}</button>`;
         const imageHtml = item.image
             ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${name} details"><img class="pv-card__img" src="${escapeHtml(item.image)}" alt="${name} card image" /></a>`
             : '';
@@ -485,51 +558,223 @@
                     ${imageHtml}
                     <div class="pv-card__body">
                         <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${name} details">${name}</a></h3>
-                        <p class="pv-card__text">${setName}</p>
-                        <p class="pv-card__text">${rarity}</p>
-                        <p class="pv-card__text">Card number: ${number}</p>
-                        <p class="pv-card__text">Copies: ${copies}</p>
-                        <p class="pv-card__text">Value per copy: ${escapeHtml(unitValueText)}</p>
-                        <p class="pv-card__text">Item total: ${escapeHtml(totalValueText)}</p>
-                        <p class="pv-card__text pv-sharedConditionText">${conditionText}</p>
+                        <p class="pv-card__text pv-sharedSetName">${setName}</p>
+                        ${rarityMetaHtml}
+                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue">${escapeHtml(highestConditionValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
+                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Copies</span><span class="pv-sharedInfoValue">${copiesHtml}</span></p>
                     </div>
                 </article>
             </div>
         `;
     }
 
-    function createSealedHtml(item) {
+    function createConditionDialog() {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'pv-sharedConditionDialog';
+        dialog.innerHTML = `
+            <div class="pv-sharedConditionDialog__panel">
+                <h3 class="pv-sharedConditionDialog__title" id="pv-shared-condition-title">Conditions</h3>
+                <ul class="pv-sharedConditionDialog__list" id="pv-shared-condition-list"></ul>
+                <p class="pv-sharedConditionDialog__total" id="pv-shared-condition-total"></p>
+                <div class="pv-sharedConditionDialog__actions">
+                    <button type="button" class="pv-button pv-button--secondary btn" data-shared-condition-close>Close</button>
+                </div>
+            </div>
+        `;
+
+        const titleEl = dialog.querySelector('#pv-shared-condition-title');
+        const listEl = dialog.querySelector('#pv-shared-condition-list');
+        const totalEl = dialog.querySelector('#pv-shared-condition-total');
+        const closeBtn = dialog.querySelector('[data-shared-condition-close]');
+
+        if (closeBtn instanceof HTMLButtonElement) {
+            closeBtn.addEventListener('click', () => {
+                if (typeof dialog.close === 'function') dialog.close();
+            });
+        }
+
+        dialog.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement) || target !== dialog) return;
+            if (typeof dialog.close === 'function') dialog.close();
+        });
+
+        document.body.appendChild(dialog);
+
+        return {
+            open(item) {
+                const cleanName = safeString(item?.name, 'Card').trim() || 'Card';
+                const breakdown = getConditionValueBreakdown(item);
+                const coverage = breakdown.totalUnits > 0 && breakdown.pricedUnits < breakdown.totalUnits
+                    ? ` (${breakdown.pricedUnits}/${breakdown.totalUnits} priced)`
+                    : '';
+                const totalText = breakdown.grandTotal != null ? formatUsd(breakdown.grandTotal) : '--';
+
+                if (titleEl) titleEl.textContent = `${cleanName} conditions`;
+
+                if (listEl instanceof HTMLUListElement) {
+                    listEl.innerHTML = '';
+
+                    if (!breakdown.lines.length) {
+                        const emptyEl = document.createElement('li');
+                        emptyEl.className = 'pv-sharedConditionDialog__item pv-sharedConditionDialog__item--empty';
+                        emptyEl.textContent = 'No conditions recorded';
+                        listEl.appendChild(emptyEl);
+                    } else {
+                        for (const line of breakdown.lines) {
+                            const itemEl = document.createElement('li');
+                            itemEl.className = 'pv-sharedConditionDialog__item';
+
+                            const labelEl = document.createElement('span');
+                            labelEl.className = 'pv-sharedConditionDialog__itemLabel';
+                            labelEl.textContent = `${line.qty} x ${line.code}`;
+
+                            const valueEl = document.createElement('span');
+                            valueEl.className = 'pv-sharedConditionDialog__itemValue';
+                            if (line.unitValue != null && line.totalValue != null) {
+                                valueEl.textContent = `${formatUsd(line.unitValue)} each | ${formatUsd(line.totalValue)}`;
+                            } else {
+                                valueEl.textContent = '-- each | --';
+                            }
+
+                            itemEl.appendChild(labelEl);
+                            itemEl.appendChild(valueEl);
+                            listEl.appendChild(itemEl);
+                        }
+                    }
+                }
+
+                if (totalEl) {
+                    totalEl.textContent = `Total value: ${totalText}${coverage}`;
+                }
+
+                if (typeof dialog.showModal === 'function') {
+                    dialog.showModal();
+                    return;
+                }
+
+                const fallbackLine = breakdown.lines.length
+                    ? breakdown.lines
+                        .map((line) => {
+                            const unitText = line.unitValue != null ? formatUsd(line.unitValue) : '--';
+                            const lineTotalText = line.totalValue != null ? formatUsd(line.totalValue) : '--';
+                            return `${line.qty} x ${line.code}: ${unitText} each = ${lineTotalText}`;
+                        })
+                        .join(', ')
+                    : 'No conditions recorded';
+                window.alert(`${cleanName} conditions: ${fallbackLine}. Total value: ${totalText}${coverage}`);
+            },
+        };
+    }
+
+    function createSealedHtml(item, itemKey) {
         const name = escapeHtml(item.name);
         const setName = escapeHtml(item.setName);
-        const type = escapeHtml(item.type || 'Sealed product');
         const quantity = Math.max(0, Math.floor(Number(item.quantity || item.copies || 0)));
         const unitValueText = item.unitValue != null ? formatUsd(item.unitValue) : '--';
-        const totalValueText = item.totalValue > 0 ? formatUsd(item.totalValue) : '--';
-        const imageHtml = item.image
-            ? `<img class="pv-card__img pv-card__img--sealed" src="${escapeHtml(item.image)}" alt="${name} sealed product image" />`
-            : '';
+        const valueHint = 'Per sealed product value shown.';
+        const valueHintAttr = escapeHtml(valueHint);
+        const quantityText = `${quantity} ${quantity === 1 ? 'unit' : 'units'}`;
+        const quantityHtml = `<button type="button" class="pv-sharedQtyBtn" data-shared-item-key="${escapeHtml(itemKey)}" aria-label="View sealed details for ${name}">${escapeHtml(quantityText)}</button>`;
+        const imageHtml = `
+            <div class="pv-card__imgLink pv-card__imgLink--sealed" aria-hidden="true">
+                ${item.image ? `<img class="pv-card__img pv-card__img--sealed" src="${escapeHtml(item.image)}" alt="${name} sealed product image" />` : ''}
+            </div>
+        `;
 
         return `
             <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-sharedCollectionCol" data-card-id="${escapeHtml(item.id)}" data-card-name="${name}" data-set-name="${setName}" data-card-number="">
                 <article class="pv-card h-100" aria-label="${name}">
                     ${imageHtml}
                     <div class="pv-card__body">
-                        <h3 class="pv-card__title">${name}</h3>
-                        <p class="pv-card__text">${setName}</p>
-                        <p class="pv-card__text">Type: ${type}</p>
-                        <p class="pv-card__text">Sealed product</p>
-                        <p class="pv-card__text">Quantity: ${quantity}</p>
-                        <p class="pv-card__text">Value per product: ${escapeHtml(unitValueText)}</p>
-                        <p class="pv-card__text">Item total: ${escapeHtml(totalValueText)}</p>
+                        <h3 class="pv-card__title pv-card__title--plain">${name}</h3>
+                        <p class="pv-card__text pv-sharedSetName">${setName}</p>
+                        <p class="pv-card__text pv-sharedMetaLine pv-sharedMetaLine--empty" aria-hidden="true">Sealed product</p>
+                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue">${escapeHtml(unitValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
+                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Quantity</span><span class="pv-sharedInfoValue">${quantityHtml}</span></p>
                     </div>
                 </article>
             </div>
         `;
     }
 
-    function createCollectionItemHtml(item) {
-        if (isSealedCollectionItem(item)) return createSealedHtml(item);
-        return createCardHtml(item);
+    function createSealedDetailsDialog() {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'pv-sharedConditionDialog pv-sharedConditionDialog--sealed';
+        dialog.innerHTML = `
+            <div class="pv-sharedConditionDialog__panel">
+                <h3 class="pv-sharedConditionDialog__title" id="pv-shared-sealed-title">Sealed details</h3>
+                <ul class="pv-sharedConditionDialog__list" id="pv-shared-sealed-list"></ul>
+                <div class="pv-sharedConditionDialog__actions">
+                    <button type="button" class="pv-button pv-button--secondary btn" data-shared-sealed-close>Close</button>
+                </div>
+            </div>
+        `;
+
+        const titleEl = dialog.querySelector('#pv-shared-sealed-title');
+        const listEl = dialog.querySelector('#pv-shared-sealed-list');
+        const closeBtn = dialog.querySelector('[data-shared-sealed-close]');
+
+        if (closeBtn instanceof HTMLButtonElement) {
+            closeBtn.addEventListener('click', () => {
+                if (typeof dialog.close === 'function') dialog.close();
+            });
+        }
+
+        dialog.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement) || target !== dialog) return;
+            if (typeof dialog.close === 'function') dialog.close();
+        });
+
+        document.body.appendChild(dialog);
+
+        function appendRow(list, label, value) {
+            const rowEl = document.createElement('li');
+            rowEl.className = 'pv-sharedConditionDialog__item';
+
+            const labelEl = document.createElement('span');
+            labelEl.className = 'pv-sharedConditionDialog__itemLabel';
+            labelEl.textContent = label;
+
+            const valueEl = document.createElement('span');
+            valueEl.className = 'pv-sharedConditionDialog__itemValue';
+            valueEl.textContent = value;
+
+            rowEl.appendChild(labelEl);
+            rowEl.appendChild(valueEl);
+            list.appendChild(rowEl);
+        }
+
+        return {
+            open(item) {
+                const cleanName = safeString(item?.name, 'Sealed product').trim() || 'Sealed product';
+                const quantity = Math.max(0, Math.floor(Number(item?.quantity || item?.copies || 0)));
+                const unitValueText = item?.unitValue != null ? formatUsd(item.unitValue) : '--';
+                const totalValueText = Number(item?.totalValue) > 0 ? formatUsd(item.totalValue) : '--';
+
+                if (titleEl) titleEl.textContent = `${cleanName} details`;
+
+                if (listEl instanceof HTMLUListElement) {
+                    listEl.innerHTML = '';
+                    appendRow(listEl, 'Quantity', String(quantity));
+                    appendRow(listEl, 'Value each', unitValueText);
+                    appendRow(listEl, 'Total value', totalValueText);
+                }
+
+                if (typeof dialog.showModal === 'function') {
+                    dialog.showModal();
+                    return;
+                }
+
+                window.alert(`${cleanName} details: Quantity ${quantity}, Value each ${unitValueText}, Total value ${totalValueText}.`);
+            },
+        };
+    }
+
+    function createCollectionItemHtml(item, itemKey) {
+        if (isSealedCollectionItem(item)) return createSealedHtml(item, itemKey);
+        return createCardHtml(item, itemKey);
     }
 
     function applyCollectionFilter(items, queryRaw) {
@@ -614,6 +859,57 @@
 
         if (!summaryEl || !gridEl || !totalEl || !valueTotalEl) return;
 
+        const conditionDialog = createConditionDialog();
+        const sealedDetailsDialog = createSealedDetailsDialog();
+        const renderedItemByKey = new Map();
+        let renderAnimationTimer = null;
+
+        function closeOpenValueHints(exceptEl) {
+            const openHints = gridEl.querySelectorAll('.pv-sharedValueHintBtn.is-open');
+            for (const node of openHints) {
+                if (!(node instanceof HTMLButtonElement)) continue;
+                if (exceptEl && node === exceptEl) continue;
+                node.classList.remove('is-open');
+            }
+        }
+
+        gridEl.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+
+            const hintTrigger = target.closest('.pv-sharedValueHintBtn');
+            if (hintTrigger instanceof HTMLButtonElement) {
+                event.preventDefault();
+                const shouldOpen = !hintTrigger.classList.contains('is-open');
+                closeOpenValueHints(hintTrigger);
+                hintTrigger.classList.toggle('is-open', shouldOpen);
+                return;
+            }
+
+            closeOpenValueHints();
+
+            const quantityTrigger = target.closest('.pv-sharedQtyBtn');
+            if (quantityTrigger instanceof HTMLButtonElement) {
+                const itemKey = safeString(quantityTrigger.dataset.sharedItemKey, '').trim();
+                if (!itemKey) return;
+                const item = renderedItemByKey.get(itemKey);
+                if (!item || !isSealedCollectionItem(item)) return;
+
+                sealedDetailsDialog.open(item);
+                return;
+            }
+
+            const trigger = target.closest('.pv-sharedCopiesBtn');
+            if (!(trigger instanceof HTMLButtonElement)) return;
+
+            const itemKey = safeString(trigger.dataset.sharedItemKey, '').trim();
+            if (!itemKey) return;
+            const item = renderedItemByKey.get(itemKey);
+            if (!item || isSealedCollectionItem(item)) return;
+
+            conditionDialog.open(item);
+        });
+
         const shareToken = readShareTokenFromUrl();
         if (!shareToken) {
             setText(statusEl, 'Invalid share link.');
@@ -656,7 +952,23 @@
             collectionSelectEl.value = selectedCollectionId;
         }
 
-        function render(query) {
+        function triggerGridAnimation() {
+            gridEl.classList.remove('pv-sharedGrid--animating');
+            void gridEl.offsetWidth;
+            gridEl.classList.add('pv-sharedGrid--animating');
+
+            if (renderAnimationTimer != null) {
+                window.clearTimeout(renderAnimationTimer);
+            }
+
+            renderAnimationTimer = window.setTimeout(() => {
+                gridEl.classList.remove('pv-sharedGrid--animating');
+                renderAnimationTimer = null;
+            }, 320);
+        }
+
+        function render(query, options) {
+            const animate = options?.animate === true;
             const selectedItems = getSelectedCollectionItems();
             const filtered = applyCollectionFilter(selectedItems, query);
             const sortMode = sortEl instanceof HTMLSelectElement ? sortEl.value : 'value-desc';
@@ -675,12 +987,16 @@
             setText(valueTotalEl, `Collection value: ${formatUsd(totalValue)}${coverage}`);
 
             if (!selectedItems.length) {
+                renderedItemByKey.clear();
+                gridEl.classList.remove('pv-sharedGrid--animating');
                 setText(summaryEl, `${collectionName} has no shared items.`);
                 gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is empty.</div></div>';
                 return;
             }
 
             if (!sortedFiltered.length) {
+                renderedItemByKey.clear();
+                gridEl.classList.remove('pv-sharedGrid--animating');
                 setText(summaryEl, `0 of ${selectedItems.length} ${itemLabel} shown from ${collectionName}.`);
                 gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items match that search.</div></div>';
                 return;
@@ -692,7 +1008,20 @@
                 setText(summaryEl, `${selectedItems.length} ${itemLabel} shared from ${collectionName}. ${totalUnits} ${unitLabel}.`);
             }
 
-            gridEl.innerHTML = sortedFiltered.map((item) => createCollectionItemHtml(item)).join('');
+            renderedItemByKey.clear();
+            gridEl.innerHTML = sortedFiltered
+                .map((item, index) => {
+                    const itemKey = `${selectedCollectionId}:${safeString(item.id, 'item')}:${index}`;
+                    renderedItemByKey.set(itemKey, item);
+                    return createCollectionItemHtml(item, itemKey);
+                })
+                .join('');
+
+            if (animate) {
+                triggerGridAnimation();
+            } else {
+                gridEl.classList.remove('pv-sharedGrid--animating');
+            }
         }
 
         try {
@@ -733,7 +1062,7 @@
                 sortEl.addEventListener('change', () => {
                     saveSharedSortPreference(sortEl.value);
                     const filterValue = filterEl instanceof HTMLInputElement ? filterEl.value : '';
-                    render(filterValue);
+                    render(filterValue, { animate: true });
                 });
             }
 
@@ -745,16 +1074,16 @@
                         saveSelectedCollectionPreference(shareToken, selectedCollectionId);
                     }
                     const filterValue = filterEl instanceof HTMLInputElement ? filterEl.value : '';
-                    render(filterValue);
+                    render(filterValue, { animate: true });
                 });
             }
 
             setText(statusEl, 'Read-only shared view.');
-            render('');
+            render('', { animate: false });
 
             if (filterEl instanceof HTMLInputElement) {
                 filterEl.addEventListener('input', () => {
-                    render(filterEl.value);
+                    render(filterEl.value, { animate: true });
                 });
             }
         } catch (error) {

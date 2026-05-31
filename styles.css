@@ -3909,14 +3909,355 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-shared-body #pv-shared-grid .pv-card {
   border-color: var(--pv-border);
   background: var(--pv-surface-2);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+#pv-shared-body #pv-shared-grid .pv-sharedCollectionCol {
+  display: flex;
+}
+
+#pv-shared-body #pv-shared-grid.pv-sharedGrid--animating .pv-sharedCollectionCol {
+  animation: pv-shared-card-in 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+#pv-shared-body #pv-shared-grid.pv-sharedGrid--animating .pv-sharedCollectionCol:nth-child(2n) {
+  animation-delay: 24ms;
+}
+
+#pv-shared-body #pv-shared-grid.pv-sharedGrid--animating .pv-sharedCollectionCol:nth-child(3n) {
+  animation-delay: 40ms;
+}
+
+#pv-shared-body #pv-shared-grid.pv-sharedGrid--animating .pv-sharedCollectionCol:nth-child(4n) {
+  animation-delay: 56ms;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__imgLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 63 / 88;
+  padding: 0.4rem;
+  background: #070707;
+  overflow: hidden;
 }
 
 #pv-shared-body #pv-shared-grid .pv-card__img {
-  background: #070707;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__img--sealed {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 #pv-shared-body #pv-shared-grid .pv-card__text {
   margin: 0.18rem 0;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__body {
+  padding: 0.66rem 0.72rem 0.78rem;
+  display: grid;
+  grid-template-rows: minmax(2.48em, auto) auto auto auto auto;
+  gap: 0.26rem;
+  align-content: start;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__title {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.22;
+  min-height: 2.48em;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__titleLink {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+#pv-shared-body #pv-shared-grid .pv-card__title--plain {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+#pv-shared-body .pv-sharedSetName {
+  margin-top: 0.2rem;
+  color: #dbeafe;
+  font-size: 0.81rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pv-shared-body .pv-sharedMetaLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin-top: 0.32rem;
+  margin-bottom: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  min-height: 0.95rem;
+}
+
+#pv-shared-body .pv-sharedMetaLine--empty {
+  visibility: hidden;
+}
+
+#pv-shared-body .pv-sharedRarity {
+  color: #ffe08a;
+}
+
+#pv-shared-body .pv-sharedMetaDivider {
+  color: rgba(203, 213, 225, 0.75);
+}
+
+#pv-shared-body .pv-sharedCardNo {
+  color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+#pv-shared-body .pv-sharedInfoLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+#pv-shared-body .pv-sharedInfoLabel {
+  color: #94a3b8;
+  font-size: 0.73rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+#pv-shared-body .pv-sharedInfoValue {
+  color: #e2e8f0;
+  font-size: 0.83rem;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+}
+
+#pv-shared-body .pv-sharedInfoValueWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+#pv-shared-body .pv-sharedValueHintBtn {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.68);
+  background: rgba(15, 23, 42, 0.55);
+  color: #cbd5e1;
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+}
+
+#pv-shared-body .pv-sharedValueHintBtn:hover,
+#pv-shared-body .pv-sharedValueHintBtn:focus-visible,
+#pv-shared-body .pv-sharedValueHintBtn.is-open {
+  border-color: rgba(255, 203, 5, 0.85);
+  color: #ffe9a6;
+}
+
+#pv-shared-body .pv-sharedValueHintBtn:focus-visible {
+  outline: 2px solid rgba(255, 203, 5, 0.62);
+  outline-offset: 2px;
+}
+
+#pv-shared-body .pv-sharedValueHintBtn::after {
+  content: attr(data-shared-value-hint);
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  width: max-content;
+  max-width: min(72vw, 220px);
+  padding: 0.35rem 0.45rem;
+  border-radius: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(5, 8, 15, 0.96);
+  color: #dbeafe;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 3;
+}
+
+#pv-shared-body .pv-sharedValueHintBtn:hover::after,
+#pv-shared-body .pv-sharedValueHintBtn:focus-visible::after,
+#pv-shared-body .pv-sharedValueHintBtn.is-open::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#pv-shared-body .pv-sharedCopiesBtn,
+#pv-shared-body .pv-sharedQtyBtn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: #f8d978;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+#pv-shared-body .pv-sharedCopiesBtn:hover,
+#pv-shared-body .pv-sharedCopiesBtn:focus-visible,
+#pv-shared-body .pv-sharedQtyBtn:hover,
+#pv-shared-body .pv-sharedQtyBtn:focus-visible {
+  color: #ffe9a6;
+}
+
+#pv-shared-body .pv-sharedCopiesBtn:focus-visible,
+#pv-shared-body .pv-sharedQtyBtn:focus-visible {
+  outline: 2px solid rgba(255, 203, 5, 0.72);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.pv-sharedConditionDialog {
+  border: 1px solid rgba(255, 203, 5, 0.36);
+  border-radius: 14px;
+  background: #06080f;
+  color: #e2e8f0;
+  padding: 0;
+  width: min(92vw, 360px);
+  max-width: 360px;
+}
+
+.pv-sharedConditionDialog::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.pv-sharedConditionDialog__panel {
+  padding: 0.95rem;
+}
+
+.pv-sharedConditionDialog__title {
+  margin: 0;
+  color: #fff4c0;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.pv-sharedConditionDialog__list {
+  list-style: none;
+  margin: 0.62rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.36rem;
+}
+
+.pv-sharedConditionDialog__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.36rem 0.46rem;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.pv-sharedConditionDialog__item--empty {
+  justify-content: flex-start;
+  color: #cbd5e1;
+}
+
+.pv-sharedConditionDialog__itemLabel {
+  color: #fff4c0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.pv-sharedConditionDialog__itemValue {
+  color: #dbeafe;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pv-sharedConditionDialog__total {
+  margin: 0.62rem 0 0;
+  color: #ffe08a;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-sharedConditionDialog__actions {
+  margin-top: 0.85rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 575.98px) {
+  #pv-shared-body #pv-shared-grid .pv-card__body {
+    padding: 0.58rem 0.62rem 0.68rem;
+    gap: 0.22rem;
+  }
+
+  #pv-shared-body #pv-shared-grid .pv-card__title {
+    font-size: 0.94rem;
+  }
+
+  #pv-shared-body .pv-sharedSetName {
+    font-size: 0.79rem;
+  }
+
+  #pv-shared-body .pv-sharedInfoLine {
+    gap: 0.46rem;
+  }
+
+  #pv-shared-body .pv-sharedInfoLabel {
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+  }
+
+  #pv-shared-body .pv-sharedInfoValue {
+    font-size: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pv-shared-body #pv-shared-grid.pv-sharedGrid--animating .pv-sharedCollectionCol {
+    animation: none;
+  }
 }
 
 #pv-shared-body .pv-sharedConditionText {
@@ -3966,6 +4307,18 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   to {
     opacity: 1;
     transform: translateY(0) translateX(0) scale(1);
+  }
+}
+
+@keyframes pv-shared-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.994);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
