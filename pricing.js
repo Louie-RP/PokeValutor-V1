@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (proBadgeEl) {
-            proBadgeEl.textContent = (isSignedIn && isPremium) ? 'Current plan' : 'Premium';
+            proBadgeEl.textContent = (isSignedIn && isPremium) ? 'Current plan' : 'Limited time';
         }
     }
 

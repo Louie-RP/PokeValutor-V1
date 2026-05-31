@@ -37,7 +37,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260529-pricing-1" />
+    <link rel="stylesheet" href="styles.css?v=20260530-pricing-3" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
 </head>
 
@@ -113,7 +113,8 @@
             <p class="pv-pricingPlansShell__eyebrow">Plan Comparison</p>
             <h2 id="pv-pricing-plans-title" class="pv-section__title">Clear plans for collectors and vendors</h2>
             <div class="pv-pricingPlansGrid">
-                <article class="pv-pricingPlan" aria-labelledby="pv-pricing-plan-free-title">
+                <article class="pv-pricingPlan pv-pricingPlan--free" aria-labelledby="pv-pricing-plan-free-title">
+                    <p class="pv-pricingPlan__promo pv-pricingPlan__promo--neutral">Start free today</p>
                     <div class="pv-pricingPlan__head">
                         <h3 id="pv-pricing-plan-free-title" class="pv-pricingPlan__title">Free</h3>
                         <span id="pv-pricing-free-badge" class="pv-pricingPlan__badge">Included</span>
@@ -131,12 +132,19 @@
                 </article>
 
                 <article class="pv-pricingPlan pv-pricingPlan--premium" aria-labelledby="pv-pricing-plan-pro-title">
+                    <p class="pv-pricingPlan__promo pv-pricingPlan__promo--premium">Launch offer: $4.99 - Limited time</p>
                     <div class="pv-pricingPlan__head">
                         <h3 id="pv-pricing-plan-pro-title" class="pv-pricingPlan__title">Premium</h3>
-                        <span id="pv-pricing-pro-badge" class="pv-pricingPlan__badge pv-pricingPlan__badge--premium">Premium</span>
+                        <span id="pv-pricing-pro-badge" class="pv-pricingPlan__badge pv-pricingPlan__badge--premium">Limited time</span>
                     </div>
                     <p class="pv-pricingPlan__subtitle">Monthly subscription with expanding premium tools.</p>
-                    <p class="pv-pricingPlan__price">Monthly <span>cancel any time</span></p>
+                    <div class="pv-pricingPlan__priceBlock">
+                        <p class="pv-pricingPlan__price pv-pricingPlan__price--offer">
+                            <span class="pv-pricingPlan__priceWas">$6.99</span>
+                            <strong>$4.99</strong>
+                        </p>
+                        <p class="pv-pricingPlan__priceNote">per month, cancel any time</p>
+                    </div>
                     <ul class="pv-pricingPlan__list">
                         <li>Increased daily search limits</li>
                         <li>Additional collections with active collection switching</li>

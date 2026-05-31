@@ -973,25 +973,60 @@ body {
 
 .pv-pricingPlansGrid {
   display: grid;
-  gap: 1.05rem;
+  gap: 1.25rem;
   grid-template-columns: 1fr;
   margin-top: 1rem;
 }
 
 .pv-pricingPlan {
-  border: 1px solid rgba(148, 163, 184, 0.34);
-  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  border-radius: 18px;
   padding: 1.12rem;
-  background: rgba(3, 7, 18, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%),
+    rgba(3, 7, 18, 0.82);
+  color: #e2e8f0;
   display: grid;
   gap: 0.82rem;
+  align-content: start;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+
+.pv-pricingPlan--free {
+  border-color: rgba(148, 163, 184, 0.48);
+  background:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0) 36%),
+    rgba(2, 6, 23, 0.84);
 }
 
 .pv-pricingPlan--premium {
-  border-color: rgba(255, 203, 5, 0.48);
+  border-color: rgba(255, 203, 5, 0.72);
   background:
-    linear-gradient(165deg, rgba(255, 203, 5, 0.1), rgba(255, 203, 5, 0)),
-    rgba(3, 7, 18, 0.72);
+    linear-gradient(180deg, rgba(255, 203, 5, 0.14) 0%, rgba(255, 203, 5, 0.02) 42%),
+    rgba(2, 6, 23, 0.86);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.34), 0 0 0 1px rgba(255, 203, 5, 0.16), 0 0 24px rgba(255, 203, 5, 0.26);
+}
+
+.pv-pricingPlan__promo {
+  margin: -1.12rem -1.12rem 0;
+  padding: 0.62rem 1rem;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 820;
+  letter-spacing: 0.015em;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.44);
+}
+
+.pv-pricingPlan__promo--neutral {
+  background: linear-gradient(180deg, rgba(31, 41, 55, 0.9) 0%, rgba(17, 24, 39, 0.9) 100%);
+  color: #f1f5f9;
+}
+
+.pv-pricingPlan__promo--premium {
+  background: linear-gradient(96deg, #ffd34f 0%, #ffcb05 52%, #efb500 100%);
+  color: #2a2100;
+  border-bottom-color: rgba(176, 127, 0, 0.55);
 }
 
 .pv-pricingPlan__head {
@@ -1003,57 +1038,160 @@ body {
 
 .pv-pricingPlan__title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 2rem;
   color: #ffffff;
+  line-height: 1.1;
 }
 
 .pv-pricingPlan__subtitle {
   margin: 0;
-  color: #cbd5e1;
-  font-size: 0.93rem;
-  line-height: 1.55;
+  color: #dbe3ef;
+  font-size: 0.98rem;
+  line-height: 1.5;
 }
 
 .pv-pricingPlan__badge {
   display: inline-flex;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.52);
-  background: rgba(71, 85, 105, 0.34);
+  border: 1px solid rgba(148, 163, 184, 0.54);
+  background: rgba(30, 41, 59, 0.76);
   color: #dbeafe;
-  font-size: 0.74rem;
-  font-weight: 750;
-  padding: 0.14rem 0.56rem;
+  font-size: 0.76rem;
+  font-weight: 760;
+  padding: 0.2rem 0.7rem;
 }
 
 .pv-pricingPlan__badge--premium {
-  border-color: rgba(255, 203, 5, 0.62);
+  border-color: rgba(237, 189, 45, 0.72);
   background: rgba(133, 77, 14, 0.34);
   color: #fde68a;
 }
 
 .pv-pricingPlan__price {
-  margin: 0.1rem 0 0;
+  margin: 0.05rem 0 0;
   color: #ffffff;
-  font-size: 1.5rem;
-  font-weight: 760;
+  font-size: 2.45rem;
+  font-weight: 840;
   line-height: 1.2;
 }
 
-.pv-pricingPlan__price span {
+.pv-pricingPlan__price > span {
   font-size: 0.86rem;
   color: #cbd5e1;
-  font-weight: 550;
+  font-weight: 620;
   margin-left: 0.3rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pv-pricingPlan__priceBlock {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pv-pricingPlan__price--offer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.66rem;
+}
+
+.pv-pricingPlan__priceWas {
+  margin: 0;
+  font-size: 1.42rem;
+  font-weight: 720;
+  color: #94a3b8;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.pv-pricingPlan__price--offer strong {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.pv-pricingPlan__priceNote {
+  margin: 0;
+  color: #dbe3ef;
+  font-size: 0.94rem;
+  font-weight: 620;
+  line-height: 1.42;
+}
+
+.pv-pricingPlan__listTitle {
+  margin: 0.12rem 0 0;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 780;
 }
 
 .pv-pricingPlan__list {
   margin: 0.1rem 0 0;
-  padding-left: 1.02rem;
+  list-style: none;
+  padding-left: 0;
   display: grid;
-  gap: 0.44rem;
+  gap: 0.56rem;
   color: #e2e8f0;
   font-size: 0.92rem;
-  line-height: 1.48;
+  line-height: 1.46;
+}
+
+.pv-pricingPlan__list li {
+  position: relative;
+  padding-left: 1.52rem;
+}
+
+.pv-pricingPlan__list li::before {
+  content: "\2713";
+  position: absolute;
+  left: 0;
+  top: 0.17rem;
+  width: 0.98rem;
+  height: 0.98rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: 0.67rem;
+  font-weight: 900;
+}
+
+.pv-pricingPlan--premium .pv-pricingPlan__list li::before {
+  background: #ffcb05;
+  color: #3a2a00;
+}
+
+.pv-pricingPlan .pv-button {
+  width: 100%;
+  text-align: center;
+  border-radius: 999px;
+  font-weight: 820;
+  padding-top: 0.78rem;
+  padding-bottom: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.pv-pricingPlan--free .pv-button--secondary {
+  border-color: rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.84);
+  color: #f8fafc;
+}
+
+.pv-pricingPlan--free .pv-button--secondary:hover {
+  background: rgba(30, 41, 59, 0.95);
+  color: #ffffff;
+}
+
+.pv-pricingPlan--premium .pv-button--primary {
+  border-color: transparent;
+  background: var(--pv-primary);
+  color: #111111;
+}
+
+.pv-pricingPlan--premium .pv-button--primary:hover {
+  background: var(--pv-primary-dark);
 }
 
 .pv-pricingPlan__roadmapTitle {
