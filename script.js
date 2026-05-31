@@ -82,19 +82,47 @@
     });
   }
 
+  function normalizePageName(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return 'index.html';
+
+    const clean = raw.split('?')[0].split('#')[0];
+    const noTrailingSlash = clean.replace(/\/+$/, '');
+    if (!noTrailingSlash || noTrailingSlash === '/') return 'index.html';
+
+    const segment = noTrailingSlash.split('/').filter(Boolean).pop() || '';
+    return segment || 'index.html';
+  }
+
   function isNavLinkForPage(linkEl, pageName) {
     if (!(linkEl instanceof HTMLAnchorElement)) return false;
     const rawHref = String(linkEl.getAttribute('href') || '').trim();
-    const targetPage = String(pageName || '').trim().toLowerCase();
+    const targetPage = normalizePageName(pageName);
     if (!rawHref || !targetPage) return false;
 
     try {
       const url = new URL(rawHref, window.location.href);
-      const path = String(url.pathname || '').toLowerCase();
-      return path.endsWith(`/${targetPage}`) || path.endsWith(targetPage);
+      const hrefPage = normalizePageName(url.pathname || '');
+      return hrefPage === targetPage;
     } catch {
-      const normalized = rawHref.toLowerCase().replace(/^\.{0,2}\//, '').split('?')[0].split('#')[0];
-      return normalized === targetPage;
+      const hrefPage = normalizePageName(rawHref.toLowerCase().replace(/^\.{0,2}\//, ''));
+      return hrefPage === targetPage;
+    }
+  }
+
+  function markCurrentNavLinks() {
+    const currentPage = normalizePageName(window.location.pathname || '');
+    const links = Array.from(document.querySelectorAll('.pv-nav .pv-nav__link'));
+
+    for (const link of links) {
+      if (!(link instanceof HTMLAnchorElement)) continue;
+
+      const isCurrent = isNavLinkForPage(link, currentPage);
+      if (isCurrent) {
+        link.setAttribute('aria-current', 'page');
+      } else if (link.getAttribute('aria-current') === 'page') {
+        link.removeAttribute('aria-current');
+      }
     }
   }
 
@@ -215,16 +243,19 @@
 
   function setPricingNavHidden(hidden) {
     const shouldHide = Boolean(hidden);
+    const isOnPricingPage = normalizePageName(window.location.pathname || '') === 'pricing.html';
     const links = Array.from(document.querySelectorAll('.pv-nav .pv-nav__link'));
 
     for (const link of links) {
       if (!isNavLinkForPage(link, 'pricing.html')) continue;
+      const keepVisible = isOnPricingPage || link.getAttribute('aria-current') === 'page';
+      const hideThisLink = shouldHide && !keepVisible;
       const item = link.closest('.pv-nav__item');
       if (item) {
-        item.classList.toggle('pv-nav__item--pricingVisible', !shouldHide);
-        item.classList.toggle('pv-nav__item--hiddenByRole', shouldHide);
+        item.classList.toggle('pv-nav__item--pricingVisible', !hideThisLink);
+        item.classList.toggle('pv-nav__item--hiddenByRole', hideThisLink);
       } else {
-        link.hidden = shouldHide;
+        link.hidden = hideThisLink;
       }
     }
   }
@@ -325,6 +356,7 @@
     tryAttach();
   }
 
+  markCurrentNavLinks();
   markPricingNavLinks();
   ensureHeaderDiscordNavLink();
   setupDesktopNavOverflow();
