@@ -1,5 +1,6 @@
 /* PokeValutor site JS */
 (function () {
+  const DISCORD_INVITE_URL = 'https://discord.gg/MnNy5K7zp';
   const year = document.getElementById('pv-year');
   const form = document.getElementById('pv-contactForm');
   const scrollTopBtn = document.getElementById('pv-scroll-top');
@@ -7,6 +8,39 @@
   // Update year in footer
   if (year) {
     year.textContent = String(new Date().getFullYear());
+  }
+
+  function ensureFooterDiscordLink() {
+    const footerLinkLists = Array.from(document.querySelectorAll('.pv-footer__links'));
+
+    for (const linkList of footerLinkLists) {
+      if (!(linkList instanceof HTMLElement)) continue;
+      if (linkList.querySelector('a[data-pv-discord-link="1"]')) continue;
+
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+      const icon = document.createElement('span');
+      const text = document.createElement('span');
+
+      link.href = DISCORD_INVITE_URL;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.dataset.pvDiscordLink = '1';
+      link.setAttribute('aria-label', 'Join our Discord community (opens in a new tab)');
+      link.style.display = 'inline-flex';
+      link.style.alignItems = 'center';
+      link.style.gap = '0.32rem';
+
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" focusable="false"><path fill="currentColor" d="M20.317 4.369A19.791 19.791 0 0 0 15.885 3c-.191.329-.403.775-.552 1.123a18.27 18.27 0 0 0-5.669 0A12.26 12.26 0 0 0 9.112 3a19.736 19.736 0 0 0-4.435 1.371C1.884 8.58 1.129 12.685 1.5 16.734a19.9 19.9 0 0 0 5.993 3.031c.483-.66.913-1.357 1.284-2.083-.704-.266-1.376-.594-2.007-.979.169-.124.334-.253.495-.385 3.87 1.808 8.07 1.808 11.894 0 .162.132.327.261.495.385-.631.385-1.305.713-2.01.979.372.726.803 1.423 1.286 2.083a19.854 19.854 0 0 0 5.996-3.034c.435-4.693-.743-8.76-3.609-12.362ZM8.017 14.238c-1.188 0-2.163-1.091-2.163-2.43 0-1.338.955-2.431 2.163-2.431 1.216 0 2.181 1.102 2.163 2.431 0 1.339-.955 2.43-2.163 2.43Zm7.975 0c-1.188 0-2.163-1.091-2.163-2.43 0-1.338.955-2.431 2.163-2.431 1.215 0 2.18 1.102 2.163 2.431 0 1.339-.948 2.43-2.163 2.43Z"/></svg>';
+
+      text.textContent = 'Discord';
+
+      link.appendChild(icon);
+      link.appendChild(text);
+      item.appendChild(link);
+      linkList.appendChild(item);
+    }
   }
 
   // Mobile nav toggles with ARIA sync (works across pages)
@@ -253,6 +287,7 @@
   markPricingNavLinks();
   setupDesktopNavOverflow();
   setupAuthAwarePricingNavVisibility();
+  ensureFooterDiscordLink();
 
   // Shared scroll-to-top behavior for pages that include the floating button.
   if (scrollTopBtn && scrollTopBtn.getAttribute('data-bound') !== '1') {
