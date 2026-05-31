@@ -118,7 +118,14 @@
         try {
             const params = new URLSearchParams(window.location.search);
             const queryOverride = normalizeLocalFlag(params.get('pv_functions_emulator'));
-            if (queryOverride != null) return queryOverride;
+            if (queryOverride != null) {
+                try {
+                    window.localStorage.setItem('pv:functions:emulator', queryOverride ? '1' : '0');
+                } catch {
+                    // ignore storage write errors
+                }
+                return queryOverride;
+            }
         } catch {
             // ignore
         }

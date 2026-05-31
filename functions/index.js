@@ -24,10 +24,34 @@ function serverTimestamp() {
     return FieldValue.serverTimestamp();
 }
 
-function configValue(envKey, _nestedPath, fallback) {
+function legacyConfigValue(nestedPath) {
+    if (!Array.isArray(nestedPath) || nestedPath.length === 0) return '';
+
+    try {
+        if (typeof functions.config !== 'function') return '';
+        let cursor = functions.config();
+
+        for (const partRaw of nestedPath) {
+            const part = String(partRaw || '').trim();
+            if (!part || !cursor || typeof cursor !== 'object') return '';
+            cursor = cursor[part];
+        }
+
+        return String(cursor || '').trim();
+    } catch {
+        return '';
+    }
+}
+
+function configValue(envKey, nestedPath, fallback) {
     // Prefer explicit environment variables.
     const envValue = String(process.env?.[envKey] || '').trim();
     if (envValue) return envValue;
+
+    // Backward compatibility for existing functions.config() deployments.
+    const legacyValue = legacyConfigValue(nestedPath);
+    if (legacyValue) return legacyValue;
+
     return String(fallback || '').trim();
 }
 
@@ -330,6 +354,15 @@ function getStripeClient() {
     return stripeClient;
 }
 
+function assertStripeSecretConfigured() {
+    const secretKey = getStripeSecretKey();
+    if (secretKey) return;
+    throw new functions.https.HttpsError(
+        'failed-precondition',
+        'Stripe is not configured. Missing STRIPE_SECRET_KEY.'
+    );
+}
+
 function requireAuthUid(context) {
     const uid = String(context?.auth?.uid || '').trim();
     if (!uid) {
@@ -550,6 +583,7 @@ exports.setUserRole = functions.https.onCall(async (data, context) => {
 exports.createStripeCheckoutSession = functions.https.onCall(async (data, context) => {
     try {
         const uid = requireAuthUid(context);
+        assertStripeSecretConfigured();
         const stripe = getStripeClient();
 
         const monthlyPriceId = getStripeMonthlyPriceId();
@@ -608,6 +642,7 @@ exports.createStripeCheckoutSession = functions.https.onCall(async (data, contex
 exports.createStripePortalSession = functions.https.onCall(async (data, context) => {
     try {
         const uid = requireAuthUid(context);
+        assertStripeSecretConfigured();
         const stripe = getStripeClient();
 
         const user = await admin.auth().getUser(uid);
@@ -646,6 +681,7 @@ exports.createStripePortalSession = functions.https.onCall(async (data, context)
 exports.getStripeSubscriptionStatus = functions.https.onCall(async (_data, context) => {
     try {
         const uid = requireAuthUid(context);
+        assertStripeSecretConfigured();
         const stripe = getStripeClient();
 
         const user = await admin.auth().getUser(uid);

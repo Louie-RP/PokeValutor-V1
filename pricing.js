@@ -142,6 +142,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function toBillingErrorMessage(error, fallbackMessage) {
+        const code = String(error?.code || '').trim().toLowerCase();
+        const details = typeof error?.details === 'string' ? error.details.trim() : '';
+        const rawMessage = String(error?.message || '').trim();
+        const message = details || rawMessage;
+
+        if (code.includes('unauthenticated')) {
+            return 'Sign in required. Please sign in again and retry.';
+        }
+
+        if (code.includes('failed-precondition')) {
+            return message || 'Billing is not configured right now. Please try again shortly.';
+        }
+
+        const lowerMessage = message.toLowerCase();
+        const looksInternal =
+            code.includes('internal')
+            || lowerMessage === 'internal'
+            || lowerMessage === 'functions/internal'
+            || lowerMessage.startsWith('functions/internal ');
+
+        if (looksInternal) {
+            return 'Billing is temporarily unavailable. Please try again in a minute.';
+        }
+
+        if (message) return message;
+        return String(fallbackMessage || 'Billing action failed.');
+    }
+
     async function runBillingAction(actionFn, pendingMessage) {
         setPrimaryCtas('Please wait...', 'none', true);
         setStatus(String(pendingMessage || 'Working...'));
@@ -149,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             await actionFn();
         } catch (error) {
-            const message = String(error?.message || 'Billing action failed.');
+            const message = toBillingErrorMessage(error, 'Billing action failed.');
             setStatus(message);
             await refreshPricingState();
         }
@@ -276,7 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             setPrimaryCtas('Upgrade to Premium', 'subscribe', false);
         } catch (error) {
-            const message = String(error?.message || 'Could not load subscription status.');
+            const message = toBillingErrorMessage(error, 'Could not load subscription status.');
             const roleFromClaims = await readRoleFromClaims(false);
             const premiumByRole = isPremiumRole(roleFromClaims);
 
