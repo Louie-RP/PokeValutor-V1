@@ -4247,7 +4247,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 #pv-dex-body .pv-dexCard .pv-collectionAmount {
   margin: 0.28rem 0 0.45rem;
-  color: #fff4bf;
+  color: #86efac;
   font-size: 1.08rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
