@@ -362,7 +362,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const hasA = Number.isFinite(va);
             const hasB = Number.isFinite(vb);
 
-            if (!hasA && !hasB) return nameA.localeCompare(nameB);
+            if (!hasA && !hasB) {
+                const dir = searchSortState.valueDir === 'asc' ? 1 : -1;
+                return nameA.localeCompare(nameB) * dir;
+            }
             if (!hasA) return 1;
             if (!hasB) return -1;
 
@@ -486,7 +489,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const hasA = Number.isFinite(va);
         const hasB = Number.isFinite(vb);
 
-        if (!hasA && !hasB) return nameA.localeCompare(nameB);
+        if (!hasA && !hasB) {
+            const dir = searchSortState.valueDir === 'asc' ? 1 : -1;
+            return nameA.localeCompare(nameB) * dir;
+        }
         if (!hasA) return 1;
         if (!hasB) return -1;
 
@@ -2809,6 +2815,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (variants.length >= 12) break;
         }
 
+        const fromLiveMap = Number(searchValueById[id]);
+        const sortMarketValueRaw = Number.isFinite(fromLiveMap)
+            ? fromLiveMap
+            : Number(getCardMarketValueForSort(cardLike));
+        const sortMarketValue = Number.isFinite(sortMarketValueRaw) ? sortMarketValueRaw : null;
+
         return {
             id,
             name: safeString(cardLike?.name, 'Unknown'),
@@ -2821,6 +2833,7 @@ document.addEventListener('DOMContentLoaded', function () {
             variants,
             selectedVariant: safeString(cardLike?.selectedVariant, ''),
             pricesText: safeString(cardLike?.pricesText, ''),
+            sortMarketValue,
         };
     }
 
@@ -3671,10 +3684,26 @@ document.addEventListener('DOMContentLoaded', function () {
     function getMarketFromPricesText(rawText) {
         const text = safeString(rawText, '');
         if (!text) return null;
-        const m = text.match(/market\s+\$([0-9]+(?:\.[0-9]+)?)/i);
-        if (!m) return null;
-        const n = Number(m[1]);
-        return Number.isFinite(n) ? n : null;
+
+        // Legacy format support (older cached text): "market $12.34".
+        const legacy = text.match(/market\s+\$([0-9]+(?:\.[0-9]+)?)/i);
+        if (legacy) {
+            const n = Number(legacy[1]);
+            if (Number.isFinite(n)) return n;
+        }
+
+        // Current format support: "NM: $12.34 @80% $9.87".
+        // Take the first money token from the first non-empty line (market value).
+        const firstLine = text
+            .split(/\r?\n/)
+            .map((line) => safeString(line, '').trim())
+            .find(Boolean);
+        if (!firstLine) return null;
+
+        const marketMatch = firstLine.match(/\$([0-9]+(?:\.[0-9]+)?)/);
+        if (!marketMatch) return null;
+        const parsed = Number(marketMatch[1]);
+        return Number.isFinite(parsed) ? parsed : null;
     }
 
     function getBestMarketFromCardVariants(cardLike) {
@@ -3709,9 +3738,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const bestMarket = getBestMarketFromCardVariants(cardLike);
         if (bestMarket != null) return bestMarket;
 
-        return getMarketFromPricesText(
+        const marketFromText = getMarketFromPricesText(
             restoreState?.selections?.[id]?.pricesText ?? cardLike?.pricesText
         );
+        if (marketFromText != null) return marketFromText;
+
+        const persistedSortValue = Number(cardLike?.sortMarketValue);
+        return Number.isFinite(persistedSortValue) ? persistedSortValue : null;
     }
 
     function setSearchCardValue(cardId, value) {
