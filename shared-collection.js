@@ -3,6 +3,8 @@
     const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
     const SHARED_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
+    const SHARED_VALUE_CACHE_KEY = 'pv:scrydex:collectionValueCache:v1';
+    const SHARED_VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
     const CONDITION_CODE_ORDER = ['NM', 'LP', 'MP', 'HP', 'DM'];
@@ -139,6 +141,7 @@
                 ? bestMarket
                 : (Number.isFinite(fallbackMarket) && fallbackMarket > 0 ? fallbackMarket : null);
             const totalValue = unitValue != null ? unitValue * entry.qty : null;
+            const variantUsed = safeString(best?.variantUsed, '').trim();
 
             if (totalValue != null) {
                 pricedUnits += entry.qty;
@@ -150,6 +153,7 @@
                 qty: entry.qty,
                 unitValue,
                 totalValue,
+                variantUsed,
             };
         });
 
@@ -531,17 +535,29 @@
         const copies = Math.max(0, Math.floor(Number(item.copies || 0)));
         const detailPath = buildCardDetailPath(item.raw);
         const detailPathAttr = escapeHtml(detailPath);
+        const unitValue = getSortUnitValue(item);
+        const highestConditionValueText = unitValue != null
+            ? formatUsd(unitValue)
+            : '--';
         const conditionBreakdown = getConditionValueBreakdown(item);
-        const highestConditionLine = conditionBreakdown.lines.find((line) => line.unitValue != null)
+        const preferredLine = conditionBreakdown.lines.find((line) => line.unitValue != null)
             || conditionBreakdown.lines[0]
             || null;
-        const highestConditionValueText = highestConditionLine?.unitValue != null
-            ? formatUsd(highestConditionLine.unitValue)
-            : '--';
-        const highestConditionCode = safeString(highestConditionLine?.code, '');
-        const valueHint = highestConditionCode
-            ? `Highest-condition value shown (${highestConditionCode}).`
-            : 'Highest-condition value shown.';
+        const displayConditionCode = normalizeDexConditionCode(item?.displayConditionCode || item?.selectedCondition || preferredLine?.code);
+        const displayConditionLabel = displayConditionCode ? getConditionLabel(displayConditionCode) : '';
+        const displayVariant = safeString(item?.displayVariantUsed || preferredLine?.variantUsed, '').trim();
+        const fallbackCode = safeString(preferredLine?.code, '').trim();
+
+        let valueHint = 'Current unit value shown.';
+        if (displayConditionLabel && displayVariant) {
+            valueHint = `Value shown for ${displayConditionLabel} using ${displayVariant}.`;
+        } else if (displayConditionLabel) {
+            valueHint = `Value shown for ${displayConditionLabel}.`;
+        } else if (displayVariant) {
+            valueHint = `Value shown using ${displayVariant}.`;
+        } else if (fallbackCode) {
+            valueHint = `Highest-condition value shown (${fallbackCode}).`;
+        }
         const valueHintAttr = escapeHtml(valueHint);
         const rarityMetaHtml = number
             ? `<p class="pv-card__text pv-sharedMetaLine"><span class="pv-sharedRarity">${rarity}</span><span class="pv-sharedMetaDivider" aria-hidden="true">&#8226;</span><span class="pv-sharedCardNo">#${number}</span></p>`
@@ -560,7 +576,7 @@
                         <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${name} details">${name}</a></h3>
                         <p class="pv-card__text pv-sharedSetName">${setName}</p>
                         ${rarityMetaHtml}
-                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue">${escapeHtml(highestConditionValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
+                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue pv-sharedInfoValue--price">${escapeHtml(highestConditionValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
                         <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Copies</span><span class="pv-sharedInfoValue">${copiesHtml}</span></p>
                     </div>
                 </article>
@@ -690,7 +706,7 @@
                         <h3 class="pv-card__title pv-card__title--plain">${name}</h3>
                         <p class="pv-card__text pv-sharedSetName">${setName}</p>
                         <p class="pv-card__text pv-sharedMetaLine pv-sharedMetaLine--empty" aria-hidden="true">Sealed product</p>
-                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue">${escapeHtml(unitValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
+                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue pv-sharedInfoValue--price">${escapeHtml(unitValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
                         <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Quantity</span><span class="pv-sharedInfoValue">${quantityHtml}</span></p>
                     </div>
                 </article>
@@ -813,6 +829,169 @@
         }
     }
 
+    function getSortUnitValue(item) {
+        const direct = Number(item?.unitValue);
+        if (Number.isFinite(direct) && direct > 0) return direct;
+        if (isSealedCollectionItem(item)) return null;
+
+        const conditionBreakdown = getConditionValueBreakdown(item);
+        const firstPriced = conditionBreakdown.lines.find((line) => line.unitValue != null) || null;
+        const fallback = Number(firstPriced?.unitValue);
+        if (!Number.isFinite(fallback) || fallback <= 0) return null;
+        return fallback;
+    }
+
+    function getWorkerBase() {
+        const defaultWorker = 'https://pokevalutor-v1.lreyperez18.workers.dev';
+        return (window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
+    }
+
+    function readValueCache() {
+        try {
+            const raw = localStorage.getItem(SHARED_VALUE_CACHE_KEY);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function writeValueCache(next) {
+        try {
+            const safe = next && typeof next === 'object' ? next : {};
+            localStorage.setItem(SHARED_VALUE_CACHE_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getCachedValue(cacheKey) {
+        const map = readValueCache();
+        const hit = map?.[cacheKey];
+        if (!hit || typeof hit !== 'object') return null;
+
+        const savedAt = Number(hit?.savedAt || 0);
+        const market = Number(hit?.market);
+        if (!Number.isFinite(savedAt) || !Number.isFinite(market) || market <= 0) return null;
+        if ((Date.now() - savedAt) > SHARED_VALUE_CACHE_TTL_MS) return null;
+
+        return {
+            market,
+            variantUsed: safeString(hit?.variantUsed, ''),
+        };
+    }
+
+    function setCachedValue(cacheKey, market, variantUsed) {
+        const map = readValueCache();
+        map[cacheKey] = {
+            market: Number(market),
+            variantUsed: safeString(variantUsed, ''),
+            savedAt: Date.now(),
+        };
+        writeValueCache(map);
+    }
+
+    async function fetchJsonWithOptionalAuth(url) {
+        try {
+            let headers;
+            try {
+                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                const token = safeString(tokenRaw, '').trim();
+                if (token) headers = { Authorization: `Bearer ${token}` };
+            } catch {
+                // ignore
+            }
+
+            const res = await fetch(url, headers ? { headers } : undefined);
+            if (!res.ok) return null;
+
+            const parsed = await res.json().catch(() => null);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return parsed?.data || parsed;
+        } catch {
+            return null;
+        }
+    }
+
+    async function fetchCardWithPrices(cardId) {
+        const id = safeString(cardId, '').trim();
+        if (!id) return null;
+        const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+        return fetchJsonWithOptionalAuth(url);
+    }
+
+    async function fetchSealedWithPrices(sealedId) {
+        const id = safeString(sealedId, '').trim();
+        if (!id) return null;
+        const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
+        return fetchJsonWithOptionalAuth(url);
+    }
+
+    async function getCurrentCardValue(item, variantsOverride) {
+        const id = safeString(item?.id, '').trim();
+        const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
+        if (!id || !conditionCode) return null;
+
+        const selectedVariant = safeString(item?.selectedVariant, '').trim();
+        const cacheKey = `${id}|${selectedVariant}|${conditionCode}`;
+        const cached = getCachedValue(cacheKey);
+        if (cached && Number.isFinite(cached.market)) {
+            return cached;
+        }
+
+        let sourceVariants = Array.isArray(variantsOverride) ? variantsOverride : [];
+        if (!sourceVariants.length) {
+            const fetched = await fetchCardWithPrices(id);
+            const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
+            const fallbackVariants = Array.isArray(item?.raw?.variants)
+                ? item.raw.variants
+                : (Array.isArray(item?.variants) ? item.variants : []);
+            sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
+
+            if (fetchedVariants.length && item?.raw && typeof item.raw === 'object') {
+                item.raw.variants = fetchedVariants;
+            }
+        }
+
+        const best = getBestVariantMarket(sourceVariants, selectedVariant, conditionCode);
+        if (!best || !Number.isFinite(best.market) || best.market <= 0) return null;
+
+        setCachedValue(cacheKey, best.market, best.variantUsed);
+        return best;
+    }
+
+    async function getCurrentSealedValue(item, variantsOverride) {
+        const id = safeString(item?.id, '').trim();
+        if (!id) return null;
+
+        const cacheKey = `sealed:${id}`;
+        const cached = getCachedValue(cacheKey);
+        if (cached && Number.isFinite(cached.market)) {
+            return { market: cached.market };
+        }
+
+        let sourceVariants = Array.isArray(variantsOverride) ? variantsOverride : [];
+        if (!sourceVariants.length) {
+            const fetched = await fetchSealedWithPrices(id);
+            const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
+            const fallbackVariants = Array.isArray(item?.raw?.variants)
+                ? item.raw.variants
+                : (Array.isArray(item?.variants) ? item.variants : []);
+            sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
+
+            if (fetchedVariants.length && item?.raw && typeof item.raw === 'object') {
+                item.raw.variants = fetchedVariants;
+            }
+        }
+
+        const market = getBestSealedMarketFromVariants(sourceVariants);
+        if (!Number.isFinite(market) || market <= 0) return null;
+
+        setCachedValue(cacheKey, market, '');
+        return { market };
+    }
+
     function sortCollectionItems(items, modeRaw) {
         const mode = SHARED_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
         const sorted = items.slice();
@@ -826,18 +1005,18 @@
                 return nameA.localeCompare(nameB) * dir;
             }
 
-            const totalA = Number(a?.totalValue);
-            const totalB = Number(b?.totalValue);
-            const hasA = Number.isFinite(totalA) && totalA > 0;
-            const hasB = Number.isFinite(totalB) && totalB > 0;
+            const unitA = getSortUnitValue(a);
+            const unitB = getSortUnitValue(b);
+            const hasA = Number.isFinite(unitA) && unitA > 0;
+            const hasB = Number.isFinite(unitB) && unitB > 0;
 
             if (!hasA && !hasB) return nameA.localeCompare(nameB);
             if (!hasA) return 1;
             if (!hasB) return -1;
-            if (totalA === totalB) return nameA.localeCompare(nameB);
+            if (unitA === unitB) return nameA.localeCompare(nameB);
 
             const dir = mode === 'value-asc' ? 1 : -1;
-            return (totalA - totalB) * dir;
+            return (unitA - unitB) * dir;
         });
 
         return sorted;
@@ -863,6 +1042,7 @@
         const sealedDetailsDialog = createSealedDetailsDialog();
         const renderedItemByKey = new Map();
         let renderAnimationTimer = null;
+        let liveRefreshRunId = 0;
 
         function closeOpenValueHints(exceptEl) {
             const openHints = gridEl.querySelectorAll('.pv-sharedValueHintBtn.is-open');
@@ -1024,6 +1204,112 @@
             }
         }
 
+        async function refreshSelectedCollectionValues() {
+            const refreshItems = getSelectedCollectionItems();
+            if (!refreshItems.length) return;
+
+            const runId = ++liveRefreshRunId;
+            const collectionIdAtStart = selectedCollectionId;
+            setText(statusEl, 'Refreshing live prices...');
+
+            await Promise.all(refreshItems.map(async (item) => {
+                try {
+                    if (isSealedCollectionItem(item)) {
+                        const quantity = Math.max(0, Math.floor(Number(item?.quantity ?? item?.copies ?? 0)));
+                        if (quantity <= 0) return;
+
+                        const fetchedSealed = await fetchSealedWithPrices(item?.id);
+                        const fetchedSealedVariants = Array.isArray(fetchedSealed?.variants) ? fetchedSealed.variants : [];
+                        const fallbackSealedVariants = Array.isArray(item?.raw?.variants)
+                            ? item.raw.variants
+                            : (Array.isArray(item?.variants) ? item.variants : []);
+                        const sourceSealedVariants = fetchedSealedVariants.length ? fetchedSealedVariants : fallbackSealedVariants;
+
+                        if (fetchedSealedVariants.length && item?.raw && typeof item.raw === 'object') {
+                            item.raw.variants = fetchedSealedVariants;
+                        }
+
+                        const valueInfo = await getCurrentSealedValue(item, sourceSealedVariants);
+                        const market = Number(valueInfo?.market ?? null);
+                        if (!Number.isFinite(market) || market <= 0) return;
+
+                        item.unitValue = market;
+                        item.totalValue = market * quantity;
+                        item.totalUnits = quantity;
+                        item.pricedUnits = quantity;
+                        item.copies = quantity;
+                        return;
+                    }
+
+                    const conditionEntries = getConditionEntries(item?.conditionQuantities, item?.selectedCondition);
+                    const totalUnits = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+                    if (!conditionEntries.length || totalUnits <= 0) return;
+
+                    let cardTotal = 0;
+                    let cardPricedCopies = 0;
+                    let cardDisplayUnit = null;
+                    let cardDisplayCondition = '';
+                    let cardDisplayVariant = '';
+                    const primaryCondition = normalizeDexConditionCode(item?.selectedCondition);
+
+                    const fetchedCard = await fetchCardWithPrices(item?.id);
+                    const fetchedCardVariants = Array.isArray(fetchedCard?.variants) ? fetchedCard.variants : [];
+                    const fallbackCardVariants = Array.isArray(item?.raw?.variants)
+                        ? item.raw.variants
+                        : (Array.isArray(item?.variants) ? item.variants : []);
+                    const sourceCardVariants = fetchedCardVariants.length ? fetchedCardVariants : fallbackCardVariants;
+
+                    if (fetchedCardVariants.length && item?.raw && typeof item.raw === 'object') {
+                        item.raw.variants = fetchedCardVariants;
+                    }
+
+                    await Promise.all(conditionEntries.map(async (entry) => {
+                        const valueInfo = await getCurrentCardValue({
+                            ...item,
+                            selectedCondition: entry.code,
+                        }, sourceCardVariants);
+                        const market = Number(valueInfo?.market ?? null);
+                        if (!Number.isFinite(market) || market <= 0) return;
+
+                        cardTotal += market * entry.qty;
+                        cardPricedCopies += entry.qty;
+
+                        if (primaryCondition && entry.code === primaryCondition) {
+                            cardDisplayUnit = market;
+                            cardDisplayCondition = entry.code;
+                            cardDisplayVariant = safeString(valueInfo?.variantUsed, '').trim();
+                        }
+                        if (cardDisplayUnit == null) {
+                            cardDisplayUnit = market;
+                            cardDisplayCondition = entry.code;
+                            cardDisplayVariant = safeString(valueInfo?.variantUsed, '').trim();
+                        }
+                    }));
+
+                    if (!Number.isFinite(cardTotal) || cardTotal <= 0 || !Number.isFinite(cardDisplayUnit) || cardDisplayUnit <= 0) {
+                        return;
+                    }
+
+                    item.unitValue = Number(cardDisplayUnit);
+                    item.totalValue = Number(cardTotal);
+                    item.totalUnits = totalUnits;
+                    item.pricedUnits = cardPricedCopies;
+                    item.copies = totalUnits;
+                    item.displayConditionCode = cardDisplayCondition;
+                    item.displayVariantUsed = cardDisplayVariant;
+                } catch {
+                    // keep snapshot values for this item
+                }
+            }));
+
+            if (runId !== liveRefreshRunId) return;
+            if (collectionIdAtStart !== selectedCollectionId) return;
+
+            setText(statusEl, 'Read-only shared view.');
+            const currentQuery = filterEl instanceof HTMLInputElement ? filterEl.value : '';
+            render(currentQuery, { animate: false });
+        }
+
         try {
             const result = await window.PV_AUTH.loadSharedDexCollection(shareToken);
             const rawCollection = Array.isArray(result?.collection) ? result.collection : [];
@@ -1075,11 +1361,13 @@
                     }
                     const filterValue = filterEl instanceof HTMLInputElement ? filterEl.value : '';
                     render(filterValue, { animate: true });
+                    void refreshSelectedCollectionValues();
                 });
             }
 
             setText(statusEl, 'Read-only shared view.');
             render('', { animate: false });
+            void refreshSelectedCollectionValues();
 
             if (filterEl instanceof HTMLInputElement) {
                 filterEl.addEventListener('input', () => {
