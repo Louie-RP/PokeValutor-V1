@@ -1,5 +1,50 @@
 # Ignore local secrets
 secrets.js
+scrydex-worker.js
+firebase-config.local.js
+
+# Credential/key files (never commit)
+serviceAccountKey.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+
+# Local env files (never commit)
+.env
+.env.*
+!.env.example
+
+# Cloudflare Workers local secrets
+.dev.vars
+.wrangler/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Registry auth (may contain tokens)
+.npmrc
+.yarnrc
+.yarnrc.yml
+
+# Firebase local artifacts
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Google Cloud / Firebase Functions local
+.runtimeconfig.json
 
 # OS/editor junk
 .DS_Store

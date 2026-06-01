@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "prod": "pokevaluator-v1"
+  },
+  "targets": {},
+  "etags": {}
+}

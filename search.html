@@ -4,20 +4,43 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Search Pokémon on PokéValutor" />
-    <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
-    <meta property="og:image:alt" content="PokéValutor logo" />
-    <title>PokéValutor • Search</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
+    <meta name="description" content="Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor." />
+    <meta property="og:title" content="Card Search | PokeValutor" />
+    <meta property="og:description" content="Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.pokevaluator.com/search.html" />
+    <meta property="og:image" content="https://www.pokevaluator.com/og/search.png" />
+    <meta property="og:image:alt" content="PokeValutor card search preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Card Search | PokeValutor" />
+    <meta name="twitter:description" content="Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor." />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/og/search.png" />
+    <title>Card Search | PokeValutor</title>
+    <link rel="canonical" href="https://www.pokevaluator.com/search.html" />
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Card Search",
+            "description": "Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor.",
+            "url": "https://www.pokevaluator.com/search.html",
+            "isPartOf": {
+                "@type": "WebSite",
+                "name": "PokeValutor",
+                "url": "https://www.pokevaluator.com/"
+            }
+        }
+    </script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-05-30-33" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-search-body" class="pv-body">
+<body id="pv-search-body" class="pv-body pv-searchPage">
     <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
 
     <header id="pv-search-header" class="pv-header" role="banner">
@@ -32,56 +55,135 @@
                 <ul class="pv-nav__list">
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
                 </ul>
             </nav>
         </div>
     </header>
 
     <main id="pv-search-main" class="pv-main" role="main">
-        <section id="pv-search-hero" class="pv-hero container" aria-labelledby="pv-search-title">
-            <h1 id="pv-search-title" class="pv-hero__title">Search Pokémon</h1>
-            <p class="pv-hero__subtitle">Find Pokémon by name or card number.</p>
+        <section id="pv-search-hero" class="pv-hero container pv-searchHero" aria-labelledby="pv-search-title">
+            <p class="pv-searchHero__eyebrow">Cards</p>
+            <h1 id="pv-search-title" class="pv-hero__title">Find cards, compare variants, track your watchlist.</h1>
+            <p class="pv-hero__subtitle">Search by name, number, series, or set.</p>
+            <div class="pv-searchHero__chips" aria-label="Search highlights">
+                <span class="pv-searchHero__chip">Variant prices</span>
+                <span class="pv-searchHero__chip">Watchlist totals</span>
+                <span class="pv-searchHero__chip">Fast sort</span>
+            </div>
         </section>
 
-        <section id="pv-search-section" class="pv-section container">
-            <form id="pv-search-form" class="pv-form row g-3" role="search">
-                <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-query" class="form-label">Pokémon Name</label>
-                    <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
-                        placeholder="e.g., pikachu" aria-controls="pv-search-results" />
-                </div>
-                <div class="pv-form__field col-12 col-md-6">
-                    <label for="pv-search-number" class="form-label">Card Number</label>
-                    <input id="pv-search-number" name="pv-search-number" type="search" class="form-control"
-                        placeholder="e.g., 87/160 or SWSH101" aria-controls="pv-search-results" />
-                </div>
-                <div class="col-12">
-                    <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                    <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
-                </div>
-            </form>
+        <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
+            <div class="pv-searchPanel">
+                <form id="pv-search-form" class="pv-form row g-3" role="search">
+                    <div class="pv-form__field pv-searchField--query col-12 col-md-6 col-lg-4">
+                        <label for="pv-search-query" class="form-label">Search</label>
+                        <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
+                        placeholder="e.g., Pikachu or SWSH101" aria-controls="pv-search-results" />
+                    </div>
+                    <div class="pv-form__field pv-searchField--seriesSetToggle col-12">
+                        <label for="pv-search-series-set-toggle" class="pv-searchSeriesSetToggle">
+                            <input id="pv-search-series-set-toggle" name="pv-search-series-set-toggle" type="checkbox"
+                                aria-controls="pv-search-series pv-search-set" />
+                            <span>Series/Set</span>
+                        </label>
+                    </div>
+                    <div class="pv-form__field pv-searchField--series col-12 col-md-6 col-lg-4">
+                        <label for="pv-search-series" class="form-label">Series <span class="pv-desktopOptional">(Optional)</span></label>
+                        <select id="pv-search-series" name="pv-search-series" class="form-select" aria-label="Filter sets by series">
+                            <option value="">Choose a series</option>
+                        </select>
+                    </div>
+                    <div class="pv-form__field pv-searchField--set col-12 col-md-6 col-lg-4">
+                        <label for="pv-search-set" class="form-label">Set</label>
+                        <select id="pv-search-set" name="pv-search-set" class="form-select" aria-label="Choose a set" disabled>
+                            <option value="">Choose a set</option>
+                        </select>
+                    </div>
+                    <div class="col-12 pv-search-actions">
+                        <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+                        <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                    </div>
+                    <div class="pv-form__field pv-searchField--condition col-12">
+                        <details id="pv-condition-filter" class="pv-conditionFilter">
+                            <summary id="pv-condition-toggle" class="pv-conditionFilter__summary">
+                                <span>Condition:</span>
+                                <span id="pv-condition-summary">NM</span>
+                            </summary>
+                            <div id="pv-condition-menu" class="pv-conditionFilter__menu" role="group" aria-label="Card conditions to display in price lines">
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="NM" checked />
+                                    NM
+                                </label>
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="LP" />
+                                    LP
+                                </label>
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="MP" />
+                                    MP
+                                </label>
+                                <label class="pv-conditionFilter__option">
+                                    <input type="checkbox" name="pv-condition-filter" value="OTHER" />
+                                    Other
+                                </label>
+                            </div>
+                        </details>
+                    </div>
+                    <div id="pv-search-collection-context" class="pv-form__field pv-searchField--collectionContext col-12" role="group" aria-label="Active collection context" hidden>
+                        <label for="pv-search-collection-select" class="form-label">Collection</label>
+                        <select id="pv-search-collection-select" class="form-select" aria-label="Choose active collection context"></select>
+                    </div>
+                </form>
 
-            <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
+                <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
+                </div>
+
+                <section id="pv-search-results" class="pv-section pv-searchResults" aria-labelledby="pv-search-results-title">
+                    <div class="pv-section__header">
+                        <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
+                        <div id="pv-search-sort" class="pv-sortRow" role="group" aria-label="Sort search results">
+                            <label for="pv-search-sort-select" class="form-label pv-sortLabel">Sort</label>
+                            <select id="pv-search-sort-select" class="form-select pv-sortSelect" aria-label="Sort search results">
+                                <option value="value-desc" selected>High-Low</option>
+                                <option value="value-asc">Low-High</option>
+                                <option value="name-asc">A-Z</option>
+                                <option value="name-desc">Z-A</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
+                        <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
+                        <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
+                    </div>
+                    <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
+                    <div class="pv-loadMoreWrap">
+                        <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
+                    </div>
+                </section>
             </div>
 
-            <section id="pv-search-results" class="pv-section" aria-labelledby="pv-search-results-title">
-                <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
-                <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
-            </section>
-
-            <section id="pv-favorites" class="pv-section" aria-labelledby="pv-favorites-title">
+            <section id="pv-favorites" class="pv-section pv-searchWatchlist" aria-labelledby="pv-favorites-title">
                 <div class="pv-section__header">
-                    <h2 id="pv-favorites-title" class="pv-section__title">Favorites <span id="pv-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
+                    <h2 id="pv-favorites-title" class="pv-section__title">Watchlist <span id="pv-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
                     <div>
+                        <label for="pv-favorites-sort-select" class="form-label pv-sortLabel">Sort</label>
+                        <select id="pv-favorites-sort-select" class="form-select pv-sortSelect" aria-label="Sort watchlist">
+                            <option value="value-desc" selected>High-Low</option>
+                            <option value="value-asc">Low-High</option>
+                            <option value="name-asc">A-Z</option>
+                            <option value="name-desc">Z-A</option>
+                        </select>
                         <button id="pv-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
                             aria-controls="pv-favorites-body" aria-expanded="true">Hide</button>
                         <button id="pv-favorites-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
                     </div>
                 </div>
                 <div id="pv-favorites-body">
-                    <div id="pv-favorites-grid" class="row g-3" aria-label="Favorites grid"></div>
+                    <div id="pv-favorites-grid" class="row g-3" aria-label="Watchlist grid"></div>
                 </div>
             </section>
         </section>
@@ -89,19 +191,32 @@
 
     <footer id="pv-search-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
-            <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+            <p class="pv-footer__text">&copy; <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
             <ul class="pv-footer__links" aria-label="Footer links">
                 <li><a id="pv-search-privacy" href="policies.html#pv-privacyPolicy">Privacy</a></li>
                 <li><a id="pv-search-terms" href="policies.html#pv-termsOfUse">Terms</a></li>
                 <li><a id="pv-search-access" href="policies.html#pv-accessibility">Accessibility</a></li>
+                <li><a id="pv-search-contact" href="contact.html">Contact</a></li>
             </ul>
         </div>
     </footer>
 
-    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">&#9650;</button>
 
-    <script src="script.js" defer></script>
-    <script src="search.js" defer></script>
+    <script src="script.js?v=20260531-4" defer></script>
+
+    <!-- Firebase CDN (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+
+    <!-- Load default config first, then local override (if present). -->
+    <script src="firebase-config.js" defer></script>
+    <!-- Optional local-only Firebase config (ignored by git). 404 is OK in production. -->
+    <script src="firebase-config.local.js" defer></script>
+    <script src="firebase.js?v=2026-05-30-2" defer></script>
+
+    <script src="search.js?v=2026-05-31-15" defer></script>
 </body>
 
 </html>

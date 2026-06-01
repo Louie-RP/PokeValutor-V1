@@ -4,20 +4,43 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Search sealed products on PokéValutor" />
-    <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
-    <meta property="og:image:alt" content="PokéValutor logo" />
-    <title>PokéValutor • Sealed</title>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
+    <meta name="description" content="Search sealed Pokemon TCG products by name, review market pricing, and track sealed watchlist items." />
+    <meta property="og:title" content="Sealed Product Search | PokeValutor" />
+    <meta property="og:description" content="Search sealed Pokemon TCG products by name, review market pricing, and track sealed watchlist items." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.pokevaluator.com/sealed.html" />
+    <meta property="og:image" content="https://www.pokevaluator.com/og/sealed.png" />
+    <meta property="og:image:alt" content="PokeValutor sealed product search preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Sealed Product Search | PokeValutor" />
+    <meta name="twitter:description" content="Search sealed Pokemon TCG products by name, review market pricing, and track sealed watchlist items." />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/og/sealed.png" />
+    <title>Sealed Product Search | PokeValutor</title>
+    <link rel="canonical" href="https://www.pokevaluator.com/sealed.html" />
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "name": "Sealed Product Search",
+            "description": "Search sealed Pokemon TCG products by name, review market pricing, and track sealed watchlist items.",
+            "url": "https://www.pokevaluator.com/sealed.html",
+            "isPartOf": {
+                "@type": "WebSite",
+                "name": "PokeValutor",
+                "url": "https://www.pokevaluator.com/"
+            }
+        }
+    </script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-05-30-29" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-sealed-body" class="pv-body">
+<body id="pv-sealed-body" class="pv-body pv-sealedPage">
     <a class="pv-skiplink" href="#pv-sealed-main">Skip to content</a>
 
     <header id="pv-sealed-header" class="pv-header" role="banner">
@@ -32,49 +55,88 @@
                 <ul class="pv-nav__list">
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
                 </ul>
             </nav>
         </div>
     </header>
 
     <main id="pv-sealed-main" class="pv-main" role="main">
-        <section id="pv-sealed-hero" class="pv-hero container" aria-labelledby="pv-sealed-title">
-            <h1 id="pv-sealed-title" class="pv-hero__title">Search Sealed Product</h1>
-            <p class="pv-hero__subtitle">Find sealed products by name and view market values.</p>
+        <section id="pv-sealed-hero" class="pv-hero container pv-sealedHero" aria-labelledby="pv-sealed-title">
+            <p class="pv-sealedHero__eyebrow">Sealed</p>
+            <h1 id="pv-sealed-title" class="pv-hero__title">Search sealed products and track watchlist value.</h1>
+            <p class="pv-hero__subtitle">Find boxes, packs, and collections by name.</p>
+            <div class="pv-sealedHero__chips" aria-label="Sealed search highlights">
+                <span class="pv-sealedHero__chip">Market prices</span>
+                <span class="pv-sealedHero__chip">Trade %</span>
+                <span class="pv-sealedHero__chip">Watchlist sync</span>
+            </div>
         </section>
 
-        <section id="pv-sealed-section" class="pv-section container">
-            <form id="pv-sealed-form" class="pv-form row g-3" role="search">
-                <div class="pv-form__field col-12 col-md-8">
-                    <label for="pv-sealed-query" class="form-label">Product Name</label>
-                    <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
-                        placeholder="e.g., Phantasmal Flames Booster Box" aria-controls="pv-sealed-results" />
-                </div>
-                <div class="col-12">
-                    <button id="pv-sealed-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                    <button id="pv-sealed-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
-                </div>
-            </form>
+        <section id="pv-sealed-section" class="pv-section container pv-sealedWorkspace">
+            <div class="pv-sealedPanel">
+                <form id="pv-sealed-form" class="pv-form row g-3" role="search">
+                    <div class="pv-form__field col-12">
+                        <label for="pv-sealed-query" class="form-label">Product</label>
+                        <input id="pv-sealed-query" name="pv-sealed-query" type="search" class="form-control"
+                            placeholder="e.g., Prismatic Evolutions Booster Bundle" aria-controls="pv-sealed-results" />
+                    </div>
+                    <div id="pv-sealed-collection-context" class="pv-form__field col-12" role="group" aria-label="Active collection context" hidden>
+                        <label for="pv-sealed-collection-select" class="form-label">Collection</label>
+                        <select id="pv-sealed-collection-select" class="form-select" aria-label="Choose active collection context"></select>
+                    </div>
+                    <div class="col-12 pv-sealedActions">
+                        <button id="pv-sealed-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
+                        <button id="pv-sealed-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                    </div>
+                </form>
 
-            <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
-            <section id="pv-sealed-results" class="pv-section" aria-labelledby="pv-sealed-results-title">
-                <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
-                <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
-            </section>
+                <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
+                <section id="pv-sealed-results" class="pv-section pv-sealedResults" aria-labelledby="pv-sealed-results-title">
+                    <div class="pv-section__header">
+                        <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                        <div id="pv-sealed-sort" class="pv-sortRow" role="group" aria-label="Sort sealed results">
+                            <label for="pv-sealed-sort-select" class="form-label pv-sortLabel">Sort</label>
+                            <select id="pv-sealed-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed results">
+                                <option value="value-desc" selected>High-Low</option>
+                                <option value="value-asc">Low-High</option>
+                                <option value="name-asc">A-Z</option>
+                                <option value="name-desc">Z-A</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="pv-quota-banner" class="pv-quotaBanner" role="status" aria-live="polite" aria-atomic="true" hidden>
+                        <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
+                        <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
+                    </div>
+                    <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
+                    <div id="pv-sealed-load-more-wrap" class="pv-sealedResults__more">
+                        <button id="pv-sealed-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
+                    </div>
+                </section>
+            </div>
 
-            <section id="pv-sealed-favorites" class="pv-section" aria-labelledby="pv-sealed-favorites-title">
+            <section id="pv-sealed-favorites" class="pv-section pv-sealedWatchlist" aria-labelledby="pv-sealed-favorites-title">
                 <div class="pv-section__header">
-                    <h2 id="pv-sealed-favorites-title" class="pv-section__title">Favorites <span id="pv-sealed-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
+                    <h2 id="pv-sealed-favorites-title" class="pv-section__title">Watchlist <span id="pv-sealed-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
                     <div>
+                        <label for="pv-sealed-favorites-sort-select" class="form-label pv-sortLabel">Sort</label>
+                        <select id="pv-sealed-favorites-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed watchlist">
+                            <option value="value-desc" selected>High-Low</option>
+                            <option value="value-asc">Low-High</option>
+                            <option value="name-asc">A-Z</option>
+                            <option value="name-desc">Z-A</option>
+                        </select>
                         <button id="pv-sealed-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
                             aria-controls="pv-sealed-favorites-body" aria-expanded="true">Hide</button>
                         <button id="pv-sealed-favorites-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
                     </div>
                 </div>
                 <div id="pv-sealed-favorites-body">
-                    <div id="pv-sealed-favorites-grid" class="row g-3" aria-label="Sealed favorites grid"></div>
+                    <div id="pv-sealed-favorites-grid" class="row g-3" aria-label="Sealed watchlist grid"></div>
                 </div>
             </section>
         </section>
@@ -82,19 +144,32 @@
 
     <footer id="pv-sealed-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
-            <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+            <p class="pv-footer__text">&copy; <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
             <ul class="pv-footer__links" aria-label="Footer links">
                 <li><a id="pv-sealed-privacy" href="policies.html#pv-privacyPolicy">Privacy</a></li>
                 <li><a id="pv-sealed-terms" href="policies.html#pv-termsOfUse">Terms</a></li>
                 <li><a id="pv-sealed-access" href="policies.html#pv-accessibility">Accessibility</a></li>
+                <li><a id="pv-sealed-contact" href="contact.html">Contact</a></li>
             </ul>
         </div>
     </footer>
 
-    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">▲</button>
+    <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">&#9650;</button>
 
-    <script src="script.js" defer></script>
-    <script src="sealed.js" defer></script>
+    <script src="script.js?v=20260531-4" defer></script>
+
+    <!-- Firebase CDN (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+
+    <!-- Load default config first, then local override (if present). -->
+    <script src="firebase-config.js" defer></script>
+    <!-- Optional local-only Firebase config (ignored by git). 404 is OK in production. -->
+    <script src="firebase-config.local.js" defer></script>
+    <script src="firebase.js" defer></script>
+
+    <script src="sealed.js?v=2026-05-30-4" defer></script>
 </body>
 
 </html>
