@@ -1906,6 +1906,12 @@ h1, h2, h3, h4, h5, h6,
   font-weight: 700;
 }
 
+.pv-miniCard__rarity {
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.8em;
+  font-weight: 560;
+}
+
 .pv-miniCard a {
   color: inherit;
   text-decoration: none;

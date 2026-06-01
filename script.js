@@ -562,6 +562,12 @@
     return expansionName || setName || direct || 'Unknown set';
   }
 
+  function getCardNameAndRarity(cardLike) {
+    const name = String(cardLike?.name || 'Card').trim() || 'Card';
+    const rarity = String(cardLike?.rarity || '').trim();
+    return { name, rarity };
+  }
+
   function getCardThumb(cardLike) {
     const imageObj = cardLike?.images;
     if (imageObj && typeof imageObj === 'object' && !Array.isArray(imageObj)) {
@@ -675,7 +681,11 @@
       const topRows = payload.cards.length
         ? payload.cards.map((card) => {
             const market = getBestMarketFromCard(card);
-            return `<li class="pv-miniCard__subItem"><strong>${escapeText(String(card?.name || 'Card'))}</strong><span>${escapeText(formatUsd(market))}</span></li>`;
+            const cardText = getCardNameAndRarity(card);
+            const rarityLabel = cardText.rarity
+              ? `<span class="pv-miniCard__rarity"> • ${escapeText(cardText.rarity)}</span>`
+              : '';
+            return `<li class="pv-miniCard__subItem"><strong>${escapeText(cardText.name)}${rarityLabel}</strong><span>${escapeText(formatUsd(market))}</span></li>`;
           }).join('')
         : '<li class="pv-miniCard__subItem"><span>Top cards loading unavailable right now.</span></li>';
 
