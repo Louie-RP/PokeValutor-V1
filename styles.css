@@ -1676,6 +1676,47 @@ h1, h2, h3, h4, h5, h6,
   font-size: clamp(1rem, 2.2vw, 1.12rem);
 }
 
+.pv-hero--home #pv-cta-sealed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: rgba(255, 203, 5, 0.8);
+  color: #fff7d1;
+  background: linear-gradient(180deg, rgba(255, 203, 5, 0.24) 0%, rgba(255, 203, 5, 0.1) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 203, 5, 0.25) inset,
+    0 10px 24px rgba(0, 0, 0, 0.4),
+    0 0 14px rgba(255, 203, 5, 0.24);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transition: transform 140ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.pv-hero--home #pv-cta-cards {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #0b0b0b;
+}
+
+.pv-hero--home #pv-cta-cards:hover,
+.pv-hero--home #pv-cta-cards:focus-visible {
+  color: #0b0b0b;
+}
+
+.pv-hero--home #pv-cta-sealed:hover,
+.pv-hero--home #pv-cta-sealed:focus-visible {
+  border-color: rgba(255, 203, 5, 0.96);
+  background: linear-gradient(180deg, rgba(255, 203, 5, 0.34) 0%, rgba(255, 203, 5, 0.16) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 203, 5, 0.45) inset,
+    0 12px 26px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(255, 203, 5, 0.34);
+  transform: translateY(-1px);
+}
+
 .pv-audienceGrid {
   display: grid;
   gap: 1rem;
@@ -1704,6 +1745,34 @@ h1, h2, h3, h4, h5, h6,
   display: grid;
   gap: 0.34rem;
   color: var(--pv-muted);
+}
+
+.pv-audienceCard .pv-button--secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  border-color: rgba(255, 203, 5, 0.75);
+  color: #fff7d1;
+  background: linear-gradient(180deg, rgba(255, 203, 5, 0.24) 0%, rgba(255, 203, 5, 0.1) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 203, 5, 0.25) inset,
+    0 10px 24px rgba(0, 0, 0, 0.4),
+    0 0 14px rgba(255, 203, 5, 0.22);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  transition: transform 140ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.pv-audienceCard .pv-button--secondary:hover,
+.pv-audienceCard .pv-button--secondary:focus-visible {
+  border-color: rgba(255, 203, 5, 0.95);
+  background: linear-gradient(180deg, rgba(255, 203, 5, 0.34) 0%, rgba(255, 203, 5, 0.16) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 203, 5, 0.45) inset,
+    0 12px 26px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(255, 203, 5, 0.34);
+  transform: translateY(-1px);
 }
 
 @media (max-width: 767.98px) {
