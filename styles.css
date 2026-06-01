@@ -36,7 +36,11 @@
 
 * { box-sizing: border-box; }
 html:focus-within { scroll-behavior: smooth; }
-html { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+html {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+  height: 100%;
+  overscroll-behavior-y: none;
+}
 body {
   margin: 0;
   /* Glossy black background: subtle radial sheen + vertical gradient */
@@ -47,6 +51,9 @@ body {
   color: var(--pv-text);
   line-height: 1.6;
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
   display: flex;
   flex-direction: column;
 }
