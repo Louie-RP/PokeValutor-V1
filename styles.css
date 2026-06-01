@@ -4938,6 +4938,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   display: flex;
   flex-direction: column;
   width: 100%;
+  position: relative;
+  overflow: visible;
 }
 
 #pv-shared-body #pv-shared-grid .pv-sharedCollectionCol {
@@ -5079,6 +5081,12 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   letter-spacing: 0.005em;
 }
 
+#pv-shared-body .pv-sharedInfoValue--price {
+  color: #86efac;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 #pv-shared-body .pv-sharedInfoValueWrap {
   display: inline-flex;
   align-items: center;
@@ -5119,8 +5127,10 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-shared-body .pv-sharedValueHintBtn::after {
   content: attr(data-shared-value-hint);
   position: absolute;
+  left: auto;
   right: 0;
   top: calc(100% + 0.4rem);
+  --pv-sharedHintShiftX: 0;
   width: max-content;
   max-width: min(72vw, 220px);
   padding: 0.35rem 0.45rem;
@@ -5135,7 +5145,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   text-align: left;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
   opacity: 0;
-  transform: translateY(-3px);
+  transform: translate(var(--pv-sharedHintShiftX), -3px);
   pointer-events: none;
   transition: opacity 120ms ease, transform 120ms ease;
   z-index: 3;
@@ -5145,7 +5155,16 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-shared-body .pv-sharedValueHintBtn:focus-visible::after,
 #pv-shared-body .pv-sharedValueHintBtn.is-open::after {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(var(--pv-sharedHintShiftX), 0);
+}
+
+@media (max-width: 767.98px) {
+  #pv-shared-body .pv-sharedValueHintBtn::after {
+    left: 50%;
+    right: auto;
+    --pv-sharedHintShiftX: -50%;
+    max-width: min(90vw, 220px);
+  }
 }
 
 #pv-shared-body .pv-sharedCopiesBtn,
