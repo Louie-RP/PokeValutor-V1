@@ -4,12 +4,35 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Contact PokéValutor" />
-    <meta property="og:image" content="https://www.pokevaluator.com/social-card.png" />
-    <meta property="og:image:alt" content="PokéValutor logo" />
+    <meta name="description" content="Send a message to the PokeValutor team for support, feedback, or partnership inquiries." />
+    <meta property="og:title" content="Contact | PokeValutor" />
+    <meta property="og:description" content="Send a message to the PokeValutor team for support, feedback, or partnership inquiries." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.pokevaluator.com/contact.html" />
+    <meta property="og:image" content="https://www.pokevaluator.com/og/contact.png" />
+    <meta property="og:image:alt" content="PokeValutor contact page preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Contact | PokeValutor" />
+    <meta name="twitter:description" content="Send a message to the PokeValutor team for support, feedback, or partnership inquiries." />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/og/contact.png" />
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action https://formspree.io; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https:; upgrade-insecure-requests" />
-    <title>PokéValutor • Contact</title>
+        content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action https://formspree.io; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <title>Contact | PokeValutor</title>
+    <link rel="canonical" href="https://www.pokevaluator.com/contact.html" />
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "ContactPage",
+            "name": "Contact",
+            "description": "Send a message to the PokeValutor team for support, feedback, or partnership inquiries.",
+            "url": "https://www.pokevaluator.com/contact.html",
+            "isPartOf": {
+                "@type": "WebSite",
+                "name": "PokeValutor",
+                "url": "https://www.pokevaluator.com/"
+            }
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap"
@@ -35,8 +58,10 @@
                 <ul class="pv-nav__list">
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="contact.html">Contact</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
                 </ul>
             </nav>
         </div>
@@ -50,6 +75,10 @@
 
         <section class="pv-section pv-contact container" aria-labelledby="pv-contactFormTitle">
             <h2 id="pv-contactFormTitle" class="pv-section__title">Message</h2>
+            <p class="pv-section__text">
+                For faster support, bug reports, updates, and Pokemon talk, join our
+                <a class="pv-inlineLink" href="https://discord.gg/MnNy5K7zp" target="_blank" rel="noopener noreferrer">Discord community</a>.
+            </p>
             <form id="pv-contactForm" class="pv-form row g-3" action="https://formspree.io/f/xzddpgkv" method="POST"
                 aria-describedby="pv-contactDesc">
                 <p id="pv-contactDesc" class="pv-section__text col-12">Send a message using the form below.</p>
@@ -77,16 +106,17 @@
 
     <footer id="pv-contact-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
-            <p class="pv-footer__text">© <span id="pv-year"></span> PokéValutor. All rights reserved.</p>
+            <p class="pv-footer__text">&copy; <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
             <ul class="pv-footer__links" aria-label="Footer links">
                 <li><a id="pv-contact-privacy" href="policies.html#pv-privacyPolicy">Privacy</a></li>
                 <li><a id="pv-contact-terms" href="policies.html#pv-termsOfUse">Terms</a></li>
                 <li><a id="pv-contact-access" href="policies.html#pv-accessibility">Accessibility</a></li>
+                <li><a id="pv-contact-contact" href="contact.html">Contact</a></li>
             </ul>
         </div>
     </footer>
 
-    <script src="script.js" defer></script>
+    <script src="script.js?v=20260531-4" defer></script>
 </body>
 
 </html>
