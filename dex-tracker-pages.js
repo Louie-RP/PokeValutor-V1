@@ -1079,7 +1079,9 @@
             const parsed = safeParseJson(text);
             if (!parsed || typeof parsed !== 'object') return null;
 
-            const rows = Array.isArray(parsed?.data) ? parsed.data : [];
+            const rows = Array.isArray(parsed)
+                ? parsed
+                : (Array.isArray(parsed?.data) ? parsed.data : []);
             return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
         } catch {
             return null;
