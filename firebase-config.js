@@ -6,10 +6,10 @@
 // - For GitHub Pages deploys, prefer injecting config at deploy time (see README).
 
 window.PV_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDT0of-8xDX3no8M7MP9pUg_7WFo-jqkr0",
-  authDomain: "pokevaluator-v1.firebaseapp.com",
-  projectId: "pokevaluator-v1",
-  appId: "1:307587025086:web:7b8872ada8889c943cb6ef",
-  messagingSenderId: "307587025086",
-  storageBucket: "pokevaluator-v1.firebasestorage.app",
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
 };
