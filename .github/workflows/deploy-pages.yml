@@ -36,6 +36,26 @@ jobs:
         run: |
           set -euo pipefail
 
+          required_secrets=(
+            FIREBASE_API_KEY
+            FIREBASE_AUTH_DOMAIN
+            FIREBASE_PROJECT_ID
+            FIREBASE_APP_ID
+            FIREBASE_STORAGE_BUCKET
+            FIREBASE_MESSAGING_SENDER_ID
+          )
+          missing_secrets=()
+          for key in "${required_secrets[@]}"; do
+            if [[ -z "${!key:-}" ]]; then
+              missing_secrets+=("$key")
+            fi
+          done
+
+          if (( ${#missing_secrets[@]} > 0 )); then
+            echo "::error::Missing required GitHub Actions secrets for Firebase config: ${missing_secrets[*]}"
+            exit 1
+          fi
+
           mkdir -p dist
           rsync -a --delete \
             --exclude '.git/' \
