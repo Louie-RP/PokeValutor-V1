@@ -5,6 +5,7 @@
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
     const SHARED_VALUE_CACHE_KEY = 'pv:scrydex:collectionValueCache:v1';
     const SHARED_VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
+    const SHARED_SEALED_VALUE_CACHE_TTL_MS = 60 * 1000;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
     const CONDITION_CODE_ORDER = ['NM', 'LP', 'MP', 'HP', 'DM'];
@@ -874,7 +875,10 @@
         const savedAt = Number(hit?.savedAt || 0);
         const market = Number(hit?.market);
         if (!Number.isFinite(savedAt) || !Number.isFinite(market) || market <= 0) return null;
-        if ((Date.now() - savedAt) > SHARED_VALUE_CACHE_TTL_MS) return null;
+        const ttlMs = String(cacheKey || '').startsWith('sealed:')
+            ? SHARED_SEALED_VALUE_CACHE_TTL_MS
+            : SHARED_VALUE_CACHE_TTL_MS;
+        if ((Date.now() - savedAt) > ttlMs) return null;
 
         return {
             market,
@@ -903,7 +907,8 @@
                 // ignore
             }
 
-            const res = await fetch(url, headers ? { headers } : undefined);
+            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+            const res = await fetch(url, requestInit);
             if (!res.ok) return null;
 
             const parsed = await res.json().catch(() => null);
@@ -926,6 +931,19 @@
         if (!id) return null;
         const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
         return fetchJsonWithOptionalAuth(url);
+    }
+
+    async function fetchSealedFromSearchById(sealedId) {
+        const id = safeString(sealedId, '').trim();
+        if (!id) return null;
+
+        const query = `id:${id}`;
+        const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
+        const payload = await fetchJsonWithOptionalAuth(url);
+        const rows = Array.isArray(payload)
+            ? payload
+            : (Array.isArray(payload?.data) ? payload.data : []);
+        return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
     }
 
     async function getCurrentCardValue(item, variantsOverride) {
@@ -973,7 +991,8 @@
 
         let sourceVariants = Array.isArray(variantsOverride) ? variantsOverride : [];
         if (!sourceVariants.length) {
-            const fetched = await fetchSealedWithPrices(id);
+            const fetchedFromSearch = await fetchSealedFromSearchById(id);
+            const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
             const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
             const fallbackVariants = Array.isArray(item?.raw?.variants)
                 ? item.raw.variants
