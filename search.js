@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const clearBtn = document.getElementById('pv-clear-results');
     const searchSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-sort-select'));
     const conditionSummaryEl = document.getElementById('pv-condition-summary');
+    const conditionTipEl = document.getElementById('pv-condition-tip');
     const conditionCheckboxEls = /** @type {HTMLInputElement[]} */ (Array.from(document.querySelectorAll('input[name="pv-condition-filter"]')));
     const searchCollectionContextEl = document.getElementById('pv-search-collection-context');
     const searchCollectionSelectEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-collection-select'));
@@ -121,9 +122,11 @@ document.addEventListener('DOMContentLoaded', function () {
         ));
         return keys.length ? keys : CONDITION_FILTER_KEYS_FALLBACK.slice();
     })();
-    const DEFAULT_CONDITION_FILTERS = CONDITION_FILTER_KEYS.includes('NM')
-        ? ['NM']
-        : [CONDITION_FILTER_KEYS[0] || 'NM'];
+    const DEFAULT_CONDITION_FILTERS = (() => {
+        const preferred = ['NM', 'LP', 'MP'].filter((key) => CONDITION_FILTER_KEYS.includes(key));
+        if (preferred.length) return preferred;
+        return [CONDITION_FILTER_KEYS[0] || 'NM'];
+    })();
     const DEFAULT_CONDITION_FILTER_KEY = DEFAULT_CONDITION_FILTERS[0] || 'NM';
 
     const PV_BUILD = '2026-05-09-1';
@@ -2256,9 +2259,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         el.textContent = text;
-        el.classList.remove('is-added', 'is-removed', 'is-visible');
+        el.classList.remove('is-added', 'is-removed', 'is-info', 'is-visible');
         if (kind === 'removed') {
             el.classList.add('is-removed');
+        } else if (kind === 'info') {
+            el.classList.add('is-info');
         } else {
             el.classList.add('is-added');
         }
@@ -3704,6 +3709,38 @@ document.addEventListener('DOMContentLoaded', function () {
         return true;
     }
 
+    function filterPriceTextBySelectedFilters(rawText) {
+        const text = safeString(rawText, '').trim();
+        if (!text) return '';
+        if (isPriceTextPlaceholder(text)) return text;
+
+        const lines = text
+            .split(/\r?\n/)
+            .map((line) => safeString(line, '').trim())
+            .filter(Boolean);
+        if (!lines.length) return '';
+
+        const nextLines = [];
+        for (const line of lines) {
+            const colonAt = line.indexOf(':');
+            const prefix = colonAt > 0 ? safeString(line.slice(0, colonAt), '').trim() : '';
+            const code = extractConditionCodeFromLabel(prefix);
+            const filterKey = toConditionFilterKey(code);
+
+            // Keep non-condition lines/messages as-is.
+            if (!filterKey) {
+                nextLines.push(line);
+                continue;
+            }
+
+            if (selectedConditionFilters.has(filterKey)) {
+                nextLines.push(line);
+            }
+        }
+
+        return nextLines.join('\n');
+    }
+
     function formatPriceDisplayHtml(rawText) {
         const text = safeString(rawText, '').trim();
         if (!text) return '';
@@ -4069,6 +4106,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     .join('');
 
             const selectedDexCondition = normalizeDexConditionCode(dexTracked?.selectedCondition);
+            const hideConditionUntilTracked = isSearchPage;
+            const showConditionField = !hideConditionUntilTracked || inDexCollection;
             const selectedDexVariant = safeString(dexTracked?.selectedVariant, '');
             const conditionOptions = ['<option value="">Select condition</option>', ...DEX_CARD_CONDITIONS.map((c) => {
                 const label = c === 'NM'
@@ -4097,7 +4136,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const conditionFieldHtml = enableDexTrackingControls
                 ? `
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
+                        <div class="pv-form__field pv-conditionField" id="pv-condition-field-${idAttr}" style="margin-bottom:0.5rem" ${showConditionField ? '' : 'hidden'}>
                             <label class="form-label" for="pv-condition-${idAttr}">Condition</label>
                             <select class="form-select pv-selectCompact pv-selectCondition" id="pv-condition-${idAttr}">
                                 ${conditionOptions}
@@ -4168,6 +4207,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Declare these after col.innerHTML so the elements exist
             const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
             const conditionEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-condition-${CSS.escape(id)}`));
+            const conditionFieldWrapEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-condition-field-${CSS.escape(id)}`));
             const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
             const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
             const shareBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-share-${CSS.escape(id)}`));
@@ -4218,6 +4258,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     removeBtn.setAttribute('aria-label', rmLabel);
                     removeBtn.setAttribute('title', rmLabel);
                 }
+
+                if (conditionFieldWrapEl && isSearchPage) {
+                    conditionFieldWrapEl.hidden = !nowTracked;
+                }
+
+                if (conditionEl) {
+                    const trackedCode = normalizeDexConditionCode(trackedEntry?.selectedCondition);
+                    if (trackedCode) {
+                        conditionEl.value = trackedCode;
+                    } else if (!nowTracked && isSearchPage) {
+                        conditionEl.value = '';
+                    }
+                }
             }
 
             if (favBtn) {
@@ -4230,7 +4283,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         const cardName = getCardDisplayName(card);
                         const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
                         if (!selectedCondition) {
-                            setStatus('Select a condition (NM, LP, MP, HP, or DM) first.');
+                            if (conditionFieldWrapEl && conditionFieldWrapEl.hidden) {
+                                conditionFieldWrapEl.hidden = false;
+                            }
+                            showActionToast('Select a condition first, then click + again.', 'info');
+                            setStatus('Select a condition first, then click + again.');
                             if (conditionEl) conditionEl.focus();
                             return;
                         }
@@ -4280,7 +4337,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     const cardName = getCardDisplayName(card);
                     const selectedCondition = normalizeDexConditionCode(conditionEl?.value);
                     if (!selectedCondition) {
-                        setStatus('Select a condition (NM, LP, MP, HP, or DM) first.');
+                        if (conditionFieldWrapEl && conditionFieldWrapEl.hidden) {
+                            conditionFieldWrapEl.hidden = false;
+                        }
+                        showActionToast('Select a condition first, then click + again.', 'info');
+                        setStatus('Select a condition first, then click + again.');
                         if (conditionEl) conditionEl.focus();
                         return;
                     }
@@ -4535,9 +4596,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         persistSelection(restoredVariant, formatted);
                     } else if (restoredSelection.pricesText && !isDexPage) {
-                        setCardPricesDisplay(pricesEl, String(restoredSelection.pricesText));
+                        const restoredPricesText = String(restoredSelection.pricesText || '');
+                        const filteredRestoredText = filterPriceTextBySelectedFilters(restoredPricesText);
+                        setCardPricesDisplay(pricesEl, filteredRestoredText || 'Loading prices…');
                         lastLoadedVariantName = restoredVariant;
-                        const market = getMarketFromPricesText(restoredSelection.pricesText);
+                        const market = getMarketFromPricesText(filteredRestoredText);
                         setSearchCardValue(id, market);
                         if (searchSortState.active === 'value') {
                             applySearchSortToGrid();
@@ -4546,12 +4609,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         // Keep the in-memory card snapshot aligned with restored state.
                         try {
                             card.selectedVariant = restoredVariant;
-                            card.pricesText = String(restoredSelection.pricesText);
+                            card.pricesText = filteredRestoredText || restoredPricesText;
                         } catch {
                             // ignore
                         }
 
-                        if (isPriceTextPlaceholder(restoredSelection.pricesText)) {
+                        if (isPriceTextPlaceholder(restoredPricesText) || !doesPriceTextCoverSelectedFilters(restoredPricesText)) {
                             void showPricesForSelectedVariant();
                         }
                     } else {
@@ -5363,6 +5426,47 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     bindSearchSortControls();
+
+    function setConditionTipOpen(isOpen) {
+        if (!conditionTipEl) return;
+        if (isOpen) {
+            conditionTipEl.classList.add('is-open');
+            conditionTipEl.setAttribute('aria-expanded', 'true');
+        } else {
+            conditionTipEl.classList.remove('is-open');
+            conditionTipEl.setAttribute('aria-expanded', 'false');
+        }
+    }
+
+    if (conditionTipEl && conditionTipEl.getAttribute('data-bound') !== '1') {
+        conditionTipEl.setAttribute('data-bound', '1');
+
+        const toggleConditionTip = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setConditionTipOpen(!conditionTipEl.classList.contains('is-open'));
+        };
+
+        conditionTipEl.addEventListener('click', toggleConditionTip);
+        conditionTipEl.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                toggleConditionTip(event);
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                setConditionTipOpen(false);
+            }
+        });
+
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Node)) return;
+            if (!conditionTipEl.contains(target)) {
+                setConditionTipOpen(false);
+            }
+        });
+    }
+
     renderSearchCollectionContext(readCollectionContextMetaLocal());
     setSearchCollectionContextVisible(false);
 
