@@ -10,6 +10,7 @@
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
+    const SEALED_VALUE_CACHE_TTL_MS = 60 * 1000;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
@@ -771,7 +772,10 @@
         const savedAt = Number(hit.savedAt || 0);
         const market = Number(hit.market);
         if (!Number.isFinite(savedAt) || !Number.isFinite(market)) return null;
-        if ((Date.now() - savedAt) > VALUE_CACHE_TTL_MS) return null;
+        const ttlMs = String(cacheKey || '').startsWith('sealed:')
+            ? SEALED_VALUE_CACHE_TTL_MS
+            : VALUE_CACHE_TTL_MS;
+        if ((Date.now() - savedAt) > ttlMs) return null;
 
         return {
             market,
@@ -1010,7 +1014,8 @@
             }
 
             const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-            const res = await fetch(url, headers ? { headers } : undefined);
+            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+            const res = await fetch(url, requestInit);
             if (!res.ok) return null;
 
             const text = await res.text();
@@ -1037,13 +1042,45 @@
             }
 
             const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
-            const res = await fetch(url, headers ? { headers } : undefined);
+            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+            const res = await fetch(url, requestInit);
             if (!res.ok) return null;
 
             const text = await res.text();
             const parsed = safeParseJson(text);
             if (!parsed || typeof parsed !== 'object') return null;
             return parsed?.data || parsed;
+        } catch {
+            return null;
+        }
+    }
+
+    async function fetchSealedFromSearchById(sealedId) {
+        const id = safeString(sealedId, '').trim();
+        if (!id) return null;
+
+        try {
+            let headers;
+            try {
+                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                const token = String(tokenRaw || '').trim();
+                if (token) headers = { Authorization: `Bearer ${token}` };
+            } catch {
+                // ignore
+            }
+
+            const query = `id:${id}`;
+            const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
+            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+            const res = await fetch(url, requestInit);
+            if (!res.ok) return null;
+
+            const text = await res.text();
+            const parsed = safeParseJson(text);
+            if (!parsed || typeof parsed !== 'object') return null;
+
+            const rows = Array.isArray(parsed?.data) ? parsed.data : [];
+            return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
         } catch {
             return null;
         }
@@ -1083,7 +1120,8 @@
             return { market: cached.market };
         }
 
-        const fetched = await fetchSealedWithPrices(id);
+        const fetchedFromSearch = await fetchSealedFromSearchById(id);
+        const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
         const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
         const fallbackVariants = Array.isArray(item?.variants) ? item.variants : [];
         const sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
