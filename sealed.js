@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-sealed-form');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-sealed-query'));
-    const PV_BUILD = '2026-05-29-5';
+    const PV_BUILD = '2026-06-08-1';
     try {
         if (localStorage.getItem('pv:debug') === '1') {
             console.info('[PokeValutor] sealed.js build', PV_BUILD);
@@ -184,12 +184,14 @@ document.addEventListener('DOMContentLoaded', function () {
     function compareSealedProductsForSort(a, b) {
         const idA = String(a?.id || '');
         const idB = String(b?.id || '');
-        const nameA = safeString(a?.name, '').toLowerCase();
-        const nameB = safeString(b?.name, '').toLowerCase();
+        const nameA = getSealedSortableName(a).toLowerCase();
+        const nameB = getSealedSortableName(b).toLowerCase();
 
         if (sealedSortState.active === 'name') {
             const dir = sealedSortState.nameDir === 'asc' ? 1 : -1;
-            return nameA.localeCompare(nameB) * dir;
+            const byName = nameA.localeCompare(nameB) * dir;
+            if (byName !== 0) return byName;
+            return idA.localeCompare(idB) * dir;
         }
 
         const va = Number(sealedValueById[idA]);
@@ -296,12 +298,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function compareSealedFavoritesForSort(a, b) {
-        const nameA = safeString(a?.name, '').toLowerCase();
-        const nameB = safeString(b?.name, '').toLowerCase();
+        const idA = safeString(a?.id, '');
+        const idB = safeString(b?.id, '');
+        const nameA = getSealedSortableName(a).toLowerCase();
+        const nameB = getSealedSortableName(b).toLowerCase();
 
         if (sealedFavoritesSortState.active === 'name') {
             const dir = sealedFavoritesSortState.nameDir === 'asc' ? 1 : -1;
-            return nameA.localeCompare(nameB) * dir;
+            const byName = nameA.localeCompare(nameB) * dir;
+            if (byName !== 0) return byName;
+            return idA.localeCompare(idB) * dir;
         }
 
         const va = Number(getMarketQuote(a)?.market);
@@ -789,6 +795,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
         return {
             id: safeString(product?.id, ''),
+            baseProductId: safeString(product?.baseProductId, safeString(product?.id, '')),
+            variantName: safeString(product?.variantName, ''),
+            variantLabel: safeString(product?.variantLabel, ''),
+            hasMultipleVariants: product?.hasMultipleVariants === true,
             name: safeString(product?.name, 'Unknown'),
             type: safeString(product?.type, ''),
             images: Array.isArray(product?.images) ? product.images : [],
@@ -841,6 +851,10 @@ document.addEventListener('DOMContentLoaded', function () {
             itemType: 'sealed',
             collectionId,
             id: safeString(product?.id, ''),
+            baseProductId: safeString(product?.baseProductId, safeString(product?.id, '')),
+            variantName: safeString(product?.variantName, ''),
+            variantLabel: safeString(product?.variantLabel, ''),
+            hasMultipleVariants: product?.hasMultipleVariants === true,
             name: safeString(product?.name, 'Unknown'),
             type: safeString(product?.type, ''),
             expansion: (product?.expansion && typeof product.expansion === 'object') ? product.expansion : null,
@@ -1551,6 +1565,128 @@ document.addEventListener('DOMContentLoaded', function () {
         return series || 'Sealed product';
     }
 
+    function isDefaultSealedVariantName(rawName) {
+        const normalized = safeString(rawName, '').trim().toLowerCase();
+        return !normalized || normalized === 'normal' || normalized === 'default' || normalized === 'standard';
+    }
+
+    function humanizeSealedVariantName(rawName) {
+        const raw = safeString(rawName, '').trim();
+        if (!raw) return '';
+
+        const spaced = raw
+            .replace(/[_-]+/g, ' ')
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!spaced) return '';
+
+        return spaced
+            .split(' ')
+            .map((part) => part ? `${part.charAt(0).toUpperCase()}${part.slice(1)}` : '')
+            .join(' ')
+            .trim();
+    }
+
+    function getSealedVariantLabel(productLike) {
+        const explicit = safeString(productLike?.variantLabel, '').trim();
+        if (explicit) return explicit;
+
+        const variants = Array.isArray(productLike?.variants) ? productLike.variants : [];
+        const rawName = safeString(productLike?.variantName, '').trim()
+            || safeString(variants[0]?.name, '').trim();
+        const hasMultipleVariants = productLike?.hasMultipleVariants === true || variants.length > 1;
+
+        if (isDefaultSealedVariantName(rawName)) {
+            return hasMultipleVariants ? 'Standard' : '';
+        }
+
+        return humanizeSealedVariantName(rawName) || rawName;
+    }
+
+    function getSealedMetaLineText(productLike) {
+        const seriesLabel = getSealedSeriesLabel(productLike);
+        const variantLabel = getSealedVariantLabel(productLike);
+        return variantLabel ? `${seriesLabel} • ${variantLabel}` : seriesLabel;
+    }
+
+    function getSealedSortableName(productLike) {
+        const name = safeString(productLike?.name, '');
+        const variantLabel = getSealedVariantLabel(productLike);
+        return variantLabel ? `${name} ${variantLabel}` : name;
+    }
+
+    function buildSealedVariantProductId(baseProductIdRaw, variantNameRaw, variantIndex) {
+        const baseProductId = safeString(baseProductIdRaw, '').trim();
+        if (!baseProductId) return '';
+
+        if (isDefaultSealedVariantName(variantNameRaw)) {
+            // Keep default/normal IDs unchanged for backwards-compatible watchlist and collection keys.
+            return baseProductId;
+        }
+
+        const fallbackKey = `variant-${Math.max(1, Number(variantIndex) + 1)}`;
+        const variantKey = normalizeDexCollectionId(variantNameRaw, fallbackKey);
+        return `${baseProductId}::${variantKey}`;
+    }
+
+    function createSealedDisplayProducts(products) {
+        if (!Array.isArray(products) || products.length === 0) return [];
+
+        /** @type {Array<any>} */
+        const out = [];
+
+        for (const product of products) {
+            if (!product || typeof product !== 'object') continue;
+
+            const baseProductId = safeString(product?.id, '').trim();
+            if (!baseProductId) continue;
+
+            const variants = Array.isArray(product?.variants)
+                ? product.variants.filter((v) => v && typeof v === 'object')
+                : [];
+
+            if (!variants.length) {
+                out.push({
+                    ...product,
+                    id: baseProductId,
+                    baseProductId,
+                    variantName: '',
+                    variantLabel: '',
+                    hasMultipleVariants: false,
+                });
+                continue;
+            }
+
+            const hasMultipleVariants = variants.length > 1;
+            variants.forEach((variant, index) => {
+                const rawVariantName = safeString(variant?.name, '').trim();
+                const variantId = buildSealedVariantProductId(baseProductId, rawVariantName, index);
+                if (!variantId) return;
+
+                const variantLabel = isDefaultSealedVariantName(rawVariantName)
+                    ? (hasMultipleVariants ? 'Standard' : '')
+                    : (humanizeSealedVariantName(rawVariantName) || rawVariantName);
+
+                out.push({
+                    ...product,
+                    id: variantId,
+                    baseProductId,
+                    variantName: rawVariantName,
+                    variantLabel,
+                    hasMultipleVariants,
+                    images: Array.isArray(variant?.images) && variant.images.length
+                        ? variant.images
+                        : (Array.isArray(product?.images) ? product.images : []),
+                    variants: [variant],
+                });
+            });
+        }
+
+        return out;
+    }
+
     function normalizeTradePercent(raw) {
         const n = Number(raw);
         if (!Number.isFinite(n)) return DEFAULT_TRADE_PERCENT;
@@ -1793,7 +1929,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const metaLine = document.createElement('p');
             metaLine.className = 'pv-card__text pv-card__rarity';
-            metaLine.textContent = getSealedSeriesLabel(fav);
+            metaLine.textContent = getSealedMetaLineText(fav);
 
             const tradeField = document.createElement('div');
             tradeField.className = 'pv-form__field';
@@ -1842,10 +1978,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderProducts(products, restoreState) {
         if (!grid) return;
         const sourceProducts = Array.isArray(products) ? products : [];
+        const displayProducts = createSealedDisplayProducts(sourceProducts);
         currentResultsProducts = sourceProducts.slice();
         grid.innerHTML = '';
 
-        if (!sourceProducts.length) {
+        if (!displayProducts.length) {
             for (const key of Object.keys(sealedValueById)) {
                 delete sealedValueById[key];
             }
@@ -1854,7 +1991,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const visibleIds = new Set();
-        for (const product of sourceProducts) {
+        for (const product of displayProducts) {
             const id = safeString(product?.id, '');
             if (!id) continue;
             visibleIds.add(id);
@@ -1867,15 +2004,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        const sortedProducts = sourceProducts.slice().sort(compareSealedProductsForSort);
+        const sortedProducts = displayProducts.slice().sort(compareSealedProductsForSort);
         const collectionQtyById = getSealedCollectionQuantityMap();
 
         for (const p of sortedProducts) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-sealedCol';
             const productId = safeString(p?.id, '');
+            const sortableName = getSealedSortableName(p);
             col.setAttribute('data-product-id', escapeAttr(productId));
-            col.setAttribute('data-product-name', escapeAttr(safeString(p?.name, '')));
+            col.setAttribute('data-product-name', escapeAttr(sortableName));
 
             const card = document.createElement('div');
             card.className = 'pv-card pv-card--sealed h-100';
@@ -1936,7 +2074,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const metaLine = document.createElement('p');
             metaLine.className = 'pv-card__text pv-card__rarity';
-            metaLine.textContent = getSealedSeriesLabel(p);
+            metaLine.textContent = getSealedMetaLineText(p);
 
             const tradeField = document.createElement('div');
             tradeField.className = 'pv-form__field';
