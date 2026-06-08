@@ -1570,6 +1570,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return !normalized || normalized === 'normal' || normalized === 'default' || normalized === 'standard';
     }
 
+    const SEALED_VARIANT_CANONICAL_ACRONYMS = new Set(['TCG', 'EX', 'GX', 'VSTAR', 'VMAX', 'XY']);
+
     function humanizeSealedVariantName(rawName) {
         const raw = safeString(rawName, '').trim();
         if (!raw) return '';
@@ -1584,9 +1586,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
         return spaced
             .split(' ')
-            .map((part) => part ? `${part.charAt(0).toUpperCase()}${part.slice(1)}` : '')
+            .map((part) => {
+                if (!part) return '';
+
+                const upper = part.toUpperCase();
+                if (/^[A-Z0-9]+$/.test(part) || SEALED_VARIANT_CANONICAL_ACRONYMS.has(upper)) {
+                    return upper;
+                }
+
+                return `${part.charAt(0).toUpperCase()}${part.slice(1)}`;
+            })
             .join(' ')
             .trim();
+    }
+
+    function deriveSealedVariantLabel(rawVariantName, hasMultipleVariants) {
+        if (isDefaultSealedVariantName(rawVariantName)) {
+            return hasMultipleVariants ? 'Standard' : '';
+        }
+
+        const raw = safeString(rawVariantName, '').trim();
+        return humanizeSealedVariantName(raw) || raw;
     }
 
     function getSealedVariantLabel(productLike) {
@@ -1597,12 +1617,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const rawName = safeString(productLike?.variantName, '').trim()
             || safeString(variants[0]?.name, '').trim();
         const hasMultipleVariants = productLike?.hasMultipleVariants === true || variants.length > 1;
-
-        if (isDefaultSealedVariantName(rawName)) {
-            return hasMultipleVariants ? 'Standard' : '';
-        }
-
-        return humanizeSealedVariantName(rawName) || rawName;
+        return deriveSealedVariantLabel(rawName, hasMultipleVariants);
     }
 
     function getSealedMetaLineText(productLike) {
@@ -1641,6 +1656,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!product || typeof product !== 'object') continue;
 
             const baseProductId = safeString(product?.id, '').trim();
+            // Ignore malformed products because id is required for watchlist, trade %, and collection keys.
             if (!baseProductId) continue;
 
             const variants = Array.isArray(product?.variants)
@@ -1664,10 +1680,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const rawVariantName = safeString(variant?.name, '').trim();
                 const variantId = buildSealedVariantProductId(baseProductId, rawVariantName, index);
                 if (!variantId) return;
-
-                const variantLabel = isDefaultSealedVariantName(rawVariantName)
-                    ? (hasMultipleVariants ? 'Standard' : '')
-                    : (humanizeSealedVariantName(rawVariantName) || rawVariantName);
+                const variantLabel = deriveSealedVariantLabel(rawVariantName, hasMultipleVariants);
 
                 out.push({
                     ...product,
