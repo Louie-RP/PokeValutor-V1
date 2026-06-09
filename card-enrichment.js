@@ -1,7 +1,7 @@
 /* Reusable card-detail enrichment helpers */
 (function () {
     const ENRICHMENT_TTL_MS = 12 * 60 * 60 * 1000;
-    const CACHE_PREFIX = 'pv:tcggo:enrichment:v2:';
+    const CACHE_PREFIX = 'pv:tcggo:enrichment:v3:';
 
     function safeParseJson(raw) {
         try { return JSON.parse(raw); } catch { return null; }
