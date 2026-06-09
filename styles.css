@@ -2641,6 +2641,67 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   max-width: 560px;
 }
 
+.pv-cardEnrichment__meta {
+  color: #ffffff;
+  font-weight: 800;
+  margin: 0 0 0.65rem;
+}
+
+.pv-cardEnrichment__notice,
+.pv-cardEnrichment__empty {
+  margin-top: 0.75rem;
+}
+
+.pv-cardEnrichment__subhead {
+  color: #ffffff;
+  font-size: 1.05rem;
+  margin: 1rem 0 0.55rem;
+}
+
+.pv-cardEnrichment .pv-tableWrap + .pv-cardEnrichment__subhead {
+  margin-top: 1.1rem;
+}
+
+.pv-srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pv-cardEnrichment__companyGrade {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 150px;
+}
+
+.pv-cardEnrichment__company {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.pv-cardEnrichment__gradeSelect {
+  width: min(100%, 150px);
+  min-height: 2.15rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 8px;
+  background: #101010;
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.55rem;
+}
+
+.pv-cardEnrichment__gradeSelect:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 2px;
+}
+
 .pv-relatedCard {
   display: block;
   border: 1px solid var(--pv-border);

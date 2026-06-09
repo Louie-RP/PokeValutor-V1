@@ -23,6 +23,7 @@ serviceAccountKey.json
 
 # Cloudflare Workers local secrets
 .dev.vars
+.dev.vars.*
 .wrangler/
 
 # Node

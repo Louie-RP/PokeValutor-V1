@@ -151,6 +151,58 @@ Configure Upstash Redis so quota counters persist across Worker instances:
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
 
+### TCGGO / Pokemon API enrichment
+Card details can load optional graded-market enrichment from the Worker route:
+- `GET /cards/:id/enrichment`
+
+This route is feature-flagged and does not replace the existing Scrydex card route. The frontend helper lives in [card-enrichment.js](card-enrichment.js) and calls the Worker after the normal card detail render.
+
+Worker secrets/vars:
+- `TCGGO_RAPIDAPI_KEY` (secret, required when enrichment is enabled)
+- `TCGGO_API_BASE_URL` (default `https://pokemon-tcg-api.p.rapidapi.com`)
+- `TCGGO_API_HOST` (RapidAPI host, for example `pokemon-tcg-api.p.rapidapi.com`)
+- `TCGGO_ENRICHMENT_ENABLED` (`0` by default; set `1` only after testing)
+- `TCGGO_AUTH_MODE` (`headers` default; use `query` or `both` only if the RapidAPI playground requires it)
+- `TCGGO_SEARCH_PATH` (default `/cards`)
+- `TCGGO_SEARCH_PARAM` (default `search`)
+- `TCGGO_CARD_DETAIL_PATH_TEMPLATE` (default `/cards/{id}`)
+- `TCGGO_ENRICHMENT_REQUIRE_PREMIUM` (`1` default; allows `premium`, `tester`, and `admin`)
+- `TCGGO_MAPPING_TTL_SECONDS` (default 30 days)
+- `TCGGO_ENRICHMENT_TTL_SECONDS` (default 12 hours)
+- `TCGGO_TIMEOUT_MS` (default 8000)
+
+Cloudflare setup:
+```bash
+npx wrangler secret put TCGGO_RAPIDAPI_KEY
+npx wrangler secret put TCGGO_API_BASE_URL
+npx wrangler secret put TCGGO_API_HOST
+npx wrangler secret put UPSTASH_REDIS_REST_URL
+npx wrangler secret put UPSTASH_REDIS_REST_TOKEN
+```
+
+Set non-secret Worker variables in the Cloudflare dashboard or `wrangler.toml`:
+```txt
+TCGGO_ENRICHMENT_ENABLED=0
+TCGGO_AUTH_MODE=headers
+TCGGO_SEARCH_PATH=/cards
+TCGGO_SEARCH_PARAM=search
+TCGGO_CARD_DETAIL_PATH_TEMPLATE=/cards/{id}
+TCGGO_ENRICHMENT_REQUIRE_PREMIUM=1
+```
+
+Local Worker development uses a git-ignored `.dev.vars` file:
+```txt
+TCGGO_RAPIDAPI_KEY="your-local-rapidapi-key"
+TCGGO_API_BASE_URL="https://pokemon-tcg-api.p.rapidapi.com"
+TCGGO_API_HOST="pokemon-tcg-api.p.rapidapi.com"
+TCGGO_ENRICHMENT_ENABLED="1"
+TCGGO_AUTH_MODE="headers"
+UPSTASH_REDIS_REST_URL="your-upstash-rest-url"
+UPSTASH_REDIS_REST_TOKEN="your-upstash-rest-token"
+```
+
+Before enabling production, confirm the exact RapidAPI base URL, host, auth mode, search endpoint, detail endpoint, graded fields, and history fields in the RapidAPI playground. Keep production set to `TCGGO_ENRICHMENT_ENABLED=0` until staging verifies cache hits, role behavior, and no API key appears in browser Network requests.
+
 ### Price freshness invalidation (webhook-driven)
 The Worker now supports cache invalidation versions driven by Scrydex price webhooks.
 

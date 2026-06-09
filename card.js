@@ -785,6 +785,9 @@ document.addEventListener('DOMContentLoaded', function () {
         syncWatchButton(card.id);
         setSeo(card);
         renderPricing(card);
+        if (window?.PV_CARD_ENRICHMENT?.loadCardEnrichment) {
+            void window.PV_CARD_ENRICHMENT.loadCardEnrichment(card);
+        }
         void renderRelated(card);
     }
 

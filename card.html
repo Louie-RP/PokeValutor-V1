@@ -119,6 +119,15 @@
                 </div>
             </section>
 
+            <section id="pv-card-enrichment" class="pv-section pv-cardEnrichment" aria-labelledby="pv-card-enrichment-title" hidden>
+                <h2 id="pv-card-enrichment-title" class="pv-section__title">Graded Market</h2>
+                <p id="pv-card-enrichment-status" class="pv-section__text" role="status" aria-live="polite"></p>
+                <div id="pv-card-enrichment-meta"></div>
+                <div id="pv-card-graded-market"></div>
+                <div id="pv-card-provider-history"></div>
+                <p class="pv-section__text pv-cardEnrichment__notice">Recent sold data can vary. Values are estimates based on available market data and may not reflect the exact value of your specific card, grade, centering, condition, or certification label.</p>
+            </section>
+
             <section class="pv-section" aria-labelledby="pv-card-history-title">
                 <h2 id="pv-card-history-title" class="pv-section__title">Price History</h2>
                 <p class="pv-section__text">History tracks observed market values from this browser as you revisit the page.</p>
@@ -187,7 +196,8 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="card.js?v=2026-05-10-1" defer></script>
+    <script src="card-enrichment.js?v=20260608-7" defer></script>
+    <script src="card.js?v=20260608-tcggo-1" defer></script>
 </body>
 
 </html>
