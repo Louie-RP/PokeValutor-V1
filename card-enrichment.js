@@ -177,6 +177,29 @@
         return 9;
     }
 
+    function sourceMarketTone(value) {
+        const key = safeString(value, 'unknown').toLowerCase();
+        if (key === 'cardmarket') return 'cardmarket';
+        if (key === 'ebay') return 'ebay';
+        if (key === 'tcgplayer') return 'tcgplayer';
+        return 'other';
+    }
+
+    function sourceMarketInitials(value) {
+        const key = safeString(value, 'unknown').toLowerCase();
+        if (key === 'cardmarket') return 'CM';
+        if (key === 'ebay') return 'eB';
+        if (key === 'tcgplayer') return 'TCG';
+        return 'MKT';
+    }
+
+    function confidenceTone(value) {
+        const key = safeString(value, 'Low').toLowerCase();
+        if (key === 'high') return 'high';
+        if (key === 'medium') return 'medium';
+        return 'low';
+    }
+
     function gradeSortValue(value) {
         const text = safeString(value, '').toLowerCase();
         const match = text.match(/(\d+(?:\.\d+)?)/);
@@ -260,7 +283,11 @@
         const confidence = row.querySelector('[data-grade-field="confidence"]');
         if (median) median.textContent = option.dataset.median || 'n/a';
         if (sample) sample.textContent = option.dataset.sample || 'n/a';
-        if (confidence) confidence.textContent = option.dataset.confidence || 'Low';
+        if (confidence) {
+            const confidenceText = option.dataset.confidence || 'Low';
+            confidence.textContent = confidenceText;
+            confidence.className = `pv-cardEnrichment__confidence pv-cardEnrichment__confidence--${confidenceTone(confidenceText)}`;
+        }
     }
 
     function renderGradedMarket(container, enrichment) {
@@ -278,6 +305,16 @@
         const tables = Array.from(rowsBySource.entries())
             .sort(([a], [b]) => sourceMarketSortValue(a) - sourceMarketSortValue(b))
             .map(([source, sourceRows]) => {
+                const tone = sourceMarketTone(source);
+                const totalSales = sourceRows.reduce((total, group) => {
+                    const n = Number(group?.sampleSize);
+                    return total + (Number.isFinite(n) ? n : 0);
+                }, 0);
+                const uniqueGrades = new Set(sourceRows.map((group) => safeString(group?.grade, 'n/a').toLowerCase())).size;
+                const topRow = sourceRows.reduce((best, group) => (
+                    rowMedianValue(group) > rowMedianValue(best) ? group : best
+                ), sourceRows[0]);
+                const topMedian = topRow ? formatMoney(topRow?.medianPrice, topRow?.currency || enrichment?.graded?.currency, topRow?.sourceMarket) : 'n/a';
                 const rows = Array.from(groupRowsByCompany(sourceRows).values())
                     .sort((a, b) => a.company.localeCompare(b.company))
                     .map((grouped, rowIndex) => {
@@ -288,18 +325,40 @@
                         return `
                             <tr>
                                 <td>${renderCompanyGradeCell(grouped.company, grouped.rows, source, rowIndex)}</td>
-                                <td data-grade-field="median">${escapeHtml(formatMoney(defaultRow?.medianPrice, defaultRow?.currency || enrichment?.graded?.currency, defaultRow?.sourceMarket))}</td>
-                                <td data-grade-field="sample">${escapeHtml(sampleText)}</td>
-                                <td data-grade-field="confidence">${escapeHtml(confidence)}</td>
+                                <td class="pv-cardEnrichment__median" data-grade-field="median">${escapeHtml(formatMoney(defaultRow?.medianPrice, defaultRow?.currency || enrichment?.graded?.currency, defaultRow?.sourceMarket))}</td>
+                                <td><span class="pv-cardEnrichment__sample" data-grade-field="sample">${escapeHtml(sampleText)}</span></td>
+                                <td><span class="pv-cardEnrichment__confidence pv-cardEnrichment__confidence--${escapeHtml(confidenceTone(confidence))}" data-grade-field="confidence">${escapeHtml(confidence)}</span></td>
                             </tr>
                         `;
                 }).join('');
 
                 return `
-                    <section class="pv-cardEnrichment__marketGroup" aria-label="${escapeHtml(sourceMarketLabel(source))} graded market data">
-                        <h3 class="pv-cardEnrichment__subhead">${escapeHtml(sourceMarketLabel(source))}</h3>
-                        <div class="pv-tableWrap">
-                            <table class="pv-cardTable">
+                    <section class="pv-cardEnrichment__marketGroup pv-cardEnrichment__marketGroup--${escapeHtml(tone)}" aria-label="${escapeHtml(sourceMarketLabel(source))} graded market data">
+                        <div class="pv-cardEnrichment__marketHeader">
+                            <div class="pv-cardEnrichment__marketTitle">
+                                <span class="pv-cardEnrichment__marketIcon" aria-hidden="true">${escapeHtml(sourceMarketInitials(source))}</span>
+                                <div>
+                                    <h3 class="pv-cardEnrichment__subhead">${escapeHtml(sourceMarketLabel(source))}</h3>
+                                    <p class="pv-cardEnrichment__sourceType">Graded sold listings</p>
+                                </div>
+                            </div>
+                            <dl class="pv-cardEnrichment__stats" aria-label="${escapeHtml(sourceMarketLabel(source))} summary">
+                                <div>
+                                    <dt>Sales</dt>
+                                    <dd>${escapeHtml(totalSales ? String(totalSales) : 'n/a')}</dd>
+                                </div>
+                                <div>
+                                    <dt>Grades</dt>
+                                    <dd>${escapeHtml(String(uniqueGrades))}</dd>
+                                </div>
+                                <div>
+                                    <dt>Top median</dt>
+                                    <dd>${escapeHtml(topMedian)}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                        <div class="pv-tableWrap pv-cardEnrichment__tableWrap">
+                            <table class="pv-cardTable pv-cardEnrichment__table">
                                 <thead>
                                     <tr>
                                         <th scope="col">Company / Grade</th>
