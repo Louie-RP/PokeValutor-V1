@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const SEALED_RESULTS_SORT_PREF_KEY = `${CACHE_PREFIX}resultsSortMode:v1`;
     const SEALED_WATCHLIST_SORT_PREF_KEY = `${CACHE_PREFIX}watchlistSortMode:v1`;
+    const storageUtil = window?.PV_STORAGE_UTIL || null;
 
     /** @type {Array<any>} */
     let currentResultsProducts = [];
@@ -111,6 +112,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setStatus(message) {
         if (status) status.textContent = message;
+    }
+
+    function getCollectionStorageWriteFailureMessage() {
+        if (storageUtil?.getCollectionStorageWriteFailureMessage) {
+            return storageUtil.getCollectionStorageWriteFailureMessage();
+        }
+        return 'Could not save this collection change. Local storage is full; please try again.';
     }
 
     function loadSortModePreference(storageKey, allowedModes) {
@@ -891,65 +899,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function isStorageQuotaExceededError(error) {
-        const code = Number(error?.code);
-        const name = String(error?.name || '').trim().toLowerCase();
-        const message = String(error?.message || '').trim().toLowerCase();
-
-        if (code === 22 || code === 1014) return true;
-        if (name === 'quotaexceedederror' || name === 'ns_error_dom_quota_reached') return true;
-        if (message.includes('quota') || message.includes('storage')) return true;
-        return false;
-    }
-
-    function getUrlCacheKeysByOldestSave() {
-        const keys = [];
-        try {
-            const prefix = `${CACHE_PREFIX}url:`;
-            for (let i = 0; i < localStorage.length; i += 1) {
-                const key = localStorage.key(i);
-                if (!key || !key.startsWith(prefix)) continue;
-
-                const parsed = safeParseJson(localStorage.getItem(key));
-                const savedAt = Number(parsed?.savedAt || 0);
-                keys.push({ key, savedAt: Number.isFinite(savedAt) ? savedAt : 0 });
-            }
-        } catch {
-            // ignore
-        }
-
-        keys.sort((a, b) => a.savedAt - b.savedAt);
-        return keys;
-    }
-
     function writeCriticalStorageItem(key, serialized) {
-        try {
-            localStorage.setItem(key, serialized);
-            return true;
-        } catch (error) {
-            if (!isStorageQuotaExceededError(error)) return false;
-        }
-
-        const urlCacheKeys = getUrlCacheKeysByOldestSave();
-        for (const entry of urlCacheKeys) {
-            try {
-                localStorage.removeItem(entry.key);
-            } catch {
-                // ignore
-            }
-
-            try {
-                localStorage.setItem(key, serialized);
-                return true;
-            } catch (error) {
-                if (!isStorageQuotaExceededError(error)) return false;
-            }
-        }
-
-        try {
-            localStorage.removeItem(LAST_RESULTS_KEY);
-        } catch {
-            // ignore
+        if (storageUtil?.writeCriticalStorageItem) {
+            return storageUtil.writeCriticalStorageItem({
+                key,
+                serialized,
+                cachePrefix: CACHE_PREFIX,
+                parseJson: safeParseJson,
+                lastResultsKey: LAST_RESULTS_KEY,
+            });
         }
 
         try {
@@ -1041,11 +999,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const activeCollectionId = getActiveDexCollectionId();
         const qtyDelta = Math.floor(Number(delta));
         if (!Number.isFinite(qtyDelta) || qtyDelta === 0) {
-            return { changed: false, quantity: 0 };
+            return { changed: false, quantity: 0, storageWriteFailed: false };
         }
 
         if (!id) {
-            return { changed: false, quantity: 0 };
+            return { changed: false, quantity: 0, storageWriteFailed: false };
         }
 
         const list = readDexCollection();
@@ -1062,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const nextQty = Math.max(0, currentQty + qtyDelta);
 
         if (nextQty === currentQty) {
-            return { changed: false, quantity: currentQty };
+            return { changed: false, quantity: currentQty, storageWriteFailed: false };
         }
 
         if (existingIndex >= 0) {
@@ -1073,7 +1031,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     return { changed: false, quantity: currentQty, storageWriteFailed: true };
                 }
                 syncSealedCollectionInCloud(removed, 0);
-                return { changed: true, quantity: 0 };
+                return { changed: true, quantity: 0, storageWriteFailed: false };
             }
 
             const updated = normalizeSealedCollectionProduct({
@@ -1089,11 +1047,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { changed: false, quantity: currentQty, storageWriteFailed: true };
             }
             syncSealedCollectionInCloud(updated, nextQty);
-            return { changed: true, quantity: nextQty };
+            return { changed: true, quantity: nextQty, storageWriteFailed: false };
         }
 
         if (nextQty <= 0) {
-            return { changed: false, quantity: 0 };
+            return { changed: false, quantity: 0, storageWriteFailed: false };
         }
 
         const normalized = normalizeSealedCollectionProduct({ ...product, collectionId: activeCollectionId, quantity: nextQty });
@@ -1102,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return { changed: false, quantity: currentQty, storageWriteFailed: true };
         }
         syncSealedCollectionInCloud(normalized, nextQty);
-        return { changed: true, quantity: nextQty };
+        return { changed: true, quantity: nextQty, storageWriteFailed: false };
     }
 
     function loadFavorites() {
@@ -1997,7 +1955,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const quantityStepper = createSealedQuantityStepper(fav, quantity, (delta) => {
                 const result = updateSealedCollectionQuantity(fav, delta);
                 if (result.storageWriteFailed) {
-                    setStatus('Could not save this collection change. Local storage is full; please try again.');
+                    setStatus(getCollectionStorageWriteFailureMessage());
                     return;
                 }
                 if (!result.changed) return;
@@ -2153,7 +2111,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const quantityStepper = createSealedQuantityStepper(p, quantity, (delta) => {
                 const result = updateSealedCollectionQuantity(p, delta);
                 if (result.storageWriteFailed) {
-                    setStatus('Could not save this collection change. Local storage is full; please try again.');
+                    setStatus(getCollectionStorageWriteFailureMessage());
                     return;
                 }
                 if (!result.changed) return;

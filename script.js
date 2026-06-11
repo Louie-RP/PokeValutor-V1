@@ -356,6 +356,118 @@
     tryAttach();
   }
 
+  function parseJsonSafe(raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  function isStorageQuotaExceededErrorShared(error) {
+    const code = Number(error?.code);
+    const name = String(error?.name || '').trim().toLowerCase();
+    const message = String(error?.message || '').trim().toLowerCase();
+
+    if (code === 22 || code === 1014) return true;
+    if (name === 'quotaexceedederror' || name === 'ns_error_dom_quota_reached') return true;
+    if (message.includes('quota') || message.includes('storage')) return true;
+    return false;
+  }
+
+  function getUrlCacheKeysByOldestSaveShared(cachePrefix, parseJsonFn) {
+    const keys = [];
+    const prefix = String(cachePrefix || '');
+    const parse = typeof parseJsonFn === 'function' ? parseJsonFn : parseJsonSafe;
+
+    if (!prefix) return keys;
+
+    try {
+      const urlPrefix = `${prefix}url:`;
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (!key || !key.startsWith(urlPrefix)) continue;
+
+        const parsed = parse(localStorage.getItem(key));
+        const savedAt = Number(parsed?.savedAt || 0);
+        keys.push({ key, savedAt: Number.isFinite(savedAt) ? savedAt : 0 });
+      }
+    } catch {
+      // ignore
+    }
+
+    keys.sort((a, b) => a.savedAt - b.savedAt);
+    return keys;
+  }
+
+  function writeCriticalStorageItemShared(options) {
+    const key = String(options?.key || '').trim();
+    if (!key) return false;
+
+    const serialized = String(options?.serialized ?? '');
+    const cachePrefix = String(options?.cachePrefix || '');
+    const parseJsonFn = options?.parseJson;
+    const lastResultsKey = String(options?.lastResultsKey || '').trim();
+    const preCleanup = options?.preCleanup;
+
+    function tryWrite() {
+      try {
+        localStorage.setItem(key, serialized);
+        return true;
+      } catch (error) {
+        return isStorageQuotaExceededErrorShared(error) ? null : false;
+      }
+    }
+
+    let writeResult = tryWrite();
+    if (writeResult !== null) return writeResult;
+
+    if (typeof preCleanup === 'function') {
+      try {
+        preCleanup();
+      } catch {
+        // ignore
+      }
+
+      writeResult = tryWrite();
+      if (writeResult !== null) return writeResult;
+    }
+
+    const cacheKeys = getUrlCacheKeysByOldestSaveShared(cachePrefix, parseJsonFn);
+    for (const entry of cacheKeys) {
+      try {
+        localStorage.removeItem(entry.key);
+      } catch {
+        // ignore
+      }
+
+      writeResult = tryWrite();
+      if (writeResult !== null) return writeResult;
+    }
+
+    if (lastResultsKey) {
+      try {
+        localStorage.removeItem(lastResultsKey);
+      } catch {
+        // ignore
+      }
+    }
+
+    writeResult = tryWrite();
+    return writeResult === true;
+  }
+
+  function getCollectionStorageWriteFailureMessageShared() {
+    return 'Could not save this collection change. Local storage is full; please try again.';
+  }
+
+  window.PV_STORAGE_UTIL = Object.freeze({
+    isStorageQuotaExceededError: isStorageQuotaExceededErrorShared,
+    getUrlCacheKeysByOldestSave: getUrlCacheKeysByOldestSaveShared,
+    writeCriticalStorageItem: writeCriticalStorageItemShared,
+    getCollectionStorageWriteFailureMessage: getCollectionStorageWriteFailureMessageShared,
+  });
+
   markCurrentNavLinks();
   markPricingNavLinks();
   ensureHeaderDiscordNavLink();

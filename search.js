@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
     const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
+    const storageUtil = window?.PV_STORAGE_UTIL || null;
 
     const CONDITION_FILTER_KEYS_FALLBACK = ['NM', 'LP', 'MP', 'OTHER'];
     const CONDITION_FILTER_KEYS = (() => {
@@ -1178,78 +1179,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function isStorageQuotaExceededError(error) {
-        const code = Number(error?.code);
-        const name = String(error?.name || '').trim().toLowerCase();
-        const message = String(error?.message || '').trim().toLowerCase();
-
-        if (code === 22 || code === 1014) return true;
-        if (name === 'quotaexceedederror' || name === 'ns_error_dom_quota_reached') return true;
-        if (message.includes('quota') || message.includes('storage')) return true;
-        return false;
-    }
-
-    function getUrlCacheKeysByOldestSave() {
-        const keys = [];
-        try {
-            const prefix = `${CACHE_PREFIX}url:`;
-            for (let i = 0; i < localStorage.length; i += 1) {
-                const key = localStorage.key(i);
-                if (!key || !key.startsWith(prefix)) continue;
-
-                const parsed = safeParseJson(localStorage.getItem(key));
-                const savedAt = Number(parsed?.savedAt || 0);
-                keys.push({ key, savedAt: Number.isFinite(savedAt) ? savedAt : 0 });
-            }
-        } catch {
-            // ignore
-        }
-
-        keys.sort((a, b) => a.savedAt - b.savedAt);
-        return keys;
-    }
-
     function writeCriticalStorageItem(key, serialized) {
-        try {
-            localStorage.setItem(key, serialized);
-            return true;
-        } catch (error) {
-            if (!isStorageQuotaExceededError(error)) return false;
-        }
-
-        try {
-            cacheSweep();
-        } catch {
-            // ignore
-        }
-
-        try {
-            localStorage.setItem(key, serialized);
-            return true;
-        } catch (error) {
-            if (!isStorageQuotaExceededError(error)) return false;
-        }
-
-        const urlCacheKeys = getUrlCacheKeysByOldestSave();
-        for (const entry of urlCacheKeys) {
-            try {
-                localStorage.removeItem(entry.key);
-            } catch {
-                // ignore
-            }
-
-            try {
-                localStorage.setItem(key, serialized);
-                return true;
-            } catch (error) {
-                if (!isStorageQuotaExceededError(error)) return false;
-            }
-        }
-
-        try {
-            localStorage.removeItem(LAST_RESULTS_KEY);
-        } catch {
-            // ignore
+        if (storageUtil?.writeCriticalStorageItem) {
+            return storageUtil.writeCriticalStorageItem({
+                key,
+                serialized,
+                cachePrefix: CACHE_PREFIX,
+                parseJson: safeParseJson,
+                lastResultsKey: LAST_RESULTS_KEY,
+                preCleanup: cacheSweep,
+            });
         }
 
         try {
@@ -1258,6 +1197,13 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch {
             return false;
         }
+    }
+
+    function getCollectionStorageWriteFailureMessage() {
+        if (storageUtil?.getCollectionStorageWriteFailureMessage) {
+            return storageUtil.getCollectionStorageWriteFailureMessage();
+        }
+        return 'Could not save this collection change. Local storage is full; please try again.';
     }
 
     function saveDexCollection(list, options) {
@@ -4415,7 +4361,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         updateDexButtonStateFromStorage();
 
                         if (result.storageWriteFailed) {
-                            const actionMessage = 'Could not save this card to Collection. Local storage is full; please try again.';
+                            const actionMessage = getCollectionStorageWriteFailureMessage();
                             showActionToast(actionMessage, 'info');
                             setStatus(actionMessage);
                             return;
@@ -4476,7 +4422,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateDexButtonStateFromStorage();
 
                     if (result.storageWriteFailed) {
-                        const actionMessage = 'Could not save this card to Collection. Local storage is full; please try again.';
+                        const actionMessage = getCollectionStorageWriteFailureMessage();
                         showActionToast(actionMessage, 'info');
                         setStatus(actionMessage);
                         return;

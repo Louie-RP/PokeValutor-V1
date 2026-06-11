@@ -18,6 +18,7 @@
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
     const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
+    const storageUtil = window?.PV_STORAGE_UTIL || null;
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -1381,65 +1382,15 @@
         }
     }
 
-    function isStorageQuotaExceededError(error) {
-        const code = Number(error?.code);
-        const name = safeString(error?.name, '').trim().toLowerCase();
-        const message = safeString(error?.message, '').trim().toLowerCase();
-
-        if (code === 22 || code === 1014) return true;
-        if (name === 'quotaexceedederror' || name === 'ns_error_dom_quota_reached') return true;
-        if (message.includes('quota') || message.includes('storage')) return true;
-        return false;
-    }
-
-    function getDexUrlCacheKeysByOldestSave() {
-        const keys = [];
-        try {
-            const prefix = `${CACHE_PREFIX}url:`;
-            for (let i = 0; i < localStorage.length; i += 1) {
-                const key = localStorage.key(i);
-                if (!key || !key.startsWith(prefix)) continue;
-
-                const parsed = safeParseJson(localStorage.getItem(key));
-                const savedAt = Number(parsed?.savedAt || 0);
-                keys.push({ key, savedAt: Number.isFinite(savedAt) ? savedAt : 0 });
-            }
-        } catch {
-            // ignore
-        }
-
-        keys.sort((a, b) => a.savedAt - b.savedAt);
-        return keys;
-    }
-
     function writeCriticalStorageItem(key, serialized) {
-        try {
-            localStorage.setItem(key, serialized);
-            return true;
-        } catch (error) {
-            if (!isStorageQuotaExceededError(error)) return false;
-        }
-
-        const cacheKeys = getDexUrlCacheKeysByOldestSave();
-        for (const entry of cacheKeys) {
-            try {
-                localStorage.removeItem(entry.key);
-            } catch {
-                // ignore
-            }
-
-            try {
-                localStorage.setItem(key, serialized);
-                return true;
-            } catch (error) {
-                if (!isStorageQuotaExceededError(error)) return false;
-            }
-        }
-
-        try {
-            localStorage.removeItem(DEX_LAST_RESULTS_KEY);
-        } catch {
-            // ignore
+        if (storageUtil?.writeCriticalStorageItem) {
+            return storageUtil.writeCriticalStorageItem({
+                key,
+                serialized,
+                cachePrefix: CACHE_PREFIX,
+                parseJson: safeParseJson,
+                lastResultsKey: DEX_LAST_RESULTS_KEY,
+            });
         }
 
         try {
@@ -1936,7 +1887,9 @@
     }
 
     function showDexStorageWriteFailureMessage() {
-        const message = 'Could not save this collection change. Local storage is full; please try again.';
+        const message = storageUtil?.getCollectionStorageWriteFailureMessage
+            ? storageUtil.getCollectionStorageWriteFailureMessage()
+            : 'Could not save this collection change. Local storage is full; please try again.';
         const summary = document.getElementById('pv-collection-summary');
         if (summary) {
             summary.hidden = false;
