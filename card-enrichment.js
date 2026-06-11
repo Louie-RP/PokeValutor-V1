@@ -387,9 +387,17 @@
 
     function renderHistory(container, enrichment) {
         if (!container) return;
+        if (window?.PV_CARD_HISTORY?.renderProviderHistory) {
+            const rendered = window.PV_CARD_HISTORY.renderProviderHistory(enrichment, { preserveExistingProvider: true });
+            container.innerHTML = '';
+            if (rendered) return;
+        }
         const points = Array.isArray(enrichment?.history?.points) ? enrichment.history.points : [];
         const rows = points
-            .filter((point) => safeString(point?.date, '') && Number.isFinite(Number(point?.marketPrice)))
+            .filter((point) => {
+                const market = Number(point?.marketPrice);
+                return safeString(point?.date, '') && Number.isFinite(market) && market > 0;
+            })
             .slice(-10)
             .reverse()
             .map((point) => `

@@ -130,8 +130,8 @@
 
             <section class="pv-section" aria-labelledby="pv-card-history-title">
                 <h2 id="pv-card-history-title" class="pv-section__title">Price History</h2>
-                <p class="pv-section__text">History tracks observed market values from this browser as you revisit the page.</p>
-                <div class="pv-cardHistory__controls">
+                <p id="pv-card-history-note" class="pv-section__text">History tracks observed market values from this browser as you revisit the page.</p>
+                <div id="pv-card-history-controls" class="pv-cardHistory__controls">
                     <div class="pv-form__field">
                         <label class="form-label" for="pv-history-variant">Variant</label>
                         <select id="pv-history-variant" class="form-select"></select>
@@ -148,13 +148,34 @@
                 <div class="pv-tableWrap">
                     <table class="pv-cardTable" id="pv-card-history-table">
                         <thead>
-                            <tr>
+                            <tr id="pv-card-history-head-row">
                                 <th scope="col">Timestamp</th>
                                 <th scope="col">Market</th>
                             </tr>
                         </thead>
                         <tbody id="pv-card-history-body">
                             <tr><td colspan="2">No observed history yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="pv-card-history-stats-section" class="pv-section" aria-labelledby="pv-card-history-stats-title" hidden>
+                <h2 id="pv-card-history-stats-title" class="pv-section__title">Market Averages</h2>
+                <p id="pv-card-history-stats-note" class="pv-section__text">Rolling averages from available provider history.</p>
+                <div class="pv-tableWrap">
+                    <table class="pv-cardTable" id="pv-card-history-stats-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Market</th>
+                                <th scope="col">Latest</th>
+                                <th scope="col">7 Day Avg</th>
+                                <th scope="col">30 Day Avg</th>
+                                <th scope="col">Data Points</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pv-card-history-stats-body">
+                            <tr><td colspan="5">No provider averages available yet.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -196,8 +217,9 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js" defer></script>
 
-    <script src="card-enrichment.js?v=20260608-8" defer></script>
-    <script src="card.js?v=20260608-tcggo-1" defer></script>
+    <script src="card-history.js?v=20260609-history-4" defer></script>
+    <script src="card-enrichment.js?v=20260609-history-4" defer></script>
+    <script src="card.js?v=20260609-history-4" defer></script>
 </body>
 
 </html>
