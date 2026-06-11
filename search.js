@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
     const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
+    const storageUtil = window?.PV_STORAGE_UTIL || null;
 
     const CONDITION_FILTER_KEYS_FALLBACK = ['NM', 'LP', 'MP', 'OTHER'];
     const CONDITION_FILTER_KEYS = (() => {
@@ -1178,19 +1179,51 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function writeCriticalStorageItem(key, serialized) {
+        if (storageUtil?.writeCriticalStorageItem) {
+            return storageUtil.writeCriticalStorageItem({
+                key,
+                serialized,
+                cachePrefix: CACHE_PREFIX,
+                parseJson: safeParseJson,
+                lastResultsKey: LAST_RESULTS_KEY,
+                preCleanup: cacheSweep,
+            });
+        }
+
+        try {
+            localStorage.setItem(key, serialized);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function getCollectionStorageWriteFailureMessage() {
+        if (storageUtil?.getCollectionStorageWriteFailureMessage) {
+            return storageUtil.getCollectionStorageWriteFailureMessage();
+        }
+        return 'Could not save this collection change. Local storage is full; please try again.';
+    }
+
     function saveDexCollection(list, options) {
+        let persisted = false;
         try {
             const safe = Array.isArray(list) ? list : [];
-            localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(safe));
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(safe));
         } catch {
-            // ignore
+            persisted = false;
         }
+
+        if (!persisted) return false;
 
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
+
+        return true;
     }
 
     function loadDexMasterSets() {
@@ -1204,18 +1237,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveDexMasterSets(map, options) {
+        let persisted = false;
         try {
             const safe = (map && typeof map === 'object') ? map : {};
-            localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
         } catch {
-            // ignore
+            persisted = false;
         }
+
+        if (!persisted) return false;
 
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
+
+        return true;
     }
 
     function notifyDexStateChanged() {
@@ -1499,9 +1537,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const existsInCollection = existingIndex >= 0;
         const addVariantName = safeString(normalized?.selectedVariant, '').trim() || getDexDefaultVariantForCard(normalized);
+        let savedCollection = false;
         if (!existsInCollection) {
             collection.push(normalized);
-            saveDexCollection(collection, { immediateCloudSync: true });
+            savedCollection = saveDexCollection(collection, { immediateCloudSync: true });
         } else {
             const existing = normalizeDexCollectionCard(collection[existingIndex]);
             const nextMap = normalizeConditionQuantities(existing?.conditionQuantities, existing?.selectedCondition);
@@ -1529,7 +1568,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 selectedCondition: nextSelectedCondition,
                 updatedAt: Date.now(),
             };
-            saveDexCollection(collection, { immediateCloudSync: true });
+            savedCollection = saveDexCollection(collection, { immediateCloudSync: true });
+        }
+
+        if (!savedCollection) {
+            return {
+                addedCollection: false,
+                addedMasterSet: false,
+                expansionName: '',
+                totalCopies: 0,
+                storageWriteFailed: true,
+            };
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1542,6 +1591,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 addedMasterSet: false,
                 expansionName: '',
                 totalCopies: copies,
+                storageWriteFailed: false,
             };
         }
 
@@ -1578,6 +1628,7 @@ document.addEventListener('DOMContentLoaded', function () {
             addedMasterSet,
             expansionName: expansion.name,
             totalCopies: copies,
+            storageWriteFailed: false,
         };
     }
 
@@ -4309,6 +4360,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         const result = toggleDexCardInTrackers(card);
                         updateDexButtonStateFromStorage();
 
+                        if (result.storageWriteFailed) {
+                            const actionMessage = getCollectionStorageWriteFailureMessage();
+                            showActionToast(actionMessage, 'info');
+                            setStatus(actionMessage);
+                            return;
+                        }
+
                         const addedConditionLabel = getDexConditionLabel(selectedCondition);
                         const addedVariantRaw = safeString(selectedVariant || getDexDefaultVariantForCard(card), '').trim();
                         const addedVariantLabel = addedVariantRaw || 'Standard';
@@ -4362,6 +4420,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     const result = toggleDexCardInTrackers(card);
                     updateDexButtonStateFromStorage();
+
+                    if (result.storageWriteFailed) {
+                        const actionMessage = getCollectionStorageWriteFailureMessage();
+                        showActionToast(actionMessage, 'info');
+                        setStatus(actionMessage);
+                        return;
+                    }
 
                     const addedConditionLabel = getDexConditionLabel(selectedCondition);
                     const addedVariantRaw = safeString(selectedVariant || getDexDefaultVariantForCard(card), '').trim();
