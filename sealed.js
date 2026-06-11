@@ -891,6 +891,75 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function isStorageQuotaExceededError(error) {
+        const code = Number(error?.code);
+        const name = String(error?.name || '').trim().toLowerCase();
+        const message = String(error?.message || '').trim().toLowerCase();
+
+        if (code === 22 || code === 1014) return true;
+        if (name === 'quotaexceedederror' || name === 'ns_error_dom_quota_reached') return true;
+        if (message.includes('quota') || message.includes('storage')) return true;
+        return false;
+    }
+
+    function getUrlCacheKeysByOldestSave() {
+        const keys = [];
+        try {
+            const prefix = `${CACHE_PREFIX}url:`;
+            for (let i = 0; i < localStorage.length; i += 1) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith(prefix)) continue;
+
+                const parsed = safeParseJson(localStorage.getItem(key));
+                const savedAt = Number(parsed?.savedAt || 0);
+                keys.push({ key, savedAt: Number.isFinite(savedAt) ? savedAt : 0 });
+            }
+        } catch {
+            // ignore
+        }
+
+        keys.sort((a, b) => a.savedAt - b.savedAt);
+        return keys;
+    }
+
+    function writeCriticalStorageItem(key, serialized) {
+        try {
+            localStorage.setItem(key, serialized);
+            return true;
+        } catch (error) {
+            if (!isStorageQuotaExceededError(error)) return false;
+        }
+
+        const urlCacheKeys = getUrlCacheKeysByOldestSave();
+        for (const entry of urlCacheKeys) {
+            try {
+                localStorage.removeItem(entry.key);
+            } catch {
+                // ignore
+            }
+
+            try {
+                localStorage.setItem(key, serialized);
+                return true;
+            } catch (error) {
+                if (!isStorageQuotaExceededError(error)) return false;
+            }
+        }
+
+        try {
+            localStorage.removeItem(LAST_RESULTS_KEY);
+        } catch {
+            // ignore
+        }
+
+        try {
+            localStorage.setItem(key, serialized);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
@@ -933,17 +1002,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function writeDexCollection(next) {
+        let persisted = false;
         try {
-            localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
         } catch {
-            // ignore
+            persisted = false;
         }
+
+        if (!persisted) return false;
 
         try {
             window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
         } catch {
             // ignore
         }
+
+        return true;
     }
 
     function getSealedCollectionQuantityMap() {
@@ -995,7 +1069,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (nextQty <= 0) {
                 const removed = list[existingIndex];
                 const next = list.filter((_, idx) => idx !== existingIndex);
-                writeDexCollection(next);
+                if (!writeDexCollection(next)) {
+                    return { changed: false, quantity: currentQty, storageWriteFailed: true };
+                }
                 syncSealedCollectionInCloud(removed, 0);
                 return { changed: true, quantity: 0 };
             }
@@ -1009,7 +1085,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 updatedAt: Date.now(),
             });
             list[existingIndex] = updated;
-            writeDexCollection(list);
+            if (!writeDexCollection(list)) {
+                return { changed: false, quantity: currentQty, storageWriteFailed: true };
+            }
             syncSealedCollectionInCloud(updated, nextQty);
             return { changed: true, quantity: nextQty };
         }
@@ -1020,7 +1098,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const normalized = normalizeSealedCollectionProduct({ ...product, collectionId: activeCollectionId, quantity: nextQty });
         list.push(normalized);
-        writeDexCollection(list);
+        if (!writeDexCollection(list)) {
+            return { changed: false, quantity: currentQty, storageWriteFailed: true };
+        }
         syncSealedCollectionInCloud(normalized, nextQty);
         return { changed: true, quantity: nextQty };
     }
@@ -1916,6 +1996,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const quantity = Math.max(0, Math.floor(Number(collectionQtyById[productId]) || 0));
             const quantityStepper = createSealedQuantityStepper(fav, quantity, (delta) => {
                 const result = updateSealedCollectionQuantity(fav, delta);
+                if (result.storageWriteFailed) {
+                    setStatus('Could not save this collection change. Local storage is full; please try again.');
+                    return;
+                }
                 if (!result.changed) return;
                 renderFavorites(loadLastResults() || restoreState);
                 renderProducts(currentResultsProducts, loadLastResults() || restoreState);
@@ -2068,6 +2152,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const quantity = Math.max(0, Math.floor(Number(collectionQtyById[productId]) || 0));
             const quantityStepper = createSealedQuantityStepper(p, quantity, (delta) => {
                 const result = updateSealedCollectionQuantity(p, delta);
+                if (result.storageWriteFailed) {
+                    setStatus('Could not save this collection change. Local storage is full; please try again.');
+                    return;
+                }
                 if (!result.changed) return;
                 renderProducts(currentResultsProducts, loadLastResults() || restoreState);
                 renderFavorites(loadLastResults() || restoreState);
