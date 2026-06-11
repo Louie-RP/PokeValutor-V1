@@ -1,7 +1,7 @@
 /* Reusable card-detail historical price helpers */
 (function () {
     const HISTORY_TTL_MS = 12 * 60 * 60 * 1000;
-    const CACHE_PREFIX = 'pv:tcggo:history:v3:';
+    const CACHE_PREFIX = 'pv:tcggo:history:v6:';
     const DEFAULT_EUR_TO_USD_RATE = 1.1513;
 
     function safeParseJson(raw) {
@@ -355,9 +355,15 @@
         section.hidden = false;
         if (note) {
             const latestDate = safeString(stats?.latestDate, '');
-            note.textContent = latestDate
-                ? `Averages are calculated from available TCGGO history through ${toUiDate(latestDate)}. Cardmarket EUR values display as USD estimates.`
-                : 'Averages are calculated from available TCGGO history. Cardmarket EUR values display as USD estimates.';
+            const hasTcgplayerMarket = markets.some((market) => safeString(market?.sourceMarket, '').toLowerCase() === 'tcgplayer');
+            const baseText = latestDate
+                ? `Averages are calculated from available TCGGO history through ${toUiDate(latestDate)}.`
+                : 'Averages are calculated from available TCGGO history.';
+            if (hasTcgplayerMarket) {
+                note.textContent = `${baseText} Cardmarket EUR values display as USD estimates.`;
+            } else {
+                note.textContent = `${baseText} TCGplayer history is not currently available for this card from TCGGO; Cardmarket EUR values display as USD estimates.`;
+            }
         }
 
         body.innerHTML = markets.map((market) => {
@@ -396,14 +402,16 @@
             return true;
         }
 
+        const hasTcgplayer = points.some((point) => Number.isFinite(point.tcgplayerMarket));
+        const hasCardmarket = points.some((point) => Number.isFinite(point.cardmarketLow));
+
         if (note) {
-            note.textContent = 'Historical market prices from TCGGO. Cardmarket EUR values display as USD estimates.';
+            note.textContent = hasTcgplayer
+                ? 'Historical market prices from TCGGO. Cardmarket EUR values display as USD estimates.'
+                : 'TCGplayer history is not currently available for this card from TCGGO. Showing Cardmarket history only (EUR values displayed as USD estimates).';
         }
 
         if (controls) controls.hidden = true;
-
-        const hasTcgplayer = points.some((point) => Number.isFinite(point.tcgplayerMarket));
-        const hasCardmarket = points.some((point) => Number.isFinite(point.cardmarketLow));
 
         if (headRow) {
             const marketHeads = [
