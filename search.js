@@ -5027,8 +5027,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // 3) number:<value> (covers promo codes like SWSH020 and many regular sets).
-            if (cards.length < RESULT_LIMIT && numberCandidate && !String(numberCandidate).includes('/')) {
+            // 3) number:<value> fallback (covers promo codes like SWSH020 and many regular sets).
+            // Only run this fallback if prior lookups returned no results to avoid extra API calls.
+            if (cards.length === 0 && numberCandidate && !String(numberCandidate).includes('/')) {
                 const numberQ = buildFieldQuery('number', numberCandidate);
                 const numberUrl = `${base}/cards/search?q=${encodeURIComponent(numberQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const numberData = await fetchJsonWithCache(numberUrl, SEARCH_TTL_MS);
@@ -5036,7 +5037,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 4) If the user pasted a card id (e.g., "mep-10"), try id:<value> directly.
-            if (cards.length < RESULT_LIMIT && /-/.test(pn) && /[A-Za-z]/.test(pn)) {
+            if (cards.length === 0 && /-/.test(pn) && /[A-Za-z]/.test(pn)) {
                 const idQ = buildFieldQuery('id', pn);
                 const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
