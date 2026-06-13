@@ -5067,6 +5067,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 return pn;
             })();
 
+            function normalizePrintedNumberForCompare(raw) {
+                const text = String(raw || '').trim();
+                if (!text) return '';
+                if (text.includes('/')) return normalizeSimplePrintedFraction(text).toUpperCase();
+                if (/^\d+$/.test(text)) return normalizeSimpleDigits(text);
+                return text.toUpperCase();
+            }
+
+            function hasExactNumberMatch(list, candidate) {
+                const wanted = normalizePrintedNumberForCompare(candidate);
+                if (!wanted) return false;
+                return (Array.isArray(list) ? list : []).some((card) => {
+                    const rawNumber = card?.printedNumber ?? card?.printed_number ?? card?.number;
+                    const normalized = normalizePrintedNumberForCompare(rawNumber);
+                    return normalized === wanted;
+                });
+            }
+
+            function hasExactIdMatch(list, candidateId) {
+                const wanted = String(candidateId || '').trim().toLowerCase();
+                if (!wanted) return false;
+                return (Array.isArray(list) ? list : []).some((card) => String(card?.id || '').trim().toLowerCase() === wanted);
+            }
+
             // 1) Promo-first: promos are easy to crowd out by other sets sharing the same number.
             // Use a larger page, sort, then merge into the top of results.
             if (numberCandidate && !String(numberCandidate).includes('/')) {
@@ -5092,8 +5116,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // 3) number:<value> (covers promo codes like SWSH020 and many regular sets).
-            if (cards.length < RESULT_LIMIT && numberCandidate && !String(numberCandidate).includes('/')) {
+            // 3) number:<value> fallback (covers promo codes like SWSH020 and many regular sets).
+            // Run only if current results do not already include an exact number match.
+            if (numberCandidate && !String(numberCandidate).includes('/') && !hasExactNumberMatch(cards, numberCandidate)) {
                 const numberQ = buildFieldQuery('number', numberCandidate);
                 const numberUrl = `${base}/cards/search?q=${encodeURIComponent(numberQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const numberData = await fetchJsonWithCache(numberUrl, SEARCH_TTL_MS);
@@ -5101,7 +5126,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 4) If the user pasted a card id (e.g., "mep-10"), try id:<value> directly.
-            if (cards.length < RESULT_LIMIT && /-/.test(pn) && /[A-Za-z]/.test(pn)) {
+            if (/-/.test(pn) && /[A-Za-z]/.test(pn) && !hasExactIdMatch(cards, pn)) {
                 const idQ = buildFieldQuery('id', pn);
                 const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
