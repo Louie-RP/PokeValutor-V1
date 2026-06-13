@@ -3,6 +3,7 @@
     const CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
@@ -17,6 +18,7 @@
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
     const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
+    const storageUtil = window?.PV_STORAGE_UTIL || null;
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -1380,16 +1382,40 @@
         }
     }
 
-    function writeCollection(next, options) {
-        try {
-            localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
-        } catch {
-            // ignore
+    function writeCriticalStorageItem(key, serialized) {
+        if (storageUtil?.writeCriticalStorageItem) {
+            return storageUtil.writeCriticalStorageItem({
+                key,
+                serialized,
+                cachePrefix: CACHE_PREFIX,
+                parseJson: safeParseJson,
+                lastResultsKey: DEX_LAST_RESULTS_KEY,
+            });
         }
+
+        try {
+            localStorage.setItem(key, serialized);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    function writeCollection(next, options) {
+        let persisted = false;
+        try {
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
+        } catch {
+            persisted = false;
+        }
+
+        if (!persisted) return false;
 
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
+
+        return true;
     }
 
     function normalizeMasterSetEntry(entry, fallbackExpansionId) {
@@ -1443,16 +1469,21 @@
     }
 
     function writeMasterSets(next, options) {
+        let persisted = false;
         try {
             const safe = (next && typeof next === 'object') ? next : {};
-            localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
         } catch {
-            // ignore
+            persisted = false;
         }
+
+        if (!persisted) return false;
 
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
+
+        return true;
     }
 
     const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
@@ -1657,7 +1688,7 @@
         const activeCollectionId = getActiveCollectionId();
         const qtyDelta = Math.floor(Number(delta));
         if (!id || !code || !Number.isFinite(qtyDelta) || qtyDelta === 0) {
-            return { changed: false, removeCard: false };
+            return { changed: false, removeCard: false, storageWriteFailed: false };
         }
 
         const collection = readCollection();
@@ -1699,14 +1730,16 @@
         });
 
         if (!found || !changed) {
-            return { changed: false, removeCard: false };
+            return { changed: false, removeCard: false, storageWriteFailed: false };
         }
 
         if (!removeCard) {
-            writeCollection(nextCollection, { immediateCloudSync: true });
+            if (!writeCollection(nextCollection, { immediateCloudSync: true })) {
+                return { changed: false, removeCard: false, storageWriteFailed: true };
+            }
         }
 
-        return { changed: true, removeCard };
+        return { changed: true, removeCard, storageWriteFailed: false };
     }
 
     function removeCardFromTrackers(cardId) {
@@ -1722,7 +1755,9 @@
         });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
-            writeCollection(nextCollection, { immediateCloudSync: true });
+            if (!writeCollection(nextCollection, { immediateCloudSync: true })) {
+                return false;
+            }
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1755,7 +1790,9 @@
         }
 
         if (removedMaster) {
-            writeMasterSets(master, { immediateCloudSync: true });
+            if (!writeMasterSets(master, { immediateCloudSync: true })) {
+                return false;
+            }
         }
 
         return removedCollection || removedMaster;
@@ -1766,7 +1803,7 @@
         const activeCollectionId = getActiveCollectionId();
         const qtyDelta = Math.floor(Number(delta));
         if (!id || !Number.isFinite(qtyDelta) || qtyDelta === 0) {
-            return { changed: false, removeProduct: false, quantity: 0 };
+            return { changed: false, removeProduct: false, quantity: 0, storageWriteFailed: false };
         }
 
         const collection = readCollection();
@@ -1807,7 +1844,7 @@
         });
 
         if (!found || !changed) {
-            return { changed: false, removeProduct: false, quantity: nextQuantity };
+            return { changed: false, removeProduct: false, quantity: nextQuantity, storageWriteFailed: false };
         }
 
         if (removeProduct) {
@@ -1816,12 +1853,16 @@
                     && safeString(entry?.id, '') === id
                     && normalizeCollectionId(entry?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
             });
-            writeCollection(filtered, { immediateCloudSync: true });
-            return { changed: true, removeProduct: true, quantity: 0 };
+            if (!writeCollection(filtered, { immediateCloudSync: true })) {
+                return { changed: false, removeProduct: false, quantity: nextQuantity, storageWriteFailed: true };
+            }
+            return { changed: true, removeProduct: true, quantity: 0, storageWriteFailed: false };
         }
 
-        writeCollection(nextCollection, { immediateCloudSync: true });
-        return { changed: true, removeProduct: false, quantity: nextQuantity };
+        if (!writeCollection(nextCollection, { immediateCloudSync: true })) {
+            return { changed: false, removeProduct: false, quantity: nextQuantity, storageWriteFailed: true };
+        }
+        return { changed: true, removeProduct: false, quantity: nextQuantity, storageWriteFailed: false };
     }
 
     function removeSealedProductFromCollection(productId) {
@@ -1839,8 +1880,28 @@
             return false;
         }
 
-        writeCollection(nextCollection, { immediateCloudSync: true });
+        if (!writeCollection(nextCollection, { immediateCloudSync: true })) {
+            return false;
+        }
         return true;
+    }
+
+    function showDexStorageWriteFailureMessage() {
+        const message = storageUtil?.getCollectionStorageWriteFailureMessage
+            ? storageUtil.getCollectionStorageWriteFailureMessage()
+            : 'Could not save this collection change. Local storage is full; please try again.';
+        const summary = document.getElementById('pv-collection-summary');
+        if (summary) {
+            summary.hidden = false;
+            summary.textContent = message;
+            return;
+        }
+
+        try {
+            window.alert(message);
+        } catch {
+            // ignore
+        }
     }
 
     function buildMasterSetDetailUrl(expansionId, expansionName) {
@@ -2329,7 +2390,11 @@
                     if (!id) return;
                     const ok = window.confirm('Remove this card from Collection?');
                     if (!ok) return;
-                    removeCardFromTrackers(id);
+                    const removed = removeCardFromTrackers(id);
+                    if (!removed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     renderActivePage();
                 });
             }
@@ -2341,7 +2406,11 @@
                     if (!id) return;
                     const ok = window.confirm('Remove this sealed product from Collection?');
                     if (!ok) return;
-                    removeSealedProductFromCollection(id);
+                    const removed = removeSealedProductFromCollection(id);
+                    if (!removed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     renderCollectionPage();
                 });
             }
@@ -2353,6 +2422,10 @@
                     if (!id) return;
 
                     const result = updateSealedCollectionQuantity(id, 1);
+                    if (result.storageWriteFailed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     if (!result.changed) return;
                     renderCollectionPage();
                 });
@@ -2365,6 +2438,10 @@
                     if (!id) return;
 
                     const result = updateSealedCollectionQuantity(id, -1);
+                    if (result.storageWriteFailed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     if (!result.changed) return;
                     renderCollectionPage();
                 });
@@ -2378,6 +2455,10 @@
                     if (!cardId || !code) return;
 
                     const result = updateCollectionConditionQuantity(cardId, code, 1);
+                    if (result.storageWriteFailed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     if (!result.changed) return;
                     renderCollectionPage();
                 });
@@ -2391,12 +2472,20 @@
                     if (!cardId || !code) return;
 
                     const result = updateCollectionConditionQuantity(cardId, code, -1);
+                    if (result.storageWriteFailed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     if (!result.changed) return;
 
                     if (result.removeCard) {
                         const ok = window.confirm('No copies left. Remove this card from Collection?');
                         if (!ok) return;
-                        removeCardFromTrackers(cardId);
+                        const removed = removeCardFromTrackers(cardId);
+                        if (!removed) {
+                            showDexStorageWriteFailureMessage();
+                            return;
+                        }
                         renderActivePage();
                         return;
                     }
@@ -2422,6 +2511,10 @@
                     }
 
                     const result = updateCollectionConditionQuantity(cardId, code, 1);
+                    if (result.storageWriteFailed) {
+                        showDexStorageWriteFailureMessage();
+                        return;
+                    }
                     if (!result.changed) return;
                     renderCollectionPage();
                 });
