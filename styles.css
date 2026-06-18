@@ -267,6 +267,53 @@ body {
   }
 }
 
+#pv-dex-body #pv-collection-pagination {
+  margin-top: 0.55rem;
+}
+
+#pv-dex-body .pv-collectionPagination__inner {
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 0.52rem 0.62rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#pv-dex-body .pv-collectionPagination__status {
+  margin: 0;
+  color: #dbeafe;
+  font-size: 0.82rem;
+}
+
+#pv-dex-body .pv-collectionPagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+#pv-dex-body .pv-collectionPagination__pageLabel {
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 6.8rem;
+  text-align: center;
+}
+
+#pv-dex-body .pv-collectionPagination__btn {
+  min-height: 1.95rem;
+  padding: 0.28rem 0.56rem;
+  font-size: 0.76rem;
+}
+
+#pv-dex-body .pv-collectionPagination__btn[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 @media (min-width: 768px) {
   .pv-header__inner { grid-template-columns: auto 1fr; }
   .pv-navToggle { display: none; }
@@ -4836,6 +4883,11 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     grid-column: 1 / -1;
     grid-row: 5;
   }
+
+  #pv-dex-body section[aria-labelledby="pv-collection-list-title"] > #pv-collection-pagination {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
 }
 
 @media (max-width: 899.98px) {
@@ -4966,6 +5018,29 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   #pv-dex-body section[aria-labelledby="pv-collection-list-title"] > #pv-collection-grid {
     grid-column: 1 / -1;
     grid-row: 6;
+  }
+
+  #pv-dex-body section[aria-labelledby="pv-collection-list-title"] > #pv-collection-pagination {
+    grid-column: 1 / -1;
+    grid-row: 7;
+  }
+
+  #pv-dex-body .pv-collectionPagination__inner {
+    padding: 0.46rem 0.5rem;
+  }
+
+  #pv-dex-body .pv-collectionPagination__controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  #pv-dex-body .pv-collectionPagination__pageLabel {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  #pv-dex-body .pv-collectionPagination__btn {
+    flex: 0 0 auto;
   }
 
   #pv-dex-body .pv-dexTools__actions {

@@ -16,6 +16,9 @@
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
+    const COLLECTION_PAGE_SIZE_MOBILE = 36;
+    const COLLECTION_PAGE_SIZE_DESKTOP = 60;
+    const COLLECTION_PAGE_BREAKPOINT_QUERY = '(max-width: 767.98px)';
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
     const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
@@ -35,6 +38,12 @@
         valueText: 'Value: $0.00',
         amountText: 'Amount: 0 items • 0 card copies',
     };
+    const collectionPaginationState = {
+        page: 1,
+        perPage: 0,
+        signature: '',
+    };
+    let collectionPageSizeMediaBound = false;
     /** @type {Record<string, number>} */
     const collectionValueById = {};
 
@@ -577,6 +586,132 @@
         }
     }
 
+    function getCollectionPageSize() {
+        try {
+            if (window?.matchMedia && window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY).matches) {
+                return COLLECTION_PAGE_SIZE_MOBILE;
+            }
+        } catch {
+            // ignore
+        }
+        return COLLECTION_PAGE_SIZE_DESKTOP;
+    }
+
+    function sortCollectionMatches(matches) {
+        const list = Array.isArray(matches) ? matches.slice() : [];
+        if (list.length <= 1) return list;
+
+        list.sort((a, b) => {
+            const relevanceA = Number(a?.score || 0);
+            const relevanceB = Number(b?.score || 0);
+            if (relevanceA !== relevanceB) {
+                return relevanceB - relevanceA;
+            }
+
+            const itemA = a?.item || {};
+            const itemB = b?.item || {};
+            const nameA = safeString(itemA?.name, '').toLowerCase();
+            const nameB = safeString(itemB?.name, '').toLowerCase();
+
+            if (collectionSortState.active === 'name') {
+                const dir = collectionSortState.nameDir === 'asc' ? 1 : -1;
+                return nameA.localeCompare(nameB) * dir;
+            }
+
+            const keyA = getCollectionEntryKey(itemA);
+            const keyB = getCollectionEntryKey(itemB);
+            const va = Number(collectionValueById[keyA]);
+            const vb = Number(collectionValueById[keyB]);
+            const hasA = Number.isFinite(va);
+            const hasB = Number.isFinite(vb);
+
+            if (!hasA && !hasB) {
+                return nameA.localeCompare(nameB);
+            }
+            if (!hasA) return 1;
+            if (!hasB) return -1;
+
+            const dir = collectionSortState.valueDir === 'asc' ? 1 : -1;
+            if (va === vb) return nameA.localeCompare(nameB);
+            return (va - vb) * dir;
+        });
+
+        return list;
+    }
+
+    function renderCollectionPagination(container, options) {
+        if (!(container instanceof HTMLElement)) return;
+
+        const totalItems = Math.max(0, Math.floor(Number(options?.totalItems) || 0));
+        const pageSize = Math.max(1, Math.floor(Number(options?.pageSize) || COLLECTION_PAGE_SIZE_DESKTOP));
+        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+        const currentPage = Math.min(Math.max(1, Math.floor(Number(options?.currentPage) || 1)), totalPages);
+
+        if (totalItems <= pageSize) {
+            container.hidden = true;
+            container.innerHTML = '';
+            return;
+        }
+
+        const start = ((currentPage - 1) * pageSize) + 1;
+        const end = Math.min(totalItems, currentPage * pageSize);
+        const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+        const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+
+        container.hidden = false;
+        container.innerHTML = `
+            <div class="pv-collectionPagination__inner">
+                <p class="pv-collectionPagination__status">Showing ${start}-${end} of ${totalItems}</p>
+                <div class="pv-collectionPagination__controls" role="group" aria-label="Collection pages">
+                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="prev" ${prevDisabled}>Previous</button>
+                    <span class="pv-collectionPagination__pageLabel">Page ${currentPage} of ${totalPages}</span>
+                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="next" ${nextDisabled}>Next</button>
+                </div>
+            </div>
+        `;
+
+        const prevBtn = container.querySelector('[data-page-nav="prev"]');
+        const nextBtn = container.querySelector('[data-page-nav="next"]');
+
+        function scrollCollectionToTop() {
+            const grid = document.getElementById('pv-collection-grid');
+            const firstCard = grid instanceof HTMLElement
+                ? grid.querySelector('.pv-collectionCol')
+                : null;
+            const target = firstCard instanceof HTMLElement
+                ? firstCard
+                : ((grid instanceof HTMLElement) ? grid : container);
+            const header = document.getElementById('pv-search-header');
+            const headerHeight = header instanceof HTMLElement
+                ? Math.max(0, Math.ceil(header.getBoundingClientRect().height))
+                : 0;
+            const topClearance = headerHeight + 20;
+            const top = Math.max(
+                0,
+                Math.round(target.getBoundingClientRect().top + window.scrollY - topClearance)
+            );
+            window.scrollTo({ top, behavior: 'smooth' });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (collectionPaginationState.page <= 1) return;
+                collectionPaginationState.page -= 1;
+                renderCollectionPage();
+                scrollCollectionToTop();
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                if (collectionPaginationState.page >= totalPages) return;
+                collectionPaginationState.page += 1;
+                renderCollectionPage();
+                scrollCollectionToTop();
+            });
+        }
+    }
+
     function bindCollectionSortControls() {
         const sortSelect = document.getElementById('pv-collection-sort-select');
 
@@ -585,9 +720,8 @@
             sortSelect.addEventListener('change', () => {
                 applyCollectionSortMode(sortSelect.value);
                 updateCollectionSortUi();
-                const grid = document.getElementById('pv-collection-grid');
-                applyCollectionSortToGrid(grid);
                 saveCollectionSortPreference(getCollectionSortMode());
+                renderCollectionPage();
             });
         }
 
@@ -2409,6 +2543,7 @@
         const totalEl = document.getElementById('pv-collection-total');
         const filterInput = document.getElementById('pv-collection-filter');
         const typeFilterSelect = document.getElementById('pv-collection-type-filter');
+        const paginationEl = document.getElementById('pv-collection-pagination');
         if (!grid || !summary || !totalEl) return;
 
         bindCollectionTotalsVisibilityToggle();
@@ -2474,6 +2609,30 @@
             : typeFilteredItems.map((item) => ({ item, score: 0 }));
 
         const filteredItems = filteredMatches.map((x) => x.item);
+        const sortedMatches = sortCollectionMatches(filteredMatches);
+        const paginationSignature = [
+            activeCollectionId,
+            selectedType,
+            normalizeSearchText(filterQuery),
+        ].join('|');
+        const pageSize = getCollectionPageSize();
+
+        if (collectionPaginationState.signature !== paginationSignature) {
+            collectionPaginationState.signature = paginationSignature;
+            collectionPaginationState.page = 1;
+        }
+
+        if (collectionPaginationState.perPage !== pageSize) {
+            const previousSize = collectionPaginationState.perPage || pageSize;
+            const firstVisibleIndex = Math.max(0, (collectionPaginationState.page - 1) * previousSize);
+            collectionPaginationState.page = Math.floor(firstVisibleIndex / pageSize) + 1;
+            collectionPaginationState.perPage = pageSize;
+        }
+
+        const totalPages = Math.max(1, Math.ceil(sortedMatches.length / pageSize));
+        collectionPaginationState.page = Math.min(Math.max(1, collectionPaginationState.page), totalPages);
+        const pageStart = (collectionPaginationState.page - 1) * pageSize;
+        const visibleMatches = sortedMatches.slice(pageStart, pageStart + pageSize);
         const filteredCardCopies = filteredItems.reduce((sum, item) => {
             if (!isCardCollectionItem(item)) return sum;
             return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
@@ -2545,7 +2704,7 @@
                 summary.textContent = `${summary.textContent} Did you mean "${collectionSuggestion}"?`;
             }
         } else {
-            const rows = filteredMatches.map((match) => {
+            const rows = visibleMatches.map((match) => {
                 const item = match.item;
                 const id = safeString(item?.id, '');
                 const entryKey = getCollectionEntryKey(item);
@@ -2798,11 +2957,18 @@
         if (suggestionButton && filterInput instanceof HTMLInputElement) {
             suggestionButton.addEventListener('click', () => {
                 filterInput.value = safeString(suggestionButton.getAttribute('data-collection-suggestion'), '');
+                collectionPaginationState.page = 1;
                 renderCollectionPage();
                 filterInput.focus();
                 filterInput.select();
             });
         }
+
+        renderCollectionPagination(paginationEl, {
+            totalItems: filteredItems.length,
+            pageSize,
+            currentPage: collectionPaginationState.page,
+        });
 
         if (items.length) {
             void refreshCollectionValues(items, totalEl);
@@ -2813,6 +2979,7 @@
         if (filterInput instanceof HTMLInputElement && filterInput.getAttribute('data-bound') !== '1') {
             filterInput.setAttribute('data-bound', '1');
             filterInput.addEventListener('input', () => {
+                collectionPaginationState.page = 1;
                 renderCollectionPage();
             });
         }
@@ -2824,6 +2991,7 @@
                 const next = normalizeCollectionTypeFilter(typeFilterSelect.value);
                 typeFilterSelect.value = next;
                 saveCollectionTypeFilterPreference(next);
+                collectionPaginationState.page = 1;
                 renderCollectionPage();
             });
         }
@@ -3082,6 +3250,24 @@
     document.addEventListener('DOMContentLoaded', () => {
         setCollectionTotalsHidden(loadCollectionTotalsHiddenPreference(), { persist: false });
         renderActivePage();
+
+        try {
+            if (!collectionPageSizeMediaBound && window?.matchMedia) {
+                const mediaQuery = window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY);
+                const handleBreakpointChange = () => {
+                    renderCollectionPage();
+                };
+
+                if (typeof mediaQuery.addEventListener === 'function') {
+                    mediaQuery.addEventListener('change', handleBreakpointChange);
+                } else if (typeof mediaQuery.addListener === 'function') {
+                    mediaQuery.addListener(handleBreakpointChange);
+                }
+                collectionPageSizeMediaBound = true;
+            }
+        } catch {
+            // ignore
+        }
 
         try {
             if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
