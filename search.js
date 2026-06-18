@@ -2409,8 +2409,46 @@ document.addEventListener('DOMContentLoaded', function () {
         setDexSearchPanelOpen(true);
     }
 
+    function isCreditCapCode(value) {
+        const code = String(value || '').trim().toUpperCase();
+        return code === 'CREDIT_CAP_HIT' || code === 'QUOTA_EXCEEDED';
+    }
+
+    function extractApiErrorDetails(payload, status) {
+        const nestedError = payload && typeof payload === 'object' ? payload.error : null;
+        const nestedMessage = nestedError && typeof nestedError === 'object'
+            ? (nestedError.message || nestedError.error || '')
+            : '';
+        const topMessage = payload && typeof payload === 'object'
+            ? (payload.message || '')
+            : '';
+        const code = nestedError && typeof nestedError === 'object'
+            ? String(nestedError.code || payload?.code || '').trim()
+            : String(payload?.code || '').trim();
+
+        const message = String(nestedMessage || topMessage || `API error ${status}`).trim();
+        return { message, code };
+    }
+
     function isQuotaExceededError(err) {
-        return !!(err && typeof err === 'object' && (err.isQuotaExceeded === true || err.status === 429));
+        if (!err || typeof err !== 'object') return false;
+        // @ts-ignore
+        const code = String(err.code || '').trim();
+        // @ts-ignore
+        const message = String(err.message || '').toLowerCase();
+        // @ts-ignore
+        return Boolean(err.isQuotaExceeded === true || err.status === 429 || isCreditCapCode(code) || message.includes('credit cap'));
+    }
+
+    function getQuotaExceededStatusMessage(err) {
+        // @ts-ignore
+        const code = String(err?.code || '').trim();
+        // @ts-ignore
+        const message = String(err?.message || '').toLowerCase();
+        if (isCreditCapCode(code) || message.includes('credit cap')) {
+            return 'Search is temporarily unavailable. Please try again later.';
+        }
+        return 'Daily guest allowance reached. Sign in to continue.';
     }
 
     function safeParseIntOrNull(value) {
@@ -3561,24 +3599,28 @@ document.addEventListener('DOMContentLoaded', function () {
             throw new Error(`Non-JSON response (${res.status})`);
         }
         if (!res.ok) {
-            const msg = data?.error || data?.message || `API error ${res.status}`;
-            const err = new Error(String(msg));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message);
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
 
         // Some APIs return HTTP 200 with an { ok:false } payload.
         // Never cache those responses.
         if (data && typeof data === 'object' && data.ok === false) {
-            const msg = data?.error || data?.message || 'API error';
-            const err = new Error(String(msg));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message || 'API error');
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
         cacheSet(cacheKey, data, ttlMs);
@@ -4839,7 +4881,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -4952,7 +4994,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5158,7 +5200,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5251,7 +5293,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('[PokeValutor] expansion top search error', e);
             renderCards([]);
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5352,7 +5394,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5423,7 +5465,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('[PokeValutor] dex load more error', e);
             setLoadMoreState(true, false);
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else {
                 setStatus('Unable to load more cards right now. Please try again.');
             }

@@ -267,6 +267,53 @@ body {
   }
 }
 
+#pv-dex-body #pv-collection-pagination {
+  margin-top: 0.55rem;
+}
+
+#pv-dex-body .pv-collectionPagination__inner {
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 0.52rem 0.62rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#pv-dex-body .pv-collectionPagination__status {
+  margin: 0;
+  color: #dbeafe;
+  font-size: 0.82rem;
+}
+
+#pv-dex-body .pv-collectionPagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+#pv-dex-body .pv-collectionPagination__pageLabel {
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 6.8rem;
+  text-align: center;
+}
+
+#pv-dex-body .pv-collectionPagination__btn {
+  min-height: 1.95rem;
+  padding: 0.28rem 0.56rem;
+  font-size: 0.76rem;
+}
+
+#pv-dex-body .pv-collectionPagination__btn[disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 @media (min-width: 768px) {
   .pv-header__inner { grid-template-columns: auto 1fr; }
   .pv-navToggle { display: none; }
@@ -2523,9 +2570,174 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 .pv-collectionTotal {
-  margin: 0.15rem 0 0.35rem;
+  --pv-total-accent: rgba(255, 203, 5, 0.42);
+  margin: 0.25rem 0 0.65rem;
   color: #ffffff;
   font-weight: 800;
+  border: 1px solid rgba(255, 203, 5, 0.28);
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(255, 203, 5, 0.18), rgba(255, 203, 5, 0) 45%),
+    linear-gradient(135deg, rgba(10, 10, 10, 0.98) 0%, rgba(19, 15, 6, 0.96) 100%);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.08) inset, 0 12px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  animation: pvCollectionTotalsEnter 280ms ease-out;
+}
+
+@keyframes pvCollectionTotalsEnter {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pv-collectionTotalTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.pv-collectionTotalValue {
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.12rem, 2.6vw, 1.42rem);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  color: #ffeaa2;
+  text-shadow: 0 0 18px rgba(255, 203, 5, 0.26), 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
+.pv-collectionTotalAmount {
+  margin-top: 0.2rem;
+  display: block;
+  color: #fff7dd;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-collectionTotalToggle {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff8da;
+  border-radius: 999px;
+  min-height: 32px;
+  padding: 0.3rem 0.58rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.pv-collectionTotalToggle:hover,
+.pv-collectionTotalToggle:focus {
+  border-color: var(--pv-total-accent);
+  background: rgba(255, 203, 5, 0.12);
+}
+
+.pv-collectionTotalToggle:focus {
+  outline: 2px solid var(--pv-focus);
+  outline-offset: 2px;
+}
+
+.pv-collectionTotalToggle:active {
+  transform: translateY(1px);
+}
+
+.pv-collectionTotalToggleIcon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pv-collectionTotalToggleIcon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.pv-collectionTotalToggleIcon--eyeOff {
+  display: none;
+}
+
+.pv-collectionTotalToggle[aria-pressed="true"] .pv-collectionTotalToggleIcon--eye {
+  display: none;
+}
+
+.pv-collectionTotalToggle[aria-pressed="true"] .pv-collectionTotalToggleIcon--eyeOff {
+  display: inline-flex;
+}
+
+.pv-collectionTotalToggleLabel {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pv-collectionTotalTrend {
+  display: block;
+  margin-top: 0.28rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.24);
+}
+
+.pv-collectionTotal--hidden .pv-collectionTotalValue,
+.pv-collectionTotal--hidden .pv-collectionTotalAmount,
+.pv-collectionTotal--hidden .pv-collectionTotalTrend {
+  filter: blur(6px);
+  user-select: none;
+}
+
+@media (max-width: 768px) {
+  .pv-collectionTotal {
+    padding: 0.62rem 0.7rem;
+  }
+
+  .pv-collectionTotalTop {
+    gap: 0.45rem;
+  }
+
+  .pv-collectionTotalToggle {
+    padding: 0.25rem 0.45rem;
+    min-height: 29px;
+  }
+
+  .pv-collectionTotalToggleLabel {
+    font-size: 0.7rem;
+  }
+
+  .pv-collectionTotalAmount {
+    font-size: 0.86rem;
+  }
+
+  .pv-collectionTotalTrend {
+    font-size: 0.8rem;
+  }
+}
+
+.pv-collectionTotalTrend--up {
+  color: #22c55e;
+}
+
+.pv-collectionTotalTrend--down {
+  color: #ef4444;
+}
+
+.pv-collectionTotalTrend--flat {
+  color: #f8fafc;
 }
 
 .pv-collectionAmount {
@@ -4671,6 +4883,11 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     grid-column: 1 / -1;
     grid-row: 5;
   }
+
+  #pv-dex-body section[aria-labelledby="pv-collection-list-title"] > #pv-collection-pagination {
+    grid-column: 1 / -1;
+    grid-row: 6;
+  }
 }
 
 @media (max-width: 899.98px) {
@@ -4801,6 +5018,29 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   #pv-dex-body section[aria-labelledby="pv-collection-list-title"] > #pv-collection-grid {
     grid-column: 1 / -1;
     grid-row: 6;
+  }
+
+  #pv-dex-body section[aria-labelledby="pv-collection-list-title"] > #pv-collection-pagination {
+    grid-column: 1 / -1;
+    grid-row: 7;
+  }
+
+  #pv-dex-body .pv-collectionPagination__inner {
+    padding: 0.46rem 0.5rem;
+  }
+
+  #pv-dex-body .pv-collectionPagination__controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  #pv-dex-body .pv-collectionPagination__pageLabel {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  #pv-dex-body .pv-collectionPagination__btn {
+    flex: 0 0 auto;
   }
 
   #pv-dex-body .pv-dexTools__actions {
