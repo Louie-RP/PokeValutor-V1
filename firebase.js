@@ -27,6 +27,7 @@
             removeWatchlistItem: async () => { },
             loadDexState: async () => ({ collection: [], masterSets: {} }),
             saveDexState: async () => { },
+            loadCollectionValueSnapshot: async () => null,
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             loadSharedDexCollection: async () => ({
@@ -70,6 +71,7 @@
             removeWatchlistItem: async () => { },
             loadDexState: async () => ({ collection: [], masterSets: {} }),
             saveDexState: async () => { },
+            loadCollectionValueSnapshot: async () => null,
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             loadSharedDexCollection: async () => ({
@@ -1290,6 +1292,16 @@
         }
     }
 
+    async function loadCollectionValueSnapshot(collectionId) {
+        const selectedCollectionId = String(collectionId || DEX_DEFAULT_COLLECTION_ID).trim() || DEX_DEFAULT_COLLECTION_ID;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        return callFunction('getCollectionValueSnapshot', {
+            collectionId: selectedCollectionId,
+            timezone,
+            useLiveWorkerPrices: true,
+        });
+    }
+
     window.PV_AUTH = {
         isReady: () => true,
         getUser,
@@ -1312,6 +1324,7 @@
         removeWatchlistItem,
         loadDexState,
         saveDexState,
+        loadCollectionValueSnapshot,
         loadDexShareSettings,
         saveDexShareSettings,
         loadSharedDexCollection,

@@ -10,6 +10,7 @@
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
+    const COLLECTION_TOTALS_HIDDEN_PREF_KEY = `${CACHE_PREFIX}collectionTotalsHidden:v1`;
     const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
     const SEALED_VALUE_CACHE_TTL_MS = 60 * 1000;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -23,6 +24,16 @@
         active: 'value',
         nameDir: 'asc',
         valueDir: 'desc',
+    };
+    const collectionSnapshotState = {
+        byCollectionId: {},
+        inFlightByCollectionId: {},
+        errorUntilByCollectionId: {},
+    };
+    const collectionTotalsState = {
+        hidden: false,
+        valueText: 'Value: $0.00',
+        amountText: 'Amount: 0 items • 0 card copies',
     };
     /** @type {Record<string, number>} */
     const collectionValueById = {};
@@ -467,6 +478,22 @@
         }
     }
 
+    function loadCollectionTotalsHiddenPreference() {
+        try {
+            return String(localStorage.getItem(COLLECTION_TOTALS_HIDDEN_PREF_KEY) || '') === '1';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveCollectionTotalsHiddenPreference(hidden) {
+        try {
+            localStorage.setItem(COLLECTION_TOTALS_HIDDEN_PREF_KEY, hidden ? '1' : '0');
+        } catch {
+            // ignore
+        }
+    }
+
     function getCollectionSortMode() {
         if (collectionSortState.active === 'name') {
             return collectionSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
@@ -744,6 +771,246 @@
         const entries = getConditionQuantityEntries(conditionQuantities, fallbackCondition);
         if (!entries.length) return 'n/a';
         return entries.map((x) => `${getConditionLabel(x.code)} x${x.qty}`).join(', ');
+    }
+
+    function formatSignedUsdFromCents(centsRaw) {
+        const cents = Math.round(Number(centsRaw) || 0);
+        const sign = cents > 0 ? '+' : cents < 0 ? '-' : '';
+        return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`;
+    }
+
+    function readSnapshotDebugOverride(snapshot) {
+        const host = safeString(window?.location?.hostname, '').toLowerCase();
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
+        if (!isLocal) return null;
+
+        let mode = '';
+        try {
+            const params = new URLSearchParams(window.location.search);
+            mode = safeString(params.get('pv_snapshot_debug'), '').trim().toLowerCase();
+        } catch {
+            return null;
+        }
+
+        if (mode !== 'up' && mode !== 'down' && mode !== 'flat') {
+            return null;
+        }
+
+        const totalValueCents = Math.max(0, Math.round(Number(snapshot?.totalValueCents || 0)));
+        const baseDelta = Math.max(100, Math.round(totalValueCents * 0.05));
+        const changeCents = mode === 'up'
+            ? baseDelta
+            : (mode === 'down' ? -baseDelta : 0);
+        const previousValueCents = Math.max(1, totalValueCents - changeCents);
+        const changePercent = previousValueCents > 0
+            ? Math.round((changeCents / previousValueCents) * 10000) / 100
+            : 0;
+
+        return {
+            hasPrevious: true,
+            changeCents,
+            changePercent,
+        };
+    }
+
+    function areCollectionTotalsHidden() {
+        return Boolean(collectionTotalsState.hidden);
+    }
+
+    function applyCollectionTotalsVisibilityUi() {
+        const hidden = areCollectionTotalsHidden();
+        const totalEl = document.getElementById('pv-collection-total');
+        const valueEl = document.getElementById('pv-collection-total-value');
+        const amountEl = document.getElementById('pv-collection-total-amount');
+        const toggleBtn = document.getElementById('pv-collection-total-toggle');
+        const toggleLabelEl = document.getElementById('pv-collection-total-toggle-label');
+
+        if (totalEl) {
+            totalEl.classList.toggle('pv-collectionTotal--hidden', hidden);
+        }
+
+        if (valueEl) {
+            valueEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+        } else if (totalEl) {
+            totalEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+        }
+
+        if (amountEl) {
+            amountEl.textContent = safeString(collectionTotalsState.amountText, 'Amount: 0 items • 0 card copies');
+        }
+
+        if (toggleBtn) {
+            const actionText = hidden ? 'Show' : 'Hide';
+            const toggleDescription = `${actionText} collection value and amount`;
+            toggleBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+            toggleBtn.setAttribute('aria-label', toggleDescription);
+            toggleBtn.setAttribute('title', toggleDescription);
+        }
+
+        if (toggleLabelEl) {
+            toggleLabelEl.textContent = hidden ? 'Show' : 'Hide';
+        }
+    }
+
+    function setCollectionTotalsHidden(nextHidden, options) {
+        const hidden = Boolean(nextHidden);
+        collectionTotalsState.hidden = hidden;
+
+        if (options?.persist !== false) {
+            saveCollectionTotalsHiddenPreference(hidden);
+        }
+
+        applyCollectionTotalsVisibilityUi();
+        void loadAndRenderCollectionValueSnapshot();
+    }
+
+    function bindCollectionTotalsVisibilityToggle() {
+        const toggleBtn = document.getElementById('pv-collection-total-toggle');
+        if (!(toggleBtn instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        if (toggleBtn.getAttribute('data-bound') !== '1') {
+            toggleBtn.setAttribute('data-bound', '1');
+            toggleBtn.addEventListener('click', () => {
+                setCollectionTotalsHidden(!areCollectionTotalsHidden());
+            });
+        }
+
+        applyCollectionTotalsVisibilityUi();
+    }
+
+    function setCollectionTotalValueText(text) {
+        collectionTotalsState.valueText = safeString(text, 'Value: $0.00');
+        if (areCollectionTotalsHidden()) {
+            applyCollectionTotalsVisibilityUi();
+            return;
+        }
+
+        const totalValueEl = document.getElementById('pv-collection-total-value');
+        if (totalValueEl) {
+            totalValueEl.textContent = collectionTotalsState.valueText;
+            return;
+        }
+
+        const totalEl = document.getElementById('pv-collection-total');
+        if (totalEl) {
+            totalEl.textContent = collectionTotalsState.valueText;
+        }
+    }
+
+    function setCollectionTotalAmountText(text) {
+        collectionTotalsState.amountText = safeString(text, 'Amount: 0 items • 0 card copies');
+        if (areCollectionTotalsHidden()) {
+            applyCollectionTotalsVisibilityUi();
+            return;
+        }
+
+        const amountEl = document.getElementById('pv-collection-total-amount');
+        if (amountEl) {
+            amountEl.textContent = collectionTotalsState.amountText;
+        }
+    }
+
+    function hideCollectionValueSnapshotTrend() {
+        const trendEl = document.getElementById('pv-collection-total-trend');
+        if (!trendEl) return;
+
+        trendEl.hidden = true;
+        trendEl.textContent = '';
+        trendEl.classList.remove('pv-collectionTotalTrend--up', 'pv-collectionTotalTrend--down', 'pv-collectionTotalTrend--flat');
+    }
+
+    function renderCollectionValueSnapshotUnavailable() {
+        const trendEl = document.getElementById('pv-collection-total-trend');
+        if (!trendEl) return;
+
+        trendEl.hidden = false;
+        trendEl.textContent = 'Snapshot unavailable';
+        trendEl.classList.remove('pv-collectionTotalTrend--up', 'pv-collectionTotalTrend--down');
+        trendEl.classList.add('pv-collectionTotalTrend--flat');
+    }
+
+    function renderCollectionValueSnapshot(snapshot) {
+        const trendEl = document.getElementById('pv-collection-total-trend');
+        if (!trendEl) return;
+
+        if (!snapshot || typeof snapshot !== 'object') {
+            hideCollectionValueSnapshotTrend();
+            return;
+        }
+
+        let changeCents = Math.round(Number(snapshot.changeCents || 0));
+        let changePercent = Number(snapshot.changePercent || 0);
+        const previousValueCents = Math.round(Number(snapshot.previousValueCents || 0));
+        let hasPrevious = previousValueCents > 0;
+        const debugOverride = readSnapshotDebugOverride(snapshot);
+        if (debugOverride) {
+            hasPrevious = Boolean(debugOverride.hasPrevious);
+            changeCents = Math.round(Number(debugOverride.changeCents || 0));
+            changePercent = Number(debugOverride.changePercent || 0);
+        }
+
+        trendEl.hidden = false;
+        trendEl.classList.toggle('pv-collectionTotalTrend--up', changeCents > 0);
+        trendEl.classList.toggle('pv-collectionTotalTrend--down', changeCents < 0);
+        trendEl.classList.toggle('pv-collectionTotalTrend--flat', changeCents === 0);
+
+        if (hasPrevious) {
+            trendEl.textContent = `Since last check: ${formatSignedUsdFromCents(changeCents)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
+        } else {
+            hideCollectionValueSnapshotTrend();
+        }
+    }
+
+    async function loadAndRenderCollectionValueSnapshot(options) {
+        const forceRefresh = Boolean(options?.forceRefresh);
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user || !authApi?.loadCollectionValueSnapshot) {
+            hideCollectionValueSnapshotTrend();
+            return;
+        }
+
+        const collectionId = getActiveCollectionId();
+        const nowMs = Date.now();
+        const errorUntilMs = Number(collectionSnapshotState.errorUntilByCollectionId[collectionId] || 0);
+
+        if (!forceRefresh && errorUntilMs > nowMs) {
+            renderCollectionValueSnapshotUnavailable();
+            return;
+        }
+
+        if (!forceRefresh && Object.prototype.hasOwnProperty.call(collectionSnapshotState.byCollectionId, collectionId)) {
+            renderCollectionValueSnapshot(collectionSnapshotState.byCollectionId[collectionId]);
+            return;
+        }
+
+        if (!forceRefresh && collectionSnapshotState.inFlightByCollectionId[collectionId]) {
+            try {
+                await collectionSnapshotState.inFlightByCollectionId[collectionId];
+            } catch {
+                // ignore
+            }
+            return;
+        }
+
+        const request = Promise.resolve(authApi.loadCollectionValueSnapshot(collectionId));
+        collectionSnapshotState.inFlightByCollectionId[collectionId] = request;
+
+        try {
+            const result = await request;
+            const snapshot = result?.snapshot || null;
+            delete collectionSnapshotState.errorUntilByCollectionId[collectionId];
+            collectionSnapshotState.byCollectionId[collectionId] = snapshot;
+            renderCollectionValueSnapshot(snapshot);
+        } catch {
+            delete collectionSnapshotState.byCollectionId[collectionId];
+            collectionSnapshotState.errorUntilByCollectionId[collectionId] = Date.now() + 60 * 1000;
+            renderCollectionValueSnapshotUnavailable();
+        } finally {
+            delete collectionSnapshotState.inFlightByCollectionId[collectionId];
+        }
     }
 
     function readValueCache() {
@@ -1146,11 +1413,11 @@
         }
 
         if (!list.length) {
-            totalEl.textContent = 'Value: $0.00';
+            setCollectionTotalValueText('Value: $0.00');
             return;
         }
 
-        totalEl.textContent = 'Value: Loading...';
+        setCollectionTotalValueText('Value: Loading...');
 
         let total = 0;
         let totalUnits = 0;
@@ -1237,7 +1504,7 @@
         }));
 
         const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
-        totalEl.textContent = `Value: ${formatUsd(total)}${coverage}`;
+        setCollectionTotalValueText(`Value: ${formatUsd(total)}${coverage}`);
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
@@ -2144,6 +2411,8 @@
         const typeFilterSelect = document.getElementById('pv-collection-type-filter');
         if (!grid || !summary || !totalEl) return;
 
+        bindCollectionTotalsVisibilityToggle();
+
         const activeCollectionId = getActiveCollectionId();
         const items = readCollection()
             .filter((item) => normalizeCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId)
@@ -2220,6 +2489,10 @@
         if (dexSealedStat) dexSealedStat.textContent = String(sealedItems.length);
         if (dexCopiesStat) dexCopiesStat.textContent = String(totalCardCopies);
 
+        const itemLabel = items.length === 1 ? 'item' : 'items';
+        const copyLabel = totalCardCopies === 1 ? 'copy' : 'copies';
+        setCollectionTotalAmountText(`Amount: ${items.length} ${itemLabel} • ${totalCardCopies} card ${copyLabel}`);
+
         if (!items.length) {
             summary.textContent = '0 cards • 0 sealed products.';
         } else if (!typeFilteredItems.length) {
@@ -2251,7 +2524,7 @@
         bindCollectionSortControls();
 
         if (!items.length) {
-            totalEl.textContent = 'Value: $0.00';
+            setCollectionTotalValueText('Value: $0.00');
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items tracked yet. Add cards from Dex search or sealed products from Sealed.</div></div>';
         } else if (!typeFilteredItems.length) {
             grid.innerHTML = selectedType === 'sealed'
@@ -2535,6 +2808,8 @@
             void refreshCollectionValues(items, totalEl);
         }
 
+        void loadAndRenderCollectionValueSnapshot();
+
         if (filterInput instanceof HTMLInputElement && filterInput.getAttribute('data-bound') !== '1') {
             filterInput.setAttribute('data-bound', '1');
             filterInput.addEventListener('input', () => {
@@ -2805,13 +3080,21 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        setCollectionTotalsHidden(loadCollectionTotalsHiddenPreference(), { persist: false });
         renderActivePage();
 
         try {
             if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
                 window.PV_AUTH.onAuthStateChanged((user) => {
-                    if (!user) return;
+                    if (!user) {
+                        collectionSnapshotState.byCollectionId = {};
+                        collectionSnapshotState.inFlightByCollectionId = {};
+                        collectionSnapshotState.errorUntilByCollectionId = {};
+                        hideCollectionValueSnapshotTrend();
+                        return;
+                    }
                     syncDexStateFromCloudOnSignIn();
+                    void loadAndRenderCollectionValueSnapshot({ forceRefresh: true });
                 });
             }
         } catch {
@@ -2820,6 +3103,9 @@
 
         window.addEventListener('storage', renderActivePage);
         window.addEventListener('pv:dex-state-changed', renderActivePage);
-        window.addEventListener('pv:dex-collection-context-changed', renderActivePage);
+        window.addEventListener('pv:dex-collection-context-changed', () => {
+            renderActivePage();
+            void loadAndRenderCollectionValueSnapshot({ forceRefresh: true });
+        });
     });
 })();

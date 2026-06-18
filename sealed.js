@@ -114,6 +114,27 @@ document.addEventListener('DOMContentLoaded', function () {
         if (status) status.textContent = message;
     }
 
+    function isCreditCapCode(value) {
+        const code = String(value || '').trim().toUpperCase();
+        return code === 'CREDIT_CAP_HIT' || code === 'QUOTA_EXCEEDED';
+    }
+
+    function extractApiErrorDetails(payload, status) {
+        const nestedError = payload && typeof payload === 'object' ? payload.error : null;
+        const nestedMessage = nestedError && typeof nestedError === 'object'
+            ? (nestedError.message || nestedError.error || '')
+            : '';
+        const topMessage = payload && typeof payload === 'object'
+            ? (payload.message || '')
+            : '';
+        const code = nestedError && typeof nestedError === 'object'
+            ? String(nestedError.code || payload?.code || '').trim()
+            : String(payload?.code || '').trim();
+
+        const message = String(nestedMessage || topMessage || `Request failed (${status})`).trim();
+        return { message, code };
+    }
+
     function getCollectionStorageWriteFailureMessage() {
         if (storageUtil?.getCollectionStorageWriteFailureMessage) {
             return storageUtil.getCollectionStorageWriteFailureMessage();
@@ -349,7 +370,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isQuotaExceededError(err) {
-        return !!(err && typeof err === 'object' && (err.isQuotaExceeded === true || err.status === 429));
+        if (!err || typeof err !== 'object') return false;
+        // @ts-ignore
+        const code = String(err.code || '').trim();
+        // @ts-ignore
+        const message = String(err.message || '').toLowerCase();
+        // @ts-ignore
+        return Boolean(err.isQuotaExceeded === true || err.status === 429 || isCreditCapCode(code) || message.includes('credit cap'));
+    }
+
+    function getQuotaExceededStatusMessage(err) {
+        // @ts-ignore
+        const code = String(err?.code || '').trim();
+        // @ts-ignore
+        const message = String(err?.message || '').toLowerCase();
+        if (isCreditCapCode(code) || message.includes('credit cap')) {
+            return 'Search is temporarily unavailable due to API credit limits. Please try again later.';
+        }
+        return 'Daily guest allowance reached. Sign in to continue.';
     }
 
     function safeParseIntOrNull(value) {
@@ -1386,12 +1424,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!res.ok) {
-            const message = (data && typeof data === 'object' && (data.error || data.message)) ? (data.error || data.message) : `Request failed (${res.status})`;
-            const err = new Error(String(message));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message);
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
 
@@ -2252,7 +2292,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } catch (e) {
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else {
                 setStatus(`Error: ${e?.message || 'Search failed.'}`);
             }
@@ -2310,7 +2350,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } catch (e) {
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else {
                 setStatus(`Error: ${e?.message || 'Search failed.'}`);
             }
