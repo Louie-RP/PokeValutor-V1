@@ -11,8 +11,10 @@
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
     const COLLECTION_TOTALS_HIDDEN_PREF_KEY = `${CACHE_PREFIX}collectionTotalsHidden:v1`;
-    const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
-    const SEALED_VALUE_CACHE_TTL_MS = 60 * 1000;
+    const VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+    const SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+    const COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+    const COLLECTION_VALUE_LAST_REFRESH_KEY = `${CACHE_PREFIX}collectionValueLastRefresh:v1`;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
@@ -46,6 +48,12 @@
     let collectionPageSizeMediaBound = false;
     /** @type {Record<string, number>} */
     const collectionValueById = {};
+    /** @type {Record<string, Promise<any>>} */
+    const cardPriceRequestInFlightById = {};
+    /** @type {Record<string, Promise<any>>} */
+    const sealedPriceRequestInFlightById = {};
+    /** @type {Record<string, Promise<any>>} */
+    const sealedSearchRequestInFlightById = {};
 
     function safeParseJson(raw) {
         try {
@@ -1167,6 +1175,40 @@
         }
     }
 
+    function readCollectionValueRefreshMap() {
+        try {
+            const raw = localStorage.getItem(COLLECTION_VALUE_LAST_REFRESH_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function writeCollectionValueRefreshMap(next) {
+        try {
+            const safe = next && typeof next === 'object' ? next : {};
+            localStorage.setItem(COLLECTION_VALUE_LAST_REFRESH_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getCollectionLastValueRefreshMs(collectionId) {
+        const id = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
+        const map = readCollectionValueRefreshMap();
+        const ts = Number(map[id] || 0);
+        return Number.isFinite(ts) && ts > 0 ? ts : 0;
+    }
+
+    function setCollectionLastValueRefreshMs(collectionId, ts) {
+        const id = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
+        const map = readCollectionValueRefreshMap();
+        map[id] = Number.isFinite(Number(ts)) ? Number(ts) : Date.now();
+        writeCollectionValueRefreshMap(map);
+    }
+
     function getCachedValue(cacheKey) {
         const map = readValueCache();
         const hit = map[cacheKey];
@@ -1402,96 +1444,161 @@
         return markets[0];
     }
 
+    function getInFlightRequest(map, key, factory) {
+        const existing = map[key];
+        if (existing) return existing;
+
+        const request = Promise.resolve()
+            .then(factory)
+            .finally(() => {
+                delete map[key];
+            });
+
+        map[key] = request;
+        return request;
+    }
+
     async function fetchCardWithPrices(cardId) {
         const id = safeString(cardId, '');
         if (!id) return null;
 
-        try {
-            let headers;
+        return getInFlightRequest(cardPriceRequestInFlightById, id, async () => {
             try {
-                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-                const token = String(tokenRaw || '').trim();
-                if (token) headers = { Authorization: `Bearer ${token}` };
+                let headers;
+                try {
+                    const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                    const token = String(tokenRaw || '').trim();
+                    if (token) headers = { Authorization: `Bearer ${token}` };
+                } catch {
+                    // ignore
+                }
+
+                const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+                const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+                const res = await fetch(url, requestInit);
+                if (!res.ok) return null;
+
+                const text = await res.text();
+                const parsed = safeParseJson(text);
+                if (!parsed || typeof parsed !== 'object') return null;
+                return parsed?.data || parsed;
             } catch {
-                // ignore
+                return null;
             }
-
-            const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-            const res = await fetch(url, requestInit);
-            if (!res.ok) return null;
-
-            const text = await res.text();
-            const parsed = safeParseJson(text);
-            if (!parsed || typeof parsed !== 'object') return null;
-            return parsed?.data || parsed;
-        } catch {
-            return null;
-        }
+        });
     }
 
     async function fetchSealedWithPrices(sealedId) {
         const id = safeString(sealedId, '');
         if (!id) return null;
 
-        try {
-            let headers;
+        return getInFlightRequest(sealedPriceRequestInFlightById, id, async () => {
             try {
-                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-                const token = String(tokenRaw || '').trim();
-                if (token) headers = { Authorization: `Bearer ${token}` };
+                let headers;
+                try {
+                    const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                    const token = String(tokenRaw || '').trim();
+                    if (token) headers = { Authorization: `Bearer ${token}` };
+                } catch {
+                    // ignore
+                }
+
+                const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
+                const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+                const res = await fetch(url, requestInit);
+                if (!res.ok) return null;
+
+                const text = await res.text();
+                const parsed = safeParseJson(text);
+                if (!parsed || typeof parsed !== 'object') return null;
+                return parsed?.data || parsed;
             } catch {
-                // ignore
+                return null;
             }
-
-            const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
-            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-            const res = await fetch(url, requestInit);
-            if (!res.ok) return null;
-
-            const text = await res.text();
-            const parsed = safeParseJson(text);
-            if (!parsed || typeof parsed !== 'object') return null;
-            return parsed?.data || parsed;
-        } catch {
-            return null;
-        }
+        });
     }
 
     async function fetchSealedFromSearchById(sealedId) {
         const id = safeString(sealedId, '').trim();
         if (!id) return null;
 
-        try {
-            let headers;
+        return getInFlightRequest(sealedSearchRequestInFlightById, id, async () => {
             try {
-                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-                const token = String(tokenRaw || '').trim();
-                if (token) headers = { Authorization: `Bearer ${token}` };
+                let headers;
+                try {
+                    const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                    const token = String(tokenRaw || '').trim();
+                    if (token) headers = { Authorization: `Bearer ${token}` };
+                } catch {
+                    // ignore
+                }
+
+                const query = `id:${id}`;
+                const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
+                const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+                const res = await fetch(url, requestInit);
+                if (!res.ok) return null;
+
+                const text = await res.text();
+                const parsed = safeParseJson(text);
+                if (!parsed || typeof parsed !== 'object') return null;
+
+                const rows = Array.isArray(parsed)
+                    ? parsed
+                    : (Array.isArray(parsed?.data) ? parsed.data : []);
+                return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
             } catch {
-                // ignore
+                return null;
             }
-
-            const query = `id:${id}`;
-            const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
-            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-            const res = await fetch(url, requestInit);
-            if (!res.ok) return null;
-
-            const text = await res.text();
-            const parsed = safeParseJson(text);
-            if (!parsed || typeof parsed !== 'object') return null;
-
-            const rows = Array.isArray(parsed)
-                ? parsed
-                : (Array.isArray(parsed?.data) ? parsed.data : []);
-            return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
-        } catch {
-            return null;
-        }
+        });
     }
 
-    async function getCurrentCardValue(item) {
+    function isCollectionItemValueFullyCached(item) {
+        if (!item || typeof item !== 'object') return true;
+
+        if (isSealedCollectionItem(item)) {
+            const id = safeString(item?.id, '');
+            if (!id) return true;
+            const sealedCached = getCachedValue(`sealed:${id}`);
+            return Boolean(sealedCached && Number.isFinite(sealedCached.market) && sealedCached.market > 0);
+        }
+
+        const id = safeString(item?.id, '');
+        if (!id) return true;
+
+        const selectedVariant = safeString(item?.selectedVariant, '');
+        const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
+        if (!conditionEntries.length) return true;
+
+        for (const entry of conditionEntries) {
+            const code = normalizeDexConditionCode(entry?.code);
+            if (!code) continue;
+            const cacheKey = `${id}|${selectedVariant}|${code}`;
+            const cached = getCachedValue(cacheKey);
+            if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function shouldAllowCollectionNetworkRefresh(items) {
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) return false;
+
+        const hasIncompleteCache = list.some((item) => !isCollectionItemValueFullyCached(item));
+        if (!hasIncompleteCache) return false;
+
+        const collectionId = getActiveCollectionId();
+        const lastRefreshMs = getCollectionLastValueRefreshMs(collectionId);
+        if (!lastRefreshMs) return true;
+
+        return (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
+    }
+
+    async function getCurrentCardValue(item, options) {
+        const allowNetwork = options?.allowNetwork !== false;
         const id = safeString(item?.id, '');
         const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
         if (!id || !conditionCode) return null;
@@ -1502,6 +1609,8 @@
         if (cached && Number.isFinite(cached.market)) {
             return cached;
         }
+
+        if (!allowNetwork) return null;
 
         const fetched = await fetchCardWithPrices(id);
         const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
@@ -1515,7 +1624,8 @@
         return best;
     }
 
-    async function getCurrentSealedValue(item) {
+    async function getCurrentSealedValue(item, options) {
+        const allowNetwork = options?.allowNetwork !== false;
         const id = safeString(item?.id, '');
         if (!id) return null;
 
@@ -1524,6 +1634,8 @@
         if (cached && Number.isFinite(cached.market)) {
             return { market: cached.market };
         }
+
+        if (!allowNetwork) return null;
 
         const fetchedFromSearch = await fetchSealedFromSearchById(id);
         const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
@@ -1538,8 +1650,10 @@
         return { market };
     }
 
-    async function refreshCollectionValues(items, totalEl) {
+    async function refreshCollectionValues(items, totalEl, options) {
         if (!totalEl) return;
+
+        const allowNetwork = options?.allowNetwork !== false;
 
         const list = Array.isArray(items) ? items : [];
         for (const key of Object.keys(collectionValueById)) {
@@ -1548,7 +1662,7 @@
 
         if (!list.length) {
             setCollectionTotalValueText('Value: $0.00');
-            return;
+            return { total: 0, totalUnits: 0, pricedUnits: 0 };
         }
 
         setCollectionTotalValueText('Value: Loading...');
@@ -1570,7 +1684,7 @@
                 totalUnits += quantity;
                 if (valueEl) valueEl.textContent = '...';
 
-                const valueInfo = await getCurrentSealedValue(item);
+                const valueInfo = await getCurrentSealedValue(item, { allowNetwork });
                 const market = Number(valueInfo?.market ?? null);
                 if (!Number.isFinite(market) || market <= 0) {
                     delete collectionValueById[entryKey];
@@ -1609,7 +1723,7 @@
                 const valueInfo = await getCurrentCardValue({
                     ...item,
                     selectedCondition: entry.code,
-                });
+                }, { allowNetwork });
                 if (!valueInfo || !Number.isFinite(valueInfo.market)) return;
 
                 cardTotal += valueInfo.market * entry.qty;
@@ -1642,6 +1756,8 @@
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
+
+        return { total, totalUnits, pricedUnits };
     }
 
     function pickFrontMediumImage(images) {
@@ -2971,7 +3087,18 @@
         });
 
         if (items.length) {
-            void refreshCollectionValues(items, totalEl);
+            const allowNetworkRefresh = shouldAllowCollectionNetworkRefresh(items);
+            void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
+                .then((result) => {
+                    if (!allowNetworkRefresh) return;
+                    const pricedUnits = Number(result?.pricedUnits || 0);
+                    if (pricedUnits > 0) {
+                        setCollectionLastValueRefreshMs(getActiveCollectionId(), Date.now());
+                    }
+                })
+                .catch(() => {
+                    // ignore
+                });
         }
 
         void loadAndRenderCollectionValueSnapshot();

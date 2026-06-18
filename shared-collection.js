@@ -4,8 +4,8 @@
     const SHARED_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
     const SHARED_VALUE_CACHE_KEY = 'pv:scrydex:collectionValueCache:v1';
-    const SHARED_VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
-    const SHARED_SEALED_VALUE_CACHE_TTL_MS = 60 * 1000;
+    const SHARED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+    const SHARED_SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
     const CONDITION_CODE_ORDER = ['NM', 'LP', 'MP', 'HP', 'DM'];
