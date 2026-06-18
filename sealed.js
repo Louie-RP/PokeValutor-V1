@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // @ts-ignore
         const message = String(err?.message || '').toLowerCase();
         if (isCreditCapCode(code) || message.includes('credit cap')) {
-            return 'Search is temporarily unavailable due to API credit limits. Please try again later.';
+            return 'Search is temporarily unavailable. Please try again later.';
         }
         return 'Daily guest allowance reached. Sign in to continue.';
     }
