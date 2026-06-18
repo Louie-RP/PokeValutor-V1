@@ -921,40 +921,6 @@
         return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`;
     }
 
-    function readSnapshotDebugOverride(snapshot) {
-        const host = safeString(window?.location?.hostname, '').toLowerCase();
-        const isLocal = host === 'localhost' || host === '127.0.0.1';
-        if (!isLocal) return null;
-
-        let mode = '';
-        try {
-            const params = new URLSearchParams(window.location.search);
-            mode = safeString(params.get('pv_snapshot_debug'), '').trim().toLowerCase();
-        } catch {
-            return null;
-        }
-
-        if (mode !== 'up' && mode !== 'down' && mode !== 'flat') {
-            return null;
-        }
-
-        const totalValueCents = Math.max(0, Math.round(Number(snapshot?.totalValueCents || 0)));
-        const baseDelta = Math.max(100, Math.round(totalValueCents * 0.05));
-        const changeCents = mode === 'up'
-            ? baseDelta
-            : (mode === 'down' ? -baseDelta : 0);
-        const previousValueCents = Math.max(1, totalValueCents - changeCents);
-        const changePercent = previousValueCents > 0
-            ? Math.round((changeCents / previousValueCents) * 10000) / 100
-            : 0;
-
-        return {
-            hasPrevious: true,
-            changeCents,
-            changePercent,
-        };
-    }
-
     function areCollectionTotalsHidden() {
         return Boolean(collectionTotalsState.hidden);
     }
@@ -1082,16 +1048,10 @@
             return;
         }
 
-        let changeCents = Math.round(Number(snapshot.changeCents || 0));
-        let changePercent = Number(snapshot.changePercent || 0);
+        const changeCents = Math.round(Number(snapshot.changeCents || 0));
+        const changePercent = Number(snapshot.changePercent || 0);
         const previousValueCents = Math.round(Number(snapshot.previousValueCents || 0));
-        let hasPrevious = previousValueCents > 0;
-        const debugOverride = readSnapshotDebugOverride(snapshot);
-        if (debugOverride) {
-            hasPrevious = Boolean(debugOverride.hasPrevious);
-            changeCents = Math.round(Number(debugOverride.changeCents || 0));
-            changePercent = Number(debugOverride.changePercent || 0);
-        }
+        const hasPrevious = previousValueCents > 0;
 
         trendEl.hidden = false;
         trendEl.classList.toggle('pv-collectionTotalTrend--up', changeCents > 0);
