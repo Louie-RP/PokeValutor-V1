@@ -1268,6 +1268,14 @@ exports.hydrateCardCatalog = functions.https.onRequest(async (req, res) => {
 
         await batch.commit();
 
+        functions.logger.info('hydrateCardCatalog saved', {
+            attempted: docs.length,
+            saved: docs.length,
+            newDocs: docs.filter((_, i) => !snaps[i].exists).length,
+            updatedDocs: docs.filter((_, i) => snaps[i].exists).length,
+            ids,
+        });
+
         res.status(200).json({
             ok: true,
             attempted: docs.length,
