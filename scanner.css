@@ -1,0 +1,153 @@
+/* PokeValutor Card Scanner MVP */
+/* Isolated styles only. Does not modify search.js behavior. */
+
+.pv-cardScanner {
+  position: relative;
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 203, 5, 0.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 203, 5, 0.14), rgba(255, 203, 5, 0) 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0)),
+    var(--pv-surface, #0a0a0a);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.pv-cardScanner__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.pv-cardScanner__title {
+  margin: 0 0 0.25rem;
+  color: var(--pv-primary, #ffcb05);
+  font-family: var(--pv-heading-font, serif);
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+}
+
+.pv-cardScanner__text {
+  margin: 0;
+  color: var(--pv-muted, #cbd5e1);
+}
+
+.pv-cardScanner__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.38);
+  background: rgba(255, 203, 5, 0.13);
+  color: var(--pv-primary, #ffcb05);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pv-cardScanner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+.pv-cardScanner__cameraWrap {
+  position: relative;
+  min-height: 0;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.42);
+  overflow: hidden;
+}
+
+.pv-cardScanner__empty {
+  padding: 1rem;
+  color: var(--pv-muted, #cbd5e1);
+  text-align: center;
+}
+
+.pv-cardScanner__video,
+.pv-cardScanner__preview {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  object-fit: contain;
+  background: #050505;
+}
+
+.pv-cardScanner__frame {
+  pointer-events: none;
+  position: absolute;
+  top: 51%;
+  left: 50%;
+  height: 84%;
+  width: auto;
+  aspect-ratio: 5 / 7;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 203, 5, 0.72);
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.22),
+    0 0 24px rgba(255, 203, 5, 0.2);
+}
+
+.pv-cardScanner[data-state="idle"] .pv-cardScanner__frame,
+.pv-cardScanner[data-state="stopped"] .pv-cardScanner__frame {
+  display: none;
+}
+
+.pv-cardScanner__status {
+  margin: 0.85rem 0;
+  color: #ffffff;
+}
+
+.pv-cardScanner__review {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
+  margin-bottom: 0.9rem;
+}
+
+.pv-cardScanner__ocrField {
+  grid-column: 1 / -1;
+}
+
+.pv-cardScanner textarea {
+  resize: vertical;
+}
+
+.pv-cardScanner [hidden] {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .pv-cardScanner {
+    padding: 1.15rem;
+  }
+
+  .pv-cardScanner__review {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .pv-cardScanner__header {
+    flex-direction: column;
+  }
+
+  .pv-cardScanner__actions .pv-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .pv-cardScanner__frame {
+    height: 80%;
+  }
+}

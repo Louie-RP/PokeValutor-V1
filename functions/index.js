@@ -88,6 +88,20 @@ function getStripePortalConfigurationId() {
     return configValue('STRIPE_BILLING_PORTAL_CONFIGURATION_ID', ['stripe', 'billing_portal_configuration_id'], '');
 }
 
+function getScannerVisionApiKey() {
+    return configValue('SCANNER_VISION_API_KEY', ['scanner', 'vision_api_key'], '');
+}
+
+function getScannerVisionModel() {
+    return configValue('SCANNER_VISION_MODEL', ['scanner', 'vision_model'], 'gpt-4o-mini');
+}
+
+function isScannerVisionEnabled() {
+    const raw = configValue('ENABLE_SCANNER_VISION', ['scanner', 'enable_vision'], 'false');
+    const normalized = String(raw || '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
 function getAppBaseUrl() {
     const raw = configValue('STRIPE_APP_BASE_URL', ['stripe', 'app_base_url'], DEFAULT_APP_BASE_URL);
     try {
@@ -133,6 +147,145 @@ function isAllowedReturnOrigin(origin) {
 
     if (allowedOrigins.has(origin)) return true;
     return isLocalOrigin(origin);
+}
+
+function isAllowedScannerOrigin(origin) {
+    if (!origin) return false;
+    if (isAllowedReturnOrigin(origin)) return true;
+    return isLocalOrigin(origin);
+}
+
+function applyScannerCors(req, res) {
+    const requestOrigin = String(req.get('origin') || '').trim();
+    const fallbackOrigin = getAppBaseUrl();
+    const allowOrigin = isAllowedScannerOrigin(requestOrigin)
+        ? requestOrigin
+        : fallbackOrigin;
+
+    if (allowOrigin) {
+        res.set('Access-Control-Allow-Origin', allowOrigin);
+        res.set('Vary', 'Origin');
+    }
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function parseImageDataUrl(raw) {
+    const value = String(raw || '').trim();
+    const match = value.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$/i);
+    if (!match) return null;
+
+    const mime = String(match[1] || '').toLowerCase();
+    const b64 = String(match[2] || '').replace(/\s+/g, '');
+    if (!b64) return null;
+
+    let buffer;
+    try {
+        buffer = Buffer.from(b64, 'base64');
+    } catch {
+        return null;
+    }
+
+    if (!buffer || !buffer.length) return null;
+
+    return {
+        mime,
+        base64: b64,
+        buffer,
+        dataUrl: `data:${mime};base64,${b64}`,
+    };
+}
+
+function stripCodeFences(raw) {
+    const text = String(raw || '').trim();
+    const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenced && fenced[1]) return fenced[1].trim();
+    return text;
+}
+
+function parseVisionResponseJson(raw) {
+    const text = stripCodeFences(raw);
+    if (!text) return null;
+
+    try {
+        const parsed = JSON.parse(text);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function normalizeVisionOutput(payload) {
+    const name = String(payload?.name || payload?.cardName || '').trim();
+    const collectorNumber = String(payload?.collectorNumber || payload?.cardNumber || '').trim().toUpperCase();
+    const confidenceRaw = Number(payload?.confidence);
+    const confidence = Number.isFinite(confidenceRaw)
+        ? Math.max(0, Math.min(1, confidenceRaw))
+        : null;
+
+    return {
+        name: name.slice(0, 80),
+        collectorNumber: collectorNumber.slice(0, 24),
+        confidence,
+    };
+}
+
+async function callScannerVisionModel(imageDataUrl) {
+    const apiKey = getScannerVisionApiKey();
+    if (!apiKey) {
+        throw new Error('SCANNER_VISION_API_KEY is not configured.');
+    }
+
+    const model = getScannerVisionModel();
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: 180,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Extract Pokemon card details from the image. Return only valid JSON with keys: name (string), collectorNumber (string), confidence (number 0-1). If unknown, use empty string and low confidence.'
+                },
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'Read the card name and collector number exactly as printed. Return JSON only.'
+                        },
+                        {
+                            type: 'image_url',
+                            image_url: {
+                                url: imageDataUrl
+                            }
+                        }
+                    ]
+                }
+            ]
+        }),
+    });
+
+    if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(`Vision model request failed (${response.status}): ${errText || 'unknown error'}`);
+    }
+
+    const json = await response.json();
+    const content = String(json?.choices?.[0]?.message?.content || '').trim();
+    const parsed = parseVisionResponseJson(content);
+
+    if (!parsed) {
+        throw new Error('Vision model response was not valid JSON.');
+    }
+
+    return normalizeVisionOutput(parsed);
 }
 
 function sanitizeReturnUrl(raw, fallbackUrl) {
@@ -915,5 +1068,54 @@ exports.scrydexWebhook = functions.https.onRequest(async (req, res) => {
             message: String(error?.message || error),
         });
         res.status(500).json({ ok: false, error: 'Webhook processing failed.' });
+    }
+});
+
+exports.scanCard = functions.https.onRequest(async (req, res) => {
+    applyScannerCors(req, res);
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isScannerVisionEnabled()) {
+        res.status(503).json({ ok: false, error: 'Scanner vision endpoint is disabled.' });
+        return;
+    }
+
+    const parsed = parseImageDataUrl(req.body?.imageDataUrl);
+
+    if (!parsed) {
+        res.status(400).json({ ok: false, error: 'Invalid imageDataUrl payload.' });
+        return;
+    }
+
+    if (parsed.buffer.length > 2_500_000) {
+        res.status(413).json({ ok: false, error: 'Image payload too large.' });
+        return;
+    }
+
+    try {
+        const result = await callScannerVisionModel(parsed.dataUrl);
+        res.status(200).json({
+            ok: true,
+            name: result.name,
+            collectorNumber: result.collectorNumber,
+            confidence: result.confidence,
+        });
+    } catch (error) {
+        functions.logger.error('scanCard failed', {
+            message: String(error?.message || error),
+        });
+
+        const message = String(error?.message || 'Vision extraction failed.');
+        const status = message.includes('not configured') ? 503 : 502;
+        res.status(status).json({ ok: false, error: message });
     }
 });
