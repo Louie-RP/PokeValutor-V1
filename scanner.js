@@ -18,22 +18,69 @@
 
     document.addEventListener('DOMContentLoaded', initCardScanner);
 
-    const CARD_SCANNER_VERSION = 'scanner-mvp-2026-05-13-1';
+    const CARD_SCANNER_VERSION = 'scanner-mvp-2026-06-29-2';
     const PV_SCANNER_QUERY_MODE = 'number-first';
     // Keep vision disabled by default to avoid third-party AI usage/cost.
     const PV_SCANNER_ENABLE_VISION = false;
     const PV_SCANNER_ENABLE_OPENCV_NORMALIZE = false;
     const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = true;
+    const PV_SCANNER_ENABLE_CANDIDATES = true;
+    const PV_SCANNER_CANDIDATES_CONSUME_QUOTA = false;
+    const PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE = 0.86;
     const PV_SCANNER_VISION_ENDPOINT = '';
     const PV_SCANNER_VISION_TIMEOUT_MS = 9000;
     const PV_SCANNER_OPENCV_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0/dist/opencv.js';
     const PV_SCANNER_OPENCV_READY_TIMEOUT_MS = 6000;
 
+    const SCANNER_CANDIDATE_LIMIT = 5;
+    const SCANNER_CANDIDATE_FETCH_LIMIT = 12;
+    const SCANNER_HASH_SIZE = 16;
+    const SCANNER_RANK_WEIGHT_NAME = 0.45;
+    const SCANNER_RANK_WEIGHT_NUMBER = 0.25;
+    const SCANNER_RANK_WEIGHT_IMAGE = 0.20;
+    const SCANNER_RANK_WEIGHT_SET = 0.10;
+    const scannerRequestCache = new Map();
+
+    function readBooleanFlag(globalName, fallback) {
+        const raw = window?.[globalName];
+
+        if (raw == null || raw === '') {
+            return !!fallback;
+        }
+
+        if (typeof raw === 'boolean') {
+            return raw;
+        }
+
+        const normalized = String(raw).trim().toLowerCase();
+        return normalized === '1'
+            || normalized === 'true'
+            || normalized === 'yes'
+            || normalized === 'on';
+    }
+
+    function readNumberFlag(globalName, fallback, min, max) {
+        const raw = window?.[globalName];
+        const value = Number(raw == null || raw === '' ? fallback : raw);
+
+        if (!Number.isFinite(value)) {
+            return Number(fallback) || 0;
+        }
+
+        const lo = Number.isFinite(Number(min)) ? Number(min) : value;
+        const hi = Number.isFinite(Number(max)) ? Number(max) : value;
+
+        return Math.max(lo, Math.min(hi, value));
+    }
+
     function getScannerFeatureFlags() {
         return {
-            enableVision: PV_SCANNER_ENABLE_VISION,
-            enableOpenCvNormalize: PV_SCANNER_ENABLE_OPENCV_NORMALIZE,
-            enableAdvancedOcrFallback: PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK,
+            enableVision: readBooleanFlag('PV_SCANNER_ENABLE_VISION', PV_SCANNER_ENABLE_VISION),
+            enableOpenCvNormalize: readBooleanFlag('PV_SCANNER_ENABLE_OPENCV_NORMALIZE', PV_SCANNER_ENABLE_OPENCV_NORMALIZE),
+            enableAdvancedOcrFallback: readBooleanFlag('PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK', PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK),
+            enableCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CANDIDATES', PV_SCANNER_ENABLE_CANDIDATES),
+            candidatesConsumeQuota: readBooleanFlag('PV_SCANNER_CANDIDATES_CONSUME_QUOTA', PV_SCANNER_CANDIDATES_CONSUME_QUOTA),
+            candidateHighConfidence: readNumberFlag('PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE', PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE, 0.55, 0.99),
             visionEndpoint: String(window?.PV_SCANNER_VISION_ENDPOINT || PV_SCANNER_VISION_ENDPOINT || '').trim(),
             visionTimeoutMs: Number(window?.PV_SCANNER_VISION_TIMEOUT_MS || PV_SCANNER_VISION_TIMEOUT_MS) || PV_SCANNER_VISION_TIMEOUT_MS
         };
@@ -125,8 +172,17 @@
                     </div>
                 </div>
 
+                <section id="pv-cardScanner-candidates" class="pv-cardScanner__candidates" hidden aria-live="polite">
+                    <h3 class="pv-cardScanner__candidatesTitle">Possible Matches</h3>
+                    <p class="pv-cardScanner__candidatesText">Pick a candidate to replace detected fields before searching.</p>
+                    <div id="pv-cardScanner-candidate-list" class="pv-cardScanner__candidateList"></div>
+                </section>
+
                 <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button">
                     Search Detected Card
+                </button>
+                <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>
+                    Find Possible Matches
                 </button>
             </section>
         `;
@@ -141,6 +197,7 @@
             stopBtn: root.querySelector('#pv-cardScanner-stop'),
             clearBtn: root.querySelector('#pv-cardScanner-clear'),
             searchBtn: root.querySelector('#pv-cardScanner-search'),
+            findCandidatesBtn: root.querySelector('#pv-cardScanner-find-candidates'),
             empty: root.querySelector('#pv-cardScanner-empty'),
             video: root.querySelector('#pv-cardScanner-video'),
             canvas: root.querySelector('#pv-cardScanner-canvas'),
@@ -148,7 +205,9 @@
             status: root.querySelector('#pv-cardScanner-status'),
             detectedName: root.querySelector('#pv-cardScanner-name'),
             detectedNumber: root.querySelector('#pv-cardScanner-number'),
-            rawOcr: root.querySelector('#pv-cardScanner-ocr')
+            rawOcr: root.querySelector('#pv-cardScanner-ocr'),
+            candidateWrap: root.querySelector('#pv-cardScanner-candidates'),
+            candidateList: root.querySelector('#pv-cardScanner-candidate-list')
         };
     }
 
@@ -193,6 +252,23 @@
             });
         }
 
+        if (elements.findCandidatesBtn) {
+            elements.findCandidatesBtn.addEventListener('click', function () {
+                if (!state.capturedBlob) {
+                    setStatus(elements, 'Capture a card first, then find possible matches.');
+                    return;
+                }
+
+                const extracted = {
+                    name: elements.detectedName ? elements.detectedName.value.trim() : '',
+                    number: elements.detectedNumber ? elements.detectedNumber.value.trim() : ''
+                };
+
+                const flags = getScannerFeatureFlags();
+                refreshCandidateSuggestions(elements, state.capturedBlob, extracted, flags);
+            });
+        }
+
         window.addEventListener('pagehide', function () {
             stopCamera(elements, state);
         });
@@ -210,6 +286,7 @@
 
             stopCamera(elements, state);
             resetDetectedFields(elements);
+            clearCandidateSuggestions(elements);
 
             state.stream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
@@ -281,7 +358,7 @@
             setScannerState(root, 'captured');
             setStatus(elements, 'Reading card text... This can take a few seconds.');
 
-            await runOcr(elements, state.capturedBlob);
+            await runOcr(elements, state.capturedBlob, state);
         } catch (error) {
             console.warn('[PokeValutor Scanner] capture error', error);
             setStatus(elements, 'Unable to capture/read the card. Try retaking the photo with better lighting.');
@@ -352,7 +429,7 @@
         };
     }
 
-    async function runOcr(elements, imageBlob) {
+    async function runOcr(elements, imageBlob, state) {
         if (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function') {
             setStatus(elements, 'OCR library did not load. You can still type the card name or number manually below.');
             return;
@@ -410,8 +487,18 @@
             });
 
             if (extracted.name || extracted.number) {
-                setStatus(elements, 'Review the detected text, then tap Search Detected Card.');
+                if (elements.findCandidatesBtn) {
+                    elements.findCandidatesBtn.hidden = false;
+                }
+
+                setStatus(elements, 'Review detected text. Tap Find Possible Matches, then Search Detected Card.');
             } else {
+                clearCandidateSuggestions(elements);
+
+                if (elements.findCandidatesBtn) {
+                    elements.findCandidatesBtn.hidden = true;
+                }
+
                 setStatus(elements, 'I could not confidently detect the card. Try editing the fields or retaking the photo.');
             }
         } catch (error) {
@@ -445,9 +532,17 @@
     }
 
     async function normalizeImage(imageBlob, flags) {
-        // No-AI mode: keep normalization parked to avoid runtime variability.
-        // Phase 3 OpenCV path remains in file for later opt-in work.
-        return imageBlob;
+        if (!imageBlob) {
+            return imageBlob;
+        }
+
+        if (!flags?.enableOpenCvNormalize) {
+            return imageBlob;
+        }
+
+        const normalized = await normalizeCardWithOpenCv(imageBlob);
+
+        return normalized || imageBlob;
     }
 
     async function ensureOpenCvAvailable() {
@@ -733,8 +828,70 @@
     }
 
     async function extractWithVision(imageBlob, flags) {
-        // No-AI mode: keep vision extraction parked.
-        return null;
+        if (!imageBlob || !flags?.enableVision || !flags?.visionEndpoint) {
+            return null;
+        }
+
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const timeoutMs = Math.max(2500, Number(flags.visionTimeoutMs || PV_SCANNER_VISION_TIMEOUT_MS));
+        const timeoutId = window.setTimeout(function () {
+            if (controller) {
+                try {
+                    controller.abort();
+                } catch {
+                    // Ignore abort errors.
+                }
+            }
+        }, timeoutMs);
+
+        try {
+            const compressedBlob = await compressImageForVision(imageBlob, 900, 0.78);
+            const imageDataUrl = await blobToDataUrl(compressedBlob);
+
+            if (!imageDataUrl) {
+                return null;
+            }
+
+            const response = await fetch(flags.visionEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    imageDataUrl: imageDataUrl
+                }),
+                signal: controller ? controller.signal : undefined
+            });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const data = await response.json().catch(function () {
+                return null;
+            });
+
+            if (!data || data.ok === false) {
+                return null;
+            }
+
+            const name = normalizeDetectedName(data.name || data.cardName || '');
+            const number = normalizeExtractedCardNumber(data.collectorNumber || data.cardNumber || data.number || '');
+            const confidenceRaw = Number(data.confidence);
+            const confidence = Number.isFinite(confidenceRaw)
+                ? Math.max(0, Math.min(1, confidenceRaw))
+                : null;
+
+            return {
+                name: name,
+                number: number,
+                confidence: confidence
+            };
+        } catch {
+            return null;
+        } finally {
+            window.clearTimeout(timeoutId);
+        }
     }
 
     function mergeAndValidateDetections(visionResult, ocrResult) {
@@ -789,6 +946,807 @@
         });
     }
 
+    async function compressImageForVision(imageBlob, maxWidth, quality) {
+        if (!imageBlob || !window.createImageBitmap) {
+            return imageBlob;
+        }
+
+        let bitmap = null;
+
+        try {
+            bitmap = await window.createImageBitmap(imageBlob);
+
+            const sourceWidth = Math.max(1, bitmap.width || 1);
+            const sourceHeight = Math.max(1, bitmap.height || 1);
+            const targetWidth = Math.min(sourceWidth, Math.max(320, Number(maxWidth || 900)));
+            const scale = targetWidth / sourceWidth;
+            const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(targetWidth);
+            canvas.height = targetHeight;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return imageBlob;
+            }
+
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+            return await new Promise(function (resolve) {
+                canvas.toBlob(function (blob) {
+                    resolve(blob || imageBlob);
+                }, 'image/jpeg', Math.max(0.5, Math.min(0.9, Number(quality || 0.78))));
+            });
+        } catch {
+            return imageBlob;
+        } finally {
+            if (bitmap && typeof bitmap.close === 'function') {
+                try {
+                    bitmap.close();
+                } catch {
+                    // Ignore cleanup errors.
+                }
+            }
+        }
+    }
+
+    async function refreshCandidateSuggestions(elements, capturedBlob, extracted, flags) {
+        if (!elements || !elements.candidateWrap || !elements.candidateList) {
+            return;
+        }
+
+        clearCandidateSuggestions(elements);
+
+        if (!flags?.enableCandidates) {
+            return;
+        }
+
+        const detectedName = normalizeDetectedName(extracted?.name || '');
+        const detectedNumber = normalizeExtractedCardNumber(extracted?.number || '');
+
+        if (!detectedName && !detectedNumber) {
+            return;
+        }
+
+        try {
+            setStatus(elements, 'Finding likely card matches...');
+
+            const candidates = await fetchScannerCandidates({
+                name: detectedName,
+                number: detectedNumber,
+                setId: getSelectedSetId()
+            }, flags);
+
+            if (!candidates.length) {
+                setStatus(elements, 'No close candidate matches found. You can still edit fields and search.');
+                return;
+            }
+
+            const ranked = await rankScannerCandidates(capturedBlob, candidates, {
+                name: detectedName,
+                number: detectedNumber,
+                setId: getSelectedSetId()
+            });
+
+            if (!ranked.length) {
+                return;
+            }
+
+            const top = ranked[0];
+            const threshold = Number(flags?.candidateHighConfidence || PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE);
+            const highConfidence = !!top && Number(top.score || 0) >= threshold;
+            const recommendedId = top ? String(top.card?.id || '') : '';
+
+            renderCandidateSuggestions(elements, ranked.slice(0, SCANNER_CANDIDATE_LIMIT), {
+                recommendedId: recommendedId,
+                highConfidence: highConfidence,
+                fallbackNumber: detectedNumber
+            });
+
+            if (highConfidence && top?.card) {
+                applyCandidateSelection(elements, top.card, top.score, true, detectedNumber);
+            } else {
+                setStatus(elements, 'Low confidence match. Pick one of the possible matches before searching.');
+            }
+        } catch (error) {
+            console.warn('[PokeValutor Scanner] candidate lookup error', error);
+            setStatus(elements, 'Candidate suggestions are unavailable right now. You can still search manually.');
+        }
+    }
+
+    function clearCandidateSuggestions(elements) {
+        if (elements?.candidateList) {
+            elements.candidateList.innerHTML = '';
+        }
+
+        if (elements?.candidateWrap) {
+            elements.candidateWrap.hidden = true;
+        }
+    }
+
+    function markSelectedCandidate(elements, candidateId) {
+        if (!elements?.candidateList) {
+            return;
+        }
+
+        const selectedId = String(candidateId || '').trim();
+        const buttons = Array.from(elements.candidateList.querySelectorAll('.pv-cardScanner__candidate'));
+
+        buttons.forEach(function (button) {
+            const isMatch = selectedId && String(button.getAttribute('data-candidate-id') || '') === selectedId;
+            button.classList.toggle('is-selected', !!isMatch);
+            button.setAttribute('aria-pressed', isMatch ? 'true' : 'false');
+        });
+    }
+
+    function renderCandidateSuggestions(elements, ranked, options) {
+        if (!elements?.candidateWrap || !elements?.candidateList) {
+            return;
+        }
+
+        const recommendedId = String(options?.recommendedId || '');
+        const highConfidence = !!options?.highConfidence;
+
+        elements.candidateList.innerHTML = '';
+
+        ranked.forEach(function (entry) {
+            const candidate = entry.card;
+            const candidateId = String(candidate?.id || '');
+            const fallbackNumber = String(options?.fallbackNumber || '').trim();
+            const displayNumber = getBestCandidateSearchNumber(candidate, fallbackNumber);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'pv-cardScanner__candidate';
+            button.setAttribute('data-candidate-id', candidateId);
+            button.setAttribute('aria-pressed', 'false');
+
+            if (recommendedId && candidateId && candidateId === recommendedId) {
+                button.classList.add('is-recommended');
+            }
+
+            const image = document.createElement('img');
+            image.className = 'pv-cardScanner__candidateImage';
+            image.alt = `${getCandidateCardName(candidate)} card image`;
+            image.loading = 'lazy';
+
+            const imageUrl = pickCandidateImageUrl(candidate);
+            if (imageUrl) {
+                image.src = imageUrl;
+            } else {
+                image.hidden = true;
+            }
+
+            const content = document.createElement('div');
+            content.className = 'pv-cardScanner__candidateContent';
+
+            const title = document.createElement('div');
+            title.className = 'pv-cardScanner__candidateTitle';
+            title.textContent = getCandidateCardName(candidate) || 'Unknown card';
+
+            if (recommendedId && candidateId && candidateId === recommendedId) {
+                const badge = document.createElement('span');
+                badge.className = 'pv-cardScanner__candidateBadge';
+                badge.textContent = highConfidence ? 'Top Match' : 'Best Match';
+                title.appendChild(document.createTextNode(' '));
+                title.appendChild(badge);
+            }
+
+            const meta = document.createElement('div');
+            meta.className = 'pv-cardScanner__candidateMeta';
+
+            const number = displayNumber || getCandidateCardNumber(candidate);
+            const setName = getCandidateSetName(candidate);
+            const scorePct = Math.round((Number(entry.score) || 0) * 100);
+            meta.textContent = [
+                number ? `No. ${number}` : '',
+                setName,
+                `Score ${scorePct}%`
+            ].filter(Boolean).join(' • ');
+
+            const debug = document.createElement('div');
+            debug.className = 'pv-cardScanner__candidateDebug';
+            debug.textContent = [
+                `num ${Math.round((Number(entry.numberScore) || 0) * 100)}%`,
+                `img ${Math.round((Number(entry.imageScore) || 0) * 100)}%`,
+                `name ${Math.round((Number(entry.nameScore) || 0) * 100)}%`,
+                `set ${Math.round((Number(entry.setScore) || 0) * 100)}%`
+            ].join(' · ');
+
+            content.appendChild(title);
+            content.appendChild(meta);
+            content.appendChild(debug);
+
+            button.appendChild(image);
+            button.appendChild(content);
+
+            button.addEventListener('click', function () {
+                applyCandidateSelection(elements, candidate, entry.score, false, fallbackNumber);
+            });
+
+            elements.candidateList.appendChild(button);
+        });
+
+        elements.candidateWrap.hidden = ranked.length === 0;
+
+        if (recommendedId) {
+            markSelectedCandidate(elements, recommendedId);
+        }
+    }
+
+    function applyCandidateSelection(elements, candidate, score, autoApplied, fallbackNumber) {
+        const name = getCandidateCardName(candidate);
+        const number = getBestCandidateSearchNumber(candidate, fallbackNumber);
+        const candidateId = String(candidate?.id || '').trim();
+
+        if (elements.detectedName) {
+            elements.detectedName.value = name;
+        }
+
+        if (elements.detectedNumber) {
+            elements.detectedNumber.value = number;
+        }
+
+        const prefix = autoApplied ? 'Top high-confidence match applied' : 'Selected candidate';
+        setStatus(elements, `${prefix}: ${name}${number ? ` (${number})` : ''}.`);
+        markSelectedCandidate(elements, candidateId);
+
+        dispatchScannerEvent('pv:scanner:candidate-selected', {
+            id: candidateId,
+            name: name,
+            number: number,
+            score: score,
+            autoApplied: !!autoApplied
+        });
+    }
+
+    function getCandidatePrintedTotal(card) {
+        const setObj = (card?.expansion && typeof card.expansion === 'object')
+            ? card.expansion
+            : (card?.set && typeof card.set === 'object' ? card.set : null);
+
+        const raw = Number(
+            setObj?.printed_total
+            || setObj?.printedTotal
+            || setObj?.total
+            || card?.printedTotal
+            || card?.total
+            || 0
+        );
+
+        if (!Number.isFinite(raw) || raw < 1) {
+            return '';
+        }
+
+        return String(Math.floor(raw));
+    }
+
+    function getBestCandidateSearchNumber(card, fallbackNumber) {
+        const candidateNumber = getCandidateCardNumber(card);
+        const total = getCandidatePrintedTotal(card);
+        const fallback = normalizeCollectorNumberWithPrintedTotal(fallbackNumber || '', total);
+
+        if (!candidateNumber) {
+            return fallback;
+        }
+
+        const galleryMatch = candidateNumber.match(/^(GG|TG)(\d{1,2})$/i);
+        if (galleryMatch && /^\d{1,3}$/.test(total)) {
+            const prefix = String(galleryMatch[1] || '').toUpperCase();
+            const left = String(galleryMatch[2] || '').padStart(2, '0');
+            const right = String(total).padStart(Math.max(2, String(total).length), '0');
+            return `${prefix}${left}/${prefix}${right}`;
+        }
+
+        if (candidateNumber.indexOf('/') >= 0) {
+            const normalizedCandidate = normalizeCollectorNumberWithPrintedTotal(candidateNumber, total);
+            const fallback = normalizeCollectorNumberWithPrintedTotal(fallbackNumber || '', total);
+
+            if (fallback.indexOf('/') >= 0) {
+                const candidateParts = normalizedCandidate.split('/');
+                const fallbackParts = fallback.split('/');
+
+                if (candidateParts.length === 2 && fallbackParts.length === 2) {
+                    const candidateLeft = String(Number(candidateParts[0] || ''));
+                    const fallbackLeft = String(Number(fallbackParts[0] || ''));
+                    const candidateRight = String(Number(candidateParts[1] || ''));
+                    const fallbackRight = String(Number(fallbackParts[1] || ''));
+
+                    if (
+                        candidateLeft
+                        && fallbackLeft
+                        && candidateLeft === fallbackLeft
+                        && candidateRight
+                        && fallbackRight
+                        && candidateRight === fallbackRight
+                        && fallbackParts[1].length > candidateParts[1].length
+                    ) {
+                        return `${candidateParts[0]}/${fallbackParts[1]}`;
+                    }
+                }
+            }
+
+            return normalizedCandidate;
+        }
+
+        if (/^\d{1,3}$/.test(candidateNumber) && /^\d{2,3}$/.test(total)) {
+            if (fallback.indexOf('/') >= 0) {
+                const fallbackParts = fallback.split('/');
+
+                if (fallbackParts.length === 2) {
+                    const candidateLeft = String(Number(candidateNumber));
+                    const fallbackLeft = String(Number(fallbackParts[0] || ''));
+
+                    if (candidateLeft && fallbackLeft && candidateLeft === fallbackLeft) {
+                        return fallback;
+                    }
+                }
+            }
+
+            const left = String(Number(candidateNumber));
+            const width = Math.max(2, total.length);
+            return `${left.padStart(width, '0')}/${total}`;
+        }
+
+        if (fallback.indexOf('/') >= 0) {
+            const candidateLeft = String(Number(candidateNumber));
+            const fallbackLeft = String(Number(fallback.split('/')[0] || ''));
+
+            if (candidateLeft && fallbackLeft && candidateLeft === fallbackLeft) {
+                return fallback;
+            }
+        }
+
+        return candidateNumber;
+    }
+
+    function normalizeCollectorNumberWithPrintedTotal(rawNumber, printedTotal) {
+        const normalized = normalizeExtractedCardNumber(rawNumber || '');
+        const total = String(printedTotal || '').trim();
+
+        if (!normalized || normalized.indexOf('/') < 0 || !/^\d{2,3}$/.test(total)) {
+            return normalized;
+        }
+
+        const parts = normalized.split('/');
+
+        if (parts.length !== 2) {
+            return normalized;
+        }
+
+        const left = String(parts[0] || '').trim();
+        const right = String(parts[1] || '').trim();
+
+        if (!/^\d{1,3}$/.test(left) || !/^\d{1,3}$/.test(right)) {
+            return normalized;
+        }
+
+        const targetWidth = Math.max(total.length, right.length);
+        const normalizedRight = String(Number(right)).padStart(targetWidth, '0');
+
+        if (String(Number(right)) !== String(Number(total))) {
+            return `${left}/${normalizedRight}`;
+        }
+
+        if (right.length > total.length) {
+            return `${left}/${right}`;
+        }
+
+        return `${left}/${String(total).padStart(targetWidth, '0')}`;
+    }
+
+    async function rankScannerCandidates(capturedBlob, candidates, detected) {
+        const scanHash = await createImageHashFromBlob(capturedBlob, SCANNER_HASH_SIZE);
+        const ranked = [];
+        const detectedName = normalizeDetectedName(detected?.name || '');
+
+        for (const candidate of candidates) {
+            const numberScore = scoreCandidateNumberMatch(detected?.number, getCandidateCardNumber(candidate));
+            const nameScore = scoreCandidateNameMatch(detected?.name, getCandidateCardName(candidate));
+            const setScore = scoreCandidateSetMatch(detected?.setId, getCandidateSetId(candidate));
+            const imageScore = await scoreCandidateImageSimilarity(scanHash, candidate);
+
+            let adjustedNumberScore = numberScore;
+
+            // Name is the strongest signal for best-match ranking. If name mismatch is high,
+            // heavily down-rank number-driven matches to avoid wrong "best match" cards.
+            if (detectedName && nameScore < 0.35) {
+                adjustedNumberScore *= 0.2;
+            }
+
+            let finalScore =
+                (nameScore * SCANNER_RANK_WEIGHT_NAME)
+                + (adjustedNumberScore * SCANNER_RANK_WEIGHT_NUMBER)
+                + (imageScore * SCANNER_RANK_WEIGHT_IMAGE)
+                + (setScore * SCANNER_RANK_WEIGHT_SET);
+
+            if (detectedName && nameScore < 0.2) {
+                finalScore *= 0.6;
+            }
+
+            ranked.push({
+                card: candidate,
+                score: Math.max(0, Math.min(1, finalScore)),
+                numberScore: numberScore,
+                imageScore: imageScore,
+                nameScore: nameScore,
+                setScore: setScore
+            });
+        }
+
+        ranked.sort(function (a, b) {
+            return b.score - a.score;
+        });
+
+        return ranked;
+    }
+
+    async function fetchScannerCandidates(detected, flags) {
+        const base = getScannerWorkerBase();
+        const number = normalizeExtractedCardNumber(detected?.number || '');
+        const name = normalizeDetectedName(detected?.name || '');
+        const results = [];
+        const seen = new Set();
+
+        async function mergeQuery(query, pageSize) {
+            if (!query || results.length >= SCANNER_CANDIDATE_FETCH_LIMIT) {
+                return;
+            }
+
+            const payload = await fetchScannerCardsSearch(base, query, Math.max(6, Number(pageSize || 8)), flags);
+            const list = Array.isArray(payload?.data) ? payload.data : [];
+
+            list.forEach(function (card) {
+                const id = String(card?.id || '').trim();
+                if (!id || seen.has(id)) {
+                    return;
+                }
+
+                seen.add(id);
+                results.push(card);
+            });
+        }
+
+        // Name-first strategy improves relevance and usually requires fewer API calls.
+        if (name) {
+            await mergeQuery(buildFieldQuery('name', name), 10);
+        }
+
+        // Only expand to number queries if name-first didn't produce enough candidates.
+        if (number && results.length < Math.min(6, SCANNER_CANDIDATE_FETCH_LIMIT)) {
+            await mergeQuery(buildFieldQuery('printed_number', number), 8);
+        }
+
+        if (number && results.length < Math.min(6, SCANNER_CANDIDATE_FETCH_LIMIT)) {
+            await mergeQuery(buildFieldQuery('number', number), 8);
+        }
+
+        if (detected?.setId) {
+            const setId = String(detected.setId).trim();
+            if (setId) {
+                return results.filter(function (card) {
+                    return getCandidateSetId(card) === setId;
+                }).concat(results.filter(function (card) {
+                    return getCandidateSetId(card) !== setId;
+                })).slice(0, SCANNER_CANDIDATE_FETCH_LIMIT);
+            }
+        }
+
+        return results.slice(0, SCANNER_CANDIDATE_FETCH_LIMIT);
+    }
+
+    function buildFieldQuery(fieldName, value) {
+        const trimmed = String(value || '').trim();
+
+        if (!trimmed) {
+            return '';
+        }
+
+        const needsQuotes = /\s/.test(trimmed) || /[^A-Za-z0-9]/.test(trimmed);
+        const term = needsQuotes ? `"${trimmed.replace(/"/g, '\\"')}"` : trimmed;
+
+        return `${fieldName}:${term}`;
+    }
+
+    async function fetchScannerCardsSearch(base, query, pageSize, flags) {
+        const params = [
+            `q=${encodeURIComponent(query)}`,
+            'page=1',
+            `pageSize=${encodeURIComponent(String(pageSize || 8))}`,
+            'lang=en'
+        ];
+
+        if (flags?.candidatesConsumeQuota) {
+            params.push('consumeQuota=1');
+        }
+
+        const qs = params.join('&');
+        const url = `${base}/cards/search?${qs}`;
+        return fetchScannerJson(url);
+    }
+
+    async function fetchScannerJson(url) {
+        const cacheKey = String(url || '').trim();
+
+        if (!cacheKey) {
+            return null;
+        }
+
+        if (scannerRequestCache.has(cacheKey)) {
+            return scannerRequestCache.get(cacheKey);
+        }
+
+        let headers = undefined;
+
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+
+            if (token && token.split('.').length === 3) {
+                headers = { Authorization: `Bearer ${token}` };
+            }
+        } catch {
+            // Ignore token errors.
+        }
+
+        const response = await fetch(url, headers ? { headers: headers } : undefined);
+
+        if (!response.ok) {
+            throw new Error(`Scanner candidate request failed (${response.status}).`);
+        }
+
+        const data = await response.json();
+        scannerRequestCache.set(cacheKey, data);
+        return data;
+    }
+
+    function getScannerWorkerBase() {
+        const defaultWorker = 'https://pokevalutor-v1.lreyperez18.workers.dev';
+        return String(window?.PV_SECRETS?.PV_API_URL || defaultWorker).replace(/\/$/, '');
+    }
+
+    function getSelectedSetId() {
+        const setSelect = document.getElementById('pv-search-set');
+        return String(setSelect?.value || '').trim();
+    }
+
+    function getCandidateCardName(card) {
+        return normalizeDetectedName(String(card?.name || '').trim());
+    }
+
+    function getCandidateCardNumber(card) {
+        const raw = String(
+            card?.printedNumber
+            || card?.printed_number
+            || card?.card_no
+            || card?.number
+            || card?.collectorNumber
+            || card?.cardNumber
+            || ''
+        ).trim();
+
+        if (!raw) {
+            return '';
+        }
+
+        return normalizeExtractedCardNumber(raw);
+    }
+
+    function getCandidateSetId(card) {
+        const setObj = (card?.expansion && typeof card.expansion === 'object') ? card.expansion : (card?.set && typeof card.set === 'object' ? card.set : null);
+        return String(setObj?.id || card?.expansionId || card?.setId || '').trim();
+    }
+
+    function getCandidateSetName(card) {
+        const setObj = (card?.expansion && typeof card.expansion === 'object') ? card.expansion : (card?.set && typeof card.set === 'object' ? card.set : null);
+        return String(setObj?.name || card?.expansionName || card?.setName || '').trim();
+    }
+
+    function pickCandidateImageUrl(card) {
+        const images = card?.images;
+
+        if (Array.isArray(images)) {
+            const front = images.find(function (img) {
+                return String(img?.type || '').toLowerCase() === 'front';
+            }) || images[0];
+
+            return String(front?.medium || front?.large || front?.small || '').trim();
+        }
+
+        if (images && typeof images === 'object') {
+            return String(images?.medium || images?.large || images?.small || images?.url || '').trim();
+        }
+
+        return String(card?.image || card?.imageUrl || '').trim();
+    }
+
+    function scoreCandidateNumberMatch(detectedNumber, candidateNumber) {
+        const detected = normalizeExtractedCardNumber(detectedNumber || '');
+        const candidate = normalizeExtractedCardNumber(candidateNumber || '');
+
+        if (!detected || !candidate) {
+            return 0;
+        }
+
+        if (detected === candidate) {
+            return 1;
+        }
+
+        const dParts = detected.split('/');
+        const cParts = candidate.split('/');
+
+        if (dParts.length === 2 && cParts.length === 2 && dParts[0] === cParts[0]) {
+            return 0.75;
+        }
+
+        if (candidate.indexOf(detected) >= 0 || detected.indexOf(candidate) >= 0) {
+            return 0.6;
+        }
+
+        return 0;
+    }
+
+    function scoreCandidateNameMatch(detectedName, candidateName) {
+        const detected = normalizeDetectedName(detectedName || '').toLowerCase();
+        const candidate = normalizeDetectedName(candidateName || '').toLowerCase();
+
+        if (!detected || !candidate) {
+            return 0;
+        }
+
+        if (detected === candidate) {
+            return 1;
+        }
+
+        if (candidate.indexOf(detected) >= 0 || detected.indexOf(candidate) >= 0) {
+            return 0.8;
+        }
+
+        const detectedTokens = detected.split(/\s+/).filter(Boolean);
+        const candidateTokens = candidate.split(/\s+/).filter(Boolean);
+
+        if (!detectedTokens.length || !candidateTokens.length) {
+            return 0;
+        }
+
+        const candidateSet = new Set(candidateTokens);
+        let overlap = 0;
+
+        detectedTokens.forEach(function (token) {
+            if (candidateSet.has(token)) {
+                overlap += 1;
+            }
+        });
+
+        return overlap / Math.max(detectedTokens.length, candidateTokens.length);
+    }
+
+    function scoreCandidateSetMatch(detectedSetId, candidateSetId) {
+        const detected = String(detectedSetId || '').trim();
+        const candidate = String(candidateSetId || '').trim();
+
+        if (!detected || !candidate) {
+            return 0;
+        }
+
+        return detected === candidate ? 1 : 0;
+    }
+
+    async function scoreCandidateImageSimilarity(scanHash, candidate) {
+        if (!scanHash) {
+            return 0;
+        }
+
+        const imageUrl = pickCandidateImageUrl(candidate);
+
+        if (!imageUrl) {
+            return 0;
+        }
+
+        const candidateBlob = await fetchImageBlob(imageUrl);
+        const candidateHash = await createImageHashFromBlob(candidateBlob, SCANNER_HASH_SIZE);
+
+        if (!candidateHash) {
+            return 0;
+        }
+
+        return hashSimilarity(scanHash, candidateHash);
+    }
+
+    async function fetchImageBlob(url) {
+        const key = `img:${String(url || '').trim()}`;
+
+        if (!url) {
+            return null;
+        }
+
+        if (scannerRequestCache.has(key)) {
+            return scannerRequestCache.get(key);
+        }
+
+        try {
+            const response = await fetch(url, { mode: 'cors' });
+
+            if (!response.ok) {
+                return null;
+            }
+
+            const blob = await response.blob();
+            scannerRequestCache.set(key, blob);
+            return blob;
+        } catch {
+            return null;
+        }
+    }
+
+    async function createImageHashFromBlob(imageBlob, hashSize) {
+        if (!imageBlob || !window.createImageBitmap) {
+            return '';
+        }
+
+        let bitmap = null;
+
+        try {
+            bitmap = await window.createImageBitmap(imageBlob);
+            const size = Math.max(8, Number(hashSize || SCANNER_HASH_SIZE));
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+            if (!ctx) {
+                return '';
+            }
+
+            ctx.drawImage(bitmap, 0, 0, size, size);
+            const imageData = ctx.getImageData(0, 0, size, size).data;
+            const gray = [];
+            let sum = 0;
+
+            for (let i = 0; i < imageData.length; i += 4) {
+                const g = Math.round((imageData[i] * 0.299) + (imageData[i + 1] * 0.587) + (imageData[i + 2] * 0.114));
+                gray.push(g);
+                sum += g;
+            }
+
+            const avg = sum / gray.length;
+
+            return gray.map(function (value) {
+                return value >= avg ? '1' : '0';
+            }).join('');
+        } catch {
+            return '';
+        } finally {
+            if (bitmap && typeof bitmap.close === 'function') {
+                try {
+                    bitmap.close();
+                } catch {
+                    // Ignore cleanup errors.
+                }
+            }
+        }
+    }
+
+    function hashSimilarity(a, b) {
+        const left = String(a || '');
+        const right = String(b || '');
+
+        if (!left || !right || left.length !== right.length) {
+            return 0;
+        }
+
+        let same = 0;
+
+        for (let i = 0; i < left.length; i += 1) {
+            if (left[i] === right[i]) {
+                same += 1;
+            }
+        }
+
+        return same / left.length;
+    }
+
     async function extractWithOcrFallback(worker, imageBlob, elements, flags) {
         const extracted = {
             name: '',
@@ -828,12 +1786,12 @@
             extracted.name = pickBetterDetectedName(extracted.name, fallback.name);
         }
 
-            const fallbackExplicitNumber = extractExplicitCollectorNumber(fallback.raw);
+        const fallbackExplicitNumber = extractExplicitCollectorNumber(fallback.raw);
 
-            if (fallbackExplicitNumber && (!extracted.number || !hasExplicitCollectorNumber(numberDetection.raw))) {
-                extracted.number = fallbackExplicitNumber;
-            } else if (fallback.number && !extracted.number) {
-                extracted.number = fallback.number;
+        if (fallbackExplicitNumber && (!extracted.number || !hasExplicitCollectorNumber(numberDetection.raw))) {
+            extracted.number = fallbackExplicitNumber;
+        } else if (fallback.number && !extracted.number) {
+            extracted.number = fallback.number;
         }
 
         if (preparedExtracted?.name) {
@@ -2238,6 +3196,11 @@
     function clearScanner(root, elements, state) {
         stopCamera(elements, state);
         resetDetectedFields(elements);
+        clearCandidateSuggestions(elements);
+
+        if (elements.findCandidatesBtn) {
+            elements.findCandidatesBtn.hidden = true;
+        }
 
         state.capturedBlob = null;
         revokePreviewUrl(state);
@@ -2294,6 +3257,12 @@
         if (elements.detectedName) elements.detectedName.value = '';
         if (elements.detectedNumber) elements.detectedNumber.value = '';
         if (elements.rawOcr) elements.rawOcr.value = '';
+
+        if (elements.findCandidatesBtn) {
+            elements.findCandidatesBtn.hidden = true;
+        }
+
+        clearCandidateSuggestions(elements);
     }
 
     function setBusy(elements, state, isBusy) {

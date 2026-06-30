@@ -119,6 +119,112 @@
   grid-column: 1 / -1;
 }
 
+.pv-cardScanner__candidates {
+  margin: 0 0 0.9rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.pv-cardScanner__candidatesTitle {
+  margin: 0;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.pv-cardScanner__candidatesText {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--pv-muted, #cbd5e1);
+  font-size: 0.92rem;
+}
+
+.pv-cardScanner__candidateList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pv-cardScanner__candidate {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.52);
+  color: #f8fafc;
+  text-align: left;
+  padding: 0.48rem;
+}
+
+.pv-cardScanner__candidate:hover,
+.pv-cardScanner__candidate:focus-visible {
+  border-color: rgba(255, 203, 5, 0.6);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.35);
+}
+
+.pv-cardScanner__candidate.is-recommended {
+  border-color: rgba(34, 197, 94, 0.7);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.pv-cardScanner__candidate.is-selected {
+  border-color: rgba(255, 203, 5, 0.9);
+  background: rgba(255, 203, 5, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.4);
+}
+
+.pv-cardScanner__candidate.is-selected .pv-cardScanner__candidateTitle {
+  color: #ffe066;
+}
+
+.pv-cardScanner__candidateImage {
+  width: 60px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 7px;
+  background: #0b1120;
+}
+
+.pv-cardScanner__candidateContent {
+  min-width: 0;
+}
+
+.pv-cardScanner__candidateTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pv-cardScanner__candidateBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.6);
+  color: #bbf7d0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pv-cardScanner__candidateMeta {
+  margin-top: 0.22rem;
+  color: var(--pv-muted, #cbd5e1);
+  font-size: 0.82rem;
+}
+
+.pv-cardScanner__candidateDebug {
+  margin-top: 0.2rem;
+  color: #93c5fd;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
 .pv-cardScanner textarea {
   resize: vertical;
 }
