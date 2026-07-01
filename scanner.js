@@ -1388,6 +1388,7 @@
         const detectedName = normalizeDetectedName(detected?.name || '');
         const normalizedDetectedNumber = normalizeExtractedCardNumber(detected?.number || '');
         const hasExplicitDetectedNumber = /^\d{1,3}\/\d{2,3}$/.test(normalizedDetectedNumber);
+        const hasNumericDetectedNumber = /^\d{1,3}$/.test(normalizedDetectedNumber);
 
         for (const candidate of candidates) {
             // If candidate came from Firestore catalog with Firebase scoring, use that as primary signal
@@ -1412,15 +1413,23 @@
 
             if (hasFirebaseScore) {
                 // Respect Firebase candidate score (numberKey, name, setId, image matches)
-                // Weight it heavily since it's from trusted Firestore catalog matching
-                finalScore = (firebaseScore / 100) * 0.65
-                    + (imageScore * 0.35);
+                // Weight catalog score strongly, but include numberScore so partial numeric
+                // inputs (e.g., "020") can outrank visually similar mismatches.
+                finalScore = (firebaseScore / 100) * 0.55
+                    + (numberScore * 0.25)
+                    + (imageScore * 0.20);
 
                 if (hasExplicitDetectedNumber) {
                     if (numberScore >= 0.99) {
                         finalScore = Math.min(1, finalScore + 0.15);
                     } else if (numberScore < 0.95) {
                         finalScore *= 0.7;
+                    }
+                } else if (hasNumericDetectedNumber) {
+                    if (numberScore >= 0.79) {
+                        finalScore = Math.min(1, finalScore + 0.08);
+                    } else if (numberScore < 0.5) {
+                        finalScore *= 0.78;
                     }
                 }
             } else {
@@ -1441,6 +1450,12 @@
                     } else if (numberScore < 0.95) {
                         // Strongly de-prioritize same-name cards with different collector numbers.
                         finalScore *= 0.55;
+                    }
+                } else if (hasNumericDetectedNumber) {
+                    if (numberScore >= 0.79) {
+                        finalScore = Math.min(1, finalScore + 0.1);
+                    } else if (numberScore < 0.5) {
+                        finalScore *= 0.8;
                     }
                 }
             }
@@ -1476,6 +1491,7 @@
         const base = getScannerWorkerBase();
         const number = normalizeExtractedCardNumber(detected?.number || '');
         const name = normalizeDetectedName(detected?.name || '');
+        const shouldEnrichForDisplay = !number || number.indexOf('/') >= 0 || /^\d{1,3}$/.test(number);
         const results = [];
         const seen = new Set();
 
@@ -1538,7 +1554,7 @@
             const setId = String(detected.setId).trim();
 
             if (setId) {
-                if (number.indexOf('/') >= 0) {
+                if (shouldEnrichForDisplay) {
                     await enrichCandidatesWithPrintedTotals(base, results, flags);
                 }
 
@@ -1550,7 +1566,7 @@
             }
         }
 
-        if (number.indexOf('/') >= 0) {
+        if (shouldEnrichForDisplay) {
             await enrichCandidatesWithPrintedTotals(base, results, flags);
         }
 

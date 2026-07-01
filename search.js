@@ -5025,14 +5025,16 @@ document.addEventListener('DOMContentLoaded', function () {
             // Keep exact user format first.
             push(`${leftRaw}/${rightRaw}`);
 
-            // Common normalized form without extra zeros.
-            push(`${left}/${right}`);
-
-            // Common catalog forms with 3-digit totals and optional padded collector numbers.
+            // Always try fully padded retry as many cards are indexed as XXX/YYY.
             const rightPad3 = padLeftZeros(right, 3);
             const leftPad3 = padLeftZeros(left, 3);
-            push(`${left}/${rightPad3}`);
             push(`${leftPad3}/${rightPad3}`);
+
+            // Then try right-side set-total padding (common source of misses).
+            push(`${left}/${rightPad3}`);
+
+            // Finally try fully normalized no-leading-zero form.
+            push(`${left}/${right}`);
 
             return out;
         }
@@ -5070,16 +5072,18 @@ document.addEventListener('DOMContentLoaded', function () {
             // 1) Exact input first.
             candidates.push(pn);
 
-            // 2) For common fractions like 109/094, retry without leading zeros.
-            const normalizedFraction = normalizeSimplePrintedFraction(pn);
-            if (normalizedFraction && normalizedFraction !== pn) candidates.push(normalizedFraction);
-
-            // 2b) Also try leading-zero permutations for cards stored as 069/086, etc.
+            // 2) Try fraction permutations (leading-zero preserving first).
             const fractionCandidates = buildPrintedFractionCandidates(pn);
             for (const fc of fractionCandidates) {
                 if (fc && !candidates.includes(fc)) {
                     candidates.push(fc);
                 }
+            }
+
+            // 2b) Keep stripped fraction fallback last.
+            const normalizedFraction = normalizeSimplePrintedFraction(pn);
+            if (normalizedFraction && normalizedFraction !== pn && !candidates.includes(normalizedFraction)) {
+                candidates.push(normalizedFraction);
             }
 
             // 3) For promos (e.g., SVP 052), retry numeric forms with/without padding.
