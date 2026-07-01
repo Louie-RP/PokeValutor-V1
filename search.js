@@ -5002,6 +5002,41 @@ document.addEventListener('DOMContentLoaded', function () {
             return `${left}/${right}`;
         }
 
+        function buildPrintedFractionCandidates(raw) {
+            const s = String(raw || '').trim();
+            const m = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+            if (!m) return [];
+
+            const leftRaw = String(m[1] || '').trim();
+            const rightRaw = String(m[2] || '').trim();
+            const left = String(leftRaw).replace(/^0+(?=\d)/, '') || '0';
+            const right = String(rightRaw).replace(/^0+(?=\d)/, '') || '0';
+
+            const out = [];
+            const seen = new Set();
+
+            function push(v) {
+                const key = String(v || '').trim();
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                out.push(key);
+            }
+
+            // Keep exact user format first.
+            push(`${leftRaw}/${rightRaw}`);
+
+            // Common normalized form without extra zeros.
+            push(`${left}/${right}`);
+
+            // Common catalog forms with 3-digit totals and optional padded collector numbers.
+            const rightPad3 = padLeftZeros(right, 3);
+            const leftPad3 = padLeftZeros(left, 3);
+            push(`${left}/${rightPad3}`);
+            push(`${leftPad3}/${rightPad3}`);
+
+            return out;
+        }
+
         setStatus('Searching…');
         if (grid) {
             grid.innerHTML = '';
@@ -5038,6 +5073,14 @@ document.addEventListener('DOMContentLoaded', function () {
             // 2) For common fractions like 109/094, retry without leading zeros.
             const normalizedFraction = normalizeSimplePrintedFraction(pn);
             if (normalizedFraction && normalizedFraction !== pn) candidates.push(normalizedFraction);
+
+            // 2b) Also try leading-zero permutations for cards stored as 069/086, etc.
+            const fractionCandidates = buildPrintedFractionCandidates(pn);
+            for (const fc of fractionCandidates) {
+                if (fc && !candidates.includes(fc)) {
+                    candidates.push(fc);
+                }
+            }
 
             // 3) For promos (e.g., SVP 052), retry numeric forms with/without padding.
             if (/^\d+$/.test(pn)) {

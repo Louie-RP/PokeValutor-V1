@@ -25,6 +25,7 @@
     const PV_SCANNER_ENABLE_OPENCV_NORMALIZE = false;
     const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = true;
     const PV_SCANNER_ENABLE_CANDIDATES = true;
+    const PV_SCANNER_ENABLE_CATALOG_CANDIDATES = true;
     const PV_SCANNER_CANDIDATES_CONSUME_QUOTA = false;
     const PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE = 0.86;
     const PV_SCANNER_VISION_ENDPOINT = '';
@@ -79,6 +80,7 @@
             enableOpenCvNormalize: readBooleanFlag('PV_SCANNER_ENABLE_OPENCV_NORMALIZE', PV_SCANNER_ENABLE_OPENCV_NORMALIZE),
             enableAdvancedOcrFallback: readBooleanFlag('PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK', PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK),
             enableCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CANDIDATES', PV_SCANNER_ENABLE_CANDIDATES),
+            enableCatalogCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CATALOG_CANDIDATES', PV_SCANNER_ENABLE_CATALOG_CANDIDATES),
             candidatesConsumeQuota: readBooleanFlag('PV_SCANNER_CANDIDATES_CONSUME_QUOTA', PV_SCANNER_CANDIDATES_CONSUME_QUOTA),
             candidateHighConfidence: readNumberFlag('PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE', PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE, 0.55, 0.99),
             visionEndpoint: String(window?.PV_SCANNER_VISION_ENDPOINT || PV_SCANNER_VISION_ENDPOINT || '').trim(),
@@ -1012,6 +1014,8 @@
         try {
             setStatus(elements, 'Finding likely card matches...');
 
+            clearScannerRequestQueryCache();
+
             const candidates = await fetchScannerCandidates({
                 name: detectedName,
                 number: detectedNumber,
@@ -1052,6 +1056,18 @@
         } catch (error) {
             console.warn('[PokeValutor Scanner] candidate lookup error', error);
             setStatus(elements, 'Candidate suggestions are unavailable right now. You can still search manually.');
+        }
+    }
+
+    function clearScannerRequestQueryCache() {
+        for (const key of Array.from(scannerRequestCache.keys())) {
+            if (typeof key !== 'string') {
+                continue;
+            }
+
+            if (key.indexOf('/scanner/candidates?') >= 0 || key.indexOf('/cards/search?') >= 0) {
+                scannerRequestCache.delete(key);
+            }
         }
     }
 
@@ -1100,6 +1116,9 @@
             button.className = 'pv-cardScanner__candidate';
             button.setAttribute('data-candidate-id', candidateId);
             button.setAttribute('aria-pressed', 'false');
+            if (displayNumber) {
+                button.setAttribute('data-display-number', displayNumber);
+            }
 
             if (recommendedId && candidateId && candidateId === recommendedId) {
                 button.classList.add('is-recommended');
@@ -1161,7 +1180,7 @@
             button.appendChild(content);
 
             button.addEventListener('click', function () {
-                applyCandidateSelection(elements, candidate, entry.score, false, fallbackNumber);
+                applyCandidateSelection(elements, candidate, entry.score, false, fallbackNumber, displayNumber);
             });
 
             elements.candidateList.appendChild(button);
@@ -1174,10 +1193,26 @@
         }
     }
 
-    function applyCandidateSelection(elements, candidate, score, autoApplied, fallbackNumber) {
+    function applyCandidateSelection(elements, candidate, score, autoApplied, fallbackNumber, preferredDisplayNumber) {
         const name = getCandidateCardName(candidate);
-        const number = getBestCandidateSearchNumber(candidate, fallbackNumber);
+        const existingNumber = elements?.detectedNumber ? String(elements.detectedNumber.value || '').trim() : '';
+        const preferredFallbackNumber = existingNumber || String(fallbackNumber || '').trim();
+        const preferredDisplay = normalizeExtractedCardNumber(preferredDisplayNumber || '');
+        let number = preferredDisplay || getBestCandidateSearchNumber(candidate, preferredFallbackNumber);
         const candidateId = String(candidate?.id || '').trim();
+
+        // Keep an existing full collector number when a candidate only provides a short number
+        // for the same card index (e.g. keep 4/102 instead of replacing with 4).
+        const existingNormalized = normalizeExtractedCardNumber(existingNumber);
+        const selectedNormalized = normalizeExtractedCardNumber(number);
+        if (existingNormalized.indexOf('/') >= 0 && selectedNormalized.indexOf('/') < 0) {
+            const existingLeft = String(Number(existingNormalized.split('/')[0] || ''));
+            const selectedLeft = String(Number(selectedNormalized || ''));
+
+            if (existingLeft && selectedLeft && existingLeft === selectedLeft) {
+                number = existingNormalized;
+            }
+        }
 
         if (elements.detectedName) {
             elements.detectedName.value = name;
@@ -1236,6 +1271,18 @@
             const left = String(galleryMatch[2] || '').padStart(2, '0');
             const right = String(total).padStart(Math.max(2, String(total).length), '0');
             return `${prefix}${left}/${prefix}${right}`;
+        }
+
+        if (candidateNumber.indexOf('/') < 0 && fallback.indexOf('/') >= 0) {
+            const fallbackParts = fallback.split('/');
+            const candidateLeft = String(Number(candidateNumber || ''));
+            const fallbackLeftRaw = String(fallbackParts[0] || '').trim();
+            const fallbackLeft = String(Number(fallbackLeftRaw || ''));
+
+            if (candidateLeft && fallbackLeft && candidateLeft === fallbackLeft) {
+                // Preserve detected full collector number only when it is the same card index.
+                return fallback;
+            }
         }
 
         if (candidateNumber.indexOf('/') >= 0) {
@@ -1339,9 +1386,16 @@
         const scanHash = await createImageHashFromBlob(capturedBlob, SCANNER_HASH_SIZE);
         const ranked = [];
         const detectedName = normalizeDetectedName(detected?.name || '');
+        const normalizedDetectedNumber = normalizeExtractedCardNumber(detected?.number || '');
+        const hasExplicitDetectedNumber = /^\d{1,3}\/\d{2,3}$/.test(normalizedDetectedNumber);
 
         for (const candidate of candidates) {
-            const numberScore = scoreCandidateNumberMatch(detected?.number, getCandidateCardNumber(candidate));
+            // If candidate came from Firestore catalog with Firebase scoring, use that as primary signal
+            const firebaseScore = candidate?._candidate?.score || null;
+            const hasFirebaseScore = typeof firebaseScore === 'number' && firebaseScore > 0;
+
+            const candidateSearchNumber = getBestCandidateSearchNumber(candidate, detected?.number || '');
+            const numberScore = scoreCandidateNumberMatch(detected?.number, candidateSearchNumber);
             const nameScore = scoreCandidateNameMatch(detected?.name, getCandidateCardName(candidate));
             const setScore = scoreCandidateSetMatch(detected?.setId, getCandidateSetId(candidate));
             const imageScore = await scoreCandidateImageSimilarity(scanHash, candidate);
@@ -1354,14 +1408,41 @@
                 adjustedNumberScore *= 0.2;
             }
 
-            let finalScore =
-                (nameScore * SCANNER_RANK_WEIGHT_NAME)
-                + (adjustedNumberScore * SCANNER_RANK_WEIGHT_NUMBER)
-                + (imageScore * SCANNER_RANK_WEIGHT_IMAGE)
-                + (setScore * SCANNER_RANK_WEIGHT_SET);
+            let finalScore;
 
-            if (detectedName && nameScore < 0.2) {
-                finalScore *= 0.6;
+            if (hasFirebaseScore) {
+                // Respect Firebase candidate score (numberKey, name, setId, image matches)
+                // Weight it heavily since it's from trusted Firestore catalog matching
+                finalScore = (firebaseScore / 100) * 0.65
+                    + (imageScore * 0.35);
+
+                if (hasExplicitDetectedNumber) {
+                    if (numberScore >= 0.99) {
+                        finalScore = Math.min(1, finalScore + 0.15);
+                    } else if (numberScore < 0.95) {
+                        finalScore *= 0.7;
+                    }
+                }
+            } else {
+                // Fallback scoring for non-catalog candidates (e.g., from Scrydex search)
+                finalScore =
+                    (nameScore * SCANNER_RANK_WEIGHT_NAME)
+                    + (adjustedNumberScore * SCANNER_RANK_WEIGHT_NUMBER)
+                    + (imageScore * SCANNER_RANK_WEIGHT_IMAGE)
+                    + (setScore * SCANNER_RANK_WEIGHT_SET);
+
+                if (detectedName && nameScore < 0.2) {
+                    finalScore *= 0.6;
+                }
+
+                if (hasExplicitDetectedNumber) {
+                    if (numberScore >= 0.99) {
+                        finalScore = Math.min(1, finalScore + 0.2);
+                    } else if (numberScore < 0.95) {
+                        // Strongly de-prioritize same-name cards with different collector numbers.
+                        finalScore *= 0.55;
+                    }
+                }
             }
 
             ranked.push({
@@ -1370,12 +1451,22 @@
                 numberScore: numberScore,
                 imageScore: imageScore,
                 nameScore: nameScore,
-                setScore: setScore
+                setScore: setScore,
+                firebaseScore: hasFirebaseScore ? firebaseScore : null
             });
         }
 
         ranked.sort(function (a, b) {
-            return b.score - a.score;
+            const scoreDiff = b.score - a.score;
+            if (scoreDiff) return scoreDiff;
+
+            const numberDiff = (Number(b.numberScore) || 0) - (Number(a.numberScore) || 0);
+            if (numberDiff) return numberDiff;
+
+            const nameDiff = (Number(b.nameScore) || 0) - (Number(a.nameScore) || 0);
+            if (nameDiff) return nameDiff;
+
+            return (Number(b.imageScore) || 0) - (Number(a.imageScore) || 0);
         });
 
         return ranked;
@@ -1388,13 +1479,8 @@
         const results = [];
         const seen = new Set();
 
-        async function mergeQuery(query, pageSize) {
-            if (!query || results.length >= SCANNER_CANDIDATE_FETCH_LIMIT) {
-                return;
-            }
-
-            const payload = await fetchScannerCardsSearch(base, query, Math.max(6, Number(pageSize || 8)), flags);
-            const list = Array.isArray(payload?.data) ? payload.data : [];
+        function mergeCards(cards) {
+            const list = Array.isArray(cards) ? cards : [];
 
             list.forEach(function (card) {
                 const id = String(card?.id || '').trim();
@@ -1407,23 +1493,55 @@
             });
         }
 
-        // Name-first strategy improves relevance and usually requires fewer API calls.
-        if (name) {
+        if (flags?.enableCatalogCandidates) {
+            try {
+                const catalogPayload = await fetchScannerCatalogCandidates(base, {
+                    name: name,
+                    number: number,
+                    setId: detected?.setId || '',
+                    limit: SCANNER_CANDIDATE_FETCH_LIMIT
+                });
+
+                mergeCards(catalogPayload?.data);
+            } catch (error) {
+                console.warn('[PokeValutor Scanner] catalog candidate lookup failed', error);
+            }
+        }
+
+        async function mergeQuery(query, pageSize) {
+            if (!query || results.length >= SCANNER_CANDIDATE_FETCH_LIMIT) {
+                return;
+            }
+
+            const payload = await fetchScannerCardsSearch(base, query, Math.max(6, Number(pageSize || 8)), flags);
+            const list = Array.isArray(payload?.data) ? payload.data : [];
+
+            mergeCards(list);
+        }
+
+        // Keep Scrydex fallback while the Firestore catalog is still growing.
+        const minimumBeforeFallback = 4;
+
+        if (results.length < minimumBeforeFallback && name) {
             await mergeQuery(buildFieldQuery('name', name), 10);
         }
 
-        // Only expand to number queries if name-first didn't produce enough candidates.
-        if (number && results.length < Math.min(6, SCANNER_CANDIDATE_FETCH_LIMIT)) {
+        if (results.length < Math.min(6, SCANNER_CANDIDATE_FETCH_LIMIT) && number) {
             await mergeQuery(buildFieldQuery('printed_number', number), 8);
         }
 
-        if (number && results.length < Math.min(6, SCANNER_CANDIDATE_FETCH_LIMIT)) {
+        if (results.length < Math.min(6, SCANNER_CANDIDATE_FETCH_LIMIT) && number) {
             await mergeQuery(buildFieldQuery('number', number), 8);
         }
 
         if (detected?.setId) {
             const setId = String(detected.setId).trim();
+
             if (setId) {
+                if (number.indexOf('/') >= 0) {
+                    await enrichCandidatesWithPrintedTotals(base, results, flags);
+                }
+
                 return results.filter(function (card) {
                     return getCandidateSetId(card) === setId;
                 }).concat(results.filter(function (card) {
@@ -1432,7 +1550,61 @@
             }
         }
 
+        if (number.indexOf('/') >= 0) {
+            await enrichCandidatesWithPrintedTotals(base, results, flags);
+        }
+
         return results.slice(0, SCANNER_CANDIDATE_FETCH_LIMIT);
+    }
+
+    function candidateNeedsPrintedTotalEnrichment(card) {
+        if (!card || typeof card !== 'object') return false;
+
+        const total = getCandidatePrintedTotal(card);
+        if (/^\d{1,3}$/.test(total)) return false;
+
+        const number = getCandidateCardNumber(card);
+        return /^\d{1,3}$/.test(number);
+    }
+
+    function applyCandidatePrintedTotal(card, total) {
+        const normalizedTotal = String(total || '').trim();
+        if (!/^\d{1,3}$/.test(normalizedTotal)) return;
+
+        if (!card.expansion || typeof card.expansion !== 'object') {
+            card.expansion = {};
+        }
+        if (!card.set || typeof card.set !== 'object') {
+            card.set = {};
+        }
+
+        card.expansion.printedTotal = normalizedTotal;
+        card.set.printedTotal = normalizedTotal;
+    }
+
+    async function enrichCandidatesWithPrintedTotals(base, cards, flags) {
+        const list = Array.isArray(cards) ? cards : [];
+        const pending = list.filter(candidateNeedsPrintedTotalEnrichment).slice(0, 10);
+
+        for (const card of pending) {
+            const id = String(card?.id || '').trim();
+            if (!id) continue;
+
+            try {
+                const query = buildFieldQuery('id', id);
+                const payload = await fetchScannerCardsSearch(base, query, 1, flags);
+                const matched = (Array.isArray(payload?.data) ? payload.data : []).find(function (item) {
+                    return String(item?.id || '').trim() === id;
+                });
+
+                if (!matched) continue;
+
+                const total = getCandidatePrintedTotal(matched);
+                applyCandidatePrintedTotal(card, total);
+            } catch {
+                // Keep candidate as-is if enrichment fails.
+            }
+        }
     }
 
     function buildFieldQuery(fieldName, value) {
@@ -1446,6 +1618,31 @@
         const term = needsQuotes ? `"${trimmed.replace(/"/g, '\\"')}"` : trimmed;
 
         return `${fieldName}:${term}`;
+    }
+
+    async function fetchScannerCatalogCandidates(base, detected) {
+        const params = [
+            `limit=${encodeURIComponent(String(detected?.limit || SCANNER_CANDIDATE_FETCH_LIMIT))}`
+        ];
+
+        const name = String(detected?.name || '').trim();
+        const number = String(detected?.number || '').trim();
+        const setId = String(detected?.setId || '').trim();
+
+        if (name) {
+            params.push(`name=${encodeURIComponent(name)}`);
+        }
+
+        if (number) {
+            params.push(`number=${encodeURIComponent(number)}`);
+        }
+
+        if (setId) {
+            params.push(`setId=${encodeURIComponent(setId)}`);
+        }
+
+        const url = `${base}/scanner/candidates?${params.join('&')}`;
+        return fetchScannerJson(url);
     }
 
     async function fetchScannerCardsSearch(base, query, pageSize, flags) {
@@ -1517,11 +1714,11 @@
     function getCandidateCardNumber(card) {
         const raw = String(
             card?.printedNumber
+            || card?.collectorNumber
             || card?.printed_number
             || card?.card_no
-            || card?.number
-            || card?.collectorNumber
             || card?.cardNumber
+            || card?.number
             || ''
         ).trim();
 
@@ -1570,6 +1767,50 @@
 
         if (detected === candidate) {
             return 1;
+        }
+
+        const detectedNumericSlash = detected.match(/^(\d{1,3})\/(\d{1,3})$/);
+        const candidateNumericSlash = candidate.match(/^(\d{1,3})\/(\d{1,3})$/);
+
+        if (detectedNumericSlash && candidateNumericSlash) {
+            const detectedLeft = String(Number(detectedNumericSlash[1] || ''));
+            const detectedRight = String(Number(detectedNumericSlash[2] || ''));
+            const candidateLeft = String(Number(candidateNumericSlash[1] || ''));
+            const candidateRight = String(Number(candidateNumericSlash[2] || ''));
+
+            if (detectedLeft && detectedRight && detectedLeft === candidateLeft && detectedRight === candidateRight) {
+                // Treat 037/132 and 37/132 as exact matches.
+                return 1;
+            }
+
+            if (detectedLeft && candidateLeft && detectedLeft === candidateLeft) {
+                return 0.75;
+            }
+
+            return 0;
+        }
+
+        if (detectedNumericSlash && /^\d{1,3}$/.test(candidate)) {
+            const detectedLeft = String(Number(detectedNumericSlash[1] || ''));
+            const candidateLeft = String(Number(candidate || ''));
+
+            if (detectedLeft && candidateLeft && detectedLeft === candidateLeft) {
+                // Short candidate number (e.g. 37) is weaker than explicit 37/132.
+                return 0.4;
+            }
+
+            return 0;
+        }
+
+        if (/^\d{1,3}$/.test(detected) && candidateNumericSlash) {
+            const detectedLeft = String(Number(detected || ''));
+            const candidateLeft = String(Number(candidateNumericSlash[1] || ''));
+
+            if (detectedLeft && candidateLeft && detectedLeft === candidateLeft) {
+                return 0.8;
+            }
+
+            return 0;
         }
 
         const dParts = detected.split('/');

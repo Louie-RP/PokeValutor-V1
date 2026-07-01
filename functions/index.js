@@ -117,6 +117,25 @@ function getCardCatalogHydrationMaxCards() {
     return Number.isFinite(raw) && raw > 0 ? Math.min(50, Math.floor(raw)) : 25;
 }
 
+function getCardCatalogCandidatesSecret() {
+    return configValue(
+        'CARD_CATALOG_CANDIDATES_SECRET',
+        ['card_catalog', 'candidates_secret'],
+        getCardCatalogHydrationSecret()
+    );
+}
+
+function isCardCatalogCandidatesEnabled() {
+    const raw = configValue('CARD_CATALOG_CANDIDATES_ENABLED', ['card_catalog', 'candidates_enabled'], 'false');
+    const normalized = String(raw || '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getCardCatalogCandidatesMaxResults() {
+    const raw = Number(configValue('CARD_CATALOG_CANDIDATES_MAX_RESULTS', ['card_catalog', 'candidates_max_results'], '12'));
+    return Number.isFinite(raw) && raw > 0 ? Math.min(25, Math.floor(raw)) : 12;
+}
+
 function getAppBaseUrl() {
     const raw = configValue('STRIPE_APP_BASE_URL', ['stripe', 'app_base_url'], DEFAULT_APP_BASE_URL);
     try {
@@ -371,6 +390,23 @@ function normalizeCatalogNumberKey(value) {
         .replace(/^_+|_+$/g, '');
 }
 
+function normalizeCatalogCollectorNumberWithPrintedTotal(rawNumber, printedTotal) {
+    const number = String(rawNumber || '').trim().toUpperCase();
+    const totalRaw = String(printedTotal || '').trim();
+
+    if (!number) return '';
+    if (number.indexOf('/') >= 0) return number;
+    if (!/^\d{1,3}$/.test(number)) return number;
+    if (!/^\d{2,3}$/.test(totalRaw)) return number;
+
+    const left = String(Number(number));
+    const right = String(Number(totalRaw));
+    if (!left || !right) return number;
+
+    const width = Math.max(2, totalRaw.length, right.length);
+    return `${left.padStart(width, '0')}/${right.padStart(width, '0')}`;
+}
+
 function normalizeCatalogCardDoc(raw) {
     if (!raw || typeof raw !== 'object') return null;
 
@@ -380,13 +416,36 @@ function normalizeCatalogCardDoc(raw) {
     }
 
     const name = String(raw.name || '').trim().slice(0, 120);
-    const number = String(raw.number || raw.printedNumber || raw.collectorNumber || '').trim().slice(0, 32);
+    const rawNumber = String(raw.printedNumber || raw.collectorNumber || raw.number || '').trim().slice(0, 32);
     const setId = String(raw.setId || raw.expansionId || '').trim().slice(0, 80);
     const setName = String(raw.setName || raw.expansionName || '').trim().slice(0, 120);
     const series = String(raw.series || '').trim().slice(0, 80);
     const rarity = String(raw.rarity || '').trim().slice(0, 80);
     const imageSmall = String(raw.imageSmall || '').trim().slice(0, 500);
     const imageLarge = String(raw.imageLarge || raw.imageSmall || '').trim().slice(0, 500);
+
+    // Extract printed total from set metadata for full collector number reconstruction
+    const expansion = raw.expansion && typeof raw.expansion === 'object' ? raw.expansion : {};
+    const set = raw.set && typeof raw.set === 'object' ? raw.set : {};
+    const printedTotal = String(
+        expansion?.printed_total
+        || expansion?.printedTotal
+        || expansion?.total
+        || set?.printed_total
+        || set?.printedTotal
+        || set?.total
+        || ''
+    ).trim();
+
+    const number = normalizeCatalogCollectorNumberWithPrintedTotal(rawNumber, printedTotal).slice(0, 32);
+    const printedNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(raw.printedNumber || raw.collectorNumber || rawNumber).trim(),
+        printedTotal
+    ).slice(0, 32);
+    const collectorNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(raw.collectorNumber || raw.printedNumber || rawNumber).trim(),
+        printedTotal
+    ).slice(0, 32);
 
     if (!name && !number) {
         return null;
@@ -401,14 +460,15 @@ function normalizeCatalogCardDoc(raw) {
         nameTokens: normalizedName.split(/\s+/).filter(Boolean).slice(0, 10),
         number,
         numberKey: normalizeCatalogNumberKey(number),
-        printedNumber: String(raw.printedNumber || number).trim().slice(0, 32),
-        collectorNumber: String(raw.collectorNumber || number).trim().slice(0, 32),
+        printedNumber,
+        collectorNumber,
         setId,
         setName,
         series,
         rarity,
         imageSmall,
         imageLarge,
+        printedTotal,
         source: 'scrydex-worker',
         updatedAt: FieldValue.serverTimestamp(),
     };
@@ -1023,6 +1083,210 @@ async function processStripeEvent(event) {
     }
 }
 
+function normalizeScannerCandidateInput(raw) {
+    const name = String(raw?.name || raw?.cardName || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+    const number = String(raw?.number || raw?.collectorNumber || raw?.cardNumber || '').trim().toUpperCase().replace(/\s+/g, '').slice(0, 32);
+    const numberKey = normalizeCatalogNumberKey(raw?.numberKey || number);
+    const setId = String(raw?.setId || raw?.expansionId || '').trim().toLowerCase().slice(0, 80);
+    const rawLimit = Number(raw?.limit || getCardCatalogCandidatesMaxResults());
+    const limit = Math.max(1, Math.min(getCardCatalogCandidatesMaxResults(), Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 12));
+
+    return {
+        name,
+        normalizedName: normalizeCatalogText(name),
+        nameTokens: normalizeCatalogText(name).split(/\s+/).filter(Boolean).slice(0, 5),
+        number,
+        numberKey,
+        setId,
+        limit,
+    };
+}
+
+function numberForCandidateCompare(value) {
+    return normalizeCatalogNumberKey(value);
+}
+
+function scoreNameCandidate(inputName, cardName) {
+    const input = normalizeCatalogText(inputName);
+    const card = normalizeCatalogText(cardName);
+
+    if (!input || !card) return 0;
+    if (input === card) return 25;
+    if (card.includes(input) || input.includes(card)) return 18;
+
+    const inputTokens = input.split(/\s+/).filter(Boolean);
+    const cardTokens = new Set(card.split(/\s+/).filter(Boolean));
+    if (!inputTokens.length || !cardTokens.size) return 0;
+
+    let overlap = 0;
+    for (const token of inputTokens) {
+        if (cardTokens.has(token)) overlap += 1;
+    }
+
+    return Math.round((overlap / Math.max(inputTokens.length, cardTokens.size)) * 12);
+}
+
+function scoreCatalogCandidate(input, doc) {
+    let score = 0;
+    const matchedBy = [];
+
+    const resolvedNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        doc?.number || doc?.printedNumber || doc?.collectorNumber || '',
+        doc?.printedTotal || doc?.total || ''
+    );
+    const cardNumberKey = numberForCandidateCompare(resolvedNumber || doc?.numberKey || doc?.number || doc?.printedNumber || doc?.collectorNumber || '');
+    if (input.numberKey && cardNumberKey && input.numberKey === cardNumberKey) {
+        score += 55;
+        matchedBy.push('numberKey');
+    }
+
+    const nameScore = scoreNameCandidate(input.name, doc?.name || '');
+    if (nameScore > 0) {
+        score += nameScore;
+        matchedBy.push(nameScore >= 25 ? 'normalizedName' : 'namePartial');
+    }
+
+    const cardSetId = String(doc?.setId || '').trim().toLowerCase();
+    if (input.setId && cardSetId && input.setId === cardSetId) {
+        score += 15;
+        matchedBy.push('setId');
+    }
+
+    if (doc?.imageLarge || doc?.imageSmall) {
+        score += 5;
+        matchedBy.push('imageUrl');
+    }
+
+    return {
+        score: Math.max(0, Math.min(100, score)),
+        matchedBy,
+    };
+}
+
+function cardCatalogDocToScannerCandidate(doc, input) {
+    const data = doc && typeof doc.data === 'function' ? doc.data() : doc;
+    if (!data || typeof data !== 'object') return null;
+
+    const id = String(data.id || doc?.id || '').trim();
+    if (!id) return null;
+
+    const scored = scoreCatalogCandidate(input, data);
+    if (scored.score <= 0) return null;
+
+    const setId = String(data.setId || '').trim();
+    const setName = String(data.setName || '').trim();
+    const series = String(data.series || '').trim();
+    const printedTotal = String(data.printedTotal || '').trim();
+    const number = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(data.printedNumber || data.collectorNumber || data.number || '').trim(),
+        printedTotal
+    );
+    const printedNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(data.printedNumber || data.collectorNumber || data.number || '').trim(),
+        printedTotal
+    );
+    const collectorNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(data.collectorNumber || data.printedNumber || data.number || '').trim(),
+        printedTotal
+    );
+    const imageSmall = String(data.imageSmall || '').trim();
+    const imageLarge = String(data.imageLarge || imageSmall || '').trim();
+
+    return {
+        id,
+        name: String(data.name || '').trim(),
+        number: number || String(data.number || '').trim(),
+        printedNumber: printedNumber || number || String(data.printedNumber || data.number || '').trim(),
+        collectorNumber: collectorNumber || number || String(data.collectorNumber || data.number || '').trim(),
+        rarity: String(data.rarity || '').trim(),
+        setId,
+        setName,
+        series,
+        imageSmall,
+        imageLarge,
+        expansion: {
+            id: setId,
+            name: setName,
+            series,
+            printedTotal: printedTotal || undefined,
+        },
+        set: {
+            id: setId,
+            name: setName,
+            series,
+            printedTotal: printedTotal || undefined,
+        },
+        images: {
+            small: imageSmall,
+            medium: imageLarge || imageSmall,
+            large: imageLarge || imageSmall,
+        },
+        _candidate: {
+            source: 'firestore-cardCatalog',
+            score: scored.score,
+            matchedBy: scored.matchedBy,
+        },
+    };
+}
+
+function mergeAndSortCatalogCandidates(input, snapshots) {
+    const byId = new Map();
+
+    for (const snap of snapshots) {
+        for (const doc of snap.docs || []) {
+            const candidate = cardCatalogDocToScannerCandidate(doc, input);
+            if (!candidate?.id) continue;
+
+            const prev = byId.get(candidate.id);
+            if (!prev || Number(candidate._candidate?.score || 0) > Number(prev._candidate?.score || 0)) {
+                byId.set(candidate.id, candidate);
+            }
+        }
+    }
+
+    const out = Array.from(byId.values())
+        .sort((a, b) => {
+            const scoreDiff = Number(b._candidate?.score || 0) - Number(a._candidate?.score || 0);
+            if (scoreDiff) return scoreDiff;
+
+            const setA = String(a.setId || '');
+            const setB = String(b.setId || '');
+            if (input.setId && setA === input.setId && setB !== input.setId) return -1;
+            if (input.setId && setB === input.setId && setA !== input.setId) return 1;
+
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        })
+        .slice(0, input.limit);
+
+    return out;
+}
+
+async function findScannerCatalogCandidates(input) {
+    const db = admin.firestore();
+    const collection = db.collection('cardCatalog');
+    const tasks = [];
+
+    if (input.numberKey) {
+        tasks.push(collection.where('numberKey', '==', input.numberKey).limit(60).get());
+    }
+
+    if (input.normalizedName) {
+        tasks.push(collection.where('normalizedName', '==', input.normalizedName).limit(40).get());
+    }
+
+    const firstToken = input.nameTokens[0] || '';
+    if (firstToken) {
+        tasks.push(collection.where('nameTokens', 'array-contains', firstToken).limit(60).get());
+    }
+
+    if (!tasks.length) {
+        return [];
+    }
+
+    const snapshots = await Promise.all(tasks);
+    return mergeAndSortCatalogCandidates(input, snapshots);
+}
+
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         res.status(405).send('Method Not Allowed');
@@ -1293,3 +1557,146 @@ exports.hydrateCardCatalog = functions.https.onRequest(async (req, res) => {
         });
     }
 });
+
+exports.scannerCandidates = functions.https.onRequest(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, X-PV-Catalog-Secret');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isCardCatalogCandidatesEnabled()) {
+        res.status(200).json({
+            ok: true,
+            enabled: false,
+            source: 'firestore-cardCatalog',
+            data: [],
+        });
+        return;
+    }
+
+    const expectedSecret = getCardCatalogCandidatesSecret();
+    const providedSecret = String(req.get('x-pv-catalog-secret') || '').trim();
+
+    if (!expectedSecret || !providedSecret || !timingSafeStringEquals(providedSecret, expectedSecret)) {
+        res.status(401).json({ ok: false, error: 'Unauthorized' });
+        return;
+    }
+
+    const input = normalizeScannerCandidateInput(req.body || {});
+
+    if (!input.name && !input.numberKey) {
+        res.status(400).json({
+            ok: false,
+            error: 'Missing scanner candidate input. Provide name or number.',
+        });
+        return;
+    }
+
+    try {
+        const data = await findScannerCatalogCandidates(input);
+
+        res.status(200).json({
+            ok: true,
+            enabled: true,
+            source: 'firestore-cardCatalog',
+            count: data.length,
+            data,
+            input: {
+                name: input.name,
+                number: input.number,
+                numberKey: input.numberKey,
+                setId: input.setId,
+                limit: input.limit,
+            },
+        });
+    } catch (error) {
+        functions.logger.error('scannerCandidates failed', {
+            message: String(error?.message || error),
+        });
+
+        res.status(500).json({
+            ok: false,
+            error: 'Could not load scanner candidates.',
+        });
+    }
+});
+
+exports.scannerCandidates = functions.https.onRequest(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, X-PV-Catalog-Secret');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isCardCatalogCandidatesEnabled()) {
+        res.status(200).json({
+            ok: true,
+            enabled: false,
+            source: 'firestore-cardCatalog',
+            data: [],
+        });
+        return;
+    }
+
+    const expectedSecret = getCardCatalogCandidatesSecret();
+    const providedSecret = String(req.get('x-pv-catalog-secret') || '').trim();
+
+    if (!expectedSecret || !providedSecret || !timingSafeStringEquals(providedSecret, expectedSecret)) {
+        res.status(401).json({ ok: false, error: 'Unauthorized' });
+        return;
+    }
+
+    const input = normalizeScannerCandidateInput(req.body || {});
+
+    if (!input.name && !input.numberKey) {
+        res.status(400).json({
+            ok: false,
+            error: 'Missing scanner candidate input. Provide name or number.',
+        });
+        return;
+    }
+
+    try {
+        const data = await findScannerCatalogCandidates(input);
+
+        res.status(200).json({
+            ok: true,
+            enabled: true,
+            source: 'firestore-cardCatalog',
+            count: data.length,
+            data,
+            input: {
+                name: input.name,
+                number: input.number,
+                numberKey: input.numberKey,
+                setId: input.setId,
+                limit: input.limit,
+            },
+        });
+    } catch (error) {
+        functions.logger.error('scannerCandidates failed', {
+            message: String(error?.message || error),
+        });
+
+        res.status(500).json({
+            ok: false,
+            error: 'Could not load scanner candidates.',
+        });
+    }
+});
+
