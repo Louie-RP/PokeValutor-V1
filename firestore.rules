@@ -134,6 +134,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Scanner name index is server-only. Client access stays blocked.
+    match /scannerNameIndex/{nameId} {
+      allow read, write: if false;
+    }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;
