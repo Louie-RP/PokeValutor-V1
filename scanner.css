@@ -154,6 +154,40 @@
     0 0 24px rgba(255, 203, 5, 0.2);
 }
 
+.pv-cardScanner__captureFab {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  display: none;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.9rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(255, 203, 5, 0.55);
+  border-radius: 999px;
+  background: rgba(7, 12, 25, 0.9);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+}
+
+.pv-cardScanner__captureFab:hover,
+.pv-cardScanner__captureFab:focus-visible {
+  border-color: rgba(255, 203, 5, 0.9);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.pv-cardScanner__captureIcon {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: currentColor;
+}
+
+.pv-cardScanner__captureLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
 .pv-cardScanner[data-state="idle"] .pv-cardScanner__frame,
 .pv-cardScanner[data-state="stopped"] .pv-cardScanner__frame {
   display: none;
@@ -257,6 +291,91 @@
 .pv-cardScanner__candidate.is-recommended {
   border-color: rgba(34, 197, 94, 0.7);
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+@media (max-width: 768px) {
+  .pv-cardScanner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .pv-cardScanner__header {
+    order: 1;
+    margin-bottom: 0;
+  }
+
+  .pv-cardScanner__cameraWrap {
+    order: 2;
+  }
+
+  .pv-cardScanner__actions {
+    order: 3;
+    position: sticky;
+    bottom: 0.5rem;
+    z-index: 2;
+    margin: 0 -0.15rem;
+    padding: 0.6rem;
+    border: 1px solid rgba(255, 203, 5, 0.2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(10, 15, 28, 0.96), rgba(10, 15, 28, 0.88));
+    backdrop-filter: blur(14px);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+  }
+
+  .pv-cardScanner__actions .pv-button {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-height: 2.55rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.88rem;
+  }
+
+  #pv-cardScanner-start,
+  #pv-cardScanner-clear,
+  #pv-cardScanner-stop,
+  #pv-cardScanner-retake,
+  #pv-cardScanner-capture {
+    flex-basis: calc(50% - 0.4rem);
+  }
+
+  #pv-cardScanner-find-candidates,
+  #pv-cardScanner-search {
+    flex-basis: 100%;
+  }
+
+  .pv-cardScanner__cameraWrap .pv-cardScanner__captureFab {
+    display: inline-flex;
+  }
+
+  .pv-cardScanner__frame {
+    width: min(82vw, 320px);
+    aspect-ratio: 5 / 8;
+    height: auto;
+    max-height: 78%;
+  }
+
+  .pv-cardScanner__status {
+    order: 4;
+    margin-top: 0.1rem;
+  }
+
+  .pv-cardScanner__review {
+    order: 5;
+    margin-bottom: 0;
+  }
+
+  .pv-cardScanner__nameSuggestion {
+    order: 6;
+  }
+
+  .pv-cardScanner__candidates {
+    order: 7;
+  }
+
+  .pv-cardScanner__selected {
+    order: 8;
+  }
 }
 
 .pv-cardScanner__candidate.is-selected {

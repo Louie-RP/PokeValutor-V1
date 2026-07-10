@@ -168,6 +168,12 @@
                         <img id="pv-cardScanner-preview" class="pv-cardScanner__preview" alt="Captured card preview" hidden />
                         <canvas id="pv-cardScanner-canvas" hidden></canvas>
                         <div class="pv-cardScanner__frame" aria-hidden="true"></div>
+                        <button id="pv-cardScanner-capture-fab" class="pv-cardScanner__captureFab btn" type="button" hidden aria-label="Capture card">
+                            <svg class="pv-cardScanner__captureIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M9 3 7.5 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.5L15 3H9Zm3 15a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"></path>
+                            </svg>
+                            <span class="pv-cardScanner__captureLabel">Capture</span>
+                        </button>
                     </div>
 
                     <p id="pv-cardScanner-status" class="pv-cardScanner__status" role="status" aria-live="polite"></p>
@@ -224,6 +230,7 @@
             video: root.querySelector('#pv-cardScanner-video'),
             canvas: root.querySelector('#pv-cardScanner-canvas'),
             preview: root.querySelector('#pv-cardScanner-preview'),
+            captureFabBtn: root.querySelector('#pv-cardScanner-capture-fab'),
             status: root.querySelector('#pv-cardScanner-status'),
             detectedName: root.querySelector('#pv-cardScanner-name'),
             detectedNumber: root.querySelector('#pv-cardScanner-number'),
@@ -249,6 +256,11 @@
 
         if (elements.captureBtn) {
             elements.captureBtn.addEventListener('click', function () {
+                captureCard(root, elements, state);
+            });
+        }
+        if (elements.captureFabBtn) {
+            elements.captureFabBtn.addEventListener('click', function () {
                 captureCard(root, elements, state);
             });
         }
@@ -401,6 +413,7 @@
 
             if (elements.video) elements.video.hidden = true;
             if (elements.captureBtn) elements.captureBtn.hidden = true;
+            if (elements.captureFabBtn) elements.captureFabBtn.hidden = true;
             if (elements.stopBtn) elements.stopBtn.hidden = true;
             if (elements.retakeBtn) elements.retakeBtn.hidden = false;
 
@@ -460,9 +473,11 @@
     }
 
     function getCenteredCrop(width, height) {
-        const targetRatio = 5 / 7;
-        const maxWidth = Math.round(width * 0.84);
-        const maxHeight = Math.round(height * 0.84);
+        const isCompactViewport = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+        const targetRatio = isCompactViewport ? 5 / 8 : 5 / 7;
+        const cropScale = isCompactViewport ? 1 : 0.84;
+        const maxWidth = Math.round(width * cropScale);
+        const maxHeight = Math.round(height * cropScale);
 
         let cropWidth = maxWidth;
         let cropHeight = Math.round(cropWidth / targetRatio);
@@ -4202,6 +4217,7 @@
         if (elements.captureBtn) elements.captureBtn.hidden = true;
         if (elements.retakeBtn) elements.retakeBtn.hidden = true;
         if (elements.stopBtn) elements.stopBtn.hidden = true;
+        if (elements.captureFabBtn) elements.captureFabBtn.hidden = true;
         if (elements.video) elements.video.hidden = true;
 
         setScannerState(root, 'idle');
@@ -4225,6 +4241,7 @@
 
         if (elements.captureBtn) elements.captureBtn.hidden = true;
         if (elements.stopBtn) elements.stopBtn.hidden = true;
+        if (elements.captureFabBtn) elements.captureFabBtn.hidden = true;
     }
 
     function revokePreviewUrl(state) {
@@ -4278,6 +4295,7 @@
         const buttons = [
             elements.startBtn,
             elements.captureBtn,
+            elements.captureFabBtn,
             elements.retakeBtn,
             elements.stopBtn,
             elements.clearBtn,
