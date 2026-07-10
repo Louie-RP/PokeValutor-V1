@@ -106,6 +106,14 @@
   margin-bottom: 0.9rem;
 }
 
+#pv-cardScanner-start { order: 1; }
+#pv-cardScanner-capture { order: 2; }
+#pv-cardScanner-retake { order: 3; }
+#pv-cardScanner-find-candidates { order: 4; }
+#pv-cardScanner-search { order: 5; }
+#pv-cardScanner-clear { order: 6; }
+#pv-cardScanner-stop { order: 7; }
+
 .pv-cardScanner__cameraWrap {
   position: relative;
   min-height: 0;
@@ -305,6 +313,27 @@
   color: #93c5fd;
   font-size: 0.72rem;
   letter-spacing: 0.01em;
+}
+
+.pv-cardScanner__candidateDetails {
+  margin-top: 0.3rem;
+}
+
+.pv-cardScanner__candidateDetailsSummary {
+  cursor: pointer;
+  color: #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pv-cardScanner__selected {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(255, 203, 5, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 203, 5, 0.08);
+  color: #f8fafc;
+  font-size: 0.9rem;
 }
 
 .pv-cardScanner textarea {

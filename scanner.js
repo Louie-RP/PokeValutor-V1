@@ -154,6 +154,8 @@
                         <button id="pv-cardScanner-start" class="pv-button pv-button--primary btn" type="button">Start Camera</button>
                         <button id="pv-cardScanner-capture" class="pv-button pv-button--secondary btn" type="button" hidden>Capture</button>
                         <button id="pv-cardScanner-retake" class="pv-button pv-button--secondary btn" type="button" hidden>Retake</button>
+                        <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>Find Possible Matches</button>
+                        <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button" hidden>Search Selected/Detected Card</button>
                         <button id="pv-cardScanner-stop" class="pv-button pv-button--secondary btn" type="button" hidden>Stop Camera</button>
                         <button id="pv-cardScanner-clear" class="pv-button pv-button--secondary btn" type="button">Clear Scanner</button>
                     </div>
@@ -200,12 +202,9 @@
                         <div id="pv-cardScanner-candidate-list" class="pv-cardScanner__candidateList"></div>
                     </section>
 
-                    <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button">
-                        Search Detected Card
-                    </button>
-                    <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>
-                        Find Possible Matches
-                    </button>
+                    <p id="pv-cardScanner-selected" class="pv-cardScanner__selected" hidden>
+                        Selected: <span id="pv-cardScanner-selected-text"></span>
+                    </p>
                 </section>
             </details>
         `;
@@ -233,7 +232,9 @@
             nameSuggestionText: root.querySelector('#pv-cardScanner-name-suggestion-text'),
             applyNameSuggestionBtn: root.querySelector('#pv-cardScanner-apply-name-suggestion'),
             candidateWrap: root.querySelector('#pv-cardScanner-candidates'),
-            candidateList: root.querySelector('#pv-cardScanner-candidate-list')
+            candidateList: root.querySelector('#pv-cardScanner-candidate-list'),
+            selectedWrap: root.querySelector('#pv-cardScanner-selected'),
+            selectedText: root.querySelector('#pv-cardScanner-selected-text')
         };
     }
 
@@ -309,6 +310,13 @@
         if (elements.detectedName) {
             elements.detectedName.addEventListener('input', function () {
                 clearNameSuggestion(elements);
+                clearSelectedCandidateDisplay(elements);
+            });
+        }
+
+        if (elements.detectedNumber) {
+            elements.detectedNumber.addEventListener('input', function () {
+                clearSelectedCandidateDisplay(elements);
             });
         }
 
@@ -585,6 +593,9 @@
                 if (elements.findCandidatesBtn) {
                     elements.findCandidatesBtn.hidden = false;
                 }
+                if (elements.searchBtn) {
+                    elements.searchBtn.hidden = false;
+                }
 
                 setStatus(elements, 'Review detected text. Tap Find Possible Matches, then Search Detected Card.');
 
@@ -605,9 +616,13 @@
                 }
             } else {
                 clearCandidateSuggestions(elements);
+                clearSelectedCandidateDisplay(elements);
 
                 if (elements.findCandidatesBtn) {
                     elements.findCandidatesBtn.hidden = true;
+                }
+                if (elements.searchBtn) {
+                    elements.searchBtn.hidden = true;
                 }
 
                 setStatus(elements, rejectedUnverifiedName
@@ -1192,6 +1207,34 @@
         }
     }
 
+    function showSelectedCandidate(elements, candidate, number) {
+        if (!elements?.selectedWrap || !elements?.selectedText) {
+            return;
+        }
+
+        const name = getCandidateCardName(candidate) || '';
+        const setName = getCandidateSetName(candidate) || '';
+        const displayNumber = String(number || '').trim();
+        const value = [name, setName, displayNumber].filter(Boolean).join(' · ');
+
+        if (!value) {
+            clearSelectedCandidateDisplay(elements);
+            return;
+        }
+
+        elements.selectedText.textContent = value;
+        elements.selectedWrap.hidden = false;
+    }
+
+    function clearSelectedCandidateDisplay(elements) {
+        if (elements?.selectedWrap) {
+            elements.selectedWrap.hidden = true;
+        }
+        if (elements?.selectedText) {
+            elements.selectedText.textContent = '';
+        }
+    }
+
     function markSelectedCandidate(elements, candidateId) {
         if (!elements?.candidateList) {
             return;
@@ -1283,9 +1326,19 @@
                 `set ${Math.round((Number(entry.setScore) || 0) * 100)}%`
             ].join(' · ');
 
+            const debugDetails = document.createElement('details');
+            debugDetails.className = 'pv-cardScanner__candidateDetails';
+
+            const debugSummary = document.createElement('summary');
+            debugSummary.className = 'pv-cardScanner__candidateDetailsSummary';
+            debugSummary.textContent = 'Show match details';
+
+            debugDetails.appendChild(debugSummary);
+            debugDetails.appendChild(debug);
+
             content.appendChild(title);
             content.appendChild(meta);
-            content.appendChild(debug);
+            content.appendChild(debugDetails);
 
             button.appendChild(image);
             button.appendChild(content);
@@ -1336,6 +1389,11 @@
         const prefix = autoApplied ? 'Top high-confidence match applied' : 'Selected candidate';
         setStatus(elements, `${prefix}: ${name}${number ? ` (${number})` : ''}.`);
         markSelectedCandidate(elements, candidateId);
+        showSelectedCandidate(elements, candidate, number);
+
+        if (elements.searchBtn) {
+            elements.searchBtn.hidden = false;
+        }
 
         dispatchScannerEvent('pv:scanner:candidate-selected', {
             id: candidateId,
@@ -4123,9 +4181,13 @@
         stopCamera(elements, state);
         resetDetectedFields(elements);
         clearCandidateSuggestions(elements);
+        clearSelectedCandidateDisplay(elements);
 
         if (elements.findCandidatesBtn) {
             elements.findCandidatesBtn.hidden = true;
+        }
+        if (elements.searchBtn) {
+            elements.searchBtn.hidden = true;
         }
 
         state.capturedBlob = null;
@@ -4190,6 +4252,7 @@
 
         clearNameSuggestion(elements);
         clearCandidateSuggestions(elements);
+        clearSelectedCandidateDisplay(elements);
     }
 
     function showNameSuggestion(elements, name) {
@@ -4218,7 +4281,8 @@
             elements.retakeBtn,
             elements.stopBtn,
             elements.clearBtn,
-            elements.searchBtn
+            elements.searchBtn,
+            elements.findCandidatesBtn
         ];
 
         buttons.forEach(function (button) {
