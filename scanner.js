@@ -26,7 +26,7 @@
     const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = true;
     const PV_SCANNER_ENABLE_CANDIDATES = true;
     const PV_SCANNER_ENABLE_CATALOG_CANDIDATES = true;
-    const PV_SCANNER_ENABLE_NAME_CORRECTION = true;
+    const PV_SCANNER_ENABLE_NAME_CORRECTION = false;
     const PV_SCANNER_NAME_CORRECTION_AUTO_SCORE = 0.88;
     const PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE = 0.70;
     const PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS = 1200;
@@ -504,6 +504,7 @@
             const combinedRawText = pipelineResult.rawText;
             const originalDetectedName = extracted.name || '';
             let nameCorrection = null;
+            let catalogNumberAssist = null;
             let rejectedUnverifiedName = false;
 
             try {
@@ -533,6 +534,15 @@
                 console.warn('[PokeValutor Scanner] name correction unavailable', error);
             }
 
+            try {
+                catalogNumberAssist = await tryAutoFillCollectorNumberFromCatalog(extracted, flags);
+                if (catalogNumberAssist?.filled && catalogNumberAssist.number) {
+                    extracted.number = catalogNumberAssist.number;
+                }
+            } catch (error) {
+                console.warn('[PokeValutor Scanner] catalog number assist unavailable', error);
+            }
+
             if (elements.rawOcr) {
                 elements.rawOcr.value = combinedRawText;
             }
@@ -559,7 +569,8 @@
                 name: extracted.name,
                 originalName: originalDetectedName,
                 number: extracted.number,
-                nameCorrection: nameCorrection
+                nameCorrection: nameCorrection,
+                catalogNumberAssist: catalogNumberAssist
             });
 
             if (extracted.name || extracted.number) {
@@ -569,8 +580,18 @@
 
                 setStatus(elements, 'Review detected text. Tap Find Possible Matches, then Search Detected Card.');
 
-                if (nameCorrection?.autoApply && nameCorrection.name && nameCorrection.name !== originalDetectedName) {
+                if (
+                    nameCorrection?.autoApply
+                    && nameCorrection.name
+                    && nameCorrection.name !== originalDetectedName
+                    && catalogNumberAssist?.filled
+                    && catalogNumberAssist.number
+                ) {
+                    setStatus(elements, `Corrected name to ${nameCorrection.name} and filled number ${catalogNumberAssist.number} from catalog. Review, then tap Find Possible Matches.`);
+                } else if (nameCorrection?.autoApply && nameCorrection.name && nameCorrection.name !== originalDetectedName) {
                     setStatus(elements, `Corrected detected name to ${nameCorrection.name}. Review it, then tap Find Possible Matches.`);
+                } else if (catalogNumberAssist?.filled && catalogNumberAssist.number) {
+                    setStatus(elements, `Filled collector number ${catalogNumberAssist.number} from catalog. Review detected text, then tap Find Possible Matches.`);
                 } else if (nameCorrection?.suggestOnly && nameCorrection.name) {
                     setStatus(elements, `OCR may be incorrect. Review the catalog suggestion ${nameCorrection.name} below.`);
                 }
@@ -1744,6 +1765,107 @@
         return fetchScannerJson(url);
     }
 
+    async function tryAutoFillCollectorNumberFromCatalog(extracted, flags) {
+        const detectedName = normalizeDetectedName(extracted?.name || '');
+        const detectedNumber = normalizeExtractedCardNumber(extracted?.number || '');
+
+        if (!detectedName || detectedNumber) {
+            return { filled: false, reason: 'name_or_number_not_eligible' };
+        }
+
+        if (!flags?.enableCandidates || !flags?.enableCatalogCandidates) {
+            return { filled: false, reason: 'candidates_disabled' };
+        }
+
+        const setId = getSelectedSetId();
+        const base = getScannerWorkerBase();
+        const payload = await fetchScannerCatalogCandidates(base, {
+            name: detectedName,
+            number: '',
+            setId: setId,
+            limit: 6
+        });
+
+        const cards = Array.isArray(payload?.data) ? payload.data : [];
+
+        const exactByName = cards
+            .map(function (card) {
+                const candidateName = normalizeDetectedName(getCandidateCardName(card) || '');
+                const number = normalizeExtractedCardNumber(getBestCandidateSearchNumber(card, ''));
+                const scoreRaw = Number(card?._candidate?.score);
+                const score = Number.isFinite(scoreRaw) ? scoreRaw : 0;
+
+                return {
+                    card: card,
+                    name: candidateName,
+                    number: number,
+                    score: score,
+                    setId: String(getCandidateSetId(card) || ''),
+                    id: String(card?.id || '')
+                };
+            })
+            .filter(function (item) {
+                return item.name
+                    && item.name.toLowerCase() === detectedName.toLowerCase()
+                    && item.number
+                    && item.number.indexOf('/') >= 0;
+            });
+
+        if (!exactByName.length) {
+            return { filled: false, reason: 'no_exact_name_slash_candidate' };
+        }
+
+        const sameSet = setId
+            ? exactByName.filter(function (item) {
+                return item.setId && item.setId === setId;
+            })
+            : [];
+
+        const pool = sameSet.length ? sameSet : exactByName;
+        pool.sort(function (a, b) {
+            return Number(b.score || 0) - Number(a.score || 0);
+        });
+
+        const top = pool[0] || null;
+        const second = pool[1] || null;
+
+        if (!top || !top.number) {
+            return { filled: false, reason: 'missing_top_candidate' };
+        }
+
+        const gap = second ? Number(top.score || 0) - Number(second.score || 0) : 999;
+        const hasSetFilter = Boolean(setId);
+        const strongTop = hasSetFilter ? Number(top.score || 0) >= 74 : Number(top.score || 0) >= 88;
+        const clearLeader = !second || gap >= 10;
+        const singleCandidate = pool.length === 1;
+
+        if (!singleCandidate && (!strongTop || !clearLeader)) {
+            return {
+                filled: false,
+                reason: 'confidence_too_low',
+                topScore: Number(top.score || 0),
+                gap: gap
+            };
+        }
+
+        if (singleCandidate && Number(top.score || 0) < (hasSetFilter ? 65 : 80)) {
+            return {
+                filled: false,
+                reason: 'single_candidate_score_too_low',
+                topScore: Number(top.score || 0)
+            };
+        }
+
+        return {
+            filled: true,
+            number: top.number,
+            score: Number(top.score || 0),
+            id: top.id,
+            setId: top.setId,
+            source: 'catalog-candidate'
+        };
+    }
+
     async function resolveScannerNameCorrection(base, detectedName, flags, rawOcrText) {
         const rawName = normalizeDetectedName(detectedName || '');
 
@@ -1799,9 +1921,8 @@
             }
         }
 
-        // Bound network work while retaining the selected name plus several
-        // independent header reads from the regional OCR passes.
-        return candidates.slice(0, 6);
+        // Bound network work for mobile responsiveness and lower backend load.
+        return candidates.slice(0, 3);
     }
 
     async function fetchScannerNameCorrection(base, rawName, flags) {
@@ -2273,9 +2394,16 @@
         numberDetection = await detectCardNumber(worker, imageBlob, elements);
         extracted.number = numberDetection.number;
 
-        const fallback = await runRegionalOcrFallback(worker, imageBlob, elements);
+        const needFallbackName = !extracted.name || scoreDetectedName(extracted.name) < 3;
+        const needFallbackNumber = !extracted.number;
+        const fallback = (needFallbackName || needFallbackNumber)
+            ? await runRegionalOcrFallback(worker, imageBlob, elements, {
+                needName: needFallbackName,
+                needNumber: needFallbackNumber
+            })
+            : { name: '', number: '', raw: '' };
 
-        if (fallback.name) {
+        if (needFallbackName && fallback.name) {
             extracted.name = pickBetterDetectedName(extracted.name, fallback.name);
         }
 
@@ -2403,14 +2531,17 @@
         return best;
     }
 
-    async function runRegionalOcrFallback(worker, imageBlob, elements) {
+    async function runRegionalOcrFallback(worker, imageBlob, elements, options) {
         if (!worker || !imageBlob) {
             return { name: '', number: '', raw: '' };
         }
 
+        const needName = options && options.needName === false ? false : true;
+        const needNumber = options && options.needNumber === false ? false : true;
+
         const regions = [
-            { key: 'top', yStart: 0.02, yEnd: 0.32 },
-            { key: 'bottom', yStart: 0.76, yEnd: 0.99 }
+            { key: 'top', yStart: 0.02, yEnd: 0.32, kind: 'name' },
+            { key: 'bottom', yStart: 0.76, yEnd: 0.99, kind: 'number' }
         ];
 
         let mergedName = '';
@@ -2420,57 +2551,65 @@
         // The card name lives in a narrow header strip. Reading the entire top
         // third mixes the header with artwork and HP, especially on tilted cards.
         // Try overlapping, enlarged single-line crops before the broad regions.
-        const headerBands = [
-            { key: 'top-name-high', yStart: 0.07, yEnd: 0.20 },
-            { key: 'top-name-middle', yStart: 0.11, yEnd: 0.25 },
-            { key: 'top-name-low', yStart: 0.15, yEnd: 0.29 }
-        ];
+        if (needName) {
+            const headerBands = [
+                { key: 'top-name-high', yStart: 0.07, yEnd: 0.20 },
+                { key: 'top-name-middle', yStart: 0.11, yEnd: 0.25 },
+                { key: 'top-name-low', yStart: 0.15, yEnd: 0.29 }
+            ];
 
-        for (const band of headerBands) {
-            const headerBlob = await createRegionBlob(
-                imageBlob,
-                band.yStart,
-                band.yEnd,
-                0.01,
-                0.99,
-                4
-            );
+            for (const band of headerBands) {
+                const headerBlob = await createRegionBlob(
+                    imageBlob,
+                    band.yStart,
+                    band.yEnd,
+                    0.01,
+                    0.99,
+                    4
+                );
 
-            if (!headerBlob) continue;
+                if (!headerBlob) continue;
 
-            const headerPass = await runTopNameOcr(worker, headerBlob);
+                const headerPass = await runTopNameOcr(worker, headerBlob);
 
-            if (headerPass.raw) {
-                rawChunks.push(`[${band.key}]\n${headerPass.raw}`);
-            }
-
-            if (headerPass.name) {
-                mergedName = pickBetterDetectedName(mergedName, headerPass.name);
-            }
-
-            const preparedHeaderBlob = await prepareImageForOcr(headerBlob);
-
-            if (preparedHeaderBlob && preparedHeaderBlob !== headerBlob) {
-                const preparedHeaderPass = await runTopNameOcr(worker, preparedHeaderBlob);
-
-                if (preparedHeaderPass.raw) {
-                    rawChunks.push(`[${band.key} preprocessed]\n${preparedHeaderPass.raw}`);
+                if (headerPass.raw) {
+                    rawChunks.push(`[${band.key}]\n${headerPass.raw}`);
                 }
 
-                if (preparedHeaderPass.name) {
-                    mergedName = pickBetterDetectedName(mergedName, preparedHeaderPass.name);
+                if (headerPass.name) {
+                    mergedName = pickBetterDetectedName(mergedName, headerPass.name);
+                }
+
+                const preparedHeaderBlob = await prepareImageForOcr(headerBlob);
+
+                if (preparedHeaderBlob && preparedHeaderBlob !== headerBlob) {
+                    const preparedHeaderPass = await runTopNameOcr(worker, preparedHeaderBlob);
+
+                    if (preparedHeaderPass.raw) {
+                        rawChunks.push(`[${band.key} preprocessed]\n${preparedHeaderPass.raw}`);
+                    }
+
+                    if (preparedHeaderPass.name) {
+                        mergedName = pickBetterDetectedName(mergedName, preparedHeaderPass.name);
+                    }
                 }
             }
         }
 
         for (const region of regions) {
+            if ((region.kind === 'name' && !needName) || (region.kind === 'number' && !needNumber)) {
+                continue;
+            }
+
             const regionBlob = await createRegionBlob(imageBlob, region.yStart, region.yEnd);
 
             if (!regionBlob) {
                 continue;
             }
 
-            setStatus(elements, 'Refining card text from key card areas...');
+            setStatus(elements, needName
+                ? 'Refining card text from key card areas...'
+                : 'Refining collector number from key card areas...');
 
             const result = await worker.recognize(regionBlob);
             const regionText = String(result?.data?.text || '').trim();
@@ -2481,7 +2620,7 @@
 
             const parsed = extractCardSearchParts(regionText);
 
-            if (!mergedName && parsed.name) {
+            if (needName && !mergedName && parsed.name) {
                 mergedName = parsed.name;
             }
 
@@ -2491,7 +2630,7 @@
 
             rawChunks.push(`[${region.key} region]\n${regionText}`);
 
-            if (region.key === 'top') {
+            if (needName && region.key === 'top') {
                 const preparedRegionBlob = await prepareImageForOcr(regionBlob);
 
                 if (preparedRegionBlob && preparedRegionBlob !== regionBlob) {
@@ -2510,7 +2649,7 @@
                 }
             }
 
-            if (region.key === 'bottom' && !mergedNumber) {
+            if (needNumber && region.key === 'bottom' && !mergedNumber) {
                 const collectorBlob = await createRegionBlob(imageBlob, 0.84, 0.99, 0.0, 0.46);
                 const numeric = await runBottomNumericOcr(worker, collectorBlob || regionBlob);
 
@@ -2664,6 +2803,72 @@
             }
         }
 
+        // Full-art/holo cards often render collector numbers as tiny low-contrast
+        // text in the bottom-left area. If no slash candidate survived the
+        // primary passes, run an enhanced recovery pass on that area only.
+        const hasSlashCandidate = candidates.some(function (item) {
+            return String(item?.number || '').indexOf('/') >= 0;
+        });
+
+        if (!hasSlashCandidate) {
+            setStatus(elements, 'Trying full-art collector number recovery...');
+
+            const enhancedRegionSpecs = [
+                { key: 'fullart-bottom-left-tight', yStart: 0.90, yEnd: 0.999, xStart: 0.0, xEnd: 0.30, scale: 6 },
+                { key: 'fullart-bottom-left-wide', yStart: 0.86, yEnd: 0.999, xStart: 0.0, xEnd: 0.38, scale: 5 }
+            ];
+
+            for (const regionSpec of enhancedRegionSpecs) {
+                const regionBlob = await createRegionBlob(
+                    imageBlob,
+                    regionSpec.yStart,
+                    regionSpec.yEnd,
+                    regionSpec.xStart,
+                    regionSpec.xEnd,
+                    regionSpec.scale
+                );
+
+                if (!regionBlob) {
+                    continue;
+                }
+
+                const enhancedBlob = await prepareNumberRegionForOcr(regionBlob, false);
+                const enhancedInvertedBlob = await prepareNumberRegionForOcr(regionBlob, true);
+
+                const passes = [
+                    { blob: enhancedBlob, sourceText: 'enhanced-text', rawTextLabel: 'enhanced-text' },
+                    { blob: enhancedInvertedBlob, sourceText: 'enhanced-inverted-text', rawTextLabel: 'enhanced-inverted-text' }
+                ];
+
+                for (const pass of passes) {
+                    if (!pass.blob) continue;
+
+                    const textPass = await runCollectorTextOcr(worker, pass.blob);
+                    if (textPass.raw) {
+                        rawChunks.push(`[${regionSpec.key} ${pass.rawTextLabel}]\n${textPass.raw}`);
+                    }
+                    if (textPass.number && isPlausibleDetectedNumber(textPass.number)) {
+                        candidates.push({
+                            number: textPass.number,
+                            score: scoreNumberCandidate(textPass.number, pass.sourceText, regionSpec.key),
+                            regionKey: regionSpec.key,
+                            source: pass.sourceText
+                        });
+
+                        if (String(textPass.number).indexOf('/') >= 0) {
+                            break;
+                        }
+                    }
+                }
+
+                if (candidates.some(function (item) {
+                    return String(item?.number || '').indexOf('/') >= 0;
+                })) {
+                    break;
+                }
+            }
+        }
+
         candidates.sort(function (a, b) {
             return b.score - a.score;
         });
@@ -2690,6 +2895,10 @@
             score += 6;
         } else if (source === 'preprocessed-text') {
             score += 5;
+        } else if (source === 'enhanced-text') {
+            score += 6;
+        } else if (source === 'enhanced-inverted-text') {
+            score += 5;
         } else if (source === 'numeric') {
             score += 1;
         } else if (source === 'preprocessed-numeric') {
@@ -2700,8 +2909,12 @@
             score += 5;
         } else if (regionKey === 'modern-left-tight' || regionKey === 'vintage-right-tight') {
             score += 4;
+        } else if (regionKey === 'fullart-bottom-left-tight') {
+            score += 5;
         } else if (regionKey === 'modern-left' || regionKey === 'vintage-right') {
             score += 3;
+        } else if (regionKey === 'fullart-bottom-left-wide') {
+            score += 4;
         } else if (regionKey === 'bottom-wide') {
             score += 1;
         }
@@ -2903,6 +3116,74 @@
                 const contrasted = (luminance - 128) * 1.45 + 128;
                 const bin = contrasted > 152 ? 255 : contrasted < 82 ? 0 : contrasted;
 
+                data[i] = bin;
+                data[i + 1] = bin;
+                data[i + 2] = bin;
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            return await new Promise(function (resolve) {
+                canvas.toBlob(function (blob) {
+                    resolve(blob || imageBlob);
+                }, 'image/png');
+            });
+        } catch {
+            return imageBlob;
+        } finally {
+            if (bitmap && typeof bitmap.close === 'function') {
+                try {
+                    bitmap.close();
+                } catch {
+                    // Ignore cleanup errors.
+                }
+            }
+        }
+    }
+
+    async function prepareNumberRegionForOcr(imageBlob, invert) {
+        if (!imageBlob || !window.createImageBitmap) {
+            return imageBlob;
+        }
+
+        let bitmap = null;
+
+        try {
+            bitmap = await window.createImageBitmap(imageBlob);
+
+            const canvas = document.createElement('canvas');
+            const scale = 2.2;
+            const width = Math.max(1, Math.round(bitmap.width * scale));
+            const height = Math.max(1, Math.round(bitmap.height * scale));
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) {
+                return imageBlob;
+            }
+
+            ctx.drawImage(bitmap, 0, 0, width, height);
+
+            const imageData = ctx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const threshold = invert ? 124 : 146;
+
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+
+                let luminance = (0.299 * r) + (0.587 * g) + (0.114 * b);
+                luminance = (luminance - 128) * 1.8 + 128;
+                luminance = Math.max(0, Math.min(255, luminance));
+
+                if (invert) {
+                    luminance = 255 - luminance;
+                }
+
+                const bin = luminance >= threshold ? 255 : 0;
                 data[i] = bin;
                 data[i + 1] = bin;
                 data[i + 2] = bin;
@@ -3369,8 +3650,27 @@
             value = value.slice(0, -1);
         }
 
-        if (/\bM[ec]o\s*w[si]car[a-z]{1,5}\b/i.test(value) && !/\bMeowscarada\b/i.test(value)) {
-            value = value.replace(/\bM[ec]o\s*w[si]car[a-z]{1,5}\b/ig, 'Meowscarada');
+        if (
+            (/(?:\bM[ec]o\s*w[si]car[a-z]{1,7}\b|\bM[a-z]{0,3}w\s*s?carad[a-z]{0,4}\b|\b(?:Meo|Mso|Msw|Mss)w?carad[a-z]{0,4}\b|\b(?:Meo)?w\s*s?carad[a-z]{0,4}\b)/i.test(value))
+            && !/\bMeowscarada\b/i.test(value)
+        ) {
+            value = value.replace(/\bM[ec]o\s*w[si]car[a-z]{1,7}\b/ig, 'Meowscarada');
+            value = value.replace(/\bM[a-z]{0,3}w\s*s?carad[a-z]{0,4}\b/ig, 'Meowscarada');
+            value = value.replace(/\b(?:Meo|Mso|Msw|Mss)w?carad[a-z]{0,4}\b/ig, 'Meowscarada');
+            value = value.replace(/\b(?:Meo)?w\s*s?carad[a-z]{0,4}\b/ig, 'Meowscarada');
+        }
+
+        // Some holo scans split/warp the ending into forms like "Meowsem aay".
+        // Keep this mapping narrow: must still look like a Meows* token.
+        const compactName = value.toLowerCase().replace(/[^a-z]/g, '');
+        if (
+            !/\bMeowscarada\b/i.test(value)
+            && compactName.length >= 8
+            && compactName.length <= 14
+            && compactName.indexOf('meows') === 0
+            && (compactName.indexOf('aay') > 0 || compactName.indexOf('aray') > 0 || compactName.indexOf('arad') > 0)
+        ) {
+            value = 'Meowscarada';
         }
 
         if (/\bClaunc[a-z']*\b/i.test(value) && !/\bClauncher\b/i.test(value)) {
