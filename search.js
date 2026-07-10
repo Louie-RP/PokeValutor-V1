@@ -2409,8 +2409,46 @@ document.addEventListener('DOMContentLoaded', function () {
         setDexSearchPanelOpen(true);
     }
 
+    function isCreditCapCode(value) {
+        const code = String(value || '').trim().toUpperCase();
+        return code === 'CREDIT_CAP_HIT' || code === 'QUOTA_EXCEEDED';
+    }
+
+    function extractApiErrorDetails(payload, status) {
+        const nestedError = payload && typeof payload === 'object' ? payload.error : null;
+        const nestedMessage = nestedError && typeof nestedError === 'object'
+            ? (nestedError.message || nestedError.error || '')
+            : '';
+        const topMessage = payload && typeof payload === 'object'
+            ? (payload.message || '')
+            : '';
+        const code = nestedError && typeof nestedError === 'object'
+            ? String(nestedError.code || payload?.code || '').trim()
+            : String(payload?.code || '').trim();
+
+        const message = String(nestedMessage || topMessage || `API error ${status}`).trim();
+        return { message, code };
+    }
+
     function isQuotaExceededError(err) {
-        return !!(err && typeof err === 'object' && (err.isQuotaExceeded === true || err.status === 429));
+        if (!err || typeof err !== 'object') return false;
+        // @ts-ignore
+        const code = String(err.code || '').trim();
+        // @ts-ignore
+        const message = String(err.message || '').toLowerCase();
+        // @ts-ignore
+        return Boolean(err.isQuotaExceeded === true || err.status === 429 || isCreditCapCode(code) || message.includes('credit cap'));
+    }
+
+    function getQuotaExceededStatusMessage(err) {
+        // @ts-ignore
+        const code = String(err?.code || '').trim();
+        // @ts-ignore
+        const message = String(err?.message || '').toLowerCase();
+        if (isCreditCapCode(code) || message.includes('credit cap')) {
+            return 'Search is temporarily unavailable. Please try again later.';
+        }
+        return 'Daily guest allowance reached. Sign in to continue.';
     }
 
     function safeParseIntOrNull(value) {
@@ -3561,24 +3599,28 @@ document.addEventListener('DOMContentLoaded', function () {
             throw new Error(`Non-JSON response (${res.status})`);
         }
         if (!res.ok) {
-            const msg = data?.error || data?.message || `API error ${res.status}`;
-            const err = new Error(String(msg));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message);
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
 
         // Some APIs return HTTP 200 with an { ok:false } payload.
         // Never cache those responses.
         if (data && typeof data === 'object' && data.ok === false) {
-            const msg = data?.error || data?.message || 'API error';
-            const err = new Error(String(msg));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message || 'API error');
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
         cacheSet(cacheKey, data, ttlMs);
@@ -4839,7 +4881,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -4952,7 +4994,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5114,6 +5156,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 return pn;
             })();
 
+            function normalizePrintedNumberForCompare(raw) {
+                const text = String(raw || '').trim();
+                if (!text) return '';
+                if (text.includes('/')) return normalizeSimplePrintedFraction(text).toUpperCase();
+                if (/^\d+$/.test(text)) return normalizeSimpleDigits(text);
+                return text.toUpperCase();
+            }
+
+            function hasExactNumberMatch(list, candidate) {
+                const wanted = normalizePrintedNumberForCompare(candidate);
+                if (!wanted) return false;
+                return (Array.isArray(list) ? list : []).some((card) => {
+                    const rawNumber = card?.printedNumber ?? card?.printed_number ?? card?.number;
+                    const normalized = normalizePrintedNumberForCompare(rawNumber);
+                    return normalized === wanted;
+                });
+            }
+
+            function hasExactIdMatch(list, candidateId) {
+                const wanted = String(candidateId || '').trim().toLowerCase();
+                if (!wanted) return false;
+                return (Array.isArray(list) ? list : []).some((card) => String(card?.id || '').trim().toLowerCase() === wanted);
+            }
+
             // 1) Promo-first: promos are easy to crowd out by other sets sharing the same number.
             // Use a larger page, sort, then merge into the top of results.
             if (numberCandidate && !String(numberCandidate).includes('/')) {
@@ -5139,8 +5205,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // 3) number:<value> (covers promo codes like SWSH020 and many regular sets).
-            if (cards.length < RESULT_LIMIT && numberCandidate && !String(numberCandidate).includes('/')) {
+            // 3) number:<value> fallback (covers promo codes like SWSH020 and many regular sets).
+            // Run only if current results do not already include an exact number match.
+            if (numberCandidate && !String(numberCandidate).includes('/') && !hasExactNumberMatch(cards, numberCandidate)) {
                 const numberQ = buildFieldQuery('number', numberCandidate);
                 const numberUrl = `${base}/cards/search?q=${encodeURIComponent(numberQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const numberData = await fetchJsonWithCache(numberUrl, SEARCH_TTL_MS);
@@ -5148,7 +5215,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 4) If the user pasted a card id (e.g., "mep-10"), try id:<value> directly.
-            if (cards.length < RESULT_LIMIT && /-/.test(pn) && /[A-Za-z]/.test(pn)) {
+            if (/-/.test(pn) && /[A-Za-z]/.test(pn) && !hasExactIdMatch(cards, pn)) {
                 const idQ = buildFieldQuery('id', pn);
                 const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
@@ -5180,7 +5247,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5273,7 +5340,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('[PokeValutor] expansion top search error', e);
             renderCards([]);
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5374,7 +5441,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5445,7 +5512,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('[PokeValutor] dex load more error', e);
             setLoadMoreState(true, false);
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else {
                 setStatus('Unable to load more cards right now. Please try again.');
             }

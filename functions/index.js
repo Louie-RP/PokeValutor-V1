@@ -981,6 +981,554 @@ function requireAuthUid(context) {
     return uid;
 }
 
+function normalizeCollectionId(raw, fallback = 'default') {
+    const normalized = String(raw || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40);
+
+    return normalized || String(fallback || 'default').trim().toLowerCase() || 'default';
+}
+
+function toSnapshotDate(timezone) {
+    const zone = String(timezone || '').trim();
+
+    if (zone) {
+        try {
+            const formatted = new Intl.DateTimeFormat('en-CA', {
+                timeZone: zone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).format(new Date());
+
+            if (/^\d{4}-\d{2}-\d{2}$/.test(formatted)) {
+                return formatted;
+            }
+        } catch {
+            // Fall back to UTC date.
+        }
+    }
+
+    return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeCondition(raw) {
+    const upper = String(raw || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ');
+
+    if (upper === 'NM' || upper.startsWith('NEAR MINT')) return 'NM';
+    if (upper === 'LP' || upper.startsWith('LIGHT PLAY')) return 'LP';
+    if (upper === 'MP' || upper.startsWith('MODERATE PLAY') || upper.startsWith('MID PLAY')) return 'MP';
+    if (upper === 'HP' || upper.startsWith('HEAVY PLAY')) return 'HP';
+    if (upper === 'DM' || upper.startsWith('DAMAGE')) return 'DM';
+    return '';
+}
+
+function getConditionEntries(item) {
+    const map = item?.conditionQuantities && typeof item.conditionQuantities === 'object'
+        ? item.conditionQuantities
+        : {};
+
+    /** @type {Array<{ condition: string, qty: number }>} */
+    const entries = [];
+    for (const [rawCondition, rawQty] of Object.entries(map)) {
+        const condition = normalizeCondition(rawCondition);
+        const qty = Math.floor(Number(rawQty));
+        if (!condition || !Number.isFinite(qty) || qty <= 0) continue;
+        entries.push({ condition, qty });
+    }
+
+    if (!entries.length) {
+        const fallback = normalizeCondition(item?.selectedCondition);
+        if (fallback) {
+            entries.push({ condition: fallback, qty: 1 });
+        }
+    }
+
+    return entries;
+}
+
+function getWorkerBase() {
+    const raw = configValue(
+        'SCRYDEX_WORKER_BASE_URL',
+        ['scrydex', 'worker_base_url'],
+        'https://pokevalutor-v1.lreyperez18.workers.dev'
+    );
+    return String(raw || '').trim().replace(/\/$/, '');
+}
+
+function toCents(raw) {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.round(n * 100);
+}
+
+function toNonNegativeInt(raw) {
+    const n = Math.floor(Number(raw));
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return n;
+}
+
+function readMarketValue(raw) {
+    const value = Number(raw?.market ?? raw?.marketPrice ?? raw?.market_price ?? raw?.price ?? raw?.value ?? null);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function centsFromMarket(raw) {
+    return toCents(readMarketValue(raw));
+}
+
+function buildPriceKeyForCard(item, condition) {
+    const id = String(item?.id || '').trim().toLowerCase();
+    const variant = String(item?.selectedVariant || 'Standard').trim() || 'Standard';
+    const safeVariant = variant.toLowerCase();
+    const safeCondition = String(condition || '').trim().toUpperCase();
+    return `card:${id}:${safeVariant}:${safeCondition}`;
+}
+
+function buildPriceKeyForSealed(item) {
+    const id = String(item?.id || '').trim().toLowerCase();
+    return `sealed:${id}`;
+}
+
+async function readPriceCacheMap(db, keys) {
+    const uniqueKeys = Array.from(new Set((Array.isArray(keys) ? keys : []).filter(Boolean)));
+    const out = new Map();
+    if (!uniqueKeys.length) return out;
+
+    const chunkSize = 300;
+    for (let i = 0; i < uniqueKeys.length; i += chunkSize) {
+        const chunk = uniqueKeys.slice(i, i + chunkSize);
+        const refs = chunk.map((key) => db.collection('cardPriceCache').doc(String(key)));
+        const snaps = refs.length ? await db.getAll(...refs) : [];
+
+        for (const snap of snaps) {
+            if (!snap.exists) continue;
+            out.set(snap.id, snap.data());
+        }
+    }
+
+    return out;
+}
+
+function marketCentsFromCacheDoc(doc) {
+    const marketCentsRaw = Number(doc?.marketCents ?? null);
+    if (Number.isFinite(marketCentsRaw) && marketCentsRaw > 0) {
+        return Math.round(marketCentsRaw);
+    }
+    return centsFromMarket(doc);
+}
+
+function findVariantByName(variants, selectedVariant) {
+    if (!Array.isArray(variants)) return null;
+    const wanted = String(selectedVariant || '').trim().toLowerCase();
+    if (!wanted) return null;
+    return variants.find((variant) => String(variant?.name || '').trim().toLowerCase() === wanted) || null;
+}
+
+function marketForCondition(prices, condition) {
+    if (!Array.isArray(prices)) return 0;
+    const wanted = normalizeCondition(condition);
+    if (!wanted) return 0;
+
+    let best = 0;
+    for (const price of prices) {
+        const got = normalizeCondition(price?.condition);
+        if (got !== wanted) continue;
+        const market = readMarketValue(price);
+        if (market > best) best = market;
+    }
+    return best;
+}
+
+function bestCardMarketForCondition(cardLike, condition) {
+    const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+    if (!variants.length) return 0;
+
+    const selectedVariant = String(cardLike?.selectedVariant || '').trim();
+    if (selectedVariant) {
+        const match = findVariantByName(variants, selectedVariant);
+        const selectedMarket = marketForCondition(match?.prices, condition);
+        if (selectedMarket > 0) return selectedMarket;
+    }
+
+    let best = 0;
+    for (const variant of variants) {
+        const market = marketForCondition(variant?.prices, condition);
+        if (market > best) best = market;
+    }
+    return best;
+}
+
+function bestSealedMarket(sealedLike) {
+    const variants = Array.isArray(sealedLike?.variants) ? sealedLike.variants : [];
+    if (!variants.length) return 0;
+
+    let best = 0;
+    for (const variant of variants) {
+        const prices = Array.isArray(variant?.prices) ? variant.prices : [];
+        for (const price of prices) {
+            const market = readMarketValue(price);
+            if (market > 0 && (best <= 0 || market < best)) {
+                best = market;
+            }
+        }
+    }
+
+    return best;
+}
+
+async function fetchJson(url) {
+    try {
+        const res = await fetch(url, {
+            method: 'GET',
+            cache: 'no-store',
+        });
+
+        if (!res.ok) return null;
+        const text = await res.text();
+        if (!text) return null;
+        return JSON.parse(text);
+    } catch {
+        return null;
+    }
+}
+
+async function fetchCardWithPrices(cardId) {
+    const id = String(cardId || '').trim();
+    if (!id) return null;
+
+    const base = getWorkerBase();
+    if (!base) return null;
+
+    const parsed = await fetchJson(`${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed?.data || parsed;
+}
+
+async function fetchSealedWithPrices(sealedId) {
+    const id = String(sealedId || '').trim();
+    if (!id) return null;
+
+    const base = getWorkerBase();
+    if (!base) return null;
+
+    const bySearch = await fetchJson(`${base}/sealed/search?q=${encodeURIComponent(`id:${id}`)}&page=1&pageSize=10`);
+    const searchRows = Array.isArray(bySearch?.data)
+        ? bySearch.data
+        : (Array.isArray(bySearch) ? bySearch : []);
+    const searchHit = searchRows.find((row) => String(row?.id || '').trim() === id);
+    if (searchHit && typeof searchHit === 'object') return searchHit;
+
+    const parsed = await fetchJson(`${base}/sealed/${encodeURIComponent(id)}?includePrices=1`);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed?.data || parsed;
+}
+
+function buildCacheDocForCard(item, condition, marketCents) {
+    const key = buildPriceKeyForCard(item, condition);
+    return {
+        key,
+        itemType: 'card',
+        cardId: String(item?.id || '').trim(),
+        variant: String(item?.selectedVariant || 'Standard').trim() || 'Standard',
+        condition: String(condition || '').trim().toUpperCase(),
+        marketCents: toNonNegativeInt(marketCents),
+        currency: 'USD',
+        source: 'scrydex-worker',
+        fetchedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+}
+
+function buildCacheDocForSealed(item, marketCents) {
+    const key = buildPriceKeyForSealed(item);
+    return {
+        key,
+        itemType: 'sealed',
+        sealedId: String(item?.id || '').trim(),
+        marketCents: toNonNegativeInt(marketCents),
+        currency: 'USD',
+        source: 'scrydex-worker',
+        fetchedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+}
+
+async function writePriceCacheDocs(db, docsByKey) {
+    if (!(docsByKey instanceof Map) || docsByKey.size === 0) return;
+
+    const entries = Array.from(docsByKey.entries());
+    const chunkSize = 450;
+
+    for (let i = 0; i < entries.length; i += chunkSize) {
+        const batch = db.batch();
+        const chunk = entries.slice(i, i + chunkSize);
+
+        for (const [key, value] of chunk) {
+            if (!key || !value || typeof value !== 'object') continue;
+            const ref = db.collection('cardPriceCache').doc(String(key));
+            batch.set(ref, value, { merge: true });
+        }
+
+        await batch.commit();
+    }
+}
+
+function formatUtcDateYYYYMMDD(date) {
+    const d = date instanceof Date ? date : new Date();
+    if (Number.isNaN(d.getTime())) return '';
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function previousDateKey(baseDateKey, daysBack) {
+    const base = String(baseDateKey || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) return '';
+
+    const delta = Math.max(1, Math.floor(Number(daysBack) || 1));
+    const dt = new Date(`${base}T00:00:00.000Z`);
+    if (Number.isNaN(dt.getTime())) return '';
+    dt.setUTCDate(dt.getUTCDate() - delta);
+    return formatUtcDateYYYYMMDD(dt);
+}
+
+async function getPreviousSnapshot(db, uid, collectionId, snapshotDate) {
+    const parent = db.collection('users').doc(uid).collection('dexValueSnapshots');
+    const lookbackDays = 60;
+
+    const refs = [];
+    for (let i = 1; i <= lookbackDays; i += 1) {
+        const dateKey = previousDateKey(snapshotDate, i);
+        if (!dateKey) continue;
+        refs.push(parent.doc(`${collectionId}_${dateKey}`));
+    }
+
+    if (!refs.length) return null;
+
+    const chunkSize = 300;
+    for (let i = 0; i < refs.length; i += chunkSize) {
+        const chunk = refs.slice(i, i + chunkSize);
+        const snaps = chunk.length ? await db.getAll(...chunk) : [];
+        for (const snap of snaps) {
+            if (!snap.exists) continue;
+            return snap.data();
+        }
+    }
+
+    return null;
+}
+
+function toSnapshotResponse(snapshotRaw, docId) {
+    const createdAtMs = Number(snapshotRaw?.createdAt?.toMillis?.() || 0);
+    const updatedAtMs = Number(snapshotRaw?.updatedAt?.toMillis?.() || 0);
+    return {
+        snapshotId: String(docId || ''),
+        uid: String(snapshotRaw?.uid || ''),
+        collectionId: String(snapshotRaw?.collectionId || 'default'),
+        snapshotDate: String(snapshotRaw?.snapshotDate || ''),
+        totalValueCents: toNonNegativeInt(snapshotRaw?.totalValueCents),
+        previousValueCents: toNonNegativeInt(snapshotRaw?.previousValueCents),
+        changeCents: Math.round(Number(snapshotRaw?.changeCents || 0)),
+        changePercent: Number(snapshotRaw?.changePercent || 0),
+        pricedItemCount: toNonNegativeInt(snapshotRaw?.pricedItemCount),
+        totalItemCount: toNonNegativeInt(snapshotRaw?.totalItemCount),
+        pricedUnitCount: toNonNegativeInt(snapshotRaw?.pricedUnitCount),
+        totalUnitCount: toNonNegativeInt(snapshotRaw?.totalUnitCount),
+        unpricedItemIds: Array.isArray(snapshotRaw?.unpricedItemIds) ? snapshotRaw.unpricedItemIds.slice(0, 100) : [],
+        source: String(snapshotRaw?.source || ''),
+        createdAtMs: createdAtMs > 0 ? createdAtMs : Date.now(),
+        updatedAtMs: updatedAtMs > 0 ? updatedAtMs : createdAtMs || Date.now(),
+    };
+}
+
+exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context) => {
+    const uid = requireAuthUid(context);
+    const db = admin.firestore();
+
+    const collectionId = normalizeCollectionId(data?.collectionId, 'default');
+    const snapshotDate = toSnapshotDate(data?.timezone);
+    const snapshotId = `${collectionId}_${snapshotDate}`;
+    const useLiveWorkerPrices = data?.useLiveWorkerPrices !== false;
+
+    const snapshotRef = db
+        .collection('users')
+        .doc(uid)
+        .collection('dexValueSnapshots')
+        .doc(snapshotId);
+
+    const existing = await snapshotRef.get();
+    if (existing.exists) {
+        return {
+            ok: true,
+            snapshot: toSnapshotResponse(existing.data() || {}, existing.id),
+            cached: true,
+        };
+    }
+
+    const stateSnap = await db
+        .collection('users')
+        .doc(uid)
+        .collection('dex')
+        .doc('state')
+        .get();
+
+    const state = stateSnap.exists ? stateSnap.data() : {};
+    const allItems = Array.isArray(state?.collection) ? state.collection : [];
+    const activeItems = allItems.filter((item) => normalizeCollectionId(item?.collectionId, 'default') === collectionId);
+
+    const requiredKeys = [];
+    for (const item of activeItems) {
+        const itemType = String(item?.itemType || '').trim().toLowerCase() === 'sealed' ? 'sealed' : 'card';
+        if (itemType === 'sealed') {
+            requiredKeys.push(buildPriceKeyForSealed(item));
+            continue;
+        }
+
+        for (const entry of getConditionEntries(item)) {
+            requiredKeys.push(buildPriceKeyForCard(item, entry.condition));
+        }
+    }
+
+    const priceCache = await readPriceCacheMap(db, requiredKeys);
+    const liveCardById = new Map();
+    const liveSealedById = new Map();
+    const cacheWrites = new Map();
+
+    let totalValueCents = 0;
+    let pricedItemCount = 0;
+    let pricedUnitCount = 0;
+    let totalUnitCount = 0;
+    const unpricedItemIds = [];
+
+    for (const item of activeItems) {
+        const itemId = String(item?.id || '').trim();
+        if (!itemId) continue;
+
+        const itemType = String(item?.itemType || '').trim().toLowerCase() === 'sealed' ? 'sealed' : 'card';
+        let itemHadPrice = false;
+
+        if (itemType === 'sealed') {
+            const qty = Math.max(1, Math.floor(Number(item?.quantity ?? item?.sealedQuantity ?? 1) || 1));
+            totalUnitCount += qty;
+
+            const key = buildPriceKeyForSealed(item);
+            let unitCents = marketCentsFromCacheDoc(priceCache.get(key));
+
+            if (unitCents <= 0 && useLiveWorkerPrices) {
+                let live = liveSealedById.get(itemId);
+                if (!live) {
+                    live = await fetchSealedWithPrices(itemId);
+                    liveSealedById.set(itemId, live || null);
+                }
+                unitCents = toCents(bestSealedMarket(live)) || centsFromMarket(live);
+                if (unitCents > 0) {
+                    cacheWrites.set(key, buildCacheDocForSealed(item, unitCents));
+                }
+            }
+
+            if (unitCents <= 0) {
+                unitCents = centsFromMarket(item);
+            }
+
+            if (unitCents > 0) {
+                totalValueCents += unitCents * qty;
+                pricedUnitCount += qty;
+                pricedItemCount += 1;
+                itemHadPrice = true;
+            }
+        } else {
+            const conditionEntries = getConditionEntries(item);
+            for (const entry of conditionEntries) {
+                totalUnitCount += entry.qty;
+
+                const key = buildPriceKeyForCard(item, entry.condition);
+                let unitCents = marketCentsFromCacheDoc(priceCache.get(key));
+
+                if (unitCents <= 0 && useLiveWorkerPrices) {
+                    let liveCard = liveCardById.get(itemId);
+                    if (!liveCard) {
+                        liveCard = await fetchCardWithPrices(itemId);
+                        liveCardById.set(itemId, liveCard || null);
+                    }
+
+                    unitCents = toCents(bestCardMarketForCondition(liveCard, entry.condition)) || centsFromMarket(liveCard);
+                    if (unitCents > 0) {
+                        cacheWrites.set(key, buildCacheDocForCard(item, entry.condition, unitCents));
+                    }
+                }
+
+                if (unitCents <= 0) {
+                    unitCents = centsFromMarket(item);
+                }
+
+                if (unitCents > 0) {
+                    totalValueCents += unitCents * entry.qty;
+                    pricedUnitCount += entry.qty;
+                    itemHadPrice = true;
+                }
+            }
+
+            if (itemHadPrice) {
+                pricedItemCount += 1;
+            }
+        }
+
+        if (!itemHadPrice) {
+            unpricedItemIds.push(itemId);
+        }
+    }
+
+    const previous = await getPreviousSnapshot(db, uid, collectionId, snapshotDate);
+    const previousValueCents = toNonNegativeInt(previous?.totalValueCents);
+    const changeCents = previous
+        ? (totalValueCents - previousValueCents)
+        : 0;
+    const changePercent = previousValueCents > 0
+        ? Math.round((changeCents / previousValueCents) * 10000) / 100
+        : 0;
+
+    const snapshotDoc = {
+        uid,
+        collectionId,
+        snapshotDate,
+        totalValueCents: toNonNegativeInt(totalValueCents),
+        previousValueCents,
+        changeCents,
+        changePercent,
+        pricedItemCount,
+        totalItemCount: activeItems.length,
+        pricedUnitCount,
+        totalUnitCount,
+        unpricedItemIds: unpricedItemIds.slice(0, 100),
+        source: useLiveWorkerPrices ? 'worker-live-plus-cache' : 'cache-and-state-fallback',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    };
+
+    await snapshotRef.set(snapshotDoc, { merge: true });
+
+    if (cacheWrites.size) {
+        await writePriceCacheDocs(db, cacheWrites);
+    }
+
+    const stored = await snapshotRef.get();
+    return {
+        ok: true,
+        snapshot: toSnapshotResponse(stored.exists ? stored.data() : snapshotDoc, snapshotId),
+        cached: false,
+    };
+});
+
 async function ensureStripeCustomer(uid, opts) {
     const stripe = getStripeClient();
     const db = admin.firestore();
