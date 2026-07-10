@@ -753,7 +753,9 @@ async function findScannerNameSuggestions(inputText, limit) {
     if (compact.length >= 2) tasks.push(collection.where('prefix2', '==', compact.slice(0, 2)).limit(120).get());
 
     const firstLetter = compact.slice(0, 1);
-    if (firstLetter) tasks.push(collection.where('firstLetter', '==', firstLetter).limit(200).get());
+    if (firstLetter && compact.length <= 4) {
+        tasks.push(collection.where('firstLetter', '==', firstLetter).limit(50).get());
+    }
 
     const token = normalized.split(/\s+/).filter(Boolean)[0] || '';
     if (token && token.length >= 3) tasks.push(collection.where('tokens', 'array-contains', token).limit(80).get());

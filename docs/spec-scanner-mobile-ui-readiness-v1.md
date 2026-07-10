@@ -29,6 +29,31 @@ Implemented pieces:
 - Worker routes are placed before the Scrydex API key guard, so they do not require Scrydex secrets.
 - Worker cache is used for scanner candidate and name suggestion responses.
 
+### Known Issue: Premium Full-Art/Holo Collector Number OCR
+
+Current scanner behavior can reliably detect the card name for many premium full-art/holo cards,
+but collector number OCR can still fail (blank number) under glare, foil reflection, or stylized text.
+
+Decision for this phase:
+
+- Keep conservative number extraction (prefer blank over wrong number).
+- Continue mobile-readiness work and broader regression testing.
+- Revisit collector-number tuning after structured mobile test runs.
+
+Temporary tester guidance:
+
+- If name is correct and number is blank, tap **Find Possible Matches** and select the best card.
+- Confirm the selected card number before searching/submitting.
+
+Track during mobile testing:
+
+- card type (full-art, holo, standard)
+- browser/device
+- glare conditions
+- detected name
+- detected number (blank or value)
+- whether candidate selection recovered the correct number
+
 ## Merge Risk Summary
 
 Do not merge directly to `main` yet.
