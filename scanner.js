@@ -134,72 +134,80 @@
 
     function buildScannerMarkup() {
         return `
-            <section class="pv-cardScanner" data-state="idle" aria-labelledby="pv-cardScanner-title">
-                <div class="pv-cardScanner__header">
-                    <div>
-                        <h2 id="pv-cardScanner-title" class="pv-cardScanner__title">Scan Card</h2>
-                        <p class="pv-cardScanner__text">
-                            Use your phone camera to scan a card, review the detected text, then search for the best match.
-                        </p>
-                    </div>
-                    <span class="pv-cardScanner__badge">Beta</span>
-                </div>
+            <details class="pv-cardScannerShell" id="pv-cardScanner-shell">
+                <summary class="pv-cardScannerShell__summary">
+                    <span class="pv-cardScannerShell__summaryTitle">Scan a Card <span class="pv-cardScanner__badge">Beta</span></span>
+                    <span class="pv-cardScannerShell__summaryAction">Open Scanner</span>
+                </summary>
 
-                <div class="pv-cardScanner__actions" role="group" aria-label="Card scanner controls">
-                    <button id="pv-cardScanner-start" class="pv-button pv-button--primary btn" type="button">Start Camera</button>
-                    <button id="pv-cardScanner-capture" class="pv-button pv-button--secondary btn" type="button" hidden>Capture</button>
-                    <button id="pv-cardScanner-retake" class="pv-button pv-button--secondary btn" type="button" hidden>Retake</button>
-                    <button id="pv-cardScanner-stop" class="pv-button pv-button--secondary btn" type="button" hidden>Stop Camera</button>
-                    <button id="pv-cardScanner-clear" class="pv-button pv-button--secondary btn" type="button">Clear Scanner</button>
-                </div>
-
-                <div class="pv-cardScanner__cameraWrap">
-                    <div id="pv-cardScanner-empty" class="pv-cardScanner__empty">
-                        Camera preview will appear here.
-                    </div>
-                    <video id="pv-cardScanner-video" class="pv-cardScanner__video" autoplay playsinline muted hidden></video>
-                    <img id="pv-cardScanner-preview" class="pv-cardScanner__preview" alt="Captured card preview" hidden />
-                    <canvas id="pv-cardScanner-canvas" hidden></canvas>
-                    <div class="pv-cardScanner__frame" aria-hidden="true"></div>
-                </div>
-
-                <p id="pv-cardScanner-status" class="pv-cardScanner__status" role="status" aria-live="polite"></p>
-
-                <div class="pv-cardScanner__review">
-                    <div class="pv-form__field">
-                        <label for="pv-cardScanner-name" class="form-label">Detected Card Name</label>
-                        <input id="pv-cardScanner-name" class="form-control" type="text" placeholder="e.g., Charizard" autocomplete="off" />
+                <section class="pv-cardScanner" data-state="idle" aria-labelledby="pv-cardScanner-title">
+                    <div class="pv-cardScanner__header">
+                        <div>
+                            <h2 id="pv-cardScanner-title" class="pv-cardScanner__title">Scan Card</h2>
+                            <p class="pv-cardScanner__text">
+                                Use your phone camera to scan a card, review the detected text, then search for the best match.
+                            </p>
+                        </div>
                     </div>
 
-                    <div class="pv-form__field">
-                        <label for="pv-cardScanner-number" class="form-label">Detected Card Number</label>
-                        <input id="pv-cardScanner-number" class="form-control" type="text" placeholder="e.g., 4/102 or SWSH101" autocomplete="off" />
+                    <div class="pv-cardScanner__actions" role="group" aria-label="Card scanner controls">
+                        <button id="pv-cardScanner-start" class="pv-button pv-button--primary btn" type="button">Start Camera</button>
+                        <button id="pv-cardScanner-capture" class="pv-button pv-button--secondary btn" type="button" hidden>Capture</button>
+                        <button id="pv-cardScanner-retake" class="pv-button pv-button--secondary btn" type="button" hidden>Retake</button>
+                        <button id="pv-cardScanner-stop" class="pv-button pv-button--secondary btn" type="button" hidden>Stop Camera</button>
+                        <button id="pv-cardScanner-clear" class="pv-button pv-button--secondary btn" type="button">Clear Scanner</button>
                     </div>
 
-                    <div class="pv-form__field pv-cardScanner__ocrField">
-                        <label for="pv-cardScanner-ocr" class="form-label">Raw OCR Text</label>
-                        <textarea id="pv-cardScanner-ocr" class="form-control" rows="4" placeholder="OCR text will appear here. You can review it if the scan is not accurate."></textarea>
+                    <div class="pv-cardScanner__cameraWrap">
+                        <div id="pv-cardScanner-empty" class="pv-cardScanner__empty">
+                            Camera preview will appear here.
+                        </div>
+                        <video id="pv-cardScanner-video" class="pv-cardScanner__video" autoplay playsinline muted hidden></video>
+                        <img id="pv-cardScanner-preview" class="pv-cardScanner__preview" alt="Captured card preview" hidden />
+                        <canvas id="pv-cardScanner-canvas" hidden></canvas>
+                        <div class="pv-cardScanner__frame" aria-hidden="true"></div>
                     </div>
-                </div>
 
-                <div id="pv-cardScanner-name-suggestion" class="pv-cardScanner__nameSuggestion" hidden>
-                    <span>Catalog suggestion: <strong id="pv-cardScanner-name-suggestion-text"></strong></span>
-                    <button id="pv-cardScanner-apply-name-suggestion" class="pv-button pv-button--secondary btn" type="button">Use Suggested Name</button>
-                </div>
+                    <p id="pv-cardScanner-status" class="pv-cardScanner__status" role="status" aria-live="polite"></p>
 
-                <section id="pv-cardScanner-candidates" class="pv-cardScanner__candidates" hidden aria-live="polite">
-                    <h3 class="pv-cardScanner__candidatesTitle">Possible Matches</h3>
-                    <p class="pv-cardScanner__candidatesText">Pick a candidate to replace detected fields before searching.</p>
-                    <div id="pv-cardScanner-candidate-list" class="pv-cardScanner__candidateList"></div>
+                    <div class="pv-cardScanner__review">
+                        <div class="pv-form__field">
+                            <label for="pv-cardScanner-name" class="form-label">Card Name</label>
+                            <input id="pv-cardScanner-name" class="form-control" type="text" placeholder="e.g., Charizard" autocomplete="off" />
+                        </div>
+
+                        <div class="pv-form__field">
+                            <label for="pv-cardScanner-number" class="form-label">Card Number</label>
+                            <input id="pv-cardScanner-number" class="form-control" type="text" placeholder="e.g., 4/102 or SWSH101" autocomplete="off" />
+                        </div>
+
+                        <p class="pv-cardScanner__reviewHelp">Review and edit before searching.</p>
+
+                        <details class="pv-form__field pv-cardScanner__ocrDetails pv-cardScanner__ocrField">
+                            <summary class="pv-cardScanner__ocrSummary">Show raw OCR text</summary>
+                            <textarea id="pv-cardScanner-ocr" class="form-control" rows="4" placeholder="OCR text will appear here. You can review it if the scan is not accurate."></textarea>
+                        </details>
+                    </div>
+
+                    <div id="pv-cardScanner-name-suggestion" class="pv-cardScanner__nameSuggestion" hidden>
+                        <span>Catalog suggestion: <strong id="pv-cardScanner-name-suggestion-text"></strong></span>
+                        <button id="pv-cardScanner-apply-name-suggestion" class="pv-button pv-button--secondary btn" type="button">Use Suggested Name</button>
+                    </div>
+
+                    <section id="pv-cardScanner-candidates" class="pv-cardScanner__candidates" hidden aria-live="polite">
+                        <h3 class="pv-cardScanner__candidatesTitle">Possible Matches</h3>
+                        <p class="pv-cardScanner__candidatesText">Pick a candidate to replace detected fields before searching.</p>
+                        <div id="pv-cardScanner-candidate-list" class="pv-cardScanner__candidateList"></div>
+                    </section>
+
+                    <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button">
+                        Search Detected Card
+                    </button>
+                    <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>
+                        Find Possible Matches
+                    </button>
                 </section>
-
-                <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button">
-                    Search Detected Card
-                </button>
-                <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>
-                    Find Possible Matches
-                </button>
-            </section>
+            </details>
         `;
     }
 

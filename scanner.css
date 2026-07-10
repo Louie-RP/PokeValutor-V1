@@ -1,12 +1,60 @@
 /* PokeValutor Card Scanner MVP */
 /* Isolated styles only. Does not modify search.js behavior. */
 
-.pv-cardScanner {
-  position: relative;
+.pv-cardScannerShell {
   margin: 0 0 1.5rem;
-  padding: 1rem;
   border: 1px solid rgba(255, 203, 5, 0.28);
   border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 203, 5, 0.1), rgba(255, 203, 5, 0) 40%),
+    rgba(2, 6, 23, 0.4);
+  overflow: hidden;
+}
+
+.pv-cardScannerShell__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.pv-cardScannerShell__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pv-cardScannerShell__summaryTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.pv-cardScannerShell__summaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.45);
+  color: var(--pv-primary, #ffcb05);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pv-cardScanner {
+  position: relative;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  border-top: 1px solid rgba(255, 203, 5, 0.2);
+  border-radius: 0;
   background:
     radial-gradient(circle at 12% 0%, rgba(255, 203, 5, 0.14), rgba(255, 203, 5, 0) 36%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0)),
@@ -115,8 +163,25 @@
   margin-bottom: 0.9rem;
 }
 
+.pv-cardScanner__reviewHelp {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--pv-muted, #cbd5e1);
+}
+
 .pv-cardScanner__ocrField {
   grid-column: 1 / -1;
+}
+
+.pv-cardScanner__ocrDetails {
+  margin: 0;
+}
+
+.pv-cardScanner__ocrSummary {
+  cursor: pointer;
+  color: #f8fafc;
+  font-weight: 600;
+  margin: 0 0 0.45rem;
 }
 
 .pv-cardScanner__nameSuggestion {
