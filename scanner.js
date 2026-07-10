@@ -26,6 +26,10 @@
     const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = true;
     const PV_SCANNER_ENABLE_CANDIDATES = true;
     const PV_SCANNER_ENABLE_CATALOG_CANDIDATES = true;
+    const PV_SCANNER_ENABLE_NAME_CORRECTION = true;
+    const PV_SCANNER_NAME_CORRECTION_AUTO_SCORE = 0.88;
+    const PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE = 0.70;
+    const PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS = 1200;
     const PV_SCANNER_CANDIDATES_CONSUME_QUOTA = false;
     const PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE = 0.86;
     const PV_SCANNER_VISION_ENDPOINT = '';
@@ -81,6 +85,10 @@
             enableAdvancedOcrFallback: readBooleanFlag('PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK', PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK),
             enableCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CANDIDATES', PV_SCANNER_ENABLE_CANDIDATES),
             enableCatalogCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CATALOG_CANDIDATES', PV_SCANNER_ENABLE_CATALOG_CANDIDATES),
+            enableNameCorrection: readBooleanFlag('PV_SCANNER_ENABLE_NAME_CORRECTION', PV_SCANNER_ENABLE_NAME_CORRECTION),
+            nameCorrectionAutoScore: readNumberFlag('PV_SCANNER_NAME_CORRECTION_AUTO_SCORE', PV_SCANNER_NAME_CORRECTION_AUTO_SCORE, 0.70, 0.99),
+            nameCorrectionSuggestScore: readNumberFlag('PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE', PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE, 0.40, 0.95),
+            nameCorrectionTimeoutMs: readNumberFlag('PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS', PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS, 300, 2500),
             candidatesConsumeQuota: readBooleanFlag('PV_SCANNER_CANDIDATES_CONSUME_QUOTA', PV_SCANNER_CANDIDATES_CONSUME_QUOTA),
             candidateHighConfidence: readNumberFlag('PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE', PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE, 0.55, 0.99),
             visionEndpoint: String(window?.PV_SCANNER_VISION_ENDPOINT || PV_SCANNER_VISION_ENDPOINT || '').trim(),
@@ -174,6 +182,11 @@
                     </div>
                 </div>
 
+                <div id="pv-cardScanner-name-suggestion" class="pv-cardScanner__nameSuggestion" hidden>
+                    <span>Catalog suggestion: <strong id="pv-cardScanner-name-suggestion-text"></strong></span>
+                    <button id="pv-cardScanner-apply-name-suggestion" class="pv-button pv-button--secondary btn" type="button">Use Suggested Name</button>
+                </div>
+
                 <section id="pv-cardScanner-candidates" class="pv-cardScanner__candidates" hidden aria-live="polite">
                     <h3 class="pv-cardScanner__candidatesTitle">Possible Matches</h3>
                     <p class="pv-cardScanner__candidatesText">Pick a candidate to replace detected fields before searching.</p>
@@ -208,6 +221,9 @@
             detectedName: root.querySelector('#pv-cardScanner-name'),
             detectedNumber: root.querySelector('#pv-cardScanner-number'),
             rawOcr: root.querySelector('#pv-cardScanner-ocr'),
+            nameSuggestionWrap: root.querySelector('#pv-cardScanner-name-suggestion'),
+            nameSuggestionText: root.querySelector('#pv-cardScanner-name-suggestion-text'),
+            applyNameSuggestionBtn: root.querySelector('#pv-cardScanner-apply-name-suggestion'),
             candidateWrap: root.querySelector('#pv-cardScanner-candidates'),
             candidateList: root.querySelector('#pv-cardScanner-candidate-list')
         };
@@ -268,6 +284,23 @@
 
                 const flags = getScannerFeatureFlags();
                 refreshCandidateSuggestions(elements, state.capturedBlob, extracted, flags);
+            });
+        }
+
+        if (elements.applyNameSuggestionBtn) {
+            elements.applyNameSuggestionBtn.addEventListener('click', function () {
+                const suggestedName = String(elements.nameSuggestionWrap?.dataset?.suggestedName || '').trim();
+                if (!suggestedName || !elements.detectedName) return;
+
+                elements.detectedName.value = suggestedName;
+                clearNameSuggestion(elements);
+                setStatus(elements, `Using catalog name ${suggestedName}. Tap Find Possible Matches to identify the exact card.`);
+            });
+        }
+
+        if (elements.detectedName) {
+            elements.detectedName.addEventListener('input', function () {
+                clearNameSuggestion(elements);
             });
         }
 
@@ -469,6 +502,36 @@
 
             const extracted = pipelineResult.extracted;
             const combinedRawText = pipelineResult.rawText;
+            const originalDetectedName = extracted.name || '';
+            let nameCorrection = null;
+            let rejectedUnverifiedName = false;
+
+            try {
+                nameCorrection = await resolveScannerNameCorrection(
+                    getScannerWorkerBase(),
+                    originalDetectedName,
+                    flags,
+                    combinedRawText
+                );
+
+                if (nameCorrection?.autoApply && nameCorrection.name) {
+                    extracted.name = nameCorrection.name;
+                } else if (
+                    flags.enableNameCorrection
+                    && !nameCorrection
+                    && (
+                        isLikelyGarbageDetectedName(extracted.name)
+                        || isUnverifiedWeakDetectedName(extracted.name, extracted.number)
+                    )
+                ) {
+                    // Do not present a short/noisy OCR token as a confident card
+                    // name when neither the catalog nor a collector number supports it.
+                    rejectedUnverifiedName = Boolean(extracted.name);
+                    extracted.name = '';
+                }
+            } catch (error) {
+                console.warn('[PokeValutor Scanner] name correction unavailable', error);
+            }
 
             if (elements.rawOcr) {
                 elements.rawOcr.value = combinedRawText;
@@ -482,10 +545,21 @@
                 elements.detectedNumber.value = extracted.number;
             }
 
+            clearNameSuggestion(elements);
+
+            if (
+                nameCorrection?.suggestOnly
+                && nameCorrection.name
+            ) {
+                showNameSuggestion(elements, nameCorrection.name);
+            }
+
             dispatchScannerEvent('pv:scanner:detected', {
                 rawText: combinedRawText,
                 name: extracted.name,
-                number: extracted.number
+                originalName: originalDetectedName,
+                number: extracted.number,
+                nameCorrection: nameCorrection
             });
 
             if (extracted.name || extracted.number) {
@@ -494,6 +568,12 @@
                 }
 
                 setStatus(elements, 'Review detected text. Tap Find Possible Matches, then Search Detected Card.');
+
+                if (nameCorrection?.autoApply && nameCorrection.name && nameCorrection.name !== originalDetectedName) {
+                    setStatus(elements, `Corrected detected name to ${nameCorrection.name}. Review it, then tap Find Possible Matches.`);
+                } else if (nameCorrection?.suggestOnly && nameCorrection.name) {
+                    setStatus(elements, `OCR may be incorrect. Review the catalog suggestion ${nameCorrection.name} below.`);
+                }
             } else {
                 clearCandidateSuggestions(elements);
 
@@ -501,7 +581,9 @@
                     elements.findCandidatesBtn.hidden = true;
                 }
 
-                setStatus(elements, 'I could not confidently detect the card. Try editing the fields or retaking the photo.');
+                setStatus(elements, rejectedUnverifiedName
+                    ? `I rejected the weak OCR name “${originalDetectedName}” because no card match or number supported it. Retake the photo or type the name.`
+                    : 'I could not confidently detect the card. Try editing the fields or retaking the photo.');
             }
         } catch (error) {
             console.warn('[PokeValutor Scanner] OCR error', error);
@@ -1412,12 +1494,13 @@
             let finalScore;
 
             if (hasFirebaseScore) {
-                // Respect Firebase candidate score (numberKey, name, setId, image matches)
-                // Weight catalog score strongly, but include numberScore so partial numeric
-                // inputs (e.g., "020") can outrank visually similar mismatches.
-                finalScore = (firebaseScore / 100) * 0.55
-                    + (numberScore * 0.25)
-                    + (imageScore * 0.20);
+                // Firebase retrieves the candidate pool, while browser scoring
+                // combines all available evidence. Keep name as a first-class
+                // signal so unrelated cards sharing a bare number cannot win.
+                finalScore = (firebaseScore / 100) * 0.35
+                    + (nameScore * 0.35)
+                    + (adjustedNumberScore * 0.15)
+                    + (imageScore * 0.15);
 
                 if (hasExplicitDetectedNumber) {
                     if (numberScore >= 0.99) {
@@ -1659,6 +1742,159 @@
 
         const url = `${base}/scanner/candidates?${params.join('&')}`;
         return fetchScannerJson(url);
+    }
+
+    async function resolveScannerNameCorrection(base, detectedName, flags, rawOcrText) {
+        const rawName = normalizeDetectedName(detectedName || '');
+
+        if (!flags?.enableNameCorrection) {
+            return null;
+        }
+
+        const candidateNames = collectScannerNameCorrectionCandidates(rawName, rawOcrText);
+        if (!candidateNames.length) return null;
+
+        const results = await Promise.all(candidateNames.map(function (candidateName) {
+            return fetchScannerNameCorrection(base, candidateName, flags).catch(function () {
+                return null;
+            });
+        }));
+
+        return results
+            .filter(Boolean)
+            .sort(function (a, b) {
+                return Number(b.score || 0) - Number(a.score || 0);
+            })[0] || null;
+    }
+
+    function collectScannerNameCorrectionCandidates(detectedName, rawOcrText) {
+        const primary = normalizeDetectedName(detectedName || '');
+        const candidates = [];
+
+        function add(value) {
+            const normalized = normalizeDetectedName(value || '');
+            const compact = normalized.toLowerCase().replace(/[^a-z]/g, '');
+            if (!normalized || compact.length < 4 || compact.length > 20) return;
+            if (candidates.some(function (item) {
+                return item.toLowerCase() === normalized.toLowerCase();
+            })) return;
+            candidates.push(normalized);
+        }
+
+        add(primary);
+
+        const lines = String(rawOcrText || '').split(/\r?\n/);
+        for (const line of lines) {
+            // Card headers normally pair the name with a two/three digit HP
+            // value. Restrict token harvesting to those lines so attack text
+            // and rules prose do not generate correction requests.
+            if (!/(?:^|\D)(?:[3-9]\d|[1-3]\d{2,3})(?:\D|$)/.test(line)) continue;
+
+            const tokens = String(line || '')
+                .replace(/\b(?:BASIC|STAGE|HP|VMAX|VSTAR|EX|GX)\b/ig, ' ')
+                .match(/[A-Za-z][A-Za-z'-]{3,19}/g) || [];
+
+            for (const token of tokens) {
+                add(token);
+            }
+        }
+
+        // Bound network work while retaining the selected name plus several
+        // independent header reads from the regional OCR passes.
+        return candidates.slice(0, 6);
+    }
+
+    async function fetchScannerNameCorrection(base, rawName, flags) {
+        const normalizedName = normalizeDetectedName(rawName || '');
+        if (!normalizedName || normalizedName.length < 2) return null;
+
+        const params = [
+            `text=${encodeURIComponent(normalizedName)}`,
+            'limit=5'
+        ];
+        const url = `${base}/scanner/name-suggestions?${params.join('&')}`;
+        const payload = await fetchScannerJsonWithTimeout(
+            url,
+            Number(flags.nameCorrectionTimeoutMs || PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS)
+        );
+        const suggestions = Array.isArray(payload?.data) ? payload.data : [];
+
+        if (!suggestions.length) return null;
+
+        const best = suggestions[0];
+        const name = normalizeDetectedName(best?.name || '');
+        const score = Number(best?.score || 0);
+
+        if (!name || !Number.isFinite(score)) return null;
+
+        return {
+            name,
+            score,
+            autoApply: score >= Number(flags.nameCorrectionAutoScore || PV_SCANNER_NAME_CORRECTION_AUTO_SCORE),
+            suggestOnly: score >= Number(flags.nameCorrectionSuggestScore || PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE),
+            source: best?.source || 'scannerNameIndex',
+            inputName: normalizedName
+        };
+    }
+
+    async function fetchScannerJsonWithTimeout(url, timeoutMs) {
+        const cacheKey = String(url || '').trim();
+        if (!cacheKey) return null;
+        if (scannerRequestCache.has(cacheKey)) return scannerRequestCache.get(cacheKey);
+
+        let headers = undefined;
+
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+            if (token && token.split('.').length === 3) headers = { Authorization: `Bearer ${token}` };
+        } catch {
+            // Ignore token errors.
+        }
+
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = window.setTimeout(function () {
+            if (!controller) return;
+            try {
+                controller.abort();
+            } catch {
+                // Ignore abort errors.
+            }
+        }, Math.max(300, Number(timeoutMs || 1200)));
+
+        try {
+            const response = await fetch(url, {
+                ...(headers ? { headers: headers } : {}),
+                ...(controller ? { signal: controller.signal } : {})
+            });
+
+            if (!response.ok) throw new Error(`Scanner request failed (${response.status}).`);
+
+            const data = await response.json();
+            // The name index is populated incrementally. Do not pin an empty lookup
+            // in the browser after the requested card name is hydrated later.
+            if (Array.isArray(data?.data) && data.data.length > 0) {
+                scannerRequestCache.set(cacheKey, data);
+            }
+            return data;
+        } finally {
+            window.clearTimeout(timer);
+        }
+    }
+
+    function isLikelyGarbageDetectedName(name) {
+        const value = normalizeDetectedName(name || '');
+        const lettersOnly = value.replace(/[^A-Za-z]/g, '');
+
+        if (!value || lettersOnly.length < 5) return false;
+        if (!/[AEIOUaeiou]/.test(lettersOnly)) return true;
+        if (scoreDetectedName(value) < 1) return true;
+
+        const singleLetterTokens = value.split(/\s+/).filter(function (token) {
+            return /^[A-Za-z]$/.test(token);
+        });
+
+        return singleLetterTokens.length >= 3;
     }
 
     async function fetchScannerCardsSearch(base, query, pageSize, flags) {
@@ -2181,6 +2417,52 @@
         let mergedNumber = '';
         const rawChunks = [];
 
+        // The card name lives in a narrow header strip. Reading the entire top
+        // third mixes the header with artwork and HP, especially on tilted cards.
+        // Try overlapping, enlarged single-line crops before the broad regions.
+        const headerBands = [
+            { key: 'top-name-high', yStart: 0.07, yEnd: 0.20 },
+            { key: 'top-name-middle', yStart: 0.11, yEnd: 0.25 },
+            { key: 'top-name-low', yStart: 0.15, yEnd: 0.29 }
+        ];
+
+        for (const band of headerBands) {
+            const headerBlob = await createRegionBlob(
+                imageBlob,
+                band.yStart,
+                band.yEnd,
+                0.01,
+                0.99,
+                4
+            );
+
+            if (!headerBlob) continue;
+
+            const headerPass = await runTopNameOcr(worker, headerBlob);
+
+            if (headerPass.raw) {
+                rawChunks.push(`[${band.key}]\n${headerPass.raw}`);
+            }
+
+            if (headerPass.name) {
+                mergedName = pickBetterDetectedName(mergedName, headerPass.name);
+            }
+
+            const preparedHeaderBlob = await prepareImageForOcr(headerBlob);
+
+            if (preparedHeaderBlob && preparedHeaderBlob !== headerBlob) {
+                const preparedHeaderPass = await runTopNameOcr(worker, preparedHeaderBlob);
+
+                if (preparedHeaderPass.raw) {
+                    rawChunks.push(`[${band.key} preprocessed]\n${preparedHeaderPass.raw}`);
+                }
+
+                if (preparedHeaderPass.name) {
+                    mergedName = pickBetterDetectedName(mergedName, preparedHeaderPass.name);
+                }
+            }
+        }
+
         for (const region of regions) {
             const regionBlob = await createRegionBlob(imageBlob, region.yStart, region.yEnd);
 
@@ -2247,6 +2529,41 @@
             number: mergedNumber,
             raw: rawChunks.length ? `--- Regional OCR Fallback ---\n${rawChunks.join('\n\n')}` : ''
         };
+    }
+
+    async function runTopNameOcr(worker, regionBlob) {
+        if (!worker || !regionBlob || typeof worker.setParameters !== 'function') {
+            return { name: '', raw: '' };
+        }
+
+        try {
+            await worker.setParameters({
+                tessedit_pageseg_mode: '7',
+                preserve_interword_spaces: '1',
+                tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '-0123456789"
+            });
+
+            const result = await worker.recognize(regionBlob);
+            const rawText = String(result?.data?.text || '').trim();
+            const parsed = extractCardSearchParts(rawText);
+
+            return {
+                name: normalizeDetectedName(parsed.name || ''),
+                raw: rawText
+            };
+        } catch {
+            return { name: '', raw: '' };
+        } finally {
+            try {
+                await worker.setParameters({
+                    tessedit_pageseg_mode: '6',
+                    preserve_interword_spaces: '1',
+                    tessedit_char_whitelist: ''
+                });
+            } catch {
+                // Ignore reset errors.
+            }
+        }
     }
 
     async function detectCardNumber(worker, imageBlob, elements) {
@@ -2936,6 +3253,19 @@
         return false;
     }
 
+    function isUnverifiedWeakDetectedName(name, number) {
+        const value = normalizeDetectedName(name || '');
+        const lettersOnly = value.replace(/[^A-Za-z]/g, '');
+
+        // Short OCR tokens are frequently attack text or random prose. Keep them
+        // only when the name index returned a match (handled before this check)
+        // or a plausible collector number independently supports the detection.
+        return Boolean(value)
+            && !isPlausibleDetectedNumber(number)
+            && !value.includes(' ')
+            && lettersOnly.length <= 4;
+    }
+
     function pickBetterDetectedName(currentName, nextName) {
         const current = normalizeDetectedName(currentName);
         const next = normalizeDetectedName(nextName);
@@ -2993,6 +3323,29 @@
             score += 1;
         }
 
+        const wordLengths = value
+            .split(/\s+/)
+            .filter(Boolean)
+            .map(function (word) {
+                return word.replace(/[^A-Za-z]/g, '').length;
+            });
+
+        // Regional header OCR often turns glare, borders, and symbols into
+        // title-cased fragments such as "Fos Se". The old title-case and space
+        // bonuses let those fragments replace a correctly read name such as
+        // "Cinccino" from the full-card pass. Real multi-word names normally
+        // contain at least one substantial token; strongly discount candidates
+        // made entirely from tiny OCR fragments.
+        if (wordLengths.length > 1 && wordLengths.every(function (length) {
+            return length <= 3;
+        })) {
+            score -= 7;
+        } else if (wordLengths.some(function (length) {
+            return length <= 2;
+        })) {
+            score -= 3;
+        }
+
         return score;
     }
 
@@ -3016,12 +3369,20 @@
             value = value.slice(0, -1);
         }
 
-        if (/\bMeowscarad\b/i.test(value) && !/\bMeowscarada\b/i.test(value)) {
-            value = value.replace(/Meowscarad\b/ig, 'Meowscarada');
+        if (/\bM[ec]o\s*w[si]car[a-z]{1,5}\b/i.test(value) && !/\bMeowscarada\b/i.test(value)) {
+            value = value.replace(/\bM[ec]o\s*w[si]car[a-z]{1,5}\b/ig, 'Meowscarada');
         }
 
         if (/\bClaunc[a-z']*\b/i.test(value) && !/\bClauncher\b/i.test(value)) {
             value = value.replace(/Claunc[a-z']*\b/ig, 'Clauncher');
+        }
+
+        // Foil glare repeatedly clips the leading C/R and corrupts the tail of
+        // Charmander (for example "ha mander" and "harmandfili"). Normalize
+        // these strong shared stems before catalog lookup so the exact indexed
+        // name can validate the reading.
+        if (/\b(?:c\s*)?ha\s*(?:r\s*)?mand(?:er|[a-z]{0,5})\b/i.test(value)) {
+            value = value.replace(/\b(?:c\s*)?ha\s*(?:r\s*)?mand(?:er|[a-z]{0,5})\b/ig, 'Charmander');
         }
 
         if (/^Clauncher\s+[A-Za-z]{1,3}$/i.test(value)) {
@@ -3519,7 +3880,25 @@
             elements.findCandidatesBtn.hidden = true;
         }
 
+        clearNameSuggestion(elements);
         clearCandidateSuggestions(elements);
+    }
+
+    function showNameSuggestion(elements, name) {
+        const suggestedName = normalizeDetectedName(name || '');
+        if (!suggestedName || !elements.nameSuggestionWrap) return;
+
+        elements.nameSuggestionWrap.dataset.suggestedName = suggestedName;
+        elements.nameSuggestionWrap.hidden = false;
+        if (elements.nameSuggestionText) elements.nameSuggestionText.textContent = suggestedName;
+    }
+
+    function clearNameSuggestion(elements) {
+        if (elements.nameSuggestionWrap) {
+            elements.nameSuggestionWrap.hidden = true;
+            delete elements.nameSuggestionWrap.dataset.suggestedName;
+        }
+        if (elements.nameSuggestionText) elements.nameSuggestionText.textContent = '';
     }
 
     function setBusy(elements, state, isBusy) {

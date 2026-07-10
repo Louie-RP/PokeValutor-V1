@@ -119,6 +119,23 @@
   grid-column: 1 / -1;
 }
 
+.pv-cardScanner__nameSuggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.9rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(255, 203, 5, 0.55);
+  border-radius: 12px;
+  background: rgba(255, 203, 5, 0.1);
+  color: #f8fafc;
+}
+
+.pv-cardScanner__nameSuggestion strong {
+  color: #ffe066;
+}
+
 .pv-cardScanner__candidates {
   margin: 0 0 0.9rem;
   padding: 0.8rem;
@@ -251,6 +268,11 @@
   .pv-cardScanner__actions .pv-button {
     width: 100%;
     text-align: center;
+  }
+
+  .pv-cardScanner__nameSuggestion {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .pv-cardScanner__frame {
