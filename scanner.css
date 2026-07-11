@@ -111,8 +111,35 @@
 #pv-cardScanner-retake { order: 3; }
 #pv-cardScanner-find-candidates { order: 4; }
 #pv-cardScanner-search { order: 5; }
-#pv-cardScanner-clear { order: 6; }
-#pv-cardScanner-stop { order: 7; }
+#pv-cardScanner-stop { order: 6; }
+
+#pv-cardScanner-stop {
+  border-color: rgba(239, 68, 68, 0.9);
+  background: rgba(127, 29, 29, 0.9);
+  color: #fff;
+}
+
+#pv-cardScanner-stop:hover,
+#pv-cardScanner-stop:focus-visible {
+  border-color: rgba(248, 113, 113, 1);
+  background: rgba(153, 27, 27, 0.95);
+}
+
+#pv-cardScanner-retake,
+#pv-cardScanner-find-candidates {
+  border-color: rgba(255, 203, 5, 0.85);
+  background: rgba(255, 203, 5, 0.14);
+  color: #fff8d6;
+}
+
+#pv-cardScanner-retake:hover,
+#pv-cardScanner-retake:focus-visible,
+#pv-cardScanner-find-candidates:hover,
+#pv-cardScanner-find-candidates:focus-visible {
+  border-color: rgba(255, 224, 102, 1);
+  background: rgba(255, 203, 5, 0.24);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.35);
+}
 
 .pv-cardScanner__cameraWrap {
   position: relative;
@@ -263,6 +290,11 @@
   font-size: 0.92rem;
 }
 
+.pv-cardScanner__searchNearCandidates {
+  width: 100%;
+  margin: 0 0 0.7rem;
+}
+
 .pv-cardScanner__candidateList {
   display: grid;
   gap: 0.6rem;
@@ -331,11 +363,22 @@
     font-size: 0.88rem;
   }
 
-  #pv-cardScanner-start,
-  #pv-cardScanner-clear,
-  #pv-cardScanner-stop,
-  #pv-cardScanner-retake,
   #pv-cardScanner-capture {
+    display: none;
+  }
+
+  #pv-cardScanner-search {
+    display: none;
+  }
+
+  #pv-cardScanner-start,
+  #pv-cardScanner-stop,
+  #pv-cardScanner-capture-fab {
+    flex-basis: calc(50% - 0.4rem);
+  }
+
+  #pv-cardScanner-retake,
+  #pv-cardScanner-stop {
     flex-basis: calc(50% - 0.4rem);
   }
 
@@ -344,8 +387,33 @@
     flex-basis: 100%;
   }
 
+  #pv-cardScanner-retake { order: 1; }
+  #pv-cardScanner-stop { order: 2; }
+  #pv-cardScanner-find-candidates { order: 3; }
+  #pv-cardScanner-start { order: 5; }
+  #pv-cardScanner-search { order: 6; }
+
   .pv-cardScanner__cameraWrap .pv-cardScanner__captureFab {
     display: inline-flex;
+    left: 50%;
+    right: auto;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    min-width: 4.5rem;
+    min-height: 4.5rem;
+    padding: 0;
+    border-radius: 999px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pv-cardScanner__captureLabel {
+    display: none;
+  }
+
+  .pv-cardScanner__captureIcon {
+    width: 1.35rem;
+    height: 1.35rem;
   }
 
   .pv-cardScanner__frame {

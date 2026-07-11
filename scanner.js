@@ -96,6 +96,34 @@
         };
     }
 
+    function isMobileScannerViewport() {
+        return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+    }
+
+    function syncCaptureFab(elements, mode) {
+        if (!elements.captureFabBtn) {
+            return;
+        }
+
+        if (!isMobileScannerViewport()) {
+            elements.captureFabBtn.hidden = true;
+            return;
+        }
+
+        if (mode !== 'camera') {
+            elements.captureFabBtn.hidden = true;
+            return;
+        }
+
+        const captureLabel = elements.captureFabBtn.querySelector('.pv-cardScanner__captureLabel');
+
+        elements.captureFabBtn.hidden = false;
+
+        if (captureLabel) captureLabel.textContent = 'Capture';
+        elements.captureFabBtn.setAttribute('aria-label', 'Capture card');
+        elements.captureFabBtn.dataset.mode = 'capture';
+    }
+
     function initCardScanner() {
         const root = document.getElementById('pv-card-scanner-root');
 
@@ -113,7 +141,8 @@
             stream: null,
             capturedBlob: null,
             previewUrl: '',
-            busy: false
+            busy: false,
+            cameraSessionStarted: false
         };
 
         bindScannerEvents({
@@ -125,6 +154,8 @@
         });
 
         setScannerState(root, 'idle');
+        syncSessionButtons(elements, state);
+        syncCaptureFab(elements, 'idle');
         setStatus(elements, 'Tap Start Camera to scan a card. For best results, avoid glare and use a dark background.');
 
         dispatchScannerEvent('pv:scanner:ready', {
@@ -157,7 +188,6 @@
                         <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>Find Possible Matches</button>
                         <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button" hidden>Search Selected/Detected Card</button>
                         <button id="pv-cardScanner-stop" class="pv-button pv-button--secondary btn" type="button" hidden>Stop Camera</button>
-                        <button id="pv-cardScanner-clear" class="pv-button pv-button--secondary btn" type="button">Clear Scanner</button>
                     </div>
 
                     <div class="pv-cardScanner__cameraWrap">
@@ -203,6 +233,7 @@
                     </div>
 
                     <section id="pv-cardScanner-candidates" class="pv-cardScanner__candidates" hidden aria-live="polite">
+                        <button id="pv-cardScanner-search-near-candidates" class="pv-button pv-button--primary btn pv-cardScanner__searchNearCandidates" type="button" hidden>Search Selected/Detected Card</button>
                         <h3 class="pv-cardScanner__candidatesTitle">Possible Matches</h3>
                         <p class="pv-cardScanner__candidatesText">Pick a candidate to replace detected fields before searching.</p>
                         <div id="pv-cardScanner-candidate-list" class="pv-cardScanner__candidateList"></div>
@@ -223,8 +254,8 @@
             captureBtn: root.querySelector('#pv-cardScanner-capture'),
             retakeBtn: root.querySelector('#pv-cardScanner-retake'),
             stopBtn: root.querySelector('#pv-cardScanner-stop'),
-            clearBtn: root.querySelector('#pv-cardScanner-clear'),
             searchBtn: root.querySelector('#pv-cardScanner-search'),
+            searchNearCandidatesBtn: root.querySelector('#pv-cardScanner-search-near-candidates'),
             findCandidatesBtn: root.querySelector('#pv-cardScanner-find-candidates'),
             empty: root.querySelector('#pv-cardScanner-empty'),
             video: root.querySelector('#pv-cardScanner-video'),
@@ -261,7 +292,12 @@
         }
         if (elements.captureFabBtn) {
             elements.captureFabBtn.addEventListener('click', function () {
-                captureCard(root, elements, state);
+                if (state.stream) {
+                    captureCard(root, elements, state);
+                    return;
+                }
+
+                startCamera(root, elements, state);
             });
         }
 
@@ -273,20 +309,18 @@
 
         if (elements.stopBtn) {
             elements.stopBtn.addEventListener('click', function () {
-                stopCamera(elements, state);
-                setScannerState(root, 'stopped');
-                setStatus(elements, 'Camera stopped.');
-            });
-        }
-
-        if (elements.clearBtn) {
-            elements.clearBtn.addEventListener('click', function () {
-                clearScanner(root, elements, state);
+                stopScannerSession(root, elements, state);
             });
         }
 
         if (elements.searchBtn) {
             elements.searchBtn.addEventListener('click', function () {
+                fillAndSubmitSearch(elements, targetInputId, targetFormId);
+            });
+        }
+
+        if (elements.searchNearCandidatesBtn) {
+            elements.searchNearCandidatesBtn.addEventListener('click', function () {
                 fillAndSubmitSearch(elements, targetInputId, targetFormId);
             });
         }
@@ -378,6 +412,10 @@
             if (elements.captureBtn) elements.captureBtn.hidden = false;
             if (elements.stopBtn) elements.stopBtn.hidden = false;
             if (elements.retakeBtn) elements.retakeBtn.hidden = true;
+            state.capturedBlob = null;
+            state.cameraSessionStarted = true;
+            syncSessionButtons(elements, state);
+            syncCaptureFab(elements, 'camera');
 
             setScannerState(root, 'camera');
             setStatus(elements, 'Place the card inside the frame, reduce glare, then tap Capture.');
@@ -411,13 +449,14 @@
                 elements.preview.hidden = false;
             }
 
+            stopCamera(elements, state);
+
             if (elements.video) elements.video.hidden = true;
             if (elements.captureBtn) elements.captureBtn.hidden = true;
-            if (elements.captureFabBtn) elements.captureFabBtn.hidden = true;
-            if (elements.stopBtn) elements.stopBtn.hidden = true;
+            if (elements.stopBtn) elements.stopBtn.hidden = false;
             if (elements.retakeBtn) elements.retakeBtn.hidden = false;
-
-            stopCamera(elements, state);
+            syncCaptureFab(elements, 'idle');
+            syncSessionButtons(elements, state);
 
             setScannerState(root, 'captured');
             setStatus(elements, 'Reading card text... This can take a few seconds.');
@@ -611,6 +650,9 @@
                 if (elements.searchBtn) {
                     elements.searchBtn.hidden = false;
                 }
+                if (elements.searchNearCandidatesBtn) {
+                    elements.searchNearCandidatesBtn.hidden = false;
+                }
 
                 setStatus(elements, 'Review detected text. Tap Find Possible Matches, then Search Detected Card.');
 
@@ -638,6 +680,9 @@
                 }
                 if (elements.searchBtn) {
                     elements.searchBtn.hidden = true;
+                }
+                if (elements.searchNearCandidatesBtn) {
+                    elements.searchNearCandidatesBtn.hidden = true;
                 }
 
                 setStatus(elements, rejectedUnverifiedName
@@ -1408,6 +1453,9 @@
 
         if (elements.searchBtn) {
             elements.searchBtn.hidden = false;
+        }
+        if (elements.searchNearCandidatesBtn) {
+            elements.searchNearCandidatesBtn.hidden = false;
         }
 
         dispatchScannerEvent('pv:scanner:candidate-selected', {
@@ -4192,38 +4240,6 @@
         }
     }
 
-    function clearScanner(root, elements, state) {
-        stopCamera(elements, state);
-        resetDetectedFields(elements);
-        clearCandidateSuggestions(elements);
-        clearSelectedCandidateDisplay(elements);
-
-        if (elements.findCandidatesBtn) {
-            elements.findCandidatesBtn.hidden = true;
-        }
-        if (elements.searchBtn) {
-            elements.searchBtn.hidden = true;
-        }
-
-        state.capturedBlob = null;
-        revokePreviewUrl(state);
-
-        if (elements.preview) {
-            elements.preview.hidden = true;
-            elements.preview.removeAttribute('src');
-        }
-
-        if (elements.empty) elements.empty.hidden = false;
-        if (elements.captureBtn) elements.captureBtn.hidden = true;
-        if (elements.retakeBtn) elements.retakeBtn.hidden = true;
-        if (elements.stopBtn) elements.stopBtn.hidden = true;
-        if (elements.captureFabBtn) elements.captureFabBtn.hidden = true;
-        if (elements.video) elements.video.hidden = true;
-
-        setScannerState(root, 'idle');
-        setStatus(elements, 'Scanner cleared. Tap Start Camera when you are ready.');
-    }
-
     function stopCamera(elements, state) {
         if (state.stream) {
             state.stream.getTracks().forEach(function (track) {
@@ -4241,7 +4257,45 @@
 
         if (elements.captureBtn) elements.captureBtn.hidden = true;
         if (elements.stopBtn) elements.stopBtn.hidden = true;
-        if (elements.captureFabBtn) elements.captureFabBtn.hidden = true;
+        syncCaptureFab(elements, 'idle');
+    }
+
+    function stopScannerSession(root, elements, state) {
+        stopCamera(elements, state);
+        resetDetectedFields(elements);
+        clearCandidateSuggestions(elements);
+        clearSelectedCandidateDisplay(elements);
+
+        state.cameraSessionStarted = false;
+        state.capturedBlob = null;
+        revokePreviewUrl(state);
+
+        if (elements.preview) {
+            elements.preview.hidden = true;
+            elements.preview.removeAttribute('src');
+        }
+
+        if (elements.empty) elements.empty.hidden = false;
+        if (elements.video) elements.video.hidden = true;
+        if (elements.captureBtn) elements.captureBtn.hidden = true;
+        if (elements.retakeBtn) elements.retakeBtn.hidden = true;
+        if (elements.stopBtn) elements.stopBtn.hidden = true;
+        if (elements.findCandidatesBtn) elements.findCandidatesBtn.hidden = true;
+        if (elements.searchBtn) elements.searchBtn.hidden = true;
+        if (elements.searchNearCandidatesBtn) elements.searchNearCandidatesBtn.hidden = true;
+
+        syncSessionButtons(elements, state);
+        syncCaptureFab(elements, 'idle');
+        setScannerState(root, 'idle');
+        setStatus(elements, 'Camera stopped. Tap Start Camera when you are ready.');
+    }
+
+    function syncSessionButtons(elements, state) {
+        const sessionStarted = !!state?.cameraSessionStarted;
+
+        if (elements.startBtn) {
+            elements.startBtn.hidden = sessionStarted;
+        }
     }
 
     function revokePreviewUrl(state) {
@@ -4298,8 +4352,8 @@
             elements.captureFabBtn,
             elements.retakeBtn,
             elements.stopBtn,
-            elements.clearBtn,
             elements.searchBtn,
+            elements.searchNearCandidatesBtn,
             elements.findCandidatesBtn
         ];
 
