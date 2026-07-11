@@ -4288,6 +4288,13 @@
         syncCaptureFab(elements, 'idle');
         setScannerState(root, 'idle');
         setStatus(elements, 'Camera stopped. Tap Start Camera when you are ready.');
+
+        if (root && typeof root.scrollIntoView === 'function') {
+            root.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
     }
 
     function syncSessionButtons(elements, state) {
