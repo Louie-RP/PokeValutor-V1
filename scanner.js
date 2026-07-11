@@ -3076,6 +3076,10 @@
             score += 10;
         } else if (/^(SWSH|SVP|SM|BW|XY)\d{1,3}$/.test(value)) {
             score += 8;
+        } else if (/^P\d{1,3}$/.test(value)) {
+            score += 7;  // Promo P-prefix
+        } else if (/^\d{2,3}$/.test(value)) {
+            score += 6;  // Bare promo number
         }
 
         if (source === 'text') {
@@ -3142,7 +3146,12 @@
 
             const result = await worker.recognize(regionBlob);
             const rawText = String(result?.data?.text || '').trim();
-            const number = normalizeExtractedCardNumber(extractCardNumber(rawText));
+            let number = normalizeExtractedCardNumber(extractCardNumber(rawText));
+
+            // If no number found, try digit noise inference as fallback
+            if (!number && rawText) {
+                number = normalizeExtractedCardNumber(inferCollectorFromDigitNoise(rawText));
+            }
 
             return {
                 number: number,
@@ -3181,7 +3190,16 @@
                 .replace(/\s+/g, '')
                 .replace(/[^0-9/]/g, '');
 
-            const number = extractCardNumber(normalized) || inferCollectorFromDigitNoise(normalized);
+            let number = extractCardNumber(normalized);
+            
+            if (!number) {
+                number = inferCollectorFromDigitNoise(normalized);
+            }
+
+            // If still no match, try harder by processing raw text for digit patterns
+            if (!number && rawText) {
+                number = inferCollectorFromDigitNoise(rawText);
+            }
 
             return {
                 number: number,
@@ -3426,6 +3444,8 @@
             /\b(SV\s?P\s?\d{1,3})\b/i,
             /\b(SVP\s?\d{1,3})\b/i,
             /\b((?:SM|BW|XY)\s?\d{1,3})\b/i,
+            /\b(P\s?\d{1,3})(?:\s|$|★)/i,  // Promo with P-prefix (e.g., "P 080", "P080")
+            /\b(\d{2,3})★\b/,               // Promo with star symbol (e.g., "080★")
             /\b(TG\s?\d{1,2}\s?\/\s?TG\s?\d{1,2})\b/i,
             /\b(GG\s?\d{1,2}\s?\/\s?GG\s?\d{1,2})\b/i,
             /\b([A-Z]{0,4}\d{1,3}\s*\/\s*\d{2,3})\b/i,
@@ -3446,7 +3466,8 @@
             /(SWSH\d{1,3})/i,
             /(SVP\d{1,3})/i,
             /(TG\d{1,2}\/TG\d{1,2})/i,
-            /(GG\d{1,2}\/GG\d{1,2})/i
+            /(GG\d{1,2}\/GG\d{1,2})/i,
+            /(P\d{2,3})/i  // Promo P-prefix in compact form (no space)
         ];
 
         for (const pattern of compactPatterns) {
@@ -3467,7 +3488,15 @@
             }
         }
 
-        const noisyDigitsInferred = inferCollectorFromDigitNoise(normalized);
+        // Try digit noise inference on both the normalized and compact forms
+        let noisyDigitsInferred = inferCollectorFromDigitNoise(normalized);
+
+        if (noisyDigitsInferred) {
+            return normalizeExtractedCardNumber(noisyDigitsInferred);
+        }
+
+        // Also try on compact form in case noise extraction missed letters in normalized
+        noisyDigitsInferred = inferCollectorFromDigitNoise(compact);
 
         if (noisyDigitsInferred) {
             return normalizeExtractedCardNumber(noisyDigitsInferred);
@@ -3652,8 +3681,18 @@
             return '';
         }
 
+        // Keep special multi-part formats as-is
         if (/^(TG\d{1,2}\/TG\d{1,2}|GG\d{1,2}\/GG\d{1,2})$/.test(value)) {
             return value;
+        }
+
+        // Promo formats: keep as-is
+        if (/^P\d{1,3}$/.test(value)) {
+            return value;
+        }
+
+        if (/^\d{2,3}$/.test(value)) {
+            return value;  // Bare promo number
         }
 
         if (value.indexOf('/') >= 0) {
@@ -3681,6 +3720,15 @@
 
         if (/^(SWSH|SVP|SM|BW|XY)\d{1,3}$/.test(raw)) {
             return true;
+        }
+
+        // Promo formats: P-prefix or bare 2-3 digit
+        if (/^P\d{1,3}$/.test(raw)) {
+            return true;
+        }
+
+        if (/^\d{2,3}$/.test(raw)) {
+            return true;  // Bare 2-3 digit promo card
         }
 
         const slashMatch = raw.match(/^(\d{1,3})\/(\d{2,3})$/);
@@ -3932,7 +3980,7 @@
             .replace(/[OQD]/g, '0')
             .replace(/[IL|!]/g, '1')
             .replace(/Z/g, '2')
-            .replace(/S/g, '3')
+            .replace(/S/g, '5')
             .replace(/B/g, '8')
             .replace(/G/g, '6')
             .replace(/[^0-9]/g, '');
@@ -3978,10 +4026,12 @@
             .replace(/G/g, '6')
             .replace(/[^0-9]/g, '');
 
-        if (digitLike.length < 5) {
+        // Reduced minimum threshold from 5 to 3 to handle severely degraded OCR
+        if (digitLike.length < 3) {
             return '';
         }
 
+        // Try extracting from common patterns first (with slashes or longer sequences)
         const sizes = [6, 5];
 
         for (const size of sizes) {
@@ -3995,6 +4045,39 @@
 
                 if (inferred) {
                     return inferred;
+                }
+            }
+        }
+
+        // Fallback: try 4-digit patterns for short sequences.
+        // This helps catch cases where OCR missed digits but got a 4-digit fragment
+        // that can be parsed as collector number (e.g., "1019" -> "10/19" or "01/9X" patterns).
+        if (digitLike.length >= 4) {
+            for (let i = 0; i <= digitLike.length - 4; i += 1) {
+                const chunk = digitLike.slice(i, i + 4);
+
+                // Try splitting as left/right for 4 digits: XX/YY or X/YYY patterns
+                for (let split = 1; split <= 3; split += 1) {
+                    const left = chunk.slice(0, split);
+                    const right = chunk.slice(split);
+
+                    if (left && right && isPlausibleDetectedNumber(`${left}/${right}`)) {
+                        return `${left}/${right}`;
+                    }
+                }
+            }
+        }
+
+        // Aggressive fallback: try 3-digit patterns when 4+ fails
+        // This handles very degraded OCR where we only recovered a few digits
+        if (digitLike.length === 3) {
+            // Try common 3-digit patterns: X/YY or XX/Y
+            for (let split = 1; split <= 2; split += 1) {
+                const left = digitLike.slice(0, split);
+                const right = digitLike.slice(split);
+
+                if (left && right && isPlausibleDetectedNumber(`${left}/${right}`)) {
+                    return `${left}/${right}`;
                 }
             }
         }
