@@ -2672,6 +2672,16 @@
                     out.push(normalized);
                 }
             }
+
+            const setNumberMatches = Array.from(raw.matchAll(/(?:^|[^A-Z0-9])((?:SWSH|SVP|SM|BW|XY)\s*\d{1,3})(?=$|[^A-Z0-9])/g));
+
+            for (const match of setNumberMatches) {
+                const normalized = normalizeExtractedCardNumber(match && match[1] ? match[1] : '');
+
+                if (normalized && isPlausibleDetectedNumber(normalized)) {
+                    out.push(normalized);
+                }
+            }
         }
 
         return out;
@@ -3875,6 +3885,10 @@
 
         if (/\b(?:t?chafizand|t?chafizard|chafizand|chafizard|charizand|charizad|charizard)\b/i.test(value)) {
             value = value.replace(/\b(?:t?chafizand|t?chafizard|chafizand|chafizard|charizand|charizad|charizard)\b/ig, 'Charizard');
+        }
+
+        if (/^[A-Za-z]{2,4}\s+Charizard(?:\s+(?:V|EX|GX|VSTAR|VMAX))?$/i.test(value)) {
+            value = value.replace(/^[A-Za-z]{2,4}\s+/i, '');
         }
 
         if (/^Charizard\s+Va?$/i.test(value) || /^CharizardVa$/i.test(value) || /^CharizardV$/i.test(value)) {
