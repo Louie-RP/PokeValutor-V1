@@ -2866,7 +2866,7 @@
             await worker.setParameters({
                 tessedit_pageseg_mode: '7',
                 preserve_interword_spaces: '1',
-                tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '-0123456789"
+                tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '-&0123456789"
             });
 
             const result = await worker.recognize(regionBlob);
@@ -3821,7 +3821,7 @@
 
         let score = 0;
 
-        if (/^[A-Z][a-z'\-]+(?:\s+[A-Z][a-z'\-]+){0,2}$/.test(value)) {
+        if (/^[A-Z][a-z'\-&]+(?:\s+[A-Z][a-z'\-&]+){0,2}$/.test(value)) {
             score += 5;
         }
 
@@ -3839,7 +3839,7 @@
             score += 1;
         }
 
-        if (/^M\s+[A-Z][a-z'\-]+(?:\s+[A-Z]{2,5})?$/.test(value)) {
+        if (/^M\s+[A-Z][a-z'\-&]+(?:\s+[A-Z]{2,5})?$/.test(value)) {
             score += 6;
         }
 
@@ -3885,7 +3885,7 @@
     function normalizeDetectedName(name) {
         let value = String(name || '')
             .replace(/[’`]/g, "'")
-            .replace(/[^A-Za-z .'-]/g, ' ')
+            .replace(/[^A-Za-z .'-&]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
 
