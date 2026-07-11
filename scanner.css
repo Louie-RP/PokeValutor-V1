@@ -253,6 +253,27 @@
   margin: 0 0 0.45rem;
 }
 
+.pv-cardScanner__ocrToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.45rem;
+}
+
+.pv-cardScanner__ocrCopy {
+  min-height: 2.25rem;
+  padding: 0.38rem 0.8rem;
+  border-color: rgba(255, 203, 5, 0.72);
+  background: rgba(255, 203, 5, 0.12);
+  color: #fff8d6;
+  font-size: 0.84rem;
+}
+
+.pv-cardScanner__ocrCopy:hover,
+.pv-cardScanner__ocrCopy:focus-visible {
+  border-color: rgba(255, 224, 102, 1);
+  background: rgba(255, 203, 5, 0.22);
+}
+
 .pv-cardScanner__nameSuggestion {
   display: flex;
   align-items: center;

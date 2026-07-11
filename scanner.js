@@ -223,6 +223,9 @@
 
                         <details class="pv-form__field pv-cardScanner__ocrDetails pv-cardScanner__ocrField">
                             <summary class="pv-cardScanner__ocrSummary">Show raw OCR text</summary>
+                            <div class="pv-cardScanner__ocrToolbar">
+                                <button id="pv-cardScanner-copy-ocr" class="pv-button pv-button--secondary btn pv-cardScanner__ocrCopy" type="button">Copy Text</button>
+                            </div>
                             <textarea id="pv-cardScanner-ocr" class="form-control" rows="4" placeholder="OCR text will appear here. You can review it if the scan is not accurate."></textarea>
                         </details>
                     </div>
@@ -266,6 +269,7 @@
             detectedName: root.querySelector('#pv-cardScanner-name'),
             detectedNumber: root.querySelector('#pv-cardScanner-number'),
             rawOcr: root.querySelector('#pv-cardScanner-ocr'),
+            copyOcrBtn: root.querySelector('#pv-cardScanner-copy-ocr'),
             nameSuggestionWrap: root.querySelector('#pv-cardScanner-name-suggestion'),
             nameSuggestionText: root.querySelector('#pv-cardScanner-name-suggestion-text'),
             applyNameSuggestionBtn: root.querySelector('#pv-cardScanner-apply-name-suggestion'),
@@ -363,6 +367,12 @@
         if (elements.detectedNumber) {
             elements.detectedNumber.addEventListener('input', function () {
                 clearSelectedCandidateDisplay(elements);
+            });
+        }
+
+        if (elements.copyOcrBtn) {
+            elements.copyOcrBtn.addEventListener('click', function () {
+                copyRawOcrText(elements);
             });
         }
 
@@ -1295,6 +1305,34 @@
         }
     }
 
+    async function copyRawOcrText(elements) {
+        const text = String(elements?.rawOcr?.value || '').trim();
+
+        if (!text) {
+            setStatus(elements, 'There is no raw OCR text to copy yet.');
+            return;
+        }
+
+        try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                await navigator.clipboard.writeText(text);
+            } else if (elements?.rawOcr) {
+                elements.rawOcr.focus();
+                elements.rawOcr.select();
+                const copied = document.execCommand('copy');
+                elements.rawOcr.setSelectionRange(0, 0);
+                if (!copied) {
+                    throw new Error('copy_failed');
+                }
+            }
+
+            setStatus(elements, 'Raw OCR text copied to clipboard.');
+        } catch (error) {
+            console.warn('[PokeValutor Scanner] copy OCR failed', error);
+            setStatus(elements, 'Could not copy automatically. You can still select the OCR text and copy it manually.');
+        }
+    }
+
     function markSelectedCandidate(elements, candidateId) {
         if (!elements?.candidateList) {
             return;
@@ -1934,8 +1972,12 @@
                 };
             })
             .filter(function (item) {
-                return item.name
-                    && item.name.toLowerCase() === detectedName.toLowerCase()
+                const candidateComparable = normalizeScannerComparableName(item.name);
+                const detectedComparable = normalizeScannerComparableName(detectedName);
+
+                return candidateComparable
+                    && detectedComparable
+                    && candidateComparable.toLowerCase() === detectedComparable.toLowerCase()
                     && item.number
                     && item.number.indexOf('/') >= 0;
             });
@@ -2211,6 +2253,12 @@
 
     function getCandidateCardName(card) {
         return normalizeDetectedName(String(card?.name || '').trim());
+    }
+
+    function normalizeScannerComparableName(value) {
+        return normalizeDetectedName(String(value || '')
+            .replace(/\s*[-–—]?\s*(EX|GX|VSTAR|VMAX)\s*$/i, '')
+            .trim());
     }
 
     function getCandidateCardNumber(card) {
@@ -3737,6 +3785,14 @@
             score += 6;
         }
 
+        if (/\bCharizard\b/i.test(value)) {
+            score += 5;
+        }
+
+        if (/\b(?:V|EX|GX|VSTAR|VMAX)$/i.test(value)) {
+            score += 3;
+        }
+
         const wordLengths = value
             .split(/\s+/)
             .filter(Boolean)
@@ -3745,6 +3801,7 @@
             });
 
         const hasMegaPrefix = /^M\s+[A-Z][a-z'\-]+(?:\s+[A-Z]{2,5})?$/.test(value);
+        const hasBattleSuffix = /\b(?:V|EX|GX|VSTAR|VMAX)$/i.test(value);
 
         // Regional header OCR often turns glare, borders, and symbols into
         // title-cased fragments such as "Fos Se". The old title-case and space
@@ -3752,7 +3809,7 @@
         // "Cinccino" from the full-card pass. Real multi-word names normally
         // contain at least one substantial token; strongly discount candidates
         // made entirely from tiny OCR fragments.
-        if (!hasMegaPrefix) {
+        if (!hasMegaPrefix && !hasBattleSuffix) {
             if (wordLengths.length > 1 && wordLengths.every(function (length) {
                 return length <= 3;
             })) {
@@ -3814,6 +3871,14 @@
 
         if (/\bClaunc[a-z']*\b/i.test(value) && !/\bClauncher\b/i.test(value)) {
             value = value.replace(/Claunc[a-z']*\b/ig, 'Clauncher');
+        }
+
+        if (/\b(?:t?chafizand|t?chafizard|chafizand|chafizard|charizand|charizad|charizard)\b/i.test(value)) {
+            value = value.replace(/\b(?:t?chafizand|t?chafizard|chafizand|chafizard|charizand|charizad|charizard)\b/ig, 'Charizard');
+        }
+
+        if (/^Charizard\s+Va?$/i.test(value) || /^CharizardVa$/i.test(value) || /^CharizardV$/i.test(value)) {
+            value = 'Charizard V';
         }
 
         // Foil glare repeatedly clips the leading C/R and corrupts the tail of
@@ -4056,7 +4121,7 @@
                 continue;
             }
 
-            const score = scoreDetectedName(candidate);
+            const score = scoreDetectedName(candidate) + Math.max(0, 6 - i);
 
             if (score > bestScore || (score === bestScore && candidate.length > bestCandidate.length)) {
                 bestCandidate = candidate;
@@ -4098,7 +4163,9 @@
                     return false;
                 }
 
-                return /^(?:M|[A-Z][a-z'\-]{2,})$/.test(word);
+                return /^[A-Za-z][A-Za-z'\-]{2,}$/.test(word)
+                    || /^M[A-Za-z'\-]{1,}$/.test(word)
+                    || /^(?:V|Va|EX|GX|VSTAR|VMAX)$/i.test(word);
             });
 
         if (!words.length) {
