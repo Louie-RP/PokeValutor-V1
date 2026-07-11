@@ -3733,6 +3733,10 @@
             score += 1;
         }
 
+        if (/^M\s+[A-Z][a-z'\-]+(?:\s+[A-Z]{2,5})?$/.test(value)) {
+            score += 6;
+        }
+
         const wordLengths = value
             .split(/\s+/)
             .filter(Boolean)
@@ -3740,20 +3744,24 @@
                 return word.replace(/[^A-Za-z]/g, '').length;
             });
 
+        const hasMegaPrefix = /^M\s+[A-Z][a-z'\-]+(?:\s+[A-Z]{2,5})?$/.test(value);
+
         // Regional header OCR often turns glare, borders, and symbols into
         // title-cased fragments such as "Fos Se". The old title-case and space
         // bonuses let those fragments replace a correctly read name such as
         // "Cinccino" from the full-card pass. Real multi-word names normally
         // contain at least one substantial token; strongly discount candidates
         // made entirely from tiny OCR fragments.
-        if (wordLengths.length > 1 && wordLengths.every(function (length) {
-            return length <= 3;
-        })) {
-            score -= 7;
-        } else if (wordLengths.some(function (length) {
-            return length <= 2;
-        })) {
-            score -= 3;
+        if (!hasMegaPrefix) {
+            if (wordLengths.length > 1 && wordLengths.every(function (length) {
+                return length <= 3;
+            })) {
+                score -= 7;
+            } else if (wordLengths.some(function (length) {
+                return length <= 2;
+            })) {
+                score -= 3;
+            }
         }
 
         return score;
@@ -3769,6 +3777,8 @@
         if (!value) {
             return '';
         }
+
+        value = expandFusedMegaPrefix(value);
 
         value = value
             .replace(/^(?:BASIC|FASIC|BACIC|BASICC|BASIG|BASIO|STAGE|STACE|STAGEE|POKEMON|POK MON|POK MON|POKE MON)\s+/i, '')
@@ -3979,36 +3989,28 @@
             return normalizeDetectedName(topLineName);
         }
 
-        for (const rawLine of lines.slice(0, 12)) {
-            const cleaned = rawLine
-                .replace(/[^A-Za-z0-9 .'-]/g, ' ')
-                .replace(/\b\d{1,3}\s?HP\b/ig, '')
-                .replace(/\bHP\s?\d{1,3}\b/ig, '')
-                .replace(/\s+/g, ' ')
-                .trim();
+        let bestFallbackName = '';
+        let bestFallbackScore = -1;
 
-            if (!cleaned) continue;
-            if (cleaned.length < 3 || cleaned.length > 34) continue;
-            if (/^\d/.test(cleaned)) continue;
-            if (/\b\d+\s?\/\s?\d+\b/.test(cleaned)) continue;
-            if (/\b\d{2,3}$/.test(cleaned)) continue;
+        for (const rawLine of lines) {
+            const candidate = extractBestNameCandidateFromLine(rawLine, blockedWords);
 
-            const lowerWords = cleaned.toLowerCase().split(/\s+/);
-
-            if (lowerWords.some(function (word) {
-                return blockedWords.has(word);
-            })) {
+            if (!candidate) {
                 continue;
             }
 
-            return normalizeDetectedName(cleaned);
+            const candidateScore = scoreDetectedName(candidate);
+            if (candidateScore > bestFallbackScore || (candidateScore === bestFallbackScore && candidate.length > bestFallbackName.length)) {
+                bestFallbackName = candidate;
+                bestFallbackScore = candidateScore;
+            }
         }
 
-        return '';
+        return bestFallbackName;
     }
 
     function extractNameFromHpLine(rawLine, blockedWords) {
-        const cleaned = String(rawLine || '')
+        const cleaned = expandFusedMegaPrefix(String(rawLine || ''))
             .replace(/[’`]/g, "'")
             .replace(/\b(BASIC|FASIC|BACIC|BASIG|STAGE|STACE|STAGE\s?[12]|VMAX|VSTAR|EX|GX|POKEMON)\b/ig, ' ')
             .replace(/\b\d{2,3}\s?HP\b/ig, ' ')
@@ -4043,64 +4045,82 @@
     }
 
     function extractNameFromTopLines(lines, blockedWords) {
-        const maxLines = Math.min(6, Array.isArray(lines) ? lines.length : 0);
+        const maxLines = Math.min(12, Array.isArray(lines) ? lines.length : 0);
         let bestCandidate = '';
         let bestScore = -1;
 
         for (let i = 0; i < maxLines; i += 1) {
-            const rawLine = String(lines[i] || '');
+            const candidate = extractBestNameCandidateFromLine(lines[i], blockedWords);
 
-            const cleaned = rawLine
-                .replace(/[’`]/g, "'")
-                .replace(/\b(BASIC|FASIC|BACIC|BASIG|STAGE|STACE|STAGE\s?[12]|VMAX|VSTAR|EX|GX|POKEMON)\b/ig, ' ')
-                .replace(/\bHP\s?\d{2,3}\b/ig, ' ')
-                .replace(/[+]?\d{2,3}\b/g, ' ')
-                .replace(/[^A-Za-z .'-]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-
-            if (!cleaned) {
+            if (!candidate) {
                 continue;
             }
 
-            const words = cleaned
-                .split(/\s+/)
-                .filter(function (word) {
-                    const lower = word.toLowerCase();
+            const score = scoreDetectedName(candidate);
 
-                    if (!lower || blockedWords.has(lower)) {
-                        return false;
-                    }
-
-                    if (isLikelyHeaderNoiseWord(lower)) {
-                        return false;
-                    }
-
-                    if (!/^[A-Za-z.'-]+$/.test(word)) {
-                        return false;
-                    }
-
-                    return /^[A-Z][a-z'\-]{2,}$/.test(word);
-                });
-
-            if (!words.length) {
-                continue;
+            if (score > bestScore || (score === bestScore && candidate.length > bestCandidate.length)) {
+                bestCandidate = candidate;
+                bestScore = score;
             }
+        }
 
-            for (let start = 0; start < words.length; start += 1) {
-                for (let length = 1; length <= 3 && start + length <= words.length; length += 1) {
-                    const candidate = normalizeDetectedName(words.slice(start, start + length).join(' '));
+        return bestCandidate;
+    }
 
-                    if (!candidate || candidate.length < 4 || candidate.length > 28) {
-                        continue;
-                    }
+    function extractBestNameCandidateFromLine(rawLine, blockedWords) {
+        const cleaned = expandFusedMegaPrefix(String(rawLine || ''))
+            .replace(/[’`]/g, "'")
+            .replace(/\b(BASIC|FASIC|BACIC|BASIG|STAGE|STACE|STAGE\s?[12]|VMAX|VSTAR|EX|GX|POKEMON)\b/ig, ' ')
+            .replace(/\bHP\s?\d{2,3}\b/ig, ' ')
+            .replace(/[+]?\d{2,3}\b/g, ' ')
+            .replace(/[^A-Za-z .'-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
 
-                    const score = scoreDetectedName(candidate);
+        if (!cleaned) {
+            return '';
+        }
 
-                    if (score > bestScore || (score === bestScore && candidate.length > bestCandidate.length)) {
-                        bestCandidate = candidate;
-                        bestScore = score;
-                    }
+        const words = cleaned
+            .split(/\s+/)
+            .filter(function (word) {
+                const lower = word.toLowerCase();
+
+                if (!lower || blockedWords.has(lower)) {
+                    return false;
+                }
+
+                if (isLikelyHeaderNoiseWord(lower)) {
+                    return false;
+                }
+
+                if (!/^[A-Za-z.'-]+$/.test(word)) {
+                    return false;
+                }
+
+                return /^(?:M|[A-Z][a-z'\-]{2,})$/.test(word);
+            });
+
+        if (!words.length) {
+            return '';
+        }
+
+        let bestCandidate = '';
+        let bestScore = -1;
+
+        for (let start = 0; start < words.length; start += 1) {
+            for (let length = 1; length <= 3 && start + length <= words.length; length += 1) {
+                const candidate = normalizeDetectedName(words.slice(start, start + length).join(' '));
+
+                if (!candidate || candidate.length < 4 || candidate.length > 28) {
+                    continue;
+                }
+
+                const score = scoreDetectedName(candidate);
+
+                if (score > bestScore || (score === bestScore && candidate.length > bestCandidate.length)) {
+                    bestCandidate = candidate;
+                    bestScore = score;
                 }
             }
         }
@@ -4112,7 +4132,7 @@
         const maxLines = Math.min(5, Array.isArray(lines) ? lines.length : 0);
 
         for (let i = 0; i < maxLines; i += 1) {
-            const rawLine = String(lines[i] || '');
+            const rawLine = expandFusedMegaPrefix(String(lines[i] || ''));
 
             if (!rawLine) {
                 continue;
@@ -4173,6 +4193,13 @@
             'point',
             'sat'
         ].indexOf(String(lowerWord || '')) >= 0;
+    }
+
+    function expandFusedMegaPrefix(value) {
+        return String(value || '')
+            .replace(/\bM(?=[A-Z][a-z]{2,})/g, 'M ')
+            .replace(/\s+/g, ' ')
+            .trim();
     }
 
     function fillAndSubmitSearch(elements, targetInputId, targetFormId) {
