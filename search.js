@@ -5192,16 +5192,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 2) printed_number search (works for most non-promo cards, and fractions).
-            let matchedPn = uniqueCandidates[0] || pn;
+            // Keep trying candidates until we find an exact normalized number match,
+            // so inputs like "94/165" can still resolve cards stored as "094/165".
+            let matchedPn = pn;
             for (const attempt of uniqueCandidates) {
-                matchedPn = attempt;
-                const q = buildFieldQuery('printed_number', matchedPn);
+                const q = buildFieldQuery('printed_number', attempt);
                 const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
                 const found = Array.isArray(data?.data) ? data.data : [];
                 if (found.length) {
                     mergeUniqueById(cards, found);
-                    break;
+                    if (hasExactNumberMatch(found, pn) || hasExactNumberMatch(found, attempt)) {
+                        matchedPn = attempt;
+                        break;
+                    }
                 }
             }
 
@@ -5220,6 +5224,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
                 mergeUniqueById(cards, Array.isArray(idData?.data) ? idData.data : []);
+            }
+
+            // Rank exact normalized printed-number matches first so the most relevant
+            // card(s) are visible even when broader candidate queries also return data.
+            const wantedPrinted = normalizePrintedNumberForCompare(pn);
+            if (wantedPrinted) {
+                cards.sort((a, b) => {
+                    const aRaw = a?.printedNumber ?? a?.printed_number ?? a?.number;
+                    const bRaw = b?.printedNumber ?? b?.printed_number ?? b?.number;
+                    const aExact = normalizePrintedNumberForCompare(aRaw) === wantedPrinted ? 1 : 0;
+                    const bExact = normalizePrintedNumberForCompare(bRaw) === wantedPrinted ? 1 : 0;
+                    if (aExact !== bExact) return bExact - aExact;
+                    return String(a?.id || '').localeCompare(String(b?.id || ''));
+                });
             }
 
             // Respect UI limit.
