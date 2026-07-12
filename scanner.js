@@ -20,16 +20,21 @@
 
     const CARD_SCANNER_VERSION = 'scanner-mvp-2026-06-29-2';
     const PV_SCANNER_QUERY_MODE = 'number-first';
-    // Keep vision disabled by default to avoid third-party AI usage/cost.
+    // CardSight-only testing mode: keep legacy OCR/vision paths off by default.
     const PV_SCANNER_ENABLE_VISION = false;
     const PV_SCANNER_ENABLE_OPENCV_NORMALIZE = false;
-    const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = true;
+    const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = false;
     const PV_SCANNER_ENABLE_CANDIDATES = true;
     const PV_SCANNER_ENABLE_CATALOG_CANDIDATES = true;
     const PV_SCANNER_ENABLE_NAME_CORRECTION = false;
     const PV_SCANNER_NAME_CORRECTION_AUTO_SCORE = 0.88;
     const PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE = 0.70;
     const PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS = 1200;
+    const PV_SCANNER_PROVIDER = 'cardsight';
+    const PV_SCANNER_ENABLE_CARDSIGHT = true;
+    const PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE = 0.55;
+    const PV_SCANNER_DEBUG_METRICS = true;
+    const PV_SCANNER_DEBUG_METRICS_TABLE = true;
     const PV_SCANNER_CANDIDATES_CONSUME_QUOTA = false;
     const PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE = 0.86;
     const PV_SCANNER_VISION_ENDPOINT = '';
@@ -44,6 +49,11 @@
     const SCANNER_RANK_WEIGHT_NUMBER = 0.25;
     const SCANNER_RANK_WEIGHT_IMAGE = 0.20;
     const SCANNER_RANK_WEIGHT_SET = 0.10;
+    const SCANNER_CARDSIGHT_TARGET_SHORT_EDGE = 900;
+    const SCANNER_CARDSIGHT_MIN_SHORT_EDGE_HINT = 700;
+    const SCANNER_CARDSIGHT_MAX_UPLOAD_BYTES = 1700000;
+    const SCANNER_CARDSIGHT_QUALITY_HIGH = 0.90;
+    const SCANNER_CARDSIGHT_QUALITY_FLOOR = 0.82;
     const scannerRequestCache = new Map();
 
     function readBooleanFlag(globalName, fallback) {
@@ -78,6 +88,14 @@
         return Math.max(lo, Math.min(hi, value));
     }
 
+    function readProviderModeFlag(globalName, fallback) {
+        const raw = String(window?.[globalName] || fallback || '').trim().toLowerCase();
+        if (raw === 'ocr' || raw === 'cardsight' || raw === 'compare') {
+            return raw;
+        }
+        return String(fallback || 'compare').trim().toLowerCase() || 'compare';
+    }
+
     function getScannerFeatureFlags() {
         return {
             enableVision: readBooleanFlag('PV_SCANNER_ENABLE_VISION', PV_SCANNER_ENABLE_VISION),
@@ -89,6 +107,11 @@
             nameCorrectionAutoScore: readNumberFlag('PV_SCANNER_NAME_CORRECTION_AUTO_SCORE', PV_SCANNER_NAME_CORRECTION_AUTO_SCORE, 0.70, 0.99),
             nameCorrectionSuggestScore: readNumberFlag('PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE', PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE, 0.40, 0.95),
             nameCorrectionTimeoutMs: readNumberFlag('PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS', PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS, 300, 2500),
+            provider: readProviderModeFlag('PV_SCANNER_PROVIDER', PV_SCANNER_PROVIDER),
+            enableCardSight: readBooleanFlag('PV_SCANNER_ENABLE_CARDSIGHT', PV_SCANNER_ENABLE_CARDSIGHT),
+            cardSightMinConfidence: readNumberFlag('PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE', PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE, 0.40, 0.99),
+            debugMetrics: readBooleanFlag('PV_SCANNER_DEBUG_METRICS', PV_SCANNER_DEBUG_METRICS),
+            debugMetricsTable: readBooleanFlag('PV_SCANNER_DEBUG_METRICS_TABLE', PV_SCANNER_DEBUG_METRICS_TABLE),
             candidatesConsumeQuota: readBooleanFlag('PV_SCANNER_CANDIDATES_CONSUME_QUOTA', PV_SCANNER_CANDIDATES_CONSUME_QUOTA),
             candidateHighConfidence: readNumberFlag('PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE', PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE, 0.55, 0.99),
             visionEndpoint: String(window?.PV_SCANNER_VISION_ENDPOINT || PV_SCANNER_VISION_ENDPOINT || '').trim(),
@@ -124,6 +147,51 @@
         elements.captureFabBtn.dataset.mode = 'capture';
     }
 
+    function setupScannerMetricsDebugListener(enabled, tableEnabled) {
+        if (!enabled) {
+            return;
+        }
+
+        if (window.__pvScannerMetricsDebugBound) {
+            return;
+        }
+
+        window.__pvScannerMetricsDebugBound = true;
+
+        document.addEventListener('pv:scanner:metrics', function (event) {
+            const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {};
+            if (tableEnabled && detail.stage === 'candidate-selection' && typeof console.table === 'function') {
+                console.table([{
+                    stage: String(detail.stage || ''),
+                    provider: String(detail.provider || ''),
+                    requestId: String(detail.providerRequestId || ''),
+                    confidence: String(detail.providerConfidence || ''),
+                    resolvedId: String(detail.resolvedInternalCardId || ''),
+                    top1Id: String(detail.resolvedInternalCardIdTop1 || ''),
+                    top1Correct: detail.top1Correct,
+                    top3Correct: detail.top3Correct,
+                    warningCodes: Array.isArray(detail.warningCodes) ? detail.warningCodes.join('|') : '',
+                    autoApplied: !!detail.autoApplied,
+                }]);
+                return;
+            }
+
+            const summary = {
+                stage: String(detail.stage || ''),
+                provider: String(detail.provider || ''),
+                requestId: String(detail.providerRequestId || ''),
+                confidence: String(detail.providerConfidence || ''),
+                top1Correct: detail.top1Correct,
+                top3Correct: detail.top3Correct,
+                warningCodes: Array.isArray(detail.warningCodes) ? detail.warningCodes.join('|') : '',
+                resolvedId: String(detail.resolvedInternalCardId || detail.resolvedInternalCardIdTop1 || ''),
+                autoApplied: !!detail.autoApplied,
+            };
+
+            console.log('[PokeValutor Scanner][metrics]', summary);
+        });
+    }
+
     function initCardScanner() {
         const root = document.getElementById('pv-card-scanner-root');
 
@@ -142,7 +210,10 @@
             capturedBlob: null,
             previewUrl: '',
             busy: false,
-            cameraSessionStarted: false
+            cameraSessionStarted: false,
+            cardsightDetections: [],
+            cardsightResolvedCandidates: [],
+            cardsightDiagnostics: null
         };
 
         bindScannerEvents({
@@ -156,6 +227,8 @@
         setScannerState(root, 'idle');
         syncSessionButtons(elements, state);
         syncCaptureFab(elements, 'idle');
+        const initFlags = getScannerFeatureFlags();
+        setupScannerMetricsDebugListener(!!initFlags?.debugMetrics, !!initFlags?.debugMetricsTable);
         setStatus(elements, 'Tap Start Camera to scan a card. For best results, avoid glare and use a dark background.');
 
         dispatchScannerEvent('pv:scanner:ready', {
@@ -342,7 +415,14 @@
                 };
 
                 const flags = getScannerFeatureFlags();
-                refreshCandidateSuggestions(elements, state.capturedBlob, extracted, flags);
+                refreshCandidateSuggestions(
+                    elements,
+                    state.capturedBlob,
+                    extracted,
+                    flags,
+                    state.cardsightResolvedCandidates,
+                    state.cardsightDiagnostics
+                );
             });
         }
 
@@ -423,6 +503,9 @@
             if (elements.stopBtn) elements.stopBtn.hidden = false;
             if (elements.retakeBtn) elements.retakeBtn.hidden = true;
             state.capturedBlob = null;
+            state.cardsightDetections = [];
+            state.cardsightResolvedCandidates = [];
+            state.cardsightDiagnostics = null;
             state.cameraSessionStarted = true;
             syncSessionButtons(elements, state);
             syncCaptureFab(elements, 'camera');
@@ -545,7 +628,11 @@
     }
 
     async function runOcr(elements, imageBlob, state) {
-        if (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function') {
+        const flags = getScannerFeatureFlags();
+        const providerMode = String(flags?.provider || 'cardsight').trim().toLowerCase();
+        const requiresOcrWorker = providerMode !== 'cardsight' || !!flags?.enableAdvancedOcrFallback;
+
+        if (requiresOcrWorker && (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function')) {
             setStatus(elements, 'OCR library did not load. You can still type the card name or number manually below.');
             return;
         }
@@ -553,26 +640,27 @@
         let worker = null;
 
         try {
-            worker = await window.Tesseract.createWorker('eng', 1, {
-                logger: function (message) {
-                    if (!message || message.progress == null) return;
+            if (requiresOcrWorker) {
+                worker = await window.Tesseract.createWorker('eng', 1, {
+                    logger: function (message) {
+                        if (!message || message.progress == null) return;
 
-                    const progress = Math.round(Number(message.progress || 0) * 100);
+                        const progress = Math.round(Number(message.progress || 0) * 100);
 
-                    if (message.status) {
-                        setStatus(elements, `Reading card text... ${progress}%`);
+                        if (message.status) {
+                            setStatus(elements, `Reading card text... ${progress}%`);
+                        }
                     }
-                }
-            });
-
-            if (typeof worker.setParameters === 'function') {
-                await worker.setParameters({
-                    tessedit_pageseg_mode: '6',
-                    preserve_interword_spaces: '1'
                 });
+
+                if (typeof worker.setParameters === 'function') {
+                    await worker.setParameters({
+                        tessedit_pageseg_mode: '6',
+                        preserve_interword_spaces: '1'
+                    });
+                }
             }
 
-            const flags = getScannerFeatureFlags();
             const pipelineResult = await executeDetectionPipeline({
                 worker,
                 imageBlob,
@@ -580,12 +668,28 @@
                 flags
             });
 
+            state.cardsightDetections = Array.isArray(pipelineResult?.cardsight?.detections)
+                ? pipelineResult.cardsight.detections
+                : [];
+            state.cardsightResolvedCandidates = Array.isArray(pipelineResult?.cardsight?.resolvedCandidates)
+                ? pipelineResult.cardsight.resolvedCandidates
+                : [];
+            state.cardsightDiagnostics = pipelineResult?.cardsight?.diagnostics || null;
+
             const extracted = pipelineResult.extracted;
             const combinedRawText = pipelineResult.rawText;
             const originalDetectedName = extracted.name || '';
             let nameCorrection = null;
             let catalogNumberAssist = null;
             let rejectedUnverifiedName = false;
+
+            if (!extracted.name && !extracted.number && state.cardsightResolvedCandidates.length) {
+                const topResolved = state.cardsightResolvedCandidates[0] || null;
+                if (topResolved) {
+                    extracted.name = getCandidateCardName(topResolved) || '';
+                    extracted.number = getBestCandidateSearchNumber(topResolved, extracted.number || '');
+                }
+            }
 
             try {
                 nameCorrection = await resolveScannerNameCorrection(
@@ -644,6 +748,14 @@
                 showNameSuggestion(elements, nameCorrection.name);
             }
 
+            if (pipelineResult?.compare) {
+                dispatchScannerEvent('pv:scanner:provider-compare', pipelineResult.compare);
+            }
+
+            if (state.cardsightDetections.length > 1) {
+                setStatus(elements, `Multiple cards detected in frame (${state.cardsightDetections.length}). Showing top matches for confirmation.`);
+            }
+
             dispatchScannerEvent('pv:scanner:detected', {
                 rawText: combinedRawText,
                 name: extracted.name,
@@ -651,6 +763,25 @@
                 number: extracted.number,
                 nameCorrection: nameCorrection,
                 catalogNumberAssist: catalogNumberAssist
+            });
+
+            dispatchScannerEvent('pv:scanner:metrics', {
+                stage: 'detection',
+                provider: 'cardsight',
+                providerRequestId: String(state.cardsightDiagnostics?.providerRequestId || ''),
+                providerConfidence: String(state.cardsightDiagnostics?.topDetection?.confidenceLabel || '').toLowerCase(),
+                providerConfidenceScore: Number(state.cardsightDiagnostics?.topDetection?.confidenceScore || 0),
+                providerProcessingMs: Number(state.cardsightDiagnostics?.providerProcessingMs || 0),
+                warningCodes: Array.isArray(state.cardsightDiagnostics?.warningCodes)
+                    ? state.cardsightDiagnostics.warningCodes
+                    : [],
+                detectedNumber: extracted.number || '',
+                resolvedInternalCardIdTop1: String((state.cardsightDiagnostics?.resolvedCandidateIdsTop3 || [])[0] || ''),
+                resolvedInternalCardIdsTop3: Array.isArray(state.cardsightDiagnostics?.resolvedCandidateIdsTop3)
+                    ? state.cardsightDiagnostics.resolvedCandidateIdsTop3
+                    : [],
+                manualCorrectionRequired: Boolean(nameCorrection?.suggestOnly || rejectedUnverifiedName),
+                imagesStored: false
             });
 
             if (extracted.name || extracted.number) {
@@ -699,6 +830,11 @@
                     ? `I rejected the weak OCR name “${originalDetectedName}” because no card match or number supported it. Retake the photo or type the name.`
                     : 'I could not confidently detect the card. Try editing the fields or retaking the photo.');
             }
+
+            const cardsightGuidance = getCardSightRetakeGuidance(pipelineResult?.cardsight?.warnings);
+            if (cardsightGuidance) {
+                appendStatusHint(elements, cardsightGuidance);
+            }
         } catch (error) {
             console.warn('[PokeValutor Scanner] OCR error', error);
             setStatus(elements, 'OCR could not read the image. Try retaking the photo or type the card name/number manually.');
@@ -716,17 +852,90 @@
     async function executeDetectionPipeline(context) {
         const { worker, imageBlob, elements, flags } = context;
         const normalizedImage = await normalizeImage(imageBlob, flags);
-        const visionResult = await extractWithVision(normalizedImage, flags);
-        const ocrResult = await extractWithOcrFallback(worker, normalizedImage || imageBlob, elements, flags);
-        const merged = mergeAndValidateDetections(visionResult, ocrResult);
+        const sourceImage = normalizedImage || imageBlob;
+        const cardsightSourceImage = imageBlob || sourceImage;
+        const providerMode = String(flags?.provider || 'compare').trim().toLowerCase();
+        const cardsightEnabled = !!flags?.enableCardSight;
+
+        let activeMode = providerMode;
+        if (activeMode !== 'ocr' && activeMode !== 'cardsight' && activeMode !== 'compare') {
+            activeMode = 'compare';
+        }
+        if (activeMode === 'cardsight' && !cardsightEnabled) {
+            activeMode = 'ocr';
+        }
+
+        let visionResult = null;
+        let ocrResult = { name: '', number: '', rawText: '' };
+        let cardsightResult = null;
+        const cardsightMinConfidence = Number(flags?.cardSightMinConfidence || PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE);
+
+        if (activeMode === 'ocr') {
+            visionResult = await extractWithVision(sourceImage, flags);
+            ocrResult = await extractWithOcrFallback(worker, sourceImage, elements, flags);
+        } else if (activeMode === 'cardsight') {
+            cardsightResult = await extractWithCardSight(cardsightSourceImage, flags);
+
+            const cardsightUsable = hasDetectedNameOrNumber(cardsightResult);
+            const cardsightStrong = cardsightUsable
+                && Number.isFinite(Number(cardsightResult?.confidence))
+                && Number(cardsightResult.confidence) >= cardsightMinConfidence;
+
+            visionResult = cardsightResult;
+
+            // CardSight-only test mode disables OCR fallback unless explicitly
+            // re-enabled via feature flags.
+            if (!cardsightStrong && flags?.enableAdvancedOcrFallback) {
+                ocrResult = await extractWithOcrFallback(worker, sourceImage, elements, flags);
+            }
+        } else {
+            cardsightResult = cardsightEnabled ? await extractWithCardSight(cardsightSourceImage, flags) : null;
+            visionResult = cardsightResult || await extractWithVision(sourceImage, flags);
+            ocrResult = await extractWithOcrFallback(worker, sourceImage, elements, flags);
+        }
+
+        const merged = mergeAndValidateDetections(visionResult, ocrResult, activeMode);
+
+        const compare = {
+            mode: activeMode,
+            cardsightEnabled: cardsightEnabled,
+            cardsight: cardsightResult ? {
+                confidence: Number(cardsightResult.confidence || 0),
+                hasNameOrNumber: hasDetectedNameOrNumber(cardsightResult),
+                name: String(cardsightResult.name || ''),
+                number: String(cardsightResult.number || ''),
+                warnings: Array.isArray(cardsightResult.warnings) ? cardsightResult.warnings : [],
+                diagnostics: cardsightResult?.diagnostics || null,
+                warningCodes: Array.isArray(cardsightResult?.diagnostics?.warningCodes)
+                    ? cardsightResult.diagnostics.warningCodes
+                    : []
+            } : null,
+            ocr: {
+                hasNameOrNumber: hasDetectedNameOrNumber(ocrResult),
+                name: String(ocrResult?.name || ''),
+                number: String(ocrResult?.number || '')
+            },
+            selected: {
+                name: String(merged.name || ''),
+                number: String(merged.number || '')
+            }
+        };
 
         return {
             extracted: {
                 name: merged.name || '',
                 number: merged.number || ''
             },
-            rawText: ocrResult.rawText || ''
+            rawText: ocrResult.rawText || '',
+            compare: compare,
+            cardsight: cardsightResult
         };
+    }
+
+    function hasDetectedNameOrNumber(result) {
+        const name = normalizeDetectedName(result?.name || '');
+        const number = normalizeExtractedCardNumber(result?.number || '');
+        return Boolean(name || number);
     }
 
     async function normalizeImage(imageBlob, flags) {
@@ -1092,8 +1301,210 @@
         }
     }
 
-    function mergeAndValidateDetections(visionResult, ocrResult) {
+    async function extractWithCardSight(imageBlob, flags) {
+        if (!imageBlob || !flags?.enableCardSight) {
+            return null;
+        }
+
+        const base = getScannerWorkerBase();
+        const endpoint = `${base}/scanner/cardsight/identify`;
+
+        try {
+            const compressedBlob = await compressImageForCardSight(imageBlob);
+            const imageDataUrl = await blobToDataUrl(compressedBlob);
+
+            if (!imageDataUrl) {
+                return null;
+            }
+
+            const payload = await fetchScannerPostJsonWithTimeout(
+                endpoint,
+                {
+                    imageDataUrl: imageDataUrl,
+                    maxDetections: SCANNER_CANDIDATE_LIMIT
+                },
+                Math.max(2500, Number(flags?.visionTimeoutMs || PV_SCANNER_VISION_TIMEOUT_MS))
+            );
+
+            if (!payload || payload.ok === false) {
+                return null;
+            }
+
+            const detections = Array.isArray(payload.detections) ? payload.detections : [];
+            const detection = detections[0] || null;
+            if (!detection) {
+                return null;
+            }
+
+            const name = normalizeDetectedName(detection.name || '');
+            const number = normalizeExtractedCardNumber(detection.displayNumber || detection.number || '');
+            const confidenceRaw = Number(detection.confidenceScore);
+            const confidence = Number.isFinite(confidenceRaw)
+                ? Math.max(0, Math.min(1, confidenceRaw))
+                : null;
+
+            return {
+                name: name,
+                number: number,
+                confidence: confidence,
+                providerCardId: String(detection.providerCardId || ''),
+                detections: detections,
+                warnings: Array.isArray(payload.warnings) ? payload.warnings : [],
+                resolvedCandidates: Array.isArray(payload.resolvedCandidates) ? payload.resolvedCandidates : [],
+                diagnostics: payload?.diagnostics && typeof payload.diagnostics === 'object'
+                    ? payload.diagnostics
+                    : null
+            };
+        } catch (error) {
+            return {
+                name: '',
+                number: '',
+                confidence: null,
+                providerCardId: '',
+                detections: [],
+                warnings: [{
+                    code: 'PROVIDER_UNAVAILABLE',
+                    type: 'warning',
+                    message: String(error?.message || 'CardSight request failed.').trim()
+                }],
+                resolvedCandidates: [],
+                diagnostics: {
+                    provider: 'cardsight',
+                    warningCodes: ['PROVIDER_UNAVAILABLE'],
+                    providerRequestId: '',
+                    providerProcessingMs: 0,
+                    topDetection: null
+                }
+            };
+        }
+    }
+
+    async function rasterizeBitmapToJpegBlob(bitmap, width, height, quality) {
+        const targetWidth = Math.max(1, Math.round(Number(width) || 1));
+        const targetHeight = Math.max(1, Math.round(Number(height) || 1));
+        const jpegQuality = Math.max(0.5, Math.min(0.95, Number(quality || SCANNER_CARDSIGHT_QUALITY_HIGH)));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return null;
+        }
+
+        ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+
+        return await new Promise(function (resolve) {
+            canvas.toBlob(function (blob) {
+                resolve(blob || null);
+            }, 'image/jpeg', jpegQuality);
+        });
+    }
+
+    async function compressImageForCardSight(imageBlob) {
+        if (!imageBlob || !window.createImageBitmap) {
+            return imageBlob;
+        }
+
+        let bitmap = null;
+
+        try {
+            bitmap = await window.createImageBitmap(imageBlob);
+
+            const sourceWidth = Math.max(1, Number(bitmap.width) || 1);
+            const sourceHeight = Math.max(1, Number(bitmap.height) || 1);
+            const shortEdge = Math.min(sourceWidth, sourceHeight);
+
+            // Keep CardSight input high resolution when source supports it,
+            // but do not upscale smaller captures.
+            const targetShortEdge = shortEdge >= SCANNER_CARDSIGHT_MIN_SHORT_EDGE_HINT
+                ? Math.min(shortEdge, SCANNER_CARDSIGHT_TARGET_SHORT_EDGE)
+                : shortEdge;
+            const scale = targetShortEdge / shortEdge;
+            const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+            const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+
+            let quality = SCANNER_CARDSIGHT_QUALITY_HIGH;
+            let output = await rasterizeBitmapToJpegBlob(bitmap, targetWidth, targetHeight, quality);
+            if (!output) {
+                return imageBlob;
+            }
+
+            while (output.size > SCANNER_CARDSIGHT_MAX_UPLOAD_BYTES && quality > SCANNER_CARDSIGHT_QUALITY_FLOOR) {
+                quality = Math.max(SCANNER_CARDSIGHT_QUALITY_FLOOR, quality - 0.04);
+                const next = await rasterizeBitmapToJpegBlob(bitmap, targetWidth, targetHeight, quality);
+                if (!next) {
+                    break;
+                }
+                output = next;
+            }
+
+            return output;
+        } catch {
+            return imageBlob;
+        } finally {
+            if (bitmap && typeof bitmap.close === 'function') {
+                try {
+                    bitmap.close();
+                } catch {
+                    // Ignore cleanup errors.
+                }
+            }
+        }
+    }
+
+    function getCardSightRetakeGuidance(warnings) {
+        const list = Array.isArray(warnings) ? warnings : [];
+        if (!list.length) {
+            return '';
+        }
+
+        const providerUnavailable = list.find(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'PROVIDER_UNAVAILABLE';
+        });
+
+        if (providerUnavailable) {
+            const detail = String(providerUnavailable?.message || '').trim();
+            return `CardSight service is unavailable right now. ${detail || 'Please try again shortly.'}`.trim();
+        }
+
+        const lowResolution = list.some(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'LOW_IMAGE_RESOLUTION';
+        });
+
+        if (lowResolution) {
+            return 'Tip: Move closer and keep the full card inside the frame for a clearer CardSight scan.';
+        }
+
+        return 'Tip: If this scan looks wrong, retake with better lighting and keep the full card in frame.';
+    }
+
+    function appendStatusHint(elements, hint) {
+        const nextHint = String(hint || '').trim();
+        if (!nextHint) {
+            return;
+        }
+
+        const current = String(elements?.status?.textContent || '').trim();
+        if (!current) {
+            setStatus(elements, nextHint);
+            return;
+        }
+
+        if (current.toLowerCase().indexOf(nextHint.toLowerCase()) >= 0) {
+            return;
+        }
+
+        setStatus(elements, `${current} ${nextHint}`);
+    }
+
+    function mergeAndValidateDetections(visionResult, ocrResult, providerMode) {
         const safeOcr = ocrResult || { name: '', number: '' };
+        const mode = String(providerMode || '').trim().toLowerCase();
+        const isCardSightMode = mode === 'cardsight';
 
         if (!visionResult) {
             return {
@@ -1102,7 +1513,7 @@
             };
         }
 
-        if (visionResult.confidence != null && visionResult.confidence < 0.45) {
+        if (visionResult.confidence != null && visionResult.confidence < 0.35) {
             return {
                 name: safeOcr.name || '',
                 number: safeOcr.number || ''
@@ -1112,12 +1523,14 @@
         let mergedName = visionResult.name || safeOcr.name || '';
         let mergedNumber = visionResult.number || safeOcr.number || '';
 
-        if (mergedName && scoreDetectedName(mergedName) < 1) {
-            mergedName = safeOcr.name || '';
-        }
+        if (!isCardSightMode) {
+            if (mergedName && scoreDetectedName(mergedName) < 1) {
+                mergedName = safeOcr.name || '';
+            }
 
-        if (!isPlausibleDetectedNumber(mergedNumber)) {
-            mergedNumber = safeOcr.number || '';
+            if (!isPlausibleDetectedNumber(mergedNumber)) {
+                mergedNumber = safeOcr.number || '';
+            }
         }
 
         return {
@@ -1189,7 +1602,33 @@
         }
     }
 
-    async function refreshCandidateSuggestions(elements, capturedBlob, extracted, flags) {
+    function mergeUniqueCandidateCards(primary, secondary, limit) {
+        const out = [];
+        const seen = new Set();
+
+        function addMany(list) {
+            for (const card of Array.isArray(list) ? list : []) {
+                const id = String(card?.id || '').trim();
+                if (!id || seen.has(id)) {
+                    continue;
+                }
+                seen.add(id);
+                out.push(card);
+                if (out.length >= Math.max(1, Number(limit || SCANNER_CANDIDATE_FETCH_LIMIT))) {
+                    return;
+                }
+            }
+        }
+
+        addMany(primary);
+        if (out.length < Math.max(1, Number(limit || SCANNER_CANDIDATE_FETCH_LIMIT))) {
+            addMany(secondary);
+        }
+
+        return out;
+    }
+
+    async function refreshCandidateSuggestions(elements, capturedBlob, extracted, flags, preloadedCandidates, diagnosticsContext) {
         if (!elements || !elements.candidateWrap || !elements.candidateList) {
             return;
         }
@@ -1202,8 +1641,9 @@
 
         const detectedName = normalizeDetectedName(extracted?.name || '');
         const detectedNumber = normalizeExtractedCardNumber(extracted?.number || '');
+        const preloaded = Array.isArray(preloadedCandidates) ? preloadedCandidates : [];
 
-        if (!detectedName && !detectedNumber) {
+        if (!detectedName && !detectedNumber && !preloaded.length) {
             return;
         }
 
@@ -1212,11 +1652,14 @@
 
             clearScannerRequestQueryCache();
 
-            const candidates = await fetchScannerCandidates({
-                name: detectedName,
-                number: detectedNumber,
-                setId: getSelectedSetId()
-            }, flags);
+            const fetched = (detectedName || detectedNumber)
+                ? await fetchScannerCandidates({
+                    name: detectedName,
+                    number: detectedNumber,
+                    setId: getSelectedSetId()
+                }, flags)
+                : [];
+            const candidates = mergeUniqueCandidateCards(preloaded, fetched, SCANNER_CANDIDATE_FETCH_LIMIT);
 
             if (!candidates.length) {
                 setStatus(elements, 'No close candidate matches found. You can still edit fields and search.');
@@ -1237,15 +1680,25 @@
             const threshold = Number(flags?.candidateHighConfidence || PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE);
             const highConfidence = !!top && Number(top.score || 0) >= threshold;
             const recommendedId = top ? String(top.card?.id || '') : '';
+            const rankedTopIds = ranked
+                .map(function (entry) {
+                    return String(entry?.card?.id || '').trim();
+                })
+                .filter(Boolean);
 
             renderCandidateSuggestions(elements, ranked.slice(0, SCANNER_CANDIDATE_LIMIT), {
                 recommendedId: recommendedId,
                 highConfidence: highConfidence,
-                fallbackNumber: detectedNumber
+                fallbackNumber: detectedNumber,
+                diagnostics: diagnosticsContext || null,
+                rankedTopIds: rankedTopIds
             });
 
             if (highConfidence && top?.card) {
-                applyCandidateSelection(elements, top.card, top.score, true, detectedNumber);
+                applyCandidateSelection(elements, top.card, top.score, true, detectedNumber, '', {
+                    diagnostics: diagnosticsContext || null,
+                    rankedTopIds: rankedTopIds
+                });
             } else {
                 setStatus(elements, 'Low confidence match. Pick one of the possible matches before searching.');
             }
@@ -1442,7 +1895,10 @@
             button.appendChild(content);
 
             button.addEventListener('click', function () {
-                applyCandidateSelection(elements, candidate, entry.score, false, fallbackNumber, displayNumber);
+                applyCandidateSelection(elements, candidate, entry.score, false, fallbackNumber, displayNumber, {
+                    diagnostics: options?.diagnostics || null,
+                    rankedTopIds: Array.isArray(options?.rankedTopIds) ? options.rankedTopIds : []
+                });
             });
 
             elements.candidateList.appendChild(button);
@@ -1455,7 +1911,7 @@
         }
     }
 
-    function applyCandidateSelection(elements, candidate, score, autoApplied, fallbackNumber, preferredDisplayNumber) {
+    function applyCandidateSelection(elements, candidate, score, autoApplied, fallbackNumber, preferredDisplayNumber, metricsContext) {
         const name = getCandidateCardName(candidate);
         const existingNumber = elements?.detectedNumber ? String(elements.detectedNumber.value || '').trim() : '';
         const preferredFallbackNumber = existingNumber || String(fallbackNumber || '').trim();
@@ -1502,6 +1958,32 @@
             number: number,
             score: score,
             autoApplied: !!autoApplied
+        });
+
+        const rankedTopIds = Array.isArray(metricsContext?.rankedTopIds) ? metricsContext.rankedTopIds : [];
+        const diagnostics = metricsContext?.diagnostics || null;
+        const top1Id = String(rankedTopIds[0] || '').trim();
+        const top3Ids = rankedTopIds.slice(0, 3).map(function (id) {
+            return String(id || '').trim();
+        }).filter(Boolean);
+
+        dispatchScannerEvent('pv:scanner:metrics', {
+            stage: 'candidate-selection',
+            provider: 'cardsight',
+            providerRequestId: String(diagnostics?.providerRequestId || ''),
+            providerConfidence: String(diagnostics?.topDetection?.confidenceLabel || '').toLowerCase(),
+            providerConfidenceScore: Number(diagnostics?.topDetection?.confidenceScore || 0),
+            warningCodes: Array.isArray(diagnostics?.warningCodes) ? diagnostics.warningCodes : [],
+            detectedNumber: number || '',
+            resolvedInternalCardId: candidateId,
+            resolvedInternalCardIdTop1: top1Id,
+            resolvedInternalCardIdsTop3: top3Ids,
+            top1Correct: top1Id ? top1Id === candidateId : null,
+            top3Correct: top3Ids.length ? top3Ids.includes(candidateId) : null,
+            ocrTop1Correct: null,
+            manualCorrectionRequired: false,
+            autoApplied: !!autoApplied,
+            imagesStored: false
         });
     }
 
@@ -2168,6 +2650,72 @@
             if (Array.isArray(data?.data) && data.data.length > 0) {
                 scannerRequestCache.set(cacheKey, data);
             }
+            return data;
+        } finally {
+            window.clearTimeout(timer);
+        }
+    }
+
+    async function fetchScannerPostJsonWithTimeout(url, body, timeoutMs) {
+        const cacheKey = `${String(url || '').trim()}::${JSON.stringify(body || {})}`;
+        if (!String(url || '').trim()) return null;
+        if (scannerRequestCache.has(cacheKey)) return scannerRequestCache.get(cacheKey);
+
+        let headers = {
+            'content-type': 'application/json'
+        };
+
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+            if (token && token.split('.').length === 3) {
+                headers = { ...headers, Authorization: `Bearer ${token}` };
+            }
+        } catch {
+            // Ignore token errors.
+        }
+
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = window.setTimeout(function () {
+            if (!controller) return;
+            try {
+                controller.abort();
+            } catch {
+                // Ignore abort errors.
+            }
+        }, Math.max(300, Number(timeoutMs || 1200)));
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(body || {}),
+                ...(controller ? { signal: controller.signal } : {})
+            });
+
+            if (!response.ok) {
+                let detail = '';
+                try {
+                    const text = await response.text();
+                    if (text) {
+                        try {
+                            const parsed = JSON.parse(text);
+                            const errorMessage = String(parsed?.error || parsed?.debug || '').trim();
+                            detail = errorMessage || text;
+                        } catch {
+                            detail = text;
+                        }
+                    }
+                } catch {
+                    // Ignore body parse errors.
+                }
+
+                const detailSuffix = detail ? ` ${detail}` : '';
+                throw new Error(`Scanner request failed (${response.status}).${detailSuffix}`.trim());
+            }
+
+            const data = await response.json();
+            scannerRequestCache.set(cacheKey, data);
             return data;
         } finally {
             window.clearTimeout(timer);
@@ -3885,7 +4433,7 @@
     function normalizeDetectedName(name) {
         let value = String(name || '')
             .replace(/[’`]/g, "'")
-            .replace(/[^A-Za-z .'-&]/g, ' ')
+            .replace(/[^A-Za-z .'&\-]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
 
@@ -4459,6 +5007,9 @@
 
         state.cameraSessionStarted = false;
         state.capturedBlob = null;
+        state.cardsightDetections = [];
+        state.cardsightResolvedCandidates = [];
+        state.cardsightDiagnostics = null;
         revokePreviewUrl(state);
 
         if (elements.preview) {
