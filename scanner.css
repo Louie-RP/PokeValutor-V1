@@ -160,9 +160,14 @@
 .pv-cardScanner__preview {
   display: block;
   width: 100%;
-  max-height: 68vh;
+  max-height: 64vh;
   object-fit: contain;
   background: #050505;
+}
+
+.pv-cardScanner__searchReview {
+  width: 100%;
+  margin-top: 0.15rem;
 }
 
 .pv-cardScanner__frame {
@@ -442,6 +447,11 @@
     aspect-ratio: 5 / 8;
     height: auto;
     max-height: 78%;
+  }
+
+  .pv-cardScanner__video,
+  .pv-cardScanner__preview {
+    max-height: 58vh;
   }
 
   .pv-cardScanner__status {

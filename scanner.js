@@ -259,7 +259,7 @@
                         <button id="pv-cardScanner-capture" class="pv-button pv-button--secondary btn" type="button" hidden>Capture</button>
                         <button id="pv-cardScanner-retake" class="pv-button pv-button--secondary btn" type="button" hidden>Retake</button>
                         <button id="pv-cardScanner-find-candidates" class="pv-button pv-button--secondary btn" type="button" hidden>Find Possible Matches</button>
-                        <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button" hidden>Search Selected/Detected Card</button>
+                        <button id="pv-cardScanner-search" class="pv-button pv-button--primary btn" type="button" hidden>Search Selected Card</button>
                         <button id="pv-cardScanner-stop" class="pv-button pv-button--secondary btn" type="button" hidden>Stop Camera</button>
                     </div>
 
@@ -294,13 +294,16 @@
 
                         <p class="pv-cardScanner__reviewHelp">Review and edit before searching.</p>
 
-                        <details class="pv-form__field pv-cardScanner__ocrDetails pv-cardScanner__ocrField">
+                        <button id="pv-cardScanner-search-review" class="pv-button pv-button--primary btn pv-cardScanner__searchReview" type="button" hidden>Search This Card</button>
+
+                        <details class="pv-form__field pv-cardScanner__ocrDetails pv-cardScanner__ocrField" hidden>
                             <summary class="pv-cardScanner__ocrSummary">Show raw OCR text</summary>
                             <div class="pv-cardScanner__ocrToolbar">
                                 <button id="pv-cardScanner-copy-ocr" class="pv-button pv-button--secondary btn pv-cardScanner__ocrCopy" type="button">Copy Text</button>
                             </div>
                             <textarea id="pv-cardScanner-ocr" class="form-control" rows="4" placeholder="OCR text will appear here. You can review it if the scan is not accurate."></textarea>
                         </details>
+
                     </div>
 
                     <div id="pv-cardScanner-name-suggestion" class="pv-cardScanner__nameSuggestion" hidden>
@@ -309,7 +312,7 @@
                     </div>
 
                     <section id="pv-cardScanner-candidates" class="pv-cardScanner__candidates" hidden aria-live="polite">
-                        <button id="pv-cardScanner-search-near-candidates" class="pv-button pv-button--primary btn pv-cardScanner__searchNearCandidates" type="button" hidden>Search Selected/Detected Card</button>
+                        <button id="pv-cardScanner-search-near-candidates" class="pv-button pv-button--primary btn pv-cardScanner__searchNearCandidates" type="button" hidden>Search Selected Card</button>
                         <h3 class="pv-cardScanner__candidatesTitle">Possible Matches</h3>
                         <p class="pv-cardScanner__candidatesText">Pick a candidate to replace detected fields before searching.</p>
                         <div id="pv-cardScanner-candidate-list" class="pv-cardScanner__candidateList"></div>
@@ -331,8 +334,11 @@
             retakeBtn: root.querySelector('#pv-cardScanner-retake'),
             stopBtn: root.querySelector('#pv-cardScanner-stop'),
             searchBtn: root.querySelector('#pv-cardScanner-search'),
+            searchReviewBtn: root.querySelector('#pv-cardScanner-search-review'),
             searchNearCandidatesBtn: root.querySelector('#pv-cardScanner-search-near-candidates'),
             findCandidatesBtn: root.querySelector('#pv-cardScanner-find-candidates'),
+            cameraWrap: root.querySelector('.pv-cardScanner__cameraWrap'),
+            cameraFrame: root.querySelector('.pv-cardScanner__frame'),
             empty: root.querySelector('#pv-cardScanner-empty'),
             video: root.querySelector('#pv-cardScanner-video'),
             canvas: root.querySelector('#pv-cardScanner-canvas'),
@@ -392,6 +398,12 @@
 
         if (elements.searchBtn) {
             elements.searchBtn.addEventListener('click', function () {
+                fillAndSubmitSearch(elements, targetInputId, targetFormId);
+            });
+        }
+
+        if (elements.searchReviewBtn) {
+            elements.searchReviewBtn.addEventListener('click', function () {
                 fillAndSubmitSearch(elements, targetInputId, targetFormId);
             });
         }
@@ -512,6 +524,7 @@
 
             setScannerState(root, 'camera');
             setStatus(elements, 'Place the card inside the frame, reduce glare, then tap Capture.');
+            scrollScannerCameraIntoView(elements);
         } catch (error) {
             console.warn('[PokeValutor Scanner] camera error', error);
             setStatus(elements, 'Unable to open the camera. Check browser camera permissions and make sure the site is using HTTPS.');
@@ -791,11 +804,14 @@
                 if (elements.searchBtn) {
                     elements.searchBtn.hidden = false;
                 }
+                if (elements.searchReviewBtn) {
+                    elements.searchReviewBtn.hidden = false;
+                }
                 if (elements.searchNearCandidatesBtn) {
                     elements.searchNearCandidatesBtn.hidden = false;
                 }
 
-                setStatus(elements, 'Review detected text. Tap Find Possible Matches, then Search Detected Card.');
+                setStatus(elements, 'Review detected text, then tap Search This Card or Find Possible Matches.');
 
                 if (
                     nameCorrection?.autoApply
@@ -821,6 +837,9 @@
                 }
                 if (elements.searchBtn) {
                     elements.searchBtn.hidden = true;
+                }
+                if (elements.searchReviewBtn) {
+                    elements.searchReviewBtn.hidden = true;
                 }
                 if (elements.searchNearCandidatesBtn) {
                     elements.searchNearCandidatesBtn.hidden = true;
@@ -1662,6 +1681,7 @@
             const candidates = mergeUniqueCandidateCards(preloaded, fetched, SCANNER_CANDIDATE_FETCH_LIMIT);
 
             if (!candidates.length) {
+                syncMobilePrimarySearchAction(elements);
                 setStatus(elements, 'No close candidate matches found. You can still edit fields and search.');
                 return;
             }
@@ -1673,6 +1693,7 @@
             });
 
             if (!ranked.length) {
+                syncMobilePrimarySearchAction(elements);
                 return;
             }
 
@@ -1694,6 +1715,9 @@
                 rankedTopIds: rankedTopIds
             });
 
+            // On mobile, avoid duplicate primary actions once candidate results are shown.
+            syncMobilePrimarySearchAction(elements);
+
             if (highConfidence && top?.card) {
                 applyCandidateSelection(elements, top.card, top.score, true, detectedNumber, '', {
                     diagnostics: diagnosticsContext || null,
@@ -1704,6 +1728,7 @@
             }
         } catch (error) {
             console.warn('[PokeValutor Scanner] candidate lookup error', error);
+            syncMobilePrimarySearchAction(elements);
             setStatus(elements, 'Candidate suggestions are unavailable right now. You can still search manually.');
         }
     }
@@ -1728,6 +1753,19 @@
         if (elements?.candidateWrap) {
             elements.candidateWrap.hidden = true;
         }
+
+        syncMobilePrimarySearchAction(elements);
+    }
+
+    function syncMobilePrimarySearchAction(elements) {
+        if (!isMobileScannerViewport() || !elements?.searchReviewBtn) {
+            return;
+        }
+
+        const candidatesVisible = !!(elements.candidateWrap && !elements.candidateWrap.hidden);
+        const selectedSearchVisible = !!(elements.searchNearCandidatesBtn && !elements.searchNearCandidatesBtn.hidden);
+
+        elements.searchReviewBtn.hidden = candidatesVisible && selectedSearchVisible;
     }
 
     function showSelectedCandidate(elements, candidate, number) {
@@ -1948,9 +1986,14 @@
         if (elements.searchBtn) {
             elements.searchBtn.hidden = false;
         }
+        if (elements.searchReviewBtn) {
+            elements.searchReviewBtn.hidden = false;
+        }
         if (elements.searchNearCandidatesBtn) {
             elements.searchNearCandidatesBtn.hidden = false;
         }
+
+        syncMobilePrimarySearchAction(elements);
 
         dispatchScannerEvent('pv:scanner:candidate-selected', {
             id: candidateId,
@@ -5024,6 +5067,7 @@
         if (elements.stopBtn) elements.stopBtn.hidden = true;
         if (elements.findCandidatesBtn) elements.findCandidatesBtn.hidden = true;
         if (elements.searchBtn) elements.searchBtn.hidden = true;
+        if (elements.searchReviewBtn) elements.searchReviewBtn.hidden = true;
         if (elements.searchNearCandidatesBtn) elements.searchNearCandidatesBtn.hidden = true;
 
         syncSessionButtons(elements, state);
@@ -5045,6 +5089,25 @@
         if (elements.startBtn) {
             elements.startBtn.hidden = sessionStarted;
         }
+    }
+
+    function scrollScannerCameraIntoView(elements) {
+        if (!isMobileScannerViewport()) {
+            return;
+        }
+
+        const focusTarget = elements.cameraFrame || elements.cameraWrap;
+        if (!focusTarget || typeof focusTarget.scrollIntoView !== 'function') {
+            return;
+        }
+
+        // Delay slightly so layout settles after video starts on mobile Safari/Chrome.
+        setTimeout(function () {
+            focusTarget.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }, 120);
     }
 
     function revokePreviewUrl(state) {
@@ -5102,6 +5165,7 @@
             elements.retakeBtn,
             elements.stopBtn,
             elements.searchBtn,
+            elements.searchReviewBtn,
             elements.searchNearCandidatesBtn,
             elements.findCandidatesBtn
         ];
