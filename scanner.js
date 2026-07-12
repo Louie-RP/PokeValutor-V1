@@ -398,6 +398,7 @@
 
         if (elements.searchBtn) {
             elements.searchBtn.addEventListener('click', function () {
+                clearCandidateSuggestions(elements);
                 fillAndSubmitSearch(elements, targetInputId, targetFormId);
             });
         }
@@ -410,6 +411,7 @@
 
         if (elements.searchNearCandidatesBtn) {
             elements.searchNearCandidatesBtn.addEventListener('click', function () {
+                clearCandidateSuggestions(elements);
                 fillAndSubmitSearch(elements, targetInputId, targetFormId);
             });
         }
