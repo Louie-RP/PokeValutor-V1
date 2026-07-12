@@ -3,6 +3,7 @@
     const CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -1570,6 +1571,14 @@
             return cached;
         }
 
+        // Prefer prices already stored on the collection entry before making network calls.
+        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const localBest = getBestVariantMarket(localVariants, selectedVariant, conditionCode);
+        if (localBest && Number.isFinite(localBest.market)) {
+            setCachedValue(cacheKey, localBest.market, localBest.variantUsed);
+            return localBest;
+        }
+
         if (!allowNetwork) return null;
 
         const fetched = await fetchCardWithPrices(id);
@@ -1593,6 +1602,14 @@
         const cached = getCachedValue(cacheKey);
         if (cached && Number.isFinite(cached.market)) {
             return { market: cached.market };
+        }
+
+        // Prefer prices already stored on the collection entry before making network calls.
+        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const localMarket = getBestSealedMarketFromVariants(localVariants);
+        if (Number.isFinite(localMarket)) {
+            setCachedValue(cacheKey, localMarket, '');
+            return { market: localMarket };
         }
 
         if (!allowNetwork) return null;
@@ -1972,11 +1989,34 @@
         return Number.isFinite(n) && n > 0 ? n : 0;
     }
 
+    function readDexOwnerUid() {
+        try {
+            return String(localStorage.getItem(DEX_OWNER_UID_KEY) || '').trim();
+        } catch {
+            return '';
+        }
+    }
+
+    function writeDexOwnerUid(uid) {
+        const nextUid = String(uid || '').trim();
+        try {
+            if (nextUid) {
+                localStorage.setItem(DEX_OWNER_UID_KEY, nextUid);
+            } else {
+                localStorage.removeItem(DEX_OWNER_UID_KEY);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     function queueDexCloudStateSync(immediate) {
         if (dexCloudSyncHydrating) return;
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState) return;
+
+        writeDexOwnerUid(user.uid);
 
         const run = () => {
             const payload = {
@@ -2122,27 +2162,40 @@
     function syncDexStateFromCloudOnSignIn() {
         if (!window?.PV_AUTH?.loadDexState) return;
 
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        const currentUid = String(user?.uid || '').trim();
+        if (!currentUid) return;
+
         const localCollection = readCollection();
         const localMasterSets = readMasterSets();
+        const localOwnerUid = readDexOwnerUid();
+        const allowLocalMerge = localOwnerUid === currentUid;
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
-        Promise.resolve(window.PV_AUTH.loadDexState())
+        Promise.resolve(authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
 
-                const mergedCollection = mergeCollectionState(localCollection, cloudCollection);
-                const mergedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, mergedCollection);
+                let resolvedCollection = cloudCollection;
+                let resolvedMasterSets = cloudMasterSets;
 
-                writeCollection(mergedCollection, { skipCloudSync: true });
-                writeMasterSets(mergedMasterSets, { skipCloudSync: true });
-                mergedPayload = {
-                    collection: mergedCollection,
-                    masterSets: mergedMasterSets,
-                };
+                if (allowLocalMerge) {
+                    resolvedCollection = mergeCollectionState(localCollection, cloudCollection);
+                    resolvedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                    mergedPayload = {
+                        collection: resolvedCollection,
+                        masterSets: resolvedMasterSets,
+                    };
+                }
+
+                writeCollection(resolvedCollection, { skipCloudSync: true });
+                writeMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeDexOwnerUid(currentUid);
                 renderActivePage();
             })
             .catch(() => {
@@ -2151,8 +2204,8 @@
             .finally(() => {
                 dexCloudSyncHydrating = false;
 
-                if (mergedPayload && window?.PV_AUTH?.saveDexState) {
-                    Promise.resolve(window.PV_AUTH.saveDexState(mergedPayload)).catch(() => {
+                if (mergedPayload && authApi?.saveDexState) {
+                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
                         // ignore
                     });
                 }

@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_COLLECTIONS_META_KEY = `${CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -1273,6 +1274,27 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isFinite(n) && n > 0 ? n : 0;
     }
 
+    function readDexOwnerUid() {
+        try {
+            return String(localStorage.getItem(DEX_OWNER_UID_KEY) || '').trim();
+        } catch {
+            return '';
+        }
+    }
+
+    function writeDexOwnerUid(uid) {
+        const nextUid = String(uid || '').trim();
+        try {
+            if (nextUid) {
+                localStorage.setItem(DEX_OWNER_UID_KEY, nextUid);
+            } else {
+                localStorage.removeItem(DEX_OWNER_UID_KEY);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     function normalizeDexMasterSetEntry(entry, fallbackExpansionId) {
         if (!entry || typeof entry !== 'object') return null;
 
@@ -1316,6 +1338,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState) return;
+
+        writeDexOwnerUid(user.uid);
 
         const run = () => {
             const payload = {
@@ -1455,30 +1479,43 @@ document.addEventListener('DOMContentLoaded', function () {
     function syncDexStateFromCloudOnSignIn() {
         if (!enableDexTrackingControls || !window?.PV_AUTH?.loadDexState) return;
 
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        const currentUid = String(user?.uid || '').trim();
+        if (!currentUid) return;
+
         const localCollection = loadDexCollection();
         const localMasterSets = loadDexMasterSets();
+        const localOwnerUid = readDexOwnerUid();
+        const allowLocalMerge = localOwnerUid === currentUid;
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
-        Promise.resolve(window.PV_AUTH.loadDexState())
+        Promise.resolve(authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
 
-                const mergedCollection = mergeDexCollectionState(localCollection, cloudCollection);
-                const mergedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, mergedCollection);
+                let resolvedCollection = cloudCollection;
+                let resolvedMasterSets = cloudMasterSets;
 
-                saveDexCollection(mergedCollection, { skipCloudSync: true });
-                saveDexMasterSets(mergedMasterSets, { skipCloudSync: true });
-                mergedPayload = {
-                    collection: mergedCollection,
-                    masterSets: mergedMasterSets,
-                };
+                if (allowLocalMerge) {
+                    resolvedCollection = mergeDexCollectionState(localCollection, cloudCollection);
+                    resolvedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                    mergedPayload = {
+                        collection: resolvedCollection,
+                        masterSets: resolvedMasterSets,
+                    };
+                }
+
+                saveDexCollection(resolvedCollection, { skipCloudSync: true });
+                saveDexMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeDexOwnerUid(currentUid);
 
                 if (isDexPage) {
-                    updateDexCollectionStats(mergedCollection);
+                    updateDexCollectionStats(resolvedCollection);
                 }
 
                 const restoredState = loadLastResults();
@@ -1490,8 +1527,8 @@ document.addEventListener('DOMContentLoaded', function () {
             .finally(() => {
                 dexCloudSyncHydrating = false;
 
-                if (mergedPayload && window?.PV_AUTH?.saveDexState) {
-                    Promise.resolve(window.PV_AUTH.saveDexState(mergedPayload)).catch(() => {
+                if (mergedPayload && authApi?.saveDexState) {
+                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
                         // ignore
                     });
                 }

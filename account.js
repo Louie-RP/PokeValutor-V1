@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${DEX_CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${DEX_CACHE_PREFIX}masterSets:v1`;
+    const DEX_OWNER_UID_KEY = `${DEX_CACHE_PREFIX}dexOwnerUid:v1`;
     const DEX_COLLECTIONS_META_KEY = `${DEX_CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${DEX_CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -1082,11 +1083,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function clearLocalDexCollectionState() {
         writeDexCollection([]);
+        try { localStorage.removeItem(DEX_OWNER_UID_KEY); } catch { }
         window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
     }
 
     function clearLocalDexMasterSetsState() {
         writeDexMasterSets({});
+        try { localStorage.removeItem(DEX_OWNER_UID_KEY); } catch { }
         window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
     }
 
