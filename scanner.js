@@ -282,12 +282,12 @@
                     <p id="pv-cardScanner-status" class="pv-cardScanner__status" role="status" aria-live="polite"></p>
 
                     <div class="pv-cardScanner__review">
-                        <div class="pv-form__field">
+                        <div class="pv-form__field pv-cardScanner__field pv-cardScanner__field--name">
                             <label for="pv-cardScanner-name" class="form-label">Card Name</label>
                             <input id="pv-cardScanner-name" class="form-control" type="text" placeholder="e.g., Charizard" autocomplete="off" />
                         </div>
 
-                        <div class="pv-form__field">
+                        <div class="pv-form__field pv-cardScanner__field pv-cardScanner__field--number">
                             <label for="pv-cardScanner-number" class="form-label">Card Number</label>
                             <input id="pv-cardScanner-number" class="form-control" type="text" placeholder="e.g., 4/102 or SWSH101" autocomplete="off" />
                         </div>
@@ -398,21 +398,19 @@
 
         if (elements.searchBtn) {
             elements.searchBtn.addEventListener('click', function () {
-                clearCandidateSuggestions(elements);
-                fillAndSubmitSearch(elements, targetInputId, targetFormId);
+                submitAndResetScannerForNextCard(root, elements, state, targetInputId, targetFormId, true);
             });
         }
 
         if (elements.searchReviewBtn) {
             elements.searchReviewBtn.addEventListener('click', function () {
-                fillAndSubmitSearch(elements, targetInputId, targetFormId);
+                submitAndResetScannerForNextCard(root, elements, state, targetInputId, targetFormId, false);
             });
         }
 
         if (elements.searchNearCandidatesBtn) {
             elements.searchNearCandidatesBtn.addEventListener('click', function () {
-                clearCandidateSuggestions(elements);
-                fillAndSubmitSearch(elements, targetInputId, targetFormId);
+                submitAndResetScannerForNextCard(root, elements, state, targetInputId, targetFormId, true);
             });
         }
 
@@ -475,7 +473,7 @@
         });
     }
 
-    async function startCamera(root, elements, state) {
+    async function startCamera(root, elements, state, options) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             setStatus(elements, 'Camera scanning is not supported in this browser. Try Safari, Chrome, or Edge on your phone.');
             return;
@@ -526,7 +524,9 @@
 
             setScannerState(root, 'camera');
             setStatus(elements, 'Place the card inside the frame, reduce glare, then tap Capture.');
-            scrollScannerCameraIntoView(elements);
+            if (!options?.suppressAutoScroll) {
+                scrollScannerCameraIntoView(elements);
+            }
         } catch (error) {
             console.warn('[PokeValutor Scanner] camera error', error);
             setStatus(elements, 'Unable to open the camera. Check browser camera permissions and make sure the site is using HTTPS.');
@@ -4964,7 +4964,7 @@
 
         if (!query) {
             setStatus(elements, 'Enter or confirm a card name/card number first.');
-            return;
+            return false;
         }
 
         const searchInput = document.getElementById(targetInputId);
@@ -4972,7 +4972,7 @@
 
         if (!searchInput || !searchForm) {
             setStatus(elements, 'Search form was not found. Please refresh and try again.');
-            return;
+            return false;
         }
 
         searchInput.value = query;
@@ -4995,13 +4995,70 @@
             }));
         }
 
-        const results = document.getElementById('pv-search-results');
+        scrollToResultsHeading();
 
-        if (results) {
-            results.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
+        return true;
+    }
+
+    function submitAndResetScannerForNextCard(root, elements, state, targetInputId, targetFormId, clearCandidatesFirst) {
+        if (clearCandidatesFirst) {
+            clearCandidateSuggestions(elements);
+        }
+
+        const submitted = fillAndSubmitSearch(elements, targetInputId, targetFormId);
+        if (!submitted) {
+            return;
+        }
+
+        resetDetectedFields(elements);
+        Promise.resolve(startCamera(root, elements, state, { suppressAutoScroll: true }))
+            .finally(function () {
+                // Camera re-layout can shift the viewport after initial scroll;
+                // re-anchor to the Results heading for a stable final position.
+                scrollToResultsHeading();
+                setTimeout(function () {
+                    scrollToResultsHeading({ exact: true });
+                }, 140);
             });
+    }
+
+    function scrollToResultsHeading(options) {
+        const resultsHeading = document.getElementById('pv-search-results-title');
+        const resultsSection = document.getElementById('pv-search-results');
+        const searchHeader = document.getElementById('pv-search-header');
+        const target = resultsHeading || resultsSection;
+
+        if (!target) {
+            return;
+        }
+
+        let headerOffset = 10;
+        if (searchHeader) {
+            const headerStyles = window.getComputedStyle(searchHeader);
+            const isFixedLike = headerStyles.position === 'fixed' || headerStyles.position === 'sticky';
+            if (isFixedLike) {
+                headerOffset += Math.max(0, Math.round(searchHeader.getBoundingClientRect().height));
+            }
+        }
+
+        const top = Math.max(0, Math.round(window.pageYOffset + target.getBoundingClientRect().top - headerOffset));
+        const behavior = options?.exact ? 'auto' : 'smooth';
+
+        window.scrollTo({
+            top: top,
+            behavior: behavior
+        });
+
+        // Ensure the "Results" title is visible even when browser scroll anchoring
+        // shifts slightly after cards render.
+        if (resultsHeading && options?.exact) {
+            const headingTop = resultsHeading.getBoundingClientRect().top;
+            if (headingTop < headerOffset) {
+                window.scrollBy({
+                    top: headingTop - headerOffset,
+                    behavior: 'auto'
+                });
+            }
         }
     }
 
