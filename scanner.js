@@ -54,6 +54,7 @@
     const SCANNER_CARDSIGHT_MAX_UPLOAD_BYTES = 1700000;
     const SCANNER_CARDSIGHT_QUALITY_HIGH = 0.90;
     const SCANNER_CARDSIGHT_QUALITY_FLOOR = 0.82;
+    const SCANNER_LOW_CONFIDENCE_DISPLAY_LIMIT = 3;
     const scannerRequestCache = new Map();
 
     function readBooleanFlag(globalName, fallback) {
@@ -435,7 +436,11 @@
                     extracted,
                     flags,
                     state.cardsightResolvedCandidates,
-                    state.cardsightDiagnostics
+                    state.cardsightDiagnostics,
+                    {
+                        displayLimit: SCANNER_CANDIDATE_LIMIT,
+                        autoOpen: false,
+                    }
                 );
             });
         }
@@ -883,6 +888,22 @@
             const cardsightQuotaGuidance = getCardSightQuotaGuidance(pipelineResult?.cardsight?.quota);
             if (cardsightQuotaGuidance) {
                 appendStatusHint(elements, cardsightQuotaGuidance);
+            }
+
+            const shouldAutoOpenCandidates = shouldAutoOpenCardSightCandidates(state, flags);
+            if (shouldAutoOpenCandidates && state.capturedBlob) {
+                await refreshCandidateSuggestions(
+                    elements,
+                    state.capturedBlob,
+                    extracted,
+                    flags,
+                    state.cardsightResolvedCandidates,
+                    state.cardsightDiagnostics,
+                    {
+                        displayLimit: SCANNER_LOW_CONFIDENCE_DISPLAY_LIMIT,
+                        autoOpen: true,
+                    }
+                );
             }
         } catch (error) {
             console.warn('[PokeValutor Scanner] OCR error', error);
@@ -1528,6 +1549,24 @@
             return '';
         }
 
+        const nonPokemonCard = list.find(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'NON_POKEMON_CARD';
+        });
+
+        if (nonPokemonCard) {
+            return String(nonPokemonCard?.message || 'Pokemon cards only. Please scan an official Pokemon TCG card.').trim();
+        }
+
+        const nonPokemonFiltered = list.find(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'NON_POKEMON_FILTERED';
+        });
+
+        if (nonPokemonFiltered) {
+            return String(nonPokemonFiltered?.message || 'Filtered non-Pokemon detections.').trim();
+        }
+
         const dailyScanLimit = list.find(function (item) {
             const code = String(item?.code || '').trim().toUpperCase();
             return code === 'DAILY_SCAN_LIMIT_REACHED';
@@ -1831,7 +1870,23 @@
         return out;
     }
 
-    async function refreshCandidateSuggestions(elements, capturedBlob, extracted, flags, preloadedCandidates, diagnosticsContext) {
+    function shouldAutoOpenCardSightCandidates(state, flags) {
+        const detections = Array.isArray(state?.cardsightDetections) ? state.cardsightDetections : [];
+        const detectionCount = detections.length;
+
+        if (!detectionCount) {
+            return false;
+        }
+
+        const minConfidence = Number(flags?.cardSightMinConfidence || PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE);
+        const topConfidenceRaw = Number(state?.cardsightDiagnostics?.topDetection?.confidenceScore);
+        const topConfidence = Number.isFinite(topConfidenceRaw) ? topConfidenceRaw : 0;
+        const lowConfidence = topConfidence < minConfidence;
+
+        return detectionCount > 1 || lowConfidence;
+    }
+
+    async function refreshCandidateSuggestions(elements, capturedBlob, extracted, flags, preloadedCandidates, diagnosticsContext, options) {
         if (!elements || !elements.candidateWrap || !elements.candidateList) {
             return;
         }
@@ -1845,6 +1900,12 @@
         const detectedName = normalizeDetectedName(extracted?.name || '');
         const detectedNumber = normalizeExtractedCardNumber(extracted?.number || '');
         const preloaded = Array.isArray(preloadedCandidates) ? preloadedCandidates : [];
+        const requestedDisplayLimit = Number(options?.displayLimit || SCANNER_CANDIDATE_LIMIT);
+        const displayLimit = Math.max(1, Math.min(
+            SCANNER_CANDIDATE_LIMIT,
+            Number.isFinite(requestedDisplayLimit) ? Math.floor(requestedDisplayLimit) : SCANNER_CANDIDATE_LIMIT
+        ));
+        const autoOpen = !!options?.autoOpen;
 
         if (!detectedName && !detectedNumber && !preloaded.length) {
             return;
@@ -1891,7 +1952,7 @@
                 })
                 .filter(Boolean);
 
-            renderCandidateSuggestions(elements, ranked.slice(0, SCANNER_CANDIDATE_LIMIT), {
+            renderCandidateSuggestions(elements, ranked.slice(0, displayLimit), {
                 recommendedId: recommendedId,
                 highConfidence: highConfidence,
                 fallbackNumber: detectedNumber,
@@ -1908,7 +1969,10 @@
                     rankedTopIds: rankedTopIds
                 });
             } else {
-                setStatus(elements, 'Low confidence match. Pick one of the possible matches before searching.');
+                const shownCount = Math.max(1, Math.min(displayLimit, ranked.length));
+                setStatus(elements, autoOpen
+                    ? `Low confidence scan. Showing top ${shownCount} possible cards. Pick one before searching.`
+                    : 'Low confidence match. Pick one of the possible matches before searching.');
             }
         } catch (error) {
             console.warn('[PokeValutor Scanner] candidate lookup error', error);
