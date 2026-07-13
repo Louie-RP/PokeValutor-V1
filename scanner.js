@@ -20,27 +20,20 @@
 
     const CARD_SCANNER_VERSION = 'scanner-mvp-2026-06-29-2';
     const PV_SCANNER_QUERY_MODE = 'number-first';
-    // CardSight-only testing mode: keep legacy OCR/vision paths off by default.
-    const PV_SCANNER_ENABLE_VISION = false;
-    const PV_SCANNER_ENABLE_OPENCV_NORMALIZE = false;
-    const PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK = false;
+    // CardSight is now the only active detection pipeline in production.
     const PV_SCANNER_ENABLE_CANDIDATES = true;
     const PV_SCANNER_ENABLE_CATALOG_CANDIDATES = true;
     const PV_SCANNER_ENABLE_NAME_CORRECTION = false;
     const PV_SCANNER_NAME_CORRECTION_AUTO_SCORE = 0.88;
     const PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE = 0.70;
     const PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS = 1200;
-    const PV_SCANNER_PROVIDER = 'cardsight';
     const PV_SCANNER_ENABLE_CARDSIGHT = true;
     const PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE = 0.55;
     const PV_SCANNER_DEBUG_METRICS = true;
     const PV_SCANNER_DEBUG_METRICS_TABLE = true;
     const PV_SCANNER_CANDIDATES_CONSUME_QUOTA = false;
     const PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE = 0.86;
-    const PV_SCANNER_VISION_ENDPOINT = '';
     const PV_SCANNER_VISION_TIMEOUT_MS = 9000;
-    const PV_SCANNER_OPENCV_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.10.0/dist/opencv.js';
-    const PV_SCANNER_OPENCV_READY_TIMEOUT_MS = 6000;
 
     const SCANNER_CANDIDATE_LIMIT = 5;
     const SCANNER_CANDIDATE_FETCH_LIMIT = 12;
@@ -89,33 +82,20 @@
         return Math.max(lo, Math.min(hi, value));
     }
 
-    function readProviderModeFlag(globalName, fallback) {
-        const raw = String(window?.[globalName] || fallback || '').trim().toLowerCase();
-        if (raw === 'ocr' || raw === 'cardsight' || raw === 'compare') {
-            return raw;
-        }
-        return String(fallback || 'compare').trim().toLowerCase() || 'compare';
-    }
-
     function getScannerFeatureFlags() {
         return {
-            enableVision: readBooleanFlag('PV_SCANNER_ENABLE_VISION', PV_SCANNER_ENABLE_VISION),
-            enableOpenCvNormalize: readBooleanFlag('PV_SCANNER_ENABLE_OPENCV_NORMALIZE', PV_SCANNER_ENABLE_OPENCV_NORMALIZE),
-            enableAdvancedOcrFallback: readBooleanFlag('PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK', PV_SCANNER_ENABLE_ADVANCED_OCR_FALLBACK),
             enableCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CANDIDATES', PV_SCANNER_ENABLE_CANDIDATES),
             enableCatalogCandidates: readBooleanFlag('PV_SCANNER_ENABLE_CATALOG_CANDIDATES', PV_SCANNER_ENABLE_CATALOG_CANDIDATES),
             enableNameCorrection: readBooleanFlag('PV_SCANNER_ENABLE_NAME_CORRECTION', PV_SCANNER_ENABLE_NAME_CORRECTION),
             nameCorrectionAutoScore: readNumberFlag('PV_SCANNER_NAME_CORRECTION_AUTO_SCORE', PV_SCANNER_NAME_CORRECTION_AUTO_SCORE, 0.70, 0.99),
             nameCorrectionSuggestScore: readNumberFlag('PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE', PV_SCANNER_NAME_CORRECTION_SUGGEST_SCORE, 0.40, 0.95),
             nameCorrectionTimeoutMs: readNumberFlag('PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS', PV_SCANNER_NAME_CORRECTION_TIMEOUT_MS, 300, 2500),
-            provider: readProviderModeFlag('PV_SCANNER_PROVIDER', PV_SCANNER_PROVIDER),
             enableCardSight: readBooleanFlag('PV_SCANNER_ENABLE_CARDSIGHT', PV_SCANNER_ENABLE_CARDSIGHT),
             cardSightMinConfidence: readNumberFlag('PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE', PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE, 0.40, 0.99),
             debugMetrics: readBooleanFlag('PV_SCANNER_DEBUG_METRICS', PV_SCANNER_DEBUG_METRICS),
             debugMetricsTable: readBooleanFlag('PV_SCANNER_DEBUG_METRICS_TABLE', PV_SCANNER_DEBUG_METRICS_TABLE),
             candidatesConsumeQuota: readBooleanFlag('PV_SCANNER_CANDIDATES_CONSUME_QUOTA', PV_SCANNER_CANDIDATES_CONSUME_QUOTA),
             candidateHighConfidence: readNumberFlag('PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE', PV_SCANNER_CANDIDATE_HIGH_CONFIDENCE, 0.55, 0.99),
-            visionEndpoint: String(window?.PV_SCANNER_VISION_ENDPOINT || PV_SCANNER_VISION_ENDPOINT || '').trim(),
             visionTimeoutMs: Number(window?.PV_SCANNER_VISION_TIMEOUT_MS || PV_SCANNER_VISION_TIMEOUT_MS) || PV_SCANNER_VISION_TIMEOUT_MS
         };
     }
@@ -653,40 +633,9 @@
 
     async function runOcr(elements, imageBlob, state) {
         const flags = getScannerFeatureFlags();
-        const providerMode = String(flags?.provider || 'cardsight').trim().toLowerCase();
-        const requiresOcrWorker = providerMode !== 'cardsight' || !!flags?.enableAdvancedOcrFallback;
-
-        if (requiresOcrWorker && (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function')) {
-            setStatus(elements, 'OCR library did not load. You can still type the card name or number manually below.');
-            return;
-        }
-
-        let worker = null;
 
         try {
-            if (requiresOcrWorker) {
-                worker = await window.Tesseract.createWorker('eng', 1, {
-                    logger: function (message) {
-                        if (!message || message.progress == null) return;
-
-                        const progress = Math.round(Number(message.progress || 0) * 100);
-
-                        if (message.status) {
-                            setStatus(elements, `Reading card text... ${progress}%`);
-                        }
-                    }
-                });
-
-                if (typeof worker.setParameters === 'function') {
-                    await worker.setParameters({
-                        tessedit_pageseg_mode: '6',
-                        preserve_interword_spaces: '1'
-                    });
-                }
-            }
-
             const pipelineResult = await executeDetectionPipeline({
-                worker,
                 imageBlob,
                 elements,
                 flags
@@ -908,42 +857,20 @@
         } catch (error) {
             console.warn('[PokeValutor Scanner] OCR error', error);
             setStatus(elements, 'OCR could not read the image. Try retaking the photo or type the card name/number manually.');
-        } finally {
-            if (worker && typeof worker.terminate === 'function') {
-                try {
-                    await worker.terminate();
-                } catch {
-                    // Ignore cleanup errors.
-                }
-            }
         }
     }
 
     async function executeDetectionPipeline(context) {
-        const { worker, imageBlob, elements, flags } = context;
-        const normalizedImage = await normalizeImage(imageBlob, flags);
-        const sourceImage = normalizedImage || imageBlob;
-        const cardsightSourceImage = imageBlob || sourceImage;
-        const providerMode = String(flags?.provider || 'compare').trim().toLowerCase();
+        const { imageBlob, flags } = context;
+        const cardsightSourceImage = imageBlob;
         const cardsightEnabled = !!flags?.enableCardSight;
 
-        let activeMode = providerMode;
-        if (activeMode !== 'ocr' && activeMode !== 'cardsight' && activeMode !== 'compare') {
-            activeMode = 'compare';
-        }
-        if (activeMode === 'cardsight' && !cardsightEnabled) {
-            activeMode = 'ocr';
-        }
-
-        let visionResult = null;
-        let ocrResult = { name: '', number: '', rawText: '' };
         let cardsightResult = null;
         const cardsightMinConfidence = Number(flags?.cardSightMinConfidence || PV_SCANNER_CARDSIGHT_MIN_CONFIDENCE);
+        const ocrResult = { name: '', number: '', rawText: '' };
+        let merged = { name: '', number: '' };
 
-        if (activeMode === 'ocr') {
-            visionResult = await extractWithVision(sourceImage, flags);
-            ocrResult = await extractWithOcrFallback(worker, sourceImage, elements, flags);
-        } else if (activeMode === 'cardsight') {
+        if (cardsightEnabled) {
             cardsightResult = await extractWithCardSight(cardsightSourceImage, flags);
 
             const cardsightUsable = hasDetectedNameOrNumber(cardsightResult);
@@ -951,23 +878,21 @@
                 && Number.isFinite(Number(cardsightResult?.confidence))
                 && Number(cardsightResult.confidence) >= cardsightMinConfidence;
 
-            visionResult = cardsightResult;
-
-            // CardSight-only test mode disables OCR fallback unless explicitly
-            // re-enabled via feature flags.
-            if (!cardsightStrong && flags?.enableAdvancedOcrFallback) {
-                ocrResult = await extractWithOcrFallback(worker, sourceImage, elements, flags);
+            // Keep low-confidence behavior consistent with previous logic by
+            // clearing extracted fields when CardSight has no usable signal.
+            if (!cardsightStrong && !cardsightUsable) {
+                cardsightResult = {
+                    ...cardsightResult,
+                    name: '',
+                    number: '',
+                };
             }
-        } else {
-            cardsightResult = cardsightEnabled ? await extractWithCardSight(cardsightSourceImage, flags) : null;
-            visionResult = cardsightResult || await extractWithVision(sourceImage, flags);
-            ocrResult = await extractWithOcrFallback(worker, sourceImage, elements, flags);
+
+            merged = mergeAndValidateDetections(cardsightResult, ocrResult, 'cardsight');
         }
 
-        const merged = mergeAndValidateDetections(visionResult, ocrResult, activeMode);
-
         const compare = {
-            mode: activeMode,
+            mode: 'cardsight',
             cardsightEnabled: cardsightEnabled,
             cardsight: cardsightResult ? {
                 confidence: Number(cardsightResult.confidence || 0),
@@ -1006,369 +931,6 @@
         const name = normalizeDetectedName(result?.name || '');
         const number = normalizeExtractedCardNumber(result?.number || '');
         return Boolean(name || number);
-    }
-
-    async function normalizeImage(imageBlob, flags) {
-        if (!imageBlob) {
-            return imageBlob;
-        }
-
-        if (!flags?.enableOpenCvNormalize) {
-            return imageBlob;
-        }
-
-        const normalized = await normalizeCardWithOpenCv(imageBlob);
-
-        return normalized || imageBlob;
-    }
-
-    async function ensureOpenCvAvailable() {
-        if (window.cv && typeof window.cv.Mat === 'function') {
-            return true;
-        }
-
-        if (window.__pvOpenCvLoadPromise) {
-            return window.__pvOpenCvLoadPromise;
-        }
-
-        window.__pvOpenCvLoadPromise = new Promise(function (resolve) {
-            let settled = false;
-
-            function done(value) {
-                if (settled) {
-                    return;
-                }
-
-                settled = true;
-                resolve(!!value);
-            }
-
-            function wireRuntimeReady() {
-                if (!window.cv || typeof window.cv !== 'object') {
-                    done(false);
-                    return;
-                }
-
-                if (typeof window.cv.Mat === 'function') {
-                    done(true);
-                    return;
-                }
-
-                const previous = window.cv.onRuntimeInitialized;
-                window.cv.onRuntimeInitialized = function () {
-                    if (typeof previous === 'function') {
-                        try {
-                            previous();
-                        } catch {
-                            // Ignore callback errors.
-                        }
-                    }
-
-                    done(window.cv && typeof window.cv.Mat === 'function');
-                };
-
-                window.setTimeout(function () {
-                    done(window.cv && typeof window.cv.Mat === 'function');
-                }, PV_SCANNER_OPENCV_READY_TIMEOUT_MS);
-            }
-
-            const existing = document.getElementById('pv-opencv-script');
-
-            if (existing) {
-                wireRuntimeReady();
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.id = 'pv-opencv-script';
-            script.async = true;
-            script.src = PV_SCANNER_OPENCV_SCRIPT_URL;
-
-            script.onload = function () {
-                if (window.cv && typeof window.cv.Mat === 'function') {
-                    done(true);
-                    return;
-                }
-
-                wireRuntimeReady();
-            };
-
-            script.onerror = function () {
-                done(false);
-            };
-
-            document.head.appendChild(script);
-        });
-
-        return window.__pvOpenCvLoadPromise;
-    }
-
-    async function normalizeCardWithOpenCv(imageBlob) {
-        if (!imageBlob || !window.createImageBitmap) {
-            return null;
-        }
-
-        const hasOpenCv = await ensureOpenCvAvailable();
-
-        if (!hasOpenCv || !window.cv) {
-            return null;
-        }
-
-        const cv = window.cv;
-        let bitmap = null;
-
-        let src = null;
-        let gray = null;
-        let blur = null;
-        let edges = null;
-        let contours = null;
-        let hierarchy = null;
-        let srcTri = null;
-        let dstTri = null;
-        let matrix = null;
-        let dst = null;
-
-        try {
-            bitmap = await window.createImageBitmap(imageBlob);
-            const inputCanvas = document.createElement('canvas');
-            inputCanvas.width = bitmap.width;
-            inputCanvas.height = bitmap.height;
-
-            const inputCtx = inputCanvas.getContext('2d');
-
-            if (!inputCtx) {
-                return null;
-            }
-
-            inputCtx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
-
-            src = cv.imread(inputCanvas);
-            gray = new cv.Mat();
-            blur = new cv.Mat();
-            edges = new cv.Mat();
-            contours = new cv.MatVector();
-            hierarchy = new cv.Mat();
-
-            cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-            cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
-            cv.Canny(blur, edges, 60, 160, 3, false);
-            cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-
-            let bestArea = 0;
-            let bestQuad = null;
-
-            for (let i = 0; i < contours.size(); i += 1) {
-                const cnt = contours.get(i);
-                const peri = cv.arcLength(cnt, true);
-                const approx = new cv.Mat();
-                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-
-                const area = cv.contourArea(approx);
-
-                if (approx.rows === 4 && area > bestArea) {
-                    const quad = [];
-
-                    for (let j = 0; j < 4; j += 1) {
-                        const point = approx.intPtr(j, 0);
-                        quad.push({ x: point[0], y: point[1] });
-                    }
-
-                    bestArea = area;
-                    bestQuad = quad;
-                }
-
-                approx.delete();
-                cnt.delete();
-            }
-
-            if (!bestQuad || bestArea < (src.rows * src.cols) * 0.1) {
-                return null;
-            }
-
-            const ordered = orderQuadPoints(bestQuad);
-
-            const widthA = distanceBetween(ordered.br, ordered.bl);
-            const widthB = distanceBetween(ordered.tr, ordered.tl);
-            const heightA = distanceBetween(ordered.tr, ordered.br);
-            const heightB = distanceBetween(ordered.tl, ordered.bl);
-
-            let targetWidth = Math.max(1, Math.round(Math.max(widthA, widthB)));
-            let targetHeight = Math.max(1, Math.round(Math.max(heightA, heightB)));
-
-            const targetRatio = 5 / 7;
-            if (targetWidth / targetHeight > targetRatio) {
-                targetWidth = Math.max(1, Math.round(targetHeight * targetRatio));
-            } else {
-                targetHeight = Math.max(1, Math.round(targetWidth / targetRatio));
-            }
-
-            srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-                ordered.tl.x, ordered.tl.y,
-                ordered.tr.x, ordered.tr.y,
-                ordered.br.x, ordered.br.y,
-                ordered.bl.x, ordered.bl.y
-            ]);
-
-            dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-                0, 0,
-                targetWidth - 1, 0,
-                targetWidth - 1, targetHeight - 1,
-                0, targetHeight - 1
-            ]);
-
-            matrix = cv.getPerspectiveTransform(srcTri, dstTri);
-            dst = new cv.Mat();
-
-            cv.warpPerspective(
-                src,
-                dst,
-                matrix,
-                new cv.Size(targetWidth, targetHeight),
-                cv.INTER_LINEAR,
-                cv.BORDER_REPLICATE,
-                new cv.Scalar()
-            );
-
-            const outputCanvas = document.createElement('canvas');
-            outputCanvas.width = targetWidth;
-            outputCanvas.height = targetHeight;
-            cv.imshow(outputCanvas, dst);
-
-            return await new Promise(function (resolve) {
-                outputCanvas.toBlob(function (blob) {
-                    resolve(blob || null);
-                }, 'image/jpeg', 0.92);
-            });
-        } catch (error) {
-            console.warn('[PokeValutor Scanner] OpenCV normalize error', error);
-            return null;
-        } finally {
-            if (bitmap && typeof bitmap.close === 'function') {
-                try {
-                    bitmap.close();
-                } catch {
-                    // Ignore cleanup errors.
-                }
-            }
-
-            if (dst) dst.delete();
-            if (matrix) matrix.delete();
-            if (dstTri) dstTri.delete();
-            if (srcTri) srcTri.delete();
-            if (hierarchy) hierarchy.delete();
-            if (contours) contours.delete();
-            if (edges) edges.delete();
-            if (blur) blur.delete();
-            if (gray) gray.delete();
-            if (src) src.delete();
-        }
-    }
-
-    function orderQuadPoints(points) {
-        const withScores = points.map(function (p) {
-            return {
-                x: p.x,
-                y: p.y,
-                sum: p.x + p.y,
-                diff: p.x - p.y
-            };
-        });
-
-        const tl = withScores.reduce(function (best, cur) {
-            return cur.sum < best.sum ? cur : best;
-        }, withScores[0]);
-
-        const br = withScores.reduce(function (best, cur) {
-            return cur.sum > best.sum ? cur : best;
-        }, withScores[0]);
-
-        const tr = withScores.reduce(function (best, cur) {
-            return cur.diff > best.diff ? cur : best;
-        }, withScores[0]);
-
-        const bl = withScores.reduce(function (best, cur) {
-            return cur.diff < best.diff ? cur : best;
-        }, withScores[0]);
-
-        return {
-            tl: { x: tl.x, y: tl.y },
-            tr: { x: tr.x, y: tr.y },
-            br: { x: br.x, y: br.y },
-            bl: { x: bl.x, y: bl.y }
-        };
-    }
-
-    function distanceBetween(a, b) {
-        const dx = Number(a?.x || 0) - Number(b?.x || 0);
-        const dy = Number(a?.y || 0) - Number(b?.y || 0);
-        return Math.sqrt((dx * dx) + (dy * dy));
-    }
-
-    async function extractWithVision(imageBlob, flags) {
-        if (!imageBlob || !flags?.enableVision || !flags?.visionEndpoint) {
-            return null;
-        }
-
-        const controller = typeof AbortController === 'function' ? new AbortController() : null;
-        const timeoutMs = Math.max(2500, Number(flags.visionTimeoutMs || PV_SCANNER_VISION_TIMEOUT_MS));
-        const timeoutId = window.setTimeout(function () {
-            if (controller) {
-                try {
-                    controller.abort();
-                } catch {
-                    // Ignore abort errors.
-                }
-            }
-        }, timeoutMs);
-
-        try {
-            const compressedBlob = await compressImageForVision(imageBlob, 900, 0.78);
-            const imageDataUrl = await blobToDataUrl(compressedBlob);
-
-            if (!imageDataUrl) {
-                return null;
-            }
-
-            const response = await fetch(flags.visionEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    imageDataUrl: imageDataUrl
-                }),
-                signal: controller ? controller.signal : undefined
-            });
-
-            if (!response.ok) {
-                return null;
-            }
-
-            const data = await response.json().catch(function () {
-                return null;
-            });
-
-            if (!data || data.ok === false) {
-                return null;
-            }
-
-            const name = normalizeDetectedName(data.name || data.cardName || '');
-            const number = normalizeExtractedCardNumber(data.collectorNumber || data.cardNumber || data.number || '');
-            const confidenceRaw = Number(data.confidence);
-            const confidence = Number.isFinite(confidenceRaw)
-                ? Math.max(0, Math.min(1, confidenceRaw))
-                : null;
-
-            return {
-                name: name,
-                number: number,
-                confidence: confidence
-            };
-        } catch {
-            return null;
-        } finally {
-            window.clearTimeout(timeoutId);
-        }
     }
 
     async function extractWithCardSight(imageBlob, flags) {
@@ -1432,6 +994,14 @@
             const warningCode = String(error?.pvCode || '').trim().toUpperCase() === 'DAILY_SCAN_LIMIT_REACHED'
                 ? 'DAILY_SCAN_LIMIT_REACHED'
                 : 'PROVIDER_UNAVAILABLE';
+            if (warningCode === 'PROVIDER_UNAVAILABLE') {
+                console.warn('[PokeValutor Scanner] CardSight provider unavailable', {
+                    message: String(error?.message || '').trim(),
+                    status: Number(error?.pvStatus) || 0,
+                    debug: String(error?.pvDebug || '').trim(),
+                    endpoint: endpoint
+                });
+            }
             const quotaTier = String(error?.pvQuotaTier || '').trim().toLowerCase();
             const quotaLimitRaw = Number(error?.pvQuotaLimit);
             const quotaUsedRaw = Number(error?.pvQuotaUsed);
@@ -1440,7 +1010,7 @@
                 : 'Daily scan limit reached.';
             const warningMessage = warningCode === 'DAILY_SCAN_LIMIT_REACHED'
                 ? String(error?.message || defaultLimitMessage).trim()
-                : String(error?.message || 'CardSight request failed.').trim();
+                : 'Scanner currently unavailable. Please try again later, or search manually.';
 
             return {
                 name: '',
@@ -1582,8 +1152,16 @@
         });
 
         if (providerUnavailable) {
-            const detail = String(providerUnavailable?.message || '').trim();
-            return `CardSight service is unavailable right now. ${detail || 'Please try again shortly.'}`.trim();
+            return 'Scanner currently unavailable. Please try again later, or search manually.';
+        }
+
+        const providerWarning = list.find(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'PROVIDER_WARNING';
+        });
+
+        if (providerWarning) {
+            return String(providerWarning?.message || 'CardSight could not confidently identify this image. Try retaking the photo.').trim();
         }
 
         const lowResolution = list.some(function (item) {
@@ -1797,51 +1375,6 @@
             };
             reader.readAsDataURL(blob);
         });
-    }
-
-    async function compressImageForVision(imageBlob, maxWidth, quality) {
-        if (!imageBlob || !window.createImageBitmap) {
-            return imageBlob;
-        }
-
-        let bitmap = null;
-
-        try {
-            bitmap = await window.createImageBitmap(imageBlob);
-
-            const sourceWidth = Math.max(1, bitmap.width || 1);
-            const sourceHeight = Math.max(1, bitmap.height || 1);
-            const targetWidth = Math.min(sourceWidth, Math.max(320, Number(maxWidth || 900)));
-            const scale = targetWidth / sourceWidth;
-            const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
-
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.round(targetWidth);
-            canvas.height = targetHeight;
-
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                return imageBlob;
-            }
-
-            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-
-            return await new Promise(function (resolve) {
-                canvas.toBlob(function (blob) {
-                    resolve(blob || imageBlob);
-                }, 'image/jpeg', Math.max(0.5, Math.min(0.9, Number(quality || 0.78))));
-            });
-        } catch {
-            return imageBlob;
-        } finally {
-            if (bitmap && typeof bitmap.close === 'function') {
-                try {
-                    bitmap.close();
-                } catch {
-                    // Ignore cleanup errors.
-                }
-            }
-        }
     }
 
     function mergeUniqueCandidateCards(primary, secondary, limit) {
@@ -2952,6 +2485,9 @@
         if (!String(url || '').trim()) return null;
         if (scannerRequestCache.has(cacheKey)) return scannerRequestCache.get(cacheKey);
 
+        const hostname = String(window?.location?.hostname || '').trim().toLowerCase();
+        const isLocalDebugHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+
         let headers = {
             'content-type': 'application/json'
         };
@@ -2987,13 +2523,16 @@
             if (!response.ok) {
                 const quotaTier = String(response.headers.get('x-pv-quota-tier') || '').trim().toLowerCase();
                 let detail = '';
+                let errorText = '';
+                let debugText = '';
                 try {
                     const text = await response.text();
                     if (text) {
                         try {
                             const parsed = JSON.parse(text);
-                            const errorMessage = String(parsed?.error || parsed?.debug || '').trim();
-                            detail = errorMessage || text;
+                            errorText = String(parsed?.error || '').trim();
+                            debugText = String(parsed?.debug || '').trim();
+                            detail = errorText || debugText || text;
                         } catch {
                             detail = text;
                         }
@@ -3003,19 +2542,29 @@
                 }
 
                 const statusCode = Number(response.status) || 0;
-                const detailSuffix = detail ? ` ${detail}` : '';
                 const message = statusCode === 429
                     ? (detail || ((quotaTier === 'anon' || quotaTier === 'basic')
                         ? 'Daily scan limit reached. Subscribe for additional card scans.'
                         : 'Daily scan limit reached.'))
-                    : `Scanner request failed (${response.status}).${detailSuffix}`.trim();
+                    : (() => {
+                        const publicMessage = errorText || detail || `Scanner request failed (${response.status}).`;
+                        const localDebugSuffix = (isLocalDebugHost && debugText && debugText !== errorText)
+                            ? ` Debug: ${debugText}`
+                            : '';
+                        return `${publicMessage}${localDebugSuffix}`.trim();
+                    })();
                 const error = new Error(message);
                 error.pvStatus = statusCode;
                 error.pvQuotaTier = quotaTier;
                 error.pvQuotaLimit = Number(response.headers.get('x-pv-quota-limit'));
                 error.pvQuotaUsed = Number(response.headers.get('x-pv-quota-used'));
+                if (debugText) {
+                    error.pvDebug = debugText;
+                }
                 if (statusCode === 429) {
                     error.pvCode = 'DAILY_SCAN_LIMIT_REACHED';
+                } else if (statusCode === 503) {
+                    error.pvCode = 'PROVIDER_UNAVAILABLE';
                 }
                 throw error;
             }
@@ -3403,1140 +2952,6 @@
         return same / left.length;
     }
 
-    async function extractWithOcrFallback(worker, imageBlob, elements, flags) {
-        const extracted = {
-            name: '',
-            number: ''
-        };
-        let preparedText = '';
-        let preparedExtracted = null;
-        let numberDetection = { number: '', raw: '' };
-        let fallbackRaw = '';
-
-        const primaryResult = await worker.recognize(imageBlob);
-        const primaryText = String(primaryResult?.data?.text || '').trim();
-
-        extracted.name = extractCardSearchParts(primaryText).name;
-
-        if (flags?.enableAdvancedOcrFallback && (!extracted.name || !extracted.number)) {
-            const preparedImage = await prepareImageForOcr(imageBlob);
-
-            if (preparedImage && preparedImage !== imageBlob) {
-                const preparedResult = await worker.recognize(preparedImage);
-                preparedText = String(preparedResult?.data?.text || '').trim();
-
-                preparedExtracted = extractCardSearchParts(preparedText);
-
-                if (!extracted.name && preparedExtracted?.name) {
-                    extracted.name = preparedExtracted.name;
-                }
-            }
-        }
-
-        numberDetection = await detectCardNumber(worker, imageBlob, elements);
-        extracted.number = numberDetection.number;
-
-        const needFallbackName = !extracted.name || scoreDetectedName(extracted.name) < 3;
-        const needFallbackNumber = !extracted.number;
-        const fallback = (needFallbackName || needFallbackNumber)
-            ? await runRegionalOcrFallback(worker, imageBlob, elements, {
-                needName: needFallbackName,
-                needNumber: needFallbackNumber
-            })
-            : { name: '', number: '', raw: '' };
-
-        if (needFallbackName && fallback.name) {
-            extracted.name = pickBetterDetectedName(extracted.name, fallback.name);
-        }
-
-        const fallbackExplicitNumber = extractExplicitCollectorNumber(fallback.raw);
-
-        if (fallbackExplicitNumber && (!extracted.number || !hasExplicitCollectorNumber(numberDetection.raw))) {
-            extracted.number = fallbackExplicitNumber;
-        } else if (fallback.number && !extracted.number) {
-            extracted.number = fallback.number;
-        }
-
-        if (preparedExtracted?.name) {
-            extracted.name = pickBetterDetectedName(extracted.name, preparedExtracted.name);
-        }
-
-        if (extracted.number && !isPlausibleDetectedNumber(extracted.number)) {
-            extracted.number = '';
-        }
-
-        if (!extracted.number) {
-            extracted.number = detectCollectorNumberFromCandidateTexts([
-                { text: numberDetection.raw, allowFuzzy: true },
-                { text: fallback.raw, allowFuzzy: true },
-                { text: preparedText, allowFuzzy: false },
-                { text: primaryText, allowFuzzy: false }
-            ]);
-        }
-
-        if (!isPlausibleDetectedNumber(extracted.number)) {
-            extracted.number = '';
-        }
-
-        const explicitNumberEvidence = collectExplicitCollectorNumberEvidence([
-            numberDetection.raw,
-            fallback.raw,
-            preparedText,
-            primaryText
-        ]);
-
-        if (explicitNumberEvidence.length) {
-            extracted.number = chooseBestExplicitCollectorNumber(explicitNumberEvidence, extracted.number);
-        } else if (extracted.number) {
-            // If OCR did not produce any explicit collector number evidence,
-            // prefer an empty field over a likely wrong inferred number.
-            extracted.number = '';
-        }
-
-        fallbackRaw = fallback.raw;
-
-        const rawParts = [primaryText];
-
-        if (preparedText) {
-            rawParts.push(`--- Preprocessed OCR ---\n${preparedText}`);
-        }
-
-        if (numberDetection.raw) {
-            rawParts.push(`--- Card Number OCR ---\n${numberDetection.raw}`);
-        }
-
-        if (fallbackRaw) {
-            rawParts.push(fallbackRaw);
-        }
-
-        return {
-            name: extracted.name,
-            number: extracted.number,
-            rawText: rawParts.filter(Boolean).join('\n\n')
-        };
-    }
-
-    function collectExplicitCollectorNumberEvidence(textSources) {
-        const out = [];
-        const list = Array.isArray(textSources) ? textSources : [];
-
-        for (const source of list) {
-            const text = String(source || '');
-
-            if (!text) {
-                continue;
-            }
-
-            const raw = text.toUpperCase();
-            const matches = Array.from(raw.matchAll(/(?:^|[^A-Z0-9])([A-Z]{0,4}\s*\d{1,3}\s*\/\s*\d{2,3})(?=$|[^A-Z0-9])/g));
-
-            for (const match of matches) {
-                const normalized = normalizeExtractedCardNumber(match && match[1] ? match[1] : '');
-
-                if (normalized && isPlausibleDetectedNumber(normalized)) {
-                    out.push(normalized);
-                }
-            }
-
-            const setNumberMatches = Array.from(raw.matchAll(/(?:^|[^A-Z0-9])((?:SWSH|SVP|SM|BW|XY)\s*\d{1,3})(?=$|[^A-Z0-9])/g));
-
-            for (const match of setNumberMatches) {
-                const normalized = normalizeExtractedCardNumber(match && match[1] ? match[1] : '');
-
-                if (normalized && isPlausibleDetectedNumber(normalized)) {
-                    out.push(normalized);
-                }
-            }
-        }
-
-        return out;
-    }
-
-    function chooseBestExplicitCollectorNumber(evidenceList, currentNumber) {
-        const counts = new Map();
-
-        for (const item of evidenceList) {
-            const key = String(item || '').trim().toUpperCase();
-            if (!key) continue;
-            counts.set(key, (counts.get(key) || 0) + 1);
-        }
-
-        if (!counts.size) {
-            return '';
-        }
-
-        const current = String(currentNumber || '').trim().toUpperCase();
-        if (current && counts.has(current)) {
-            return current;
-        }
-
-        let best = '';
-        let bestCount = -1;
-
-        counts.forEach(function (count, key) {
-            if (count > bestCount) {
-                best = key;
-                bestCount = count;
-            }
-        });
-
-        return best;
-    }
-
-    async function runRegionalOcrFallback(worker, imageBlob, elements, options) {
-        if (!worker || !imageBlob) {
-            return { name: '', number: '', raw: '' };
-        }
-
-        const needName = options && options.needName === false ? false : true;
-        const needNumber = options && options.needNumber === false ? false : true;
-
-        const regions = [
-            { key: 'top', yStart: 0.02, yEnd: 0.32, kind: 'name' },
-            { key: 'bottom', yStart: 0.76, yEnd: 0.99, kind: 'number' }
-        ];
-
-        let mergedName = '';
-        let mergedNumber = '';
-        const rawChunks = [];
-
-        // The card name lives in a narrow header strip. Reading the entire top
-        // third mixes the header with artwork and HP, especially on tilted cards.
-        // Try overlapping, enlarged single-line crops before the broad regions.
-        if (needName) {
-            const headerBands = [
-                { key: 'top-name-high', yStart: 0.07, yEnd: 0.20 },
-                { key: 'top-name-middle', yStart: 0.11, yEnd: 0.25 },
-                { key: 'top-name-low', yStart: 0.15, yEnd: 0.29 }
-            ];
-
-            for (const band of headerBands) {
-                const headerBlob = await createRegionBlob(
-                    imageBlob,
-                    band.yStart,
-                    band.yEnd,
-                    0.01,
-                    0.99,
-                    4
-                );
-
-                if (!headerBlob) continue;
-
-                const headerPass = await runTopNameOcr(worker, headerBlob);
-
-                if (headerPass.raw) {
-                    rawChunks.push(`[${band.key}]\n${headerPass.raw}`);
-                }
-
-                if (headerPass.name) {
-                    mergedName = pickBetterDetectedName(mergedName, headerPass.name);
-                }
-
-                const preparedHeaderBlob = await prepareImageForOcr(headerBlob);
-
-                if (preparedHeaderBlob && preparedHeaderBlob !== headerBlob) {
-                    const preparedHeaderPass = await runTopNameOcr(worker, preparedHeaderBlob);
-
-                    if (preparedHeaderPass.raw) {
-                        rawChunks.push(`[${band.key} preprocessed]\n${preparedHeaderPass.raw}`);
-                    }
-
-                    if (preparedHeaderPass.name) {
-                        mergedName = pickBetterDetectedName(mergedName, preparedHeaderPass.name);
-                    }
-                }
-            }
-        }
-
-        for (const region of regions) {
-            if ((region.kind === 'name' && !needName) || (region.kind === 'number' && !needNumber)) {
-                continue;
-            }
-
-            const regionBlob = await createRegionBlob(imageBlob, region.yStart, region.yEnd);
-
-            if (!regionBlob) {
-                continue;
-            }
-
-            setStatus(elements, needName
-                ? 'Refining card text from key card areas...'
-                : 'Refining collector number from key card areas...');
-
-            const result = await worker.recognize(regionBlob);
-            const regionText = String(result?.data?.text || '').trim();
-
-            if (!regionText) {
-                continue;
-            }
-
-            const parsed = extractCardSearchParts(regionText);
-
-            if (needName && !mergedName && parsed.name) {
-                mergedName = parsed.name;
-            }
-
-            if (!mergedNumber && parsed.number) {
-                mergedNumber = parsed.number;
-            }
-
-            rawChunks.push(`[${region.key} region]\n${regionText}`);
-
-            if (needName && region.key === 'top') {
-                const preparedRegionBlob = await prepareImageForOcr(regionBlob);
-
-                if (preparedRegionBlob && preparedRegionBlob !== regionBlob) {
-                    const preparedTopResult = await worker.recognize(preparedRegionBlob);
-                    const preparedTopText = String(preparedTopResult?.data?.text || '').trim();
-
-                    if (preparedTopText) {
-                        const preparedTopParsed = extractCardSearchParts(preparedTopText);
-
-                        if (preparedTopParsed.name) {
-                            mergedName = pickBetterDetectedName(mergedName, preparedTopParsed.name);
-                        }
-
-                        rawChunks.push(`[top preprocessed]\n${preparedTopText}`);
-                    }
-                }
-            }
-
-            if (needNumber && region.key === 'bottom' && !mergedNumber) {
-                const collectorBlob = await createRegionBlob(imageBlob, 0.84, 0.99, 0.0, 0.46);
-                const numeric = await runBottomNumericOcr(worker, collectorBlob || regionBlob);
-
-                if (numeric.raw) {
-                    rawChunks.push(`[bottom numeric]\n${numeric.raw}`);
-                }
-
-                if (numeric.number) {
-                    mergedNumber = numeric.number;
-                }
-            }
-        }
-
-        return {
-            name: mergedName,
-            number: mergedNumber,
-            raw: rawChunks.length ? `--- Regional OCR Fallback ---\n${rawChunks.join('\n\n')}` : ''
-        };
-    }
-
-    async function runTopNameOcr(worker, regionBlob) {
-        if (!worker || !regionBlob || typeof worker.setParameters !== 'function') {
-            return { name: '', raw: '' };
-        }
-
-        try {
-            await worker.setParameters({
-                tessedit_pageseg_mode: '7',
-                preserve_interword_spaces: '1',
-                tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz '-&0123456789"
-            });
-
-            const result = await worker.recognize(regionBlob);
-            const rawText = String(result?.data?.text || '').trim();
-            const parsed = extractCardSearchParts(rawText);
-
-            return {
-                name: normalizeDetectedName(parsed.name || ''),
-                raw: rawText
-            };
-        } catch {
-            return { name: '', raw: '' };
-        } finally {
-            try {
-                await worker.setParameters({
-                    tessedit_pageseg_mode: '6',
-                    preserve_interword_spaces: '1',
-                    tessedit_char_whitelist: ''
-                });
-            } catch {
-                // Ignore reset errors.
-            }
-        }
-    }
-
-    async function detectCardNumber(worker, imageBlob, elements) {
-        if (!worker || !imageBlob) {
-            return { number: '', raw: '' };
-        }
-
-        setStatus(elements, 'Reading collector number...');
-        const regionSpecs = [
-            { key: 'modern-left-micro', yStart: 0.92, yEnd: 0.998, xStart: 0.0, xEnd: 0.26, scale: 5 },
-            { key: 'modern-left-tight', yStart: 0.90, yEnd: 0.998, xStart: 0.0, xEnd: 0.30, scale: 4 },
-            { key: 'modern-left', yStart: 0.87, yEnd: 0.998, xStart: 0.0, xEnd: 0.42, scale: 3 },
-            { key: 'bottom-wide', yStart: 0.84, yEnd: 0.998, xStart: 0.0, xEnd: 0.76, scale: 2 },
-            { key: 'vintage-right', yStart: 0.88, yEnd: 0.998, xStart: 0.56, xEnd: 1.0, scale: 3 },
-            { key: 'vintage-right-tight', yStart: 0.91, yEnd: 0.998, xStart: 0.70, xEnd: 1.0, scale: 4 },
-            { key: 'vintage-right-micro', yStart: 0.93, yEnd: 0.998, xStart: 0.78, xEnd: 1.0, scale: 5 }
-        ];
-
-        const candidates = [];
-        const rawChunks = [];
-
-        for (const regionSpec of regionSpecs) {
-            const regionBlob = await createRegionBlob(
-                imageBlob,
-                regionSpec.yStart,
-                regionSpec.yEnd,
-                regionSpec.xStart,
-                regionSpec.xEnd,
-                regionSpec.scale
-            );
-
-            if (!regionBlob) {
-                continue;
-            }
-
-            const textPass = await runCollectorTextOcr(worker, regionBlob);
-
-            if (textPass.raw) {
-                rawChunks.push(`[${regionSpec.key} text]\n${textPass.raw}`);
-            }
-
-            if (textPass.number && isPlausibleDetectedNumber(textPass.number)) {
-                candidates.push({
-                    number: textPass.number,
-                    score: scoreNumberCandidate(textPass.number, 'text', regionSpec.key),
-                    regionKey: regionSpec.key,
-                    source: 'text'
-                });
-            }
-
-            const preparedRegionBlob = await prepareImageForOcr(regionBlob);
-
-            if (preparedRegionBlob && preparedRegionBlob !== regionBlob) {
-                const preparedTextPass = await runCollectorTextOcr(worker, preparedRegionBlob);
-
-                if (preparedTextPass.raw) {
-                    rawChunks.push(`[${regionSpec.key} preprocessed-text]\n${preparedTextPass.raw}`);
-                }
-
-                if (preparedTextPass.number && isPlausibleDetectedNumber(preparedTextPass.number)) {
-                    candidates.push({
-                        number: preparedTextPass.number,
-                        score: scoreNumberCandidate(preparedTextPass.number, 'preprocessed-text', regionSpec.key),
-                        regionKey: regionSpec.key,
-                        source: 'preprocessed-text'
-                    });
-                }
-
-                const preparedNumericPass = await runBottomNumericOcr(worker, preparedRegionBlob);
-
-                if (preparedNumericPass.raw) {
-                    rawChunks.push(`[${regionSpec.key} preprocessed-numeric]\n${preparedNumericPass.raw}`);
-                }
-
-                if (preparedNumericPass.number && isPlausibleDetectedNumber(preparedNumericPass.number)) {
-                    candidates.push({
-                        number: preparedNumericPass.number,
-                        score: scoreNumberCandidate(preparedNumericPass.number, 'preprocessed-numeric', regionSpec.key),
-                        regionKey: regionSpec.key,
-                        source: 'preprocessed-numeric'
-                    });
-                }
-            }
-
-            const numericPass = await runBottomNumericOcr(worker, regionBlob);
-
-            if (numericPass.raw) {
-                rawChunks.push(`[${regionSpec.key} numeric]\n${numericPass.raw}`);
-            }
-
-            if (numericPass.number && isPlausibleDetectedNumber(numericPass.number)) {
-                candidates.push({
-                    number: numericPass.number,
-                    score: scoreNumberCandidate(numericPass.number, 'numeric', regionSpec.key),
-                    regionKey: regionSpec.key,
-                    source: 'numeric'
-                });
-            }
-        }
-
-        // Full-art/holo cards often render collector numbers as tiny low-contrast
-        // text in the bottom-left area. If no slash candidate survived the
-        // primary passes, run an enhanced recovery pass on that area only.
-        const hasSlashCandidate = candidates.some(function (item) {
-            return String(item?.number || '').indexOf('/') >= 0;
-        });
-
-        if (!hasSlashCandidate) {
-            setStatus(elements, 'Trying full-art collector number recovery...');
-
-            const enhancedRegionSpecs = [
-                { key: 'fullart-bottom-left-tight', yStart: 0.90, yEnd: 0.999, xStart: 0.0, xEnd: 0.30, scale: 6 },
-                { key: 'fullart-bottom-left-wide', yStart: 0.86, yEnd: 0.999, xStart: 0.0, xEnd: 0.38, scale: 5 }
-            ];
-
-            for (const regionSpec of enhancedRegionSpecs) {
-                const regionBlob = await createRegionBlob(
-                    imageBlob,
-                    regionSpec.yStart,
-                    regionSpec.yEnd,
-                    regionSpec.xStart,
-                    regionSpec.xEnd,
-                    regionSpec.scale
-                );
-
-                if (!regionBlob) {
-                    continue;
-                }
-
-                const enhancedBlob = await prepareNumberRegionForOcr(regionBlob, false);
-                const enhancedInvertedBlob = await prepareNumberRegionForOcr(regionBlob, true);
-
-                const passes = [
-                    { blob: enhancedBlob, sourceText: 'enhanced-text', rawTextLabel: 'enhanced-text' },
-                    { blob: enhancedInvertedBlob, sourceText: 'enhanced-inverted-text', rawTextLabel: 'enhanced-inverted-text' }
-                ];
-
-                for (const pass of passes) {
-                    if (!pass.blob) continue;
-
-                    const textPass = await runCollectorTextOcr(worker, pass.blob);
-                    if (textPass.raw) {
-                        rawChunks.push(`[${regionSpec.key} ${pass.rawTextLabel}]\n${textPass.raw}`);
-                    }
-                    if (textPass.number && isPlausibleDetectedNumber(textPass.number)) {
-                        candidates.push({
-                            number: textPass.number,
-                            score: scoreNumberCandidate(textPass.number, pass.sourceText, regionSpec.key),
-                            regionKey: regionSpec.key,
-                            source: pass.sourceText
-                        });
-
-                        if (String(textPass.number).indexOf('/') >= 0) {
-                            break;
-                        }
-                    }
-                }
-
-                if (candidates.some(function (item) {
-                    return String(item?.number || '').indexOf('/') >= 0;
-                })) {
-                    break;
-                }
-            }
-        }
-
-        candidates.sort(function (a, b) {
-            return b.score - a.score;
-        });
-
-        return {
-            number: candidates.length ? candidates[0].number : '',
-            raw: rawChunks.join('\n')
-        };
-    }
-
-    function scoreNumberCandidate(number, source, regionKey) {
-        const value = String(number || '').toUpperCase();
-        let score = 0;
-
-        if (/^(TG\d{1,2}\/TG\d{1,2}|GG\d{1,2}\/GG\d{1,2})$/.test(value)) {
-            score += 12;
-        } else if (/^\d{1,3}\/\d{2,3}$/.test(value)) {
-            score += 10;
-        } else if (/^(SWSH|SVP|SM|BW|XY)\d{1,3}$/.test(value)) {
-            score += 8;
-        } else if (/^P\d{1,3}$/.test(value)) {
-            score += 7;  // Promo P-prefix
-        } else if (/^\d{2,3}$/.test(value)) {
-            score += 6;  // Bare promo number
-        }
-
-        if (source === 'text') {
-            score += 6;
-        } else if (source === 'preprocessed-text') {
-            score += 5;
-        } else if (source === 'enhanced-text') {
-            score += 6;
-        } else if (source === 'enhanced-inverted-text') {
-            score += 5;
-        } else if (source === 'numeric') {
-            score += 1;
-        } else if (source === 'preprocessed-numeric') {
-            score += 0;
-        }
-
-        if (regionKey === 'modern-left-micro' || regionKey === 'vintage-right-micro') {
-            score += 5;
-        } else if (regionKey === 'modern-left-tight' || regionKey === 'vintage-right-tight') {
-            score += 4;
-        } else if (regionKey === 'fullart-bottom-left-tight') {
-            score += 5;
-        } else if (regionKey === 'modern-left' || regionKey === 'vintage-right') {
-            score += 3;
-        } else if (regionKey === 'fullart-bottom-left-wide') {
-            score += 4;
-        } else if (regionKey === 'bottom-wide') {
-            score += 1;
-        }
-
-        const slashMatch = value.match(/^(\d{1,3})\/(\d{2,3})$/);
-
-        if (slashMatch) {
-            const left = Number(slashMatch[1]);
-            const right = Number(slashMatch[2]);
-
-            if (right < 20 || right > 400) {
-                score -= 8;
-            }
-
-            if (left === 0 || right === 0) {
-                score -= 10;
-            }
-
-            if (left === 1 && right >= 120) {
-                score -= 4;
-            }
-        }
-
-        return score;
-    }
-
-    async function runCollectorTextOcr(worker, regionBlob) {
-        if (!worker || !regionBlob || typeof worker.setParameters !== 'function') {
-            return { number: '', raw: '' };
-        }
-
-        try {
-            await worker.setParameters({
-                tessedit_pageseg_mode: '7',
-                preserve_interword_spaces: '1',
-                tessedit_char_whitelist: ''
-            });
-
-            const result = await worker.recognize(regionBlob);
-            const rawText = String(result?.data?.text || '').trim();
-            let number = normalizeExtractedCardNumber(extractCardNumber(rawText));
-
-            // If no number found, try digit noise inference as fallback
-            if (!number && rawText) {
-                number = normalizeExtractedCardNumber(inferCollectorFromDigitNoise(rawText));
-            }
-
-            return {
-                number: number,
-                raw: rawText
-            };
-        } catch {
-            return { number: '', raw: '' };
-        } finally {
-            try {
-                await worker.setParameters({
-                    tessedit_pageseg_mode: '6',
-                    preserve_interword_spaces: '1',
-                    tessedit_char_whitelist: ''
-                });
-            } catch {
-                // Ignore reset errors.
-            }
-        }
-    }
-
-    async function runBottomNumericOcr(worker, regionBlob) {
-        if (!worker || !regionBlob || typeof worker.setParameters !== 'function') {
-            return { number: '', raw: '' };
-        }
-
-        try {
-            await worker.setParameters({
-                tessedit_pageseg_mode: '7',
-                tessedit_char_whitelist: '0123456789/'
-            });
-
-            const result = await worker.recognize(regionBlob);
-            const rawText = String(result?.data?.text || '').trim();
-
-            const normalized = rawText
-                .replace(/\s+/g, '')
-                .replace(/[^0-9/]/g, '');
-
-            let number = extractCardNumber(normalized);
-            
-            if (!number) {
-                number = inferCollectorFromDigitNoise(normalized);
-            }
-
-            // If still no match, try harder by processing raw text for digit patterns
-            if (!number && rawText) {
-                number = inferCollectorFromDigitNoise(rawText);
-            }
-
-            return {
-                number: number,
-                raw: rawText
-            };
-        } catch {
-            return { number: '', raw: '' };
-        } finally {
-            try {
-                await worker.setParameters({
-                    tessedit_pageseg_mode: '6',
-                    preserve_interword_spaces: '1',
-                    tessedit_char_whitelist: ''
-                });
-            } catch {
-                // Ignore reset errors.
-            }
-        }
-    }
-
-    async function createRegionBlob(imageBlob, yStart, yEnd, xStart, xEnd, scaleMultiplier) {
-        if (!imageBlob || !window.createImageBitmap) {
-            return null;
-        }
-
-        let bitmap = null;
-
-        try {
-            bitmap = await window.createImageBitmap(imageBlob);
-
-            const startY = Math.max(0, Math.min(1, Number(yStart || 0)));
-            const endY = Math.max(startY + 0.01, Math.min(1, Number(yEnd || 1)));
-            const startX = Math.max(0, Math.min(1, Number(xStart == null ? 0 : xStart)));
-            const endX = Math.max(startX + 0.01, Math.min(1, Number(xEnd == null ? 1 : xEnd)));
-
-            const srcX = Math.round(bitmap.width * startX);
-            const srcY = Math.round(bitmap.height * startY);
-            const srcWidth = Math.max(1, Math.round(bitmap.width * (endX - startX)));
-            const srcHeight = Math.max(1, Math.round(bitmap.height * (endY - startY)));
-
-            const canvas = document.createElement('canvas');
-            const scale = Math.max(1, Number(scaleMultiplier || 2));
-
-            canvas.width = Math.max(1, Math.round(srcWidth * scale));
-            canvas.height = Math.max(1, Math.round(srcHeight * scale));
-
-            const ctx = canvas.getContext('2d');
-
-            if (!ctx) {
-                return null;
-            }
-
-            ctx.drawImage(
-                bitmap,
-                srcX,
-                srcY,
-                srcWidth,
-                srcHeight,
-                0,
-                0,
-                canvas.width,
-                canvas.height
-            );
-
-            return await new Promise(function (resolve) {
-                canvas.toBlob(function (blob) {
-                    resolve(blob || null);
-                }, 'image/png');
-            });
-        } catch {
-            return null;
-        } finally {
-            if (bitmap && typeof bitmap.close === 'function') {
-                try {
-                    bitmap.close();
-                } catch {
-                    // Ignore cleanup errors.
-                }
-            }
-        }
-    }
-
-    async function prepareImageForOcr(imageBlob) {
-        if (!imageBlob || !window.createImageBitmap) {
-            return imageBlob;
-        }
-
-        let bitmap = null;
-
-        try {
-            bitmap = await window.createImageBitmap(imageBlob);
-
-            const canvas = document.createElement('canvas');
-            const scale = 1.8;
-            const width = Math.max(1, Math.round(bitmap.width * scale));
-            const height = Math.max(1, Math.round(bitmap.height * scale));
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-            if (!ctx) {
-                return imageBlob;
-            }
-
-            ctx.drawImage(bitmap, 0, 0, width, height);
-
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-
-            // Boost contrast and binarize softly to reduce holo glare/noise.
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-
-                const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-                const contrasted = (luminance - 128) * 1.45 + 128;
-                const bin = contrasted > 152 ? 255 : contrasted < 82 ? 0 : contrasted;
-
-                data[i] = bin;
-                data[i + 1] = bin;
-                data[i + 2] = bin;
-            }
-
-            ctx.putImageData(imageData, 0, 0);
-
-            return await new Promise(function (resolve) {
-                canvas.toBlob(function (blob) {
-                    resolve(blob || imageBlob);
-                }, 'image/png');
-            });
-        } catch {
-            return imageBlob;
-        } finally {
-            if (bitmap && typeof bitmap.close === 'function') {
-                try {
-                    bitmap.close();
-                } catch {
-                    // Ignore cleanup errors.
-                }
-            }
-        }
-    }
-
-    async function prepareNumberRegionForOcr(imageBlob, invert) {
-        if (!imageBlob || !window.createImageBitmap) {
-            return imageBlob;
-        }
-
-        let bitmap = null;
-
-        try {
-            bitmap = await window.createImageBitmap(imageBlob);
-
-            const canvas = document.createElement('canvas');
-            const scale = 2.2;
-            const width = Math.max(1, Math.round(bitmap.width * scale));
-            const height = Math.max(1, Math.round(bitmap.height * scale));
-
-            canvas.width = width;
-            canvas.height = height;
-
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (!ctx) {
-                return imageBlob;
-            }
-
-            ctx.drawImage(bitmap, 0, 0, width, height);
-
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            const threshold = invert ? 124 : 146;
-
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-
-                let luminance = (0.299 * r) + (0.587 * g) + (0.114 * b);
-                luminance = (luminance - 128) * 1.8 + 128;
-                luminance = Math.max(0, Math.min(255, luminance));
-
-                if (invert) {
-                    luminance = 255 - luminance;
-                }
-
-                const bin = luminance >= threshold ? 255 : 0;
-                data[i] = bin;
-                data[i + 1] = bin;
-                data[i + 2] = bin;
-            }
-
-            ctx.putImageData(imageData, 0, 0);
-
-            return await new Promise(function (resolve) {
-                canvas.toBlob(function (blob) {
-                    resolve(blob || imageBlob);
-                }, 'image/png');
-            });
-        } catch {
-            return imageBlob;
-        } finally {
-            if (bitmap && typeof bitmap.close === 'function') {
-                try {
-                    bitmap.close();
-                } catch {
-                    // Ignore cleanup errors.
-                }
-            }
-        }
-    }
-
-    function extractCardSearchParts(rawText) {
-        const originalText = String(rawText || '');
-
-        const collapsedText = originalText
-            .replace(/[|\\]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        const lines = originalText
-            .split(/\r?\n/)
-            .map(function (line) {
-                return line.trim();
-            })
-            .filter(Boolean);
-
-        return {
-            name: extractCardName(lines),
-            number: extractCardNumber(collapsedText)
-        };
-    }
-
-    function extractCardNumber(text) {
-        const normalized = String(text || '').toUpperCase();
-        const compact = normalizeCardNumberText(normalized);
-
-        const patterns = [
-            /\b(SWSH\s?\d{1,3})\b/i,
-            /\b(SV\s?P\s?\d{1,3})\b/i,
-            /\b(SVP\s?\d{1,3})\b/i,
-            /\b((?:SM|BW|XY)\s?\d{1,3})\b/i,
-            /\b(P\s?\d{1,3})(?:\s|$|★)/i,  // Promo with P-prefix (e.g., "P 080", "P080")
-            /\b(\d{2,3})★\b/,               // Promo with star symbol (e.g., "080★")
-            /\b(TG\s?\d{1,2}\s?\/\s?TG\s?\d{1,2})\b/i,
-            /\b(GG\s?\d{1,2}\s?\/\s?GG\s?\d{1,2})\b/i,
-            /\b([A-Z]{0,4}\d{1,3}\s*\/\s*\d{2,3})\b/i,
-            /\b(\d{1,3}\s*\/\s*\d{2,3})\b/i,
-            /\b((?:SWSH|SVP|SM|BW|XY)\d{1,3})\b/i
-        ];
-
-        for (const pattern of patterns) {
-            const match = normalized.match(pattern);
-
-            if (match && match[1]) {
-                return normalizeExtractedCardNumber(match[1]);
-            }
-        }
-
-        const compactPatterns = [
-            /(\d{1,3}\/\d{2,3})/i,
-            /(SWSH\d{1,3})/i,
-            /(SVP\d{1,3})/i,
-            /(TG\d{1,2}\/TG\d{1,2})/i,
-            /(GG\d{1,2}\/GG\d{1,2})/i,
-            /(P\d{2,3})/i  // Promo P-prefix in compact form (no space)
-        ];
-
-        for (const pattern of compactPatterns) {
-            const match = compact.match(pattern);
-
-            if (match && match[1]) {
-                return normalizeExtractedCardNumber(match[1]);
-            }
-        }
-
-        const fusedMatch = compact.match(/(?:^|[^0-9])(\d{5,6})(?:[^0-9]|$)/);
-
-        if (fusedMatch && fusedMatch[1]) {
-            const inferred = inferCollectorNumberFromDigits(fusedMatch[1]);
-
-            if (inferred) {
-                return normalizeExtractedCardNumber(inferred);
-            }
-        }
-
-        // Try digit noise inference on both the normalized and compact forms
-        let noisyDigitsInferred = inferCollectorFromDigitNoise(normalized);
-
-        if (noisyDigitsInferred) {
-            return normalizeExtractedCardNumber(noisyDigitsInferred);
-        }
-
-        // Also try on compact form in case noise extraction missed letters in normalized
-        noisyDigitsInferred = inferCollectorFromDigitNoise(compact);
-
-        if (noisyDigitsInferred) {
-            return normalizeExtractedCardNumber(noisyDigitsInferred);
-        }
-
-        return '';
-    }
-
-    function detectCollectorNumberFromCandidateTexts(candidates) {
-        const list = Array.isArray(candidates) ? candidates : [];
-
-        for (const candidate of list) {
-            const candidateText = typeof candidate === 'string' ? candidate : candidate && candidate.text;
-            const explicit = extractExplicitCollectorNumber(String(candidateText || ''));
-
-            if (explicit && isPlausibleDetectedNumber(explicit)) {
-                return explicit;
-            }
-        }
-
-        for (const candidate of list) {
-            const candidateText = typeof candidate === 'string' ? candidate : candidate && candidate.text;
-            const allowFuzzy = typeof candidate === 'string' ? true : !!(candidate && candidate.allowFuzzy);
-
-            if (!allowFuzzy) {
-                continue;
-            }
-
-            const detected = fuzzyExtractCollectorNumber(String(candidateText || ''));
-
-            if (detected && isPlausibleDetectedNumber(detected)) {
-                return detected;
-            }
-        }
-
-        return '';
-    }
-
-    function hasExplicitCollectorNumber(text) {
-        return !!extractExplicitCollectorNumber(text);
-    }
-
-    function extractExplicitCollectorNumber(text) {
-        const raw = String(text || '').toUpperCase();
-
-        if (!raw) {
-            return '';
-        }
-
-        const matches = Array.from(raw.matchAll(/(?:^|[^A-Z0-9])([A-Z]{0,4}\s*\d{1,3}\s*\/\s*\d{2,3})(?=$|[^A-Z0-9])/g));
-
-        for (const match of matches) {
-            const normalized = normalizeExtractedCardNumber(match && match[1] ? match[1] : '');
-
-            if (normalized && isPlausibleDetectedNumber(normalized)) {
-                return normalized;
-            }
-        }
-
-        const compact = normalizeCardNumberText(raw);
-        const compactMatch = compact.match(/(\d{1,3}\/\d{2,3})/);
-
-        if (compactMatch && compactMatch[1]) {
-            const normalized = normalizeExtractedCardNumber(compactMatch[1]);
-
-            if (normalized && isPlausibleDetectedNumber(normalized)) {
-                return normalized;
-            }
-        }
-
-        return '';
-    }
-
-    function fuzzyExtractCollectorNumber(text) {
-        const direct = extractCardNumber(text);
-
-        if (direct && isPlausibleDetectedNumber(direct)) {
-            return direct;
-        }
-
-        const tokens = String(text || '').toUpperCase().match(/[A-Z0-9/$]{5,12}/g) || [];
-
-        for (const token of tokens) {
-            const normalized = normalizeFuzzyCollectorToken(token);
-
-            if (normalized && isPlausibleDetectedNumber(normalized)) {
-                return normalized;
-            }
-        }
-
-        return '';
-    }
-
-    function normalizeFuzzyCollectorToken(token) {
-        const raw = String(token || '').toUpperCase().replace(/\s+/g, '');
-
-        if (!raw) {
-            return '';
-        }
-
-        const cleanSlash = raw.match(/(\d{1,3})\/(\d{2,3})/);
-
-        if (cleanSlash) {
-            return normalizeExtractedCardNumber(cleanSlash[0]);
-        }
-
-        const tailMatch = raw.match(/([A-Z0-9/$]{2,6})(\d{2,3})$/);
-
-        if (!tailMatch) {
-            return '';
-        }
-
-        const prefix = tailMatch[1];
-        const denominator = normalizeFuzzyDigits(tailMatch[2], false);
-
-        if (!denominator || denominator.length < 2) {
-            return '';
-        }
-
-        const sepIndex = Math.max(prefix.lastIndexOf('/'), prefix.lastIndexOf('S'), prefix.lastIndexOf('$'));
-        const numeratorSource = sepIndex >= 0 ? prefix.slice(0, sepIndex) : prefix;
-        const numerator = normalizeFuzzyDigits(numeratorSource.slice(-3), true);
-
-        if (!numerator || numerator.length < 2) {
-            return '';
-        }
-
-        return `${numerator}/${denominator}`;
-    }
-
-    function normalizeFuzzyDigits(value, allowAForThree) {
-        const chars = String(value || '').toUpperCase().split('');
-        const mapped = chars.map(function (char) {
-            if (/\d/.test(char)) {
-                return char;
-            }
-
-            if ('OQDUEC'.indexOf(char) >= 0) {
-                return '0';
-            }
-
-            if ('ILT!|'.indexOf(char) >= 0) {
-                return '1';
-            }
-
-            if (char === 'Z') {
-                return '2';
-            }
-
-            if (allowAForThree && char === 'A') {
-                return '3';
-            }
-
-            if (char === 'T') {
-                return '7';
-            }
-
-            if (!allowAForThree && char === 'S') {
-                return '5';
-            }
-
-            if (char === 'G') {
-                return '6';
-            }
-
-            if (char === 'B') {
-                return '8';
-            }
-
-            return '';
-        }).join('');
-
-        return mapped.replace(/\D+/g, '');
-    }
-
     function normalizeExtractedCardNumber(rawNumber) {
         const value = String(rawNumber || '')
             .replace(/\s+/g, '')
@@ -4557,7 +2972,7 @@
         }
 
         if (/^\d{2,3}$/.test(value)) {
-            return value;  // Bare promo number
+            return value;
         }
 
         if (value.indexOf('/') >= 0) {
@@ -4587,13 +3002,12 @@
             return true;
         }
 
-        // Promo formats: P-prefix or bare 2-3 digit
         if (/^P\d{1,3}$/.test(raw)) {
             return true;
         }
 
         if (/^\d{2,3}$/.test(raw)) {
-            return true;  // Bare 2-3 digit promo card
+            return true;
         }
 
         const slashMatch = raw.match(/^(\d{1,3})\/(\d{2,3})$/);
@@ -4634,6 +3048,7 @@
         return false;
     }
 
+
     function isUnverifiedWeakDetectedName(name, number) {
         const value = normalizeDetectedName(name || '');
         const lettersOnly = value.replace(/[^A-Za-z]/g, '');
@@ -4645,36 +3060,6 @@
             && !isPlausibleDetectedNumber(number)
             && !value.includes(' ')
             && lettersOnly.length <= 4;
-    }
-
-    function pickBetterDetectedName(currentName, nextName) {
-        const current = normalizeDetectedName(currentName);
-        const next = normalizeDetectedName(nextName);
-
-        if (!current) {
-            return next;
-        }
-
-        if (!next) {
-            return current;
-        }
-
-        if (current.toLowerCase() === next.toLowerCase()) {
-            return current.length >= next.length ? current : next;
-        }
-
-        if (current.toLowerCase().startsWith(next.toLowerCase()) && current.length - next.length <= 2) {
-            return current;
-        }
-
-        if (next.toLowerCase().startsWith(current.toLowerCase()) && next.length - current.length <= 4) {
-            return next;
-        }
-
-        const currentScore = scoreDetectedName(current);
-        const nextScore = scoreDetectedName(next);
-
-        return nextScore > currentScore ? next : current;
     }
 
     function scoreDetectedName(name) {
@@ -4957,83 +3342,6 @@
             .replace(/[,.;:_]/g, '')
             .replace(/\s+/g, '')
             .replace(/[^A-Z0-9/]/g, '');
-    }
-
-    function extractCardName(lines) {
-        const blockedWords = new Set([
-            'pokemon',
-            'pokémon',
-            'basic',
-            'stage',
-            'trainer',
-            'supporter',
-            'item',
-            'stadium',
-            'energy',
-            'evolves',
-            'from',
-            'weakness',
-            'resistance',
-            'retreat',
-            'illustrator',
-            'copyright',
-            'nintendo',
-            'creatures',
-            'gamefreak',
-            'game',
-            'freak',
-            'hp',
-            'rule',
-            'ability',
-            'damage',
-            'during',
-            'opponent',
-            'active',
-            'bench'
-        ]);
-
-        const hpLine = lines.find(function (line) {
-            return /\b(?:HP\s?\d{2,3}|\d{2,3}\s?HP)\b/i.test(line);
-        });
-
-        if (hpLine) {
-            const hpName = extractNameFromHpLine(hpLine, blockedWords);
-
-            if (hpName) {
-                return normalizeDetectedName(hpName);
-            }
-        }
-
-        const statLineName = extractNameNearTopStatLine(lines, blockedWords);
-
-        if (statLineName) {
-            return normalizeDetectedName(statLineName);
-        }
-
-        const topLineName = extractNameFromTopLines(lines, blockedWords);
-
-        if (topLineName) {
-            return normalizeDetectedName(topLineName);
-        }
-
-        let bestFallbackName = '';
-        let bestFallbackScore = -1;
-
-        for (const rawLine of lines) {
-            const candidate = extractBestNameCandidateFromLine(rawLine, blockedWords);
-
-            if (!candidate) {
-                continue;
-            }
-
-            const candidateScore = scoreDetectedName(candidate);
-            if (candidateScore > bestFallbackScore || (candidateScore === bestFallbackScore && candidate.length > bestFallbackName.length)) {
-                bestFallbackName = candidate;
-                bestFallbackScore = candidateScore;
-            }
-        }
-
-        return bestFallbackName;
     }
 
     function extractNameFromHpLine(rawLine, blockedWords) {
