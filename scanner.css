@@ -230,6 +230,48 @@
   color: #ffffff;
 }
 
+.pv-cardScanner__limitNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.35rem 0 0.9rem;
+  padding: 0.78rem 0.9rem;
+  border: 1px solid rgba(248, 113, 113, 0.75);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.9), rgba(69, 10, 10, 0.88));
+  color: #fee2e2;
+  box-shadow: 0 10px 24px rgba(127, 29, 29, 0.32);
+}
+
+.pv-cardScanner__limitNoticeText {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.pv-cardScanner__limitNoticeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.9);
+  background: rgba(255, 203, 5, 0.16);
+  color: #ffcb05;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.pv-cardScanner__limitNoticeLink:hover,
+.pv-cardScanner__limitNoticeLink:focus-visible {
+  color: #ffe066;
+  border-color: rgba(255, 224, 102, 1);
+  background: rgba(255, 203, 5, 0.24);
+  box-shadow: 0 0 0 1px rgba(255, 224, 102, 0.45);
+}
+
 .pv-cardScanner__review {
   display: grid;
   gap: 0.85rem;

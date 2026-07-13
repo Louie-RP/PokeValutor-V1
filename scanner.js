@@ -280,6 +280,7 @@
                     </div>
 
                     <p id="pv-cardScanner-status" class="pv-cardScanner__status" role="status" aria-live="polite"></p>
+                    <div id="pv-cardScanner-limit-notice" class="pv-cardScanner__limitNotice" role="alert" aria-live="assertive" hidden></div>
 
                     <div class="pv-cardScanner__review">
                         <div class="pv-form__field pv-cardScanner__field pv-cardScanner__field--name">
@@ -345,6 +346,7 @@
             preview: root.querySelector('#pv-cardScanner-preview'),
             captureFabBtn: root.querySelector('#pv-cardScanner-capture-fab'),
             status: root.querySelector('#pv-cardScanner-status'),
+            limitNotice: root.querySelector('#pv-cardScanner-limit-notice'),
             detectedName: root.querySelector('#pv-cardScanner-name'),
             detectedNumber: root.querySelector('#pv-cardScanner-number'),
             rawOcr: root.querySelector('#pv-cardScanner-ocr'),
@@ -481,6 +483,7 @@
 
         try {
             setBusy(elements, state, true);
+            clearDailyLimitNotice(elements);
             setStatus(elements, 'Opening camera...');
 
             stopCamera(elements, state);
@@ -540,6 +543,7 @@
     async function captureCard(root, elements, state) {
         try {
             setBusy(elements, state, true);
+            clearDailyLimitNotice(elements);
             setStatus(elements, 'Capturing image...');
 
             state.capturedBlob = await captureFrame(elements);
@@ -694,6 +698,25 @@
             const extracted = pipelineResult.extracted;
             const combinedRawText = pipelineResult.rawText;
             const originalDetectedName = extracted.name || '';
+            const dailyLimitNotice = buildDailyScanLimitNoticeData(
+                pipelineResult?.cardsight?.warnings,
+                pipelineResult?.cardsight?.quota
+            );
+
+            if (dailyLimitNotice) {
+                showDailyLimitNotice(elements, dailyLimitNotice);
+
+                if (elements.findCandidatesBtn) elements.findCandidatesBtn.hidden = true;
+                if (elements.searchBtn) elements.searchBtn.hidden = true;
+                if (elements.searchReviewBtn) elements.searchReviewBtn.hidden = true;
+                if (elements.searchNearCandidatesBtn) elements.searchNearCandidatesBtn.hidden = true;
+
+                clearCandidateSuggestions(elements);
+                clearSelectedCandidateDisplay(elements);
+                return;
+            }
+
+            clearDailyLimitNotice(elements);
             let nameCorrection = null;
             let catalogNumberAssist = null;
             let rejectedUnverifiedName = false;
@@ -855,6 +878,11 @@
             const cardsightGuidance = getCardSightRetakeGuidance(pipelineResult?.cardsight?.warnings);
             if (cardsightGuidance) {
                 appendStatusHint(elements, cardsightGuidance);
+            }
+
+            const cardsightQuotaGuidance = getCardSightQuotaGuidance(pipelineResult?.cardsight?.quota);
+            if (cardsightQuotaGuidance) {
+                appendStatusHint(elements, cardsightQuotaGuidance);
             }
         } catch (error) {
             console.warn('[PokeValutor Scanner] OCR error', error);
@@ -1372,11 +1400,27 @@
                 detections: detections,
                 warnings: Array.isArray(payload.warnings) ? payload.warnings : [],
                 resolvedCandidates: Array.isArray(payload.resolvedCandidates) ? payload.resolvedCandidates : [],
+                quota: payload?.quota && typeof payload.quota === 'object'
+                    ? payload.quota
+                    : null,
                 diagnostics: payload?.diagnostics && typeof payload.diagnostics === 'object'
                     ? payload.diagnostics
                     : null
             };
         } catch (error) {
+            const warningCode = String(error?.pvCode || '').trim().toUpperCase() === 'DAILY_SCAN_LIMIT_REACHED'
+                ? 'DAILY_SCAN_LIMIT_REACHED'
+                : 'PROVIDER_UNAVAILABLE';
+            const quotaTier = String(error?.pvQuotaTier || '').trim().toLowerCase();
+            const quotaLimitRaw = Number(error?.pvQuotaLimit);
+            const quotaUsedRaw = Number(error?.pvQuotaUsed);
+            const defaultLimitMessage = (quotaTier === 'anon' || quotaTier === 'basic')
+                ? 'Daily scan limit reached. Subscribe for additional card scans.'
+                : 'Daily scan limit reached.';
+            const warningMessage = warningCode === 'DAILY_SCAN_LIMIT_REACHED'
+                ? String(error?.message || defaultLimitMessage).trim()
+                : String(error?.message || 'CardSight request failed.').trim();
+
             return {
                 name: '',
                 number: '',
@@ -1384,14 +1428,17 @@
                 providerCardId: '',
                 detections: [],
                 warnings: [{
-                    code: 'PROVIDER_UNAVAILABLE',
+                    code: warningCode,
                     type: 'warning',
-                    message: String(error?.message || 'CardSight request failed.').trim()
+                    message: warningMessage,
+                    tier: quotaTier,
+                    limit: Number.isFinite(quotaLimitRaw) ? Math.max(0, Math.floor(quotaLimitRaw)) : null,
+                    used: Number.isFinite(quotaUsedRaw) ? Math.max(0, Math.floor(quotaUsedRaw)) : null
                 }],
                 resolvedCandidates: [],
                 diagnostics: {
                     provider: 'cardsight',
-                    warningCodes: ['PROVIDER_UNAVAILABLE'],
+                    warningCodes: [warningCode],
                     providerRequestId: '',
                     providerProcessingMs: 0,
                     topDetection: null
@@ -1481,6 +1528,15 @@
             return '';
         }
 
+        const dailyScanLimit = list.find(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'DAILY_SCAN_LIMIT_REACHED';
+        });
+
+        if (dailyScanLimit) {
+            return String(dailyScanLimit?.message || 'Daily scan limit reached.').trim();
+        }
+
         const providerUnavailable = list.find(function (item) {
             const code = String(item?.code || '').trim().toUpperCase();
             return code === 'PROVIDER_UNAVAILABLE';
@@ -1501,6 +1557,132 @@
         }
 
         return 'Tip: If this scan looks wrong, retake with better lighting and keep the full card in frame.';
+    }
+
+    function getCardSightQuotaGuidance(quota) {
+        const tier = String(quota?.tier || '').trim().toLowerCase();
+        const remainingRaw = Number(quota?.remaining);
+        const limitRaw = Number(quota?.limit);
+
+        if (!tier || !Number.isFinite(remainingRaw) || !Number.isFinite(limitRaw) || limitRaw < 1) {
+            return '';
+        }
+
+        const remaining = Math.max(0, Math.floor(remainingRaw));
+        const limit = Math.max(1, Math.floor(limitRaw));
+        const base = `Scans left today: ${remaining}/${limit}.`;
+
+        if (tier === 'anon' || tier === 'basic') {
+            return `${base} Subscribe for additional card scans.`;
+        }
+
+        return base;
+    }
+
+    function buildDailyScanLimitNoticeData(warnings, quota) {
+        const list = Array.isArray(warnings) ? warnings : [];
+        const daily = list.find(function (item) {
+            const code = String(item?.code || '').trim().toUpperCase();
+            return code === 'DAILY_SCAN_LIMIT_REACHED';
+        });
+
+        if (!daily) {
+            return null;
+        }
+
+        const tier = String(
+            daily?.tier
+            || quota?.tier
+            || ''
+        ).trim().toLowerCase();
+
+        const warningMessage = String(daily?.message || '').trim();
+
+        const limitRaw = Number(
+            daily?.limit != null
+                ? daily.limit
+                : quota?.limit
+        );
+
+        const usedRaw = Number(
+            daily?.used != null
+                ? daily.used
+                : quota?.used
+        );
+
+        let limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : null;
+        let used = Number.isFinite(usedRaw) && usedRaw >= 0 ? Math.floor(usedRaw) : null;
+
+        if (limit == null || used == null) {
+            const pairMatch = warningMessage.match(/\((\d+)\s*\/\s*(\d+)\)/);
+            if (pairMatch) {
+                const parsedUsed = Number(pairMatch[1]);
+                const parsedLimit = Number(pairMatch[2]);
+                if (used == null && Number.isFinite(parsedUsed) && parsedUsed >= 0) {
+                    used = Math.floor(parsedUsed);
+                }
+                if (limit == null && Number.isFinite(parsedLimit) && parsedLimit > 0) {
+                    limit = Math.floor(parsedLimit);
+                }
+            }
+        }
+
+        const showSubscribe = tier === 'anon'
+            || tier === 'basic'
+            || /subscribe/i.test(warningMessage);
+
+        return {
+            tier: tier,
+            limit: limit,
+            used: used,
+            showSubscribe: showSubscribe,
+        };
+    }
+
+    function showDailyLimitNotice(elements, detail) {
+        const box = elements?.limitNotice;
+        if (!box) {
+            return;
+        }
+
+        const tier = String(detail?.tier || '').trim().toLowerCase();
+        const limitRaw = Number(detail?.limit);
+        const usedRaw = Number(detail?.used);
+        const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.floor(limitRaw) : null;
+        const used = Number.isFinite(usedRaw) && usedRaw >= 0 ? Math.floor(usedRaw) : null;
+
+        const limitText = limit != null
+            ? `Daily scan limit met (${used != null ? Math.min(Math.max(used, 0), limit) : limit}/${limit}).`
+            : 'Daily scan limit met.';
+
+        const ctaText = (tier === 'anon' || tier === 'basic')
+            ? ' Subscribe for additional scans.'
+            : '';
+
+        const showSubscribeCta = detail?.showSubscribe === true || tier === 'anon' || tier === 'basic';
+        const ctaHtml = showSubscribeCta
+            ? '<a class="pv-cardScanner__limitNoticeLink" href="pricing.html">Subscribe here</a>'
+            : '';
+
+        box.innerHTML = `
+            <span class="pv-cardScanner__limitNoticeText">${limitText}${ctaText}</span>
+            ${ctaHtml}
+        `;
+        box.hidden = false;
+
+        if (elements.status) {
+            elements.status.textContent = '';
+        }
+    }
+
+    function clearDailyLimitNotice(elements) {
+        const box = elements?.limitNotice;
+        if (!box) {
+            return;
+        }
+
+        box.hidden = true;
+        box.textContent = '';
     }
 
     function appendStatusHint(elements, hint) {
@@ -2739,6 +2921,7 @@
             });
 
             if (!response.ok) {
+                const quotaTier = String(response.headers.get('x-pv-quota-tier') || '').trim().toLowerCase();
                 let detail = '';
                 try {
                     const text = await response.text();
@@ -2755,11 +2938,36 @@
                     // Ignore body parse errors.
                 }
 
+                const statusCode = Number(response.status) || 0;
                 const detailSuffix = detail ? ` ${detail}` : '';
-                throw new Error(`Scanner request failed (${response.status}).${detailSuffix}`.trim());
+                const message = statusCode === 429
+                    ? (detail || ((quotaTier === 'anon' || quotaTier === 'basic')
+                        ? 'Daily scan limit reached. Subscribe for additional card scans.'
+                        : 'Daily scan limit reached.'))
+                    : `Scanner request failed (${response.status}).${detailSuffix}`.trim();
+                const error = new Error(message);
+                error.pvStatus = statusCode;
+                error.pvQuotaTier = quotaTier;
+                error.pvQuotaLimit = Number(response.headers.get('x-pv-quota-limit'));
+                error.pvQuotaUsed = Number(response.headers.get('x-pv-quota-used'));
+                if (statusCode === 429) {
+                    error.pvCode = 'DAILY_SCAN_LIMIT_REACHED';
+                }
+                throw error;
             }
 
             const data = await response.json();
+            if (data && typeof data === 'object') {
+                const quotaLimitRaw = Number(response.headers.get('x-pv-quota-limit'));
+                const quotaRemainingRaw = Number(response.headers.get('x-pv-quota-remaining'));
+                const quotaUsedRaw = Number(response.headers.get('x-pv-quota-used'));
+                data.quota = {
+                    tier: String(response.headers.get('x-pv-quota-tier') || '').trim().toLowerCase(),
+                    limit: Number.isFinite(quotaLimitRaw) ? Math.max(0, Math.floor(quotaLimitRaw)) : null,
+                    remaining: Number.isFinite(quotaRemainingRaw) ? Math.max(0, Math.floor(quotaRemainingRaw)) : null,
+                    used: Number.isFinite(quotaUsedRaw) ? Math.max(0, Math.floor(quotaUsedRaw)) : null,
+                };
+            }
             scannerRequestCache.set(cacheKey, data);
             return data;
         } finally {
@@ -5243,6 +5451,9 @@
     }
 
     function setStatus(elements, message) {
+        if (message) {
+            clearDailyLimitNotice(elements);
+        }
         if (elements.status) {
             elements.status.textContent = message || '';
         }
