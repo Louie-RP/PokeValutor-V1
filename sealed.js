@@ -457,15 +457,18 @@ document.addEventListener('DOMContentLoaded', function () {
         let message = '';
         let showCta = false;
 
-        // admin/tester require auth; if we're here the user is signed out, so this
-        // is stale quota from a previous session — hide rather than show privileged text.
+        // admin/tester require auth; when signed out this is stale quota from a
+        // previous session, but signed-in privileged users should still see their
+        // unlimited-access messaging.
         if (tier === 'admin' || tier === 'tester') {
-            quotaBanner.hidden = true;
-            if (quotaCtaEl) quotaCtaEl.hidden = true;
-            return;
-        }
+            if (!signedIn) {
+                quotaBanner.hidden = true;
+                if (quotaCtaEl) quotaCtaEl.hidden = true;
+                return;
+            }
 
-        if (tier === 'anon' || tier === 'guest') {
+            message = tier === 'admin' ? 'Admin access: unlimited.' : 'Tester access: unlimited.';
+        } else if (tier === 'anon' || tier === 'guest') {
             showCta = !signedIn;  // Only show CTA if signed out
             if (remaining != null && remaining <= 0) {
                 quotaBanner.classList.add('pv-quotaBanner--error');
