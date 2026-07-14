@@ -24,33 +24,10 @@ function serverTimestamp() {
     return FieldValue.serverTimestamp();
 }
 
-function legacyConfigValue(nestedPath) {
-    if (!Array.isArray(nestedPath) || nestedPath.length === 0) return '';
-
-    try {
-        if (typeof functions.config !== 'function') return '';
-        let cursor = functions.config();
-
-        for (const partRaw of nestedPath) {
-            const part = String(partRaw || '').trim();
-            if (!part || !cursor || typeof cursor !== 'object') return '';
-            cursor = cursor[part];
-        }
-
-        return String(cursor || '').trim();
-    } catch {
-        return '';
-    }
-}
-
 function configValue(envKey, nestedPath, fallback) {
     // Prefer explicit environment variables.
     const envValue = String(process.env?.[envKey] || '').trim();
     if (envValue) return envValue;
-
-    // Backward compatibility for existing functions.config() deployments.
-    const legacyValue = legacyConfigValue(nestedPath);
-    if (legacyValue) return legacyValue;
 
     return String(fallback || '').trim();
 }
