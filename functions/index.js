@@ -88,6 +88,78 @@ function getStripePortalConfigurationId() {
     return configValue('STRIPE_BILLING_PORTAL_CONFIGURATION_ID', ['stripe', 'billing_portal_configuration_id'], '');
 }
 
+function getScannerVisionApiKey() {
+    return configValue('SCANNER_VISION_API_KEY', ['scanner', 'vision_api_key'], '');
+}
+
+function getScannerVisionModel() {
+    return configValue('SCANNER_VISION_MODEL', ['scanner', 'vision_model'], 'gpt-4o-mini');
+}
+
+function isScannerVisionEnabled() {
+    const raw = configValue('ENABLE_SCANNER_VISION', ['scanner', 'enable_vision'], 'false');
+    const normalized = String(raw || '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getCardCatalogHydrationSecret() {
+    return configValue('CARD_CATALOG_HYDRATION_SECRET', ['card_catalog', 'hydration_secret'], '');
+}
+
+function isCardCatalogHydrationEnabled() {
+    const raw = configValue('CARD_CATALOG_HYDRATION_ENABLED', ['card_catalog', 'hydration_enabled'], 'false');
+    const normalized = String(raw || '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getCardCatalogHydrationMaxCards() {
+    const raw = Number(configValue('CARD_CATALOG_HYDRATION_MAX_CARDS', ['card_catalog', 'hydration_max_cards'], '25'));
+    return Number.isFinite(raw) && raw > 0 ? Math.min(50, Math.floor(raw)) : 25;
+}
+
+function getCardCatalogCandidatesSecret() {
+    return configValue(
+        'CARD_CATALOG_CANDIDATES_SECRET',
+        ['card_catalog', 'candidates_secret'],
+        getCardCatalogHydrationSecret()
+    );
+}
+
+function isCardCatalogCandidatesEnabled() {
+    const raw = configValue('CARD_CATALOG_CANDIDATES_ENABLED', ['card_catalog', 'candidates_enabled'], 'false');
+    const normalized = String(raw || '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getCardCatalogCandidatesMaxResults() {
+    const raw = Number(configValue('CARD_CATALOG_CANDIDATES_MAX_RESULTS', ['card_catalog', 'candidates_max_results'], '12'));
+    return Number.isFinite(raw) && raw > 0 ? Math.min(25, Math.floor(raw)) : 12;
+}
+
+function getScannerNameSuggestionsSecret() {
+    return configValue(
+        'SCANNER_NAME_SUGGESTIONS_SECRET',
+        ['scanner', 'name_suggestions_secret'],
+        getCardCatalogCandidatesSecret()
+    );
+}
+
+function isScannerNameSuggestionsEnabled() {
+    const raw = configValue('SCANNER_NAME_SUGGESTIONS_ENABLED', ['scanner', 'name_suggestions_enabled'], 'false');
+    const normalized = String(raw || '').trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function getScannerNameSuggestionsMaxResults() {
+    const raw = Number(configValue('SCANNER_NAME_SUGGESTIONS_MAX_RESULTS', ['scanner', 'name_suggestions_max_results'], '5'));
+    return Number.isFinite(raw) && raw > 0 ? Math.min(10, Math.floor(raw)) : 5;
+}
+
+function getScannerNameSuggestionsMinScore() {
+    const raw = Number(configValue('SCANNER_NAME_SUGGESTIONS_MIN_SCORE', ['scanner', 'name_suggestions_min_score'], '0.70'));
+    return Number.isFinite(raw) ? Math.max(0, Math.min(1, raw)) : 0.70;
+}
+
 function getAppBaseUrl() {
     const raw = configValue('STRIPE_APP_BASE_URL', ['stripe', 'app_base_url'], DEFAULT_APP_BASE_URL);
     try {
@@ -135,6 +207,145 @@ function isAllowedReturnOrigin(origin) {
     return isLocalOrigin(origin);
 }
 
+function isAllowedScannerOrigin(origin) {
+    if (!origin) return false;
+    if (isAllowedReturnOrigin(origin)) return true;
+    return isLocalOrigin(origin);
+}
+
+function applyScannerCors(req, res) {
+    const requestOrigin = String(req.get('origin') || '').trim();
+    const fallbackOrigin = getAppBaseUrl();
+    const allowOrigin = isAllowedScannerOrigin(requestOrigin)
+        ? requestOrigin
+        : fallbackOrigin;
+
+    if (allowOrigin) {
+        res.set('Access-Control-Allow-Origin', allowOrigin);
+        res.set('Vary', 'Origin');
+    }
+    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function parseImageDataUrl(raw) {
+    const value = String(raw || '').trim();
+    const match = value.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$/i);
+    if (!match) return null;
+
+    const mime = String(match[1] || '').toLowerCase();
+    const b64 = String(match[2] || '').replace(/\s+/g, '');
+    if (!b64) return null;
+
+    let buffer;
+    try {
+        buffer = Buffer.from(b64, 'base64');
+    } catch {
+        return null;
+    }
+
+    if (!buffer || !buffer.length) return null;
+
+    return {
+        mime,
+        base64: b64,
+        buffer,
+        dataUrl: `data:${mime};base64,${b64}`,
+    };
+}
+
+function stripCodeFences(raw) {
+    const text = String(raw || '').trim();
+    const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenced && fenced[1]) return fenced[1].trim();
+    return text;
+}
+
+function parseVisionResponseJson(raw) {
+    const text = stripCodeFences(raw);
+    if (!text) return null;
+
+    try {
+        const parsed = JSON.parse(text);
+        return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function normalizeVisionOutput(payload) {
+    const name = String(payload?.name || payload?.cardName || '').trim();
+    const collectorNumber = String(payload?.collectorNumber || payload?.cardNumber || '').trim().toUpperCase();
+    const confidenceRaw = Number(payload?.confidence);
+    const confidence = Number.isFinite(confidenceRaw)
+        ? Math.max(0, Math.min(1, confidenceRaw))
+        : null;
+
+    return {
+        name: name.slice(0, 80),
+        collectorNumber: collectorNumber.slice(0, 24),
+        confidence,
+    };
+}
+
+async function callScannerVisionModel(imageDataUrl) {
+    const apiKey = getScannerVisionApiKey();
+    if (!apiKey) {
+        throw new Error('SCANNER_VISION_API_KEY is not configured.');
+    }
+
+    const model = getScannerVisionModel();
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: 180,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Extract Pokemon card details from the image. Return only valid JSON with keys: name (string), collectorNumber (string), confidence (number 0-1). If unknown, use empty string and low confidence.'
+                },
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'Read the card name and collector number exactly as printed. Return JSON only.'
+                        },
+                        {
+                            type: 'image_url',
+                            image_url: {
+                                url: imageDataUrl
+                            }
+                        }
+                    ]
+                }
+            ]
+        }),
+    });
+
+    if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(`Vision model request failed (${response.status}): ${errText || 'unknown error'}`);
+    }
+
+    const json = await response.json();
+    const content = String(json?.choices?.[0]?.message?.content || '').trim();
+    const parsed = parseVisionResponseJson(content);
+
+    if (!parsed) {
+        throw new Error('Vision model response was not valid JSON.');
+    }
+
+    return normalizeVisionOutput(parsed);
+}
+
 function sanitizeReturnUrl(raw, fallbackUrl) {
     const fallback = String(fallbackUrl || '').trim();
 
@@ -178,6 +389,407 @@ function timingSafeStringEquals(a, b) {
     const right = Buffer.from(String(b || ''), 'utf8');
     if (left.length !== right.length) return false;
     return crypto.timingSafeEqual(left, right);
+}
+
+function normalizeCatalogText(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[’']/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function normalizeCatalogNumberKey(value) {
+    return String(value || '')
+        .trim()
+        .toUpperCase()
+        .replace(/[OQD]/g, '0')
+        .replace(/[IL|!]/g, '1')
+        .replace(/[^A-Z0-9]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+function normalizeCatalogCollectorNumberWithPrintedTotal(rawNumber, printedTotal) {
+    const number = String(rawNumber || '').trim().toUpperCase();
+    const totalRaw = String(printedTotal || '').trim();
+
+    if (!number) return '';
+    if (number.indexOf('/') >= 0) return number;
+    if (!/^\d{1,3}$/.test(number)) return number;
+    if (!/^\d{2,3}$/.test(totalRaw)) return number;
+
+    const left = String(Number(number));
+    const right = String(Number(totalRaw));
+    if (!left || !right) return number;
+
+    const width = Math.max(2, totalRaw.length, right.length);
+    return `${left.padStart(width, '0')}/${right.padStart(width, '0')}`;
+}
+
+function normalizeCatalogCardDoc(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+
+    const id = String(raw.id || '').trim();
+    if (!/^[a-z0-9][a-z0-9._:-]{1,120}$/i.test(id)) {
+        return null;
+    }
+
+    const name = String(raw.name || '').trim().slice(0, 120);
+    const rawNumber = String(raw.printedNumber || raw.collectorNumber || raw.number || '').trim().slice(0, 32);
+    const setId = String(raw.setId || raw.expansionId || '').trim().slice(0, 80);
+    const setName = String(raw.setName || raw.expansionName || '').trim().slice(0, 120);
+    const series = String(raw.series || '').trim().slice(0, 80);
+    const rarity = String(raw.rarity || '').trim().slice(0, 80);
+    const imageSmall = String(raw.imageSmall || '').trim().slice(0, 500);
+    const imageLarge = String(raw.imageLarge || raw.imageSmall || '').trim().slice(0, 500);
+
+    // Extract printed total from set metadata for full collector number reconstruction
+    const expansion = raw.expansion && typeof raw.expansion === 'object' ? raw.expansion : {};
+    const set = raw.set && typeof raw.set === 'object' ? raw.set : {};
+    const printedTotal = String(
+        expansion?.printed_total
+        || expansion?.printedTotal
+        || expansion?.total
+        || set?.printed_total
+        || set?.printedTotal
+        || set?.total
+        || ''
+    ).trim();
+
+    const number = normalizeCatalogCollectorNumberWithPrintedTotal(rawNumber, printedTotal).slice(0, 32);
+    const printedNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(raw.printedNumber || raw.collectorNumber || rawNumber).trim(),
+        printedTotal
+    ).slice(0, 32);
+    const collectorNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(raw.collectorNumber || raw.printedNumber || rawNumber).trim(),
+        printedTotal
+    ).slice(0, 32);
+
+    if (!name && !number) {
+        return null;
+    }
+
+    const normalizedName = normalizeCatalogText(name);
+
+    return {
+        id,
+        name,
+        normalizedName,
+        nameTokens: normalizedName.split(/\s+/).filter(Boolean).slice(0, 10),
+        number,
+        numberKey: normalizeCatalogNumberKey(number),
+        printedNumber,
+        collectorNumber,
+        setId,
+        setName,
+        series,
+        rarity,
+        imageSmall,
+        imageLarge,
+        printedTotal,
+        source: 'scrydex-worker',
+        updatedAt: FieldValue.serverTimestamp(),
+    };
+}
+
+function getScannerNameIndexDocId(normalizedName) {
+    return String(normalizedName || '')
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 120);
+}
+
+function buildScannerNameTrigrams(value) {
+    const compact = normalizeCatalogText(value).replace(/\s+/g, '');
+    const grams = [];
+
+    for (let i = 0; i <= compact.length - 3; i += 1) {
+        const gram = compact.slice(i, i + 3);
+        if (/^[a-z0-9]{3}$/.test(gram) && grams.indexOf(gram) < 0) grams.push(gram);
+    }
+
+    return grams.slice(0, 40);
+}
+
+function buildScannerNameIndexEntryFromCatalogDoc(doc) {
+    if (!doc || typeof doc !== 'object') return null;
+
+    const displayName = String(doc.name || '').trim().slice(0, 120);
+    const normalizedName = normalizeCatalogText(displayName);
+
+    if (!displayName || !normalizedName || normalizedName.length < 2) {
+        return null;
+    }
+
+    const tokens = normalizedName.split(/\s+/).filter(Boolean).slice(0, 8);
+    const compact = normalizedName.replace(/\s+/g, '');
+
+    return {
+        docId: getScannerNameIndexDocId(normalizedName),
+        displayName,
+        normalizedName,
+        tokens,
+        firstLetter: compact.slice(0, 1),
+        prefix2: compact.slice(0, 2),
+        prefix3: compact.slice(0, 3),
+        grams3: buildScannerNameTrigrams(normalizedName),
+        cardId: String(doc.id || '').trim(),
+    };
+}
+
+function buildScannerNameIndexEntries(docs) {
+    const byName = new Map();
+
+    for (const doc of Array.isArray(docs) ? docs : []) {
+        const entry = buildScannerNameIndexEntryFromCatalogDoc(doc);
+        if (!entry || !entry.docId) continue;
+
+        const existing = byName.get(entry.docId);
+        if (!existing) {
+            byName.set(entry.docId, {
+                ...entry,
+                cardIds: entry.cardId ? [entry.cardId] : [],
+                cardCountDelta: 1,
+            });
+            continue;
+        }
+
+        if (entry.cardId && existing.cardIds.indexOf(entry.cardId) < 0 && existing.cardIds.length < 20) {
+            existing.cardIds.push(entry.cardId);
+        }
+        existing.cardCountDelta += 1;
+    }
+
+    return Array.from(byName.values());
+}
+
+function addScannerNameIndexWritesToBatch(batch, db, docs) {
+    const entries = buildScannerNameIndexEntries(docs);
+    const collection = db.collection('scannerNameIndex');
+
+    for (const entry of entries) {
+        const ref = collection.doc(entry.docId);
+
+        batch.set(ref, {
+            displayName: entry.displayName,
+            normalizedName: entry.normalizedName,
+            tokens: entry.tokens,
+            firstLetter: entry.firstLetter,
+            prefix2: entry.prefix2,
+            prefix3: entry.prefix3,
+            grams3: entry.grams3,
+            exampleCardIds: FieldValue.arrayUnion(...entry.cardIds.slice(0, 10)),
+            cardCount: FieldValue.increment(entry.cardCountDelta),
+            source: 'cardCatalog',
+            updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+    }
+}
+
+function compactScannerName(value) {
+    return normalizeCatalogText(value).replace(/\s+/g, '');
+}
+
+function levenshteinDistance(a, b) {
+    const left = String(a || '');
+    const right = String(b || '');
+
+    if (left === right) return 0;
+    if (!left) return right.length;
+    if (!right) return left.length;
+
+    const prev = new Array(right.length + 1);
+    const cur = new Array(right.length + 1);
+
+    for (let j = 0; j <= right.length; j += 1) prev[j] = j;
+
+    for (let i = 1; i <= left.length; i += 1) {
+        cur[0] = i;
+        for (let j = 1; j <= right.length; j += 1) {
+            const cost = left[i - 1] === right[j - 1] ? 0 : 1;
+            cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+        }
+
+        for (let j = 0; j <= right.length; j += 1) prev[j] = cur[j];
+    }
+
+    return prev[right.length];
+}
+
+function bigrams(value) {
+    const text = compactScannerName(value);
+    const out = [];
+
+    if (text.length < 2) {
+        if (text) out.push(text);
+        return out;
+    }
+
+    for (let i = 0; i < text.length - 1; i += 1) out.push(text.slice(i, i + 2));
+    return out;
+}
+
+function diceSimilarity(a, b) {
+    const left = bigrams(a);
+    const right = bigrams(b);
+    if (!left.length || !right.length) return 0;
+
+    const counts = new Map();
+    for (const item of left) counts.set(item, (counts.get(item) || 0) + 1);
+
+    let overlap = 0;
+    for (const item of right) {
+        const count = counts.get(item) || 0;
+        if (count > 0) {
+            overlap += 1;
+            counts.set(item, count - 1);
+        }
+    }
+
+    return (2 * overlap) / (left.length + right.length);
+}
+
+function normalizedEditSimilarity(a, b) {
+    const left = compactScannerName(a);
+    const right = compactScannerName(b);
+    if (!left || !right) return 0;
+    if (left === right) return 1;
+
+    const distance = levenshteinDistance(left, right);
+    return Math.max(0, 1 - (distance / Math.max(left.length, right.length)));
+}
+
+function scoreScannerNameSuggestion(inputText, candidate) {
+    const input = compactScannerName(inputText);
+    const name = compactScannerName(candidate?.displayName || candidate?.normalizedName || '');
+    if (!input || !name) return 0;
+    if (input === name) return 1;
+
+    const editDistance = levenshteinDistance(input, name);
+    const edit = Math.max(0, 1 - (editDistance / Math.max(input.length, name.length)));
+    const dice = diceSimilarity(input, name);
+    let score = (edit * 0.65) + (dice * 0.35);
+
+    // A single missing, extra, or incorrect OCR character in a substantial name
+    // is safe to treat as a high-confidence correction.
+    if (editDistance === 1 && Math.min(input.length, name.length) >= 5) {
+        score = Math.max(score, 0.92);
+    }
+
+    // Long OCR names commonly contain two independent defects (for example,
+    // one substituted letter plus a trailing artifact). At this length a
+    // two-edit catalog match is still strong evidence and should clear the
+    // scanner's auto-correction threshold without maintaining per-card aliases.
+    if (editDistance === 2 && Math.min(input.length, name.length) >= 8) {
+        score = Math.max(score, 0.89);
+    }
+
+    const isPrefixMatch = name.startsWith(input) || input.startsWith(name);
+    const prefixLengthDelta = Math.abs(name.length - input.length);
+
+    // Header OCR commonly clips the last one or two letters while preserving a
+    // long, exact prefix (for example, Charmand -> Charmander). This is much
+    // stronger evidence than a generic short prefix.
+    if (isPrefixMatch && Math.min(input.length, name.length) >= 6 && prefixLengthDelta <= 2) {
+        score = Math.max(score, 0.91);
+    } else if (isPrefixMatch) {
+        score = Math.max(score, 0.82);
+    }
+    return Math.max(0, Math.min(1, score));
+}
+
+function nameIndexDocToSuggestion(inputText, doc) {
+    const data = doc && typeof doc.data === 'function' ? doc.data() : doc;
+    if (!data || typeof data !== 'object') return null;
+
+    const name = String(data.displayName || '').trim();
+    const normalizedName = String(data.normalizedName || normalizeCatalogText(name)).trim();
+    if (!name || !normalizedName) return null;
+
+    const score = scoreScannerNameSuggestion(inputText, data);
+    const matchedBy = [];
+    const compactInput = compactScannerName(inputText);
+
+    if (compactInput === compactScannerName(name)) matchedBy.push('exact');
+    if (compactInput.slice(0, 3) && compactInput.slice(0, 3) === String(data.prefix3 || '')) matchedBy.push('prefix3');
+    if (compactInput.slice(0, 2) && compactInput.slice(0, 2) === String(data.prefix2 || '')) matchedBy.push('prefix2');
+    const inputGrams = buildScannerNameTrigrams(inputText);
+    const candidateGrams = new Set(Array.isArray(data.grams3) ? data.grams3 : []);
+    if (inputGrams.some((gram) => candidateGrams.has(gram))) matchedBy.push('trigram');
+    matchedBy.push('fuzzy');
+
+    return {
+        name,
+        normalizedName,
+        score,
+        source: 'scannerNameIndex',
+        matchedBy: Array.from(new Set(matchedBy)),
+        exampleCardIds: Array.isArray(data.exampleCardIds) ? data.exampleCardIds.slice(0, 5) : [],
+    };
+}
+
+async function findScannerNameSuggestions(inputText, limit) {
+    const text = String(inputText || '').trim().slice(0, 120);
+    const normalized = normalizeCatalogText(text);
+    const compact = compactScannerName(text);
+    if (compact.length < 2) return [];
+
+    const db = admin.firestore();
+    const collection = db.collection('scannerNameIndex');
+    const tasks = [];
+    const exactDocId = getScannerNameIndexDocId(normalized);
+
+    if (exactDocId) {
+        tasks.push(collection.doc(exactDocId).get().then((doc) => ({ docs: doc.exists ? [doc] : [] })));
+    }
+    if (compact.length >= 3) tasks.push(collection.where('prefix3', '==', compact.slice(0, 3)).limit(80).get());
+    if (compact.length >= 2) tasks.push(collection.where('prefix2', '==', compact.slice(0, 2)).limit(120).get());
+
+    const firstLetter = compact.slice(0, 1);
+    if (firstLetter && compact.length <= 4) {
+        tasks.push(collection.where('firstLetter', '==', firstLetter).limit(50).get());
+    }
+
+    const token = normalized.split(/\s+/).filter(Boolean)[0] || '';
+    if (token && token.length >= 3) tasks.push(collection.where('tokens', 'array-contains', token).limit(80).get());
+
+    // Prefix OCR is often the least reliable part of a foil card name. Query
+    // several spaced internal fragments so a reading such as "Cowscarada" can
+    // still retrieve "Meowscarada" through their shared middle/end sequence.
+    const grams = buildScannerNameTrigrams(compact);
+    const gramIndexes = grams.length <= 4
+        ? grams.map((_, index) => index)
+        : [1, Math.floor(grams.length / 3), Math.floor((grams.length * 2) / 3), grams.length - 2];
+    for (const index of Array.from(new Set(gramIndexes))) {
+        const gram = grams[index];
+        if (gram) tasks.push(collection.where('grams3', 'array-contains', gram).limit(120).get());
+    }
+
+    const snapshots = await Promise.all(tasks);
+    const byName = new Map();
+
+    for (const snap of snapshots) {
+        for (const doc of snap.docs || []) {
+            const suggestion = nameIndexDocToSuggestion(text, doc);
+            if (!suggestion) continue;
+
+            const prev = byName.get(suggestion.normalizedName);
+            if (!prev || suggestion.score > prev.score) byName.set(suggestion.normalizedName, suggestion);
+        }
+    }
+
+    const minScore = getScannerNameSuggestionsMinScore();
+    return Array.from(byName.values())
+        .filter((item) => Number(item.score || 0) >= minScore)
+        .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+        .slice(0, limit);
 }
 
 function normalizeSignatureCandidate(value) {
@@ -1337,6 +1949,233 @@ async function processStripeEvent(event) {
     }
 }
 
+function normalizeScannerCandidateInput(raw) {
+    const name = String(raw?.name || raw?.cardName || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+    const number = String(raw?.number || raw?.collectorNumber || raw?.cardNumber || '').trim().toUpperCase().replace(/\s+/g, '').slice(0, 32);
+    const numberKey = normalizeCatalogNumberKey(raw?.numberKey || number);
+    const setId = String(raw?.setId || raw?.expansionId || '').trim().toLowerCase().slice(0, 80);
+    const rawLimit = Number(raw?.limit || getCardCatalogCandidatesMaxResults());
+    const limit = Math.max(1, Math.min(getCardCatalogCandidatesMaxResults(), Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 12));
+
+    return {
+        name,
+        normalizedName: normalizeCatalogText(name),
+        nameTokens: normalizeCatalogText(name).split(/\s+/).filter(Boolean).slice(0, 5),
+        number,
+        numberKey,
+        setId,
+        limit,
+    };
+}
+
+function numberForCandidateCompare(value) {
+    return normalizeCatalogNumberKey(value);
+}
+
+function catalogNumberNumerator(value) {
+    const normalized = String(value || '').trim().toUpperCase();
+    const match = normalized.match(/^(?:[A-Z]{0,4})?0*(\d{1,3})(?:\s*\/|$)/);
+    return match && match[1] ? String(Number(match[1])) : '';
+}
+
+function scoreNameCandidate(inputName, cardName) {
+    const input = normalizeCatalogText(inputName);
+    const card = normalizeCatalogText(cardName);
+
+    if (!input || !card) return 0;
+    if (input === card) return 25;
+    if (card.includes(input) || input.includes(card)) return 18;
+
+    const inputTokens = input.split(/\s+/).filter(Boolean);
+    const cardTokens = new Set(card.split(/\s+/).filter(Boolean));
+    if (!inputTokens.length || !cardTokens.size) return 0;
+
+    let overlap = 0;
+    for (const token of inputTokens) {
+        if (cardTokens.has(token)) overlap += 1;
+    }
+
+    return Math.round((overlap / Math.max(inputTokens.length, cardTokens.size)) * 12);
+}
+
+function scoreCatalogCandidate(input, doc) {
+    let score = 0;
+    const matchedBy = [];
+
+    const resolvedNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        doc?.number || doc?.printedNumber || doc?.collectorNumber || '',
+        doc?.printedTotal || doc?.total || ''
+    );
+    const cardNumberKey = numberForCandidateCompare(resolvedNumber || doc?.numberKey || doc?.number || doc?.printedNumber || doc?.collectorNumber || '');
+    let numberMatched = false;
+    if (input.numberKey && cardNumberKey && input.numberKey === cardNumberKey) {
+        score += 55;
+        matchedBy.push('numberKey');
+        numberMatched = true;
+    } else if (
+        input.number
+        && /^\d{1,3}$/.test(input.number)
+        && catalogNumberNumerator(input.number) === catalogNumberNumerator(resolvedNumber)
+    ) {
+        // OCR often reads only the printed numerator (for example 256 rather
+        // than 256/193). Treat that as useful but weaker number evidence.
+        score += 35;
+        matchedBy.push('numberNumerator');
+        numberMatched = true;
+    }
+
+    const nameScore = scoreNameCandidate(input.name, doc?.name || '');
+    if (nameScore > 0) {
+        score += nameScore;
+        matchedBy.push(nameScore >= 25 ? 'normalizedName' : 'namePartial');
+    } else if (input.name && numberMatched) {
+        // When both signals were supplied, an unrelated name must not outrank
+        // a same-name card merely because many sets reuse collector number 256.
+        score -= 25;
+        matchedBy.push('nameMismatch');
+    }
+
+    const cardSetId = String(doc?.setId || '').trim().toLowerCase();
+    if (input.setId && cardSetId && input.setId === cardSetId) {
+        score += 15;
+        matchedBy.push('setId');
+    }
+
+    if (doc?.imageLarge || doc?.imageSmall) {
+        score += 5;
+        matchedBy.push('imageUrl');
+    }
+
+    return {
+        score: Math.max(0, Math.min(100, score)),
+        matchedBy,
+    };
+}
+
+function cardCatalogDocToScannerCandidate(doc, input) {
+    const data = doc && typeof doc.data === 'function' ? doc.data() : doc;
+    if (!data || typeof data !== 'object') return null;
+
+    const id = String(data.id || doc?.id || '').trim();
+    if (!id) return null;
+
+    const scored = scoreCatalogCandidate(input, data);
+    if (scored.score <= 0) return null;
+
+    const setId = String(data.setId || '').trim();
+    const setName = String(data.setName || '').trim();
+    const series = String(data.series || '').trim();
+    const printedTotal = String(data.printedTotal || '').trim();
+    const number = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(data.printedNumber || data.collectorNumber || data.number || '').trim(),
+        printedTotal
+    );
+    const printedNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(data.printedNumber || data.collectorNumber || data.number || '').trim(),
+        printedTotal
+    );
+    const collectorNumber = normalizeCatalogCollectorNumberWithPrintedTotal(
+        String(data.collectorNumber || data.printedNumber || data.number || '').trim(),
+        printedTotal
+    );
+    const imageSmall = String(data.imageSmall || '').trim();
+    const imageLarge = String(data.imageLarge || imageSmall || '').trim();
+
+    return {
+        id,
+        name: String(data.name || '').trim(),
+        number: number || String(data.number || '').trim(),
+        printedNumber: printedNumber || number || String(data.printedNumber || data.number || '').trim(),
+        collectorNumber: collectorNumber || number || String(data.collectorNumber || data.number || '').trim(),
+        rarity: String(data.rarity || '').trim(),
+        setId,
+        setName,
+        series,
+        imageSmall,
+        imageLarge,
+        expansion: {
+            id: setId,
+            name: setName,
+            series,
+            printedTotal: printedTotal || undefined,
+        },
+        set: {
+            id: setId,
+            name: setName,
+            series,
+            printedTotal: printedTotal || undefined,
+        },
+        images: {
+            small: imageSmall,
+            medium: imageLarge || imageSmall,
+            large: imageLarge || imageSmall,
+        },
+        _candidate: {
+            source: 'firestore-cardCatalog',
+            score: scored.score,
+            matchedBy: scored.matchedBy,
+        },
+    };
+}
+
+function mergeAndSortCatalogCandidates(input, snapshots) {
+    const byId = new Map();
+
+    for (const snap of snapshots) {
+        for (const doc of snap.docs || []) {
+            const candidate = cardCatalogDocToScannerCandidate(doc, input);
+            if (!candidate?.id) continue;
+
+            const prev = byId.get(candidate.id);
+            if (!prev || Number(candidate._candidate?.score || 0) > Number(prev._candidate?.score || 0)) {
+                byId.set(candidate.id, candidate);
+            }
+        }
+    }
+
+    const out = Array.from(byId.values())
+        .sort((a, b) => {
+            const scoreDiff = Number(b._candidate?.score || 0) - Number(a._candidate?.score || 0);
+            if (scoreDiff) return scoreDiff;
+
+            const setA = String(a.setId || '');
+            const setB = String(b.setId || '');
+            if (input.setId && setA === input.setId && setB !== input.setId) return -1;
+            if (input.setId && setB === input.setId && setA !== input.setId) return 1;
+
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        })
+        .slice(0, input.limit);
+
+    return out;
+}
+
+async function findScannerCatalogCandidates(input) {
+    const db = admin.firestore();
+    const collection = db.collection('cardCatalog');
+    const tasks = [];
+
+    if (input.numberKey) {
+        tasks.push(collection.where('numberKey', '==', input.numberKey).limit(60).get());
+    }
+
+    if (input.normalizedName) {
+        tasks.push(collection.where('normalizedName', '==', input.normalizedName).limit(40).get());
+    }
+
+    const firstToken = input.nameTokens[0] || '';
+    if (firstToken) {
+        tasks.push(collection.where('nameTokens', 'array-contains', firstToken).limit(60).get());
+    }
+
+    if (!tasks.length) {
+        return [];
+    }
+
+    const snapshots = await Promise.all(tasks);
+    return mergeAndSortCatalogCandidates(input, snapshots);
+}
+
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
     if (req.method !== 'POST') {
         res.status(405).send('Method Not Allowed');
@@ -1465,3 +2304,291 @@ exports.scrydexWebhook = functions.https.onRequest(async (req, res) => {
         res.status(500).json({ ok: false, error: 'Webhook processing failed.' });
     }
 });
+
+exports.scanCard = functions.https.onRequest(async (req, res) => {
+    applyScannerCors(req, res);
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isScannerVisionEnabled()) {
+        res.status(503).json({ ok: false, error: 'Scanner vision endpoint is disabled.' });
+        return;
+    }
+
+    const parsed = parseImageDataUrl(req.body?.imageDataUrl);
+
+    if (!parsed) {
+        res.status(400).json({ ok: false, error: 'Invalid imageDataUrl payload.' });
+        return;
+    }
+
+    if (parsed.buffer.length > 2_500_000) {
+        res.status(413).json({ ok: false, error: 'Image payload too large.' });
+        return;
+    }
+
+    try {
+        const result = await callScannerVisionModel(parsed.dataUrl);
+        res.status(200).json({
+            ok: true,
+            name: result.name,
+            collectorNumber: result.collectorNumber,
+            confidence: result.confidence,
+        });
+    } catch (error) {
+        functions.logger.error('scanCard failed', {
+            message: String(error?.message || error),
+        });
+
+        const message = String(error?.message || 'Vision extraction failed.');
+        const status = message.includes('not configured') ? 503 : 502;
+        res.status(status).json({ ok: false, error: message });
+    }
+});
+
+exports.hydrateCardCatalog = functions.https.onRequest(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, X-PV-Catalog-Secret');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isCardCatalogHydrationEnabled()) {
+        res.status(503).json({ ok: false, error: 'Card catalog hydration is disabled.' });
+        return;
+    }
+
+    const expectedSecret = getCardCatalogHydrationSecret();
+    const providedSecret = String(req.get('x-pv-catalog-secret') || '').trim();
+
+    if (!expectedSecret || !providedSecret || !timingSafeStringEquals(providedSecret, expectedSecret)) {
+        res.status(401).json({ ok: false, error: 'Unauthorized' });
+        return;
+    }
+
+    const rawCards = Array.isArray(req.body?.cards) ? req.body.cards : [];
+    const maxCards = getCardCatalogHydrationMaxCards();
+
+    const docs = rawCards
+        .slice(0, maxCards)
+        .map(normalizeCatalogCardDoc)
+        .filter(Boolean);
+
+    if (!docs.length) {
+        res.status(200).json({ ok: true, attempted: 0, saved: 0, ids: [] });
+        return;
+    }
+
+    try {
+        const db = admin.firestore();
+        const refs = docs.map((doc) => db.collection('cardCatalog').doc(doc.id));
+        const snaps = await db.getAll(...refs);
+
+        const batch = db.batch();
+        const ids = [];
+
+        docs.forEach((doc, index) => {
+            const ref = refs[index];
+            const snap = snaps[index];
+
+            const payload = {
+                ...doc,
+                updatedAt: FieldValue.serverTimestamp(),
+            };
+
+            if (!snap.exists) {
+                payload.firstSeenAt = FieldValue.serverTimestamp();
+            }
+
+            batch.set(ref, payload, { merge: true });
+            ids.push(doc.id);
+        });
+
+        addScannerNameIndexWritesToBatch(batch, db, docs);
+
+        await batch.commit();
+
+        functions.logger.info('hydrateCardCatalog saved', {
+            attempted: docs.length,
+            saved: docs.length,
+            newDocs: docs.filter((_, i) => !snaps[i].exists).length,
+            updatedDocs: docs.filter((_, i) => snaps[i].exists).length,
+            ids,
+        });
+
+        res.status(200).json({
+            ok: true,
+            attempted: docs.length,
+            saved: docs.length,
+            ids,
+        });
+    } catch (error) {
+        functions.logger.error('hydrateCardCatalog failed', {
+            message: String(error?.message || error),
+        });
+
+        res.status(500).json({
+            ok: false,
+            error: 'Could not hydrate card catalog.',
+        });
+    }
+});
+
+exports.scannerNameSuggestions = functions.https.onRequest(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, X-PV-Catalog-Secret');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isScannerNameSuggestionsEnabled()) {
+        res.status(200).json({
+            ok: true,
+            enabled: false,
+            source: 'scannerNameIndex',
+            data: [],
+        });
+        return;
+    }
+
+    const expectedSecret = getScannerNameSuggestionsSecret();
+    const providedSecret = String(req.get('x-pv-catalog-secret') || '').trim();
+
+    if (!expectedSecret || !providedSecret || !timingSafeStringEquals(providedSecret, expectedSecret)) {
+        res.status(401).json({ ok: false, error: 'Unauthorized' });
+        return;
+    }
+
+    const text = String(req.body?.text || req.body?.name || '').trim().slice(0, 120);
+    const rawLimit = Number(req.body?.limit || getScannerNameSuggestionsMaxResults());
+    const limit = Math.max(1, Math.min(
+        getScannerNameSuggestionsMaxResults(),
+        Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 5
+    ));
+
+    if (!text || compactScannerName(text).length < 2) {
+        res.status(200).json({
+            ok: true,
+            enabled: true,
+            source: 'scannerNameIndex',
+            data: [],
+        });
+        return;
+    }
+
+    try {
+        const data = await findScannerNameSuggestions(text, limit);
+
+        res.status(200).json({
+            ok: true,
+            enabled: true,
+            source: 'scannerNameIndex',
+            count: data.length,
+            data,
+            input: { text, limit },
+        });
+    } catch (error) {
+        functions.logger.error('scannerNameSuggestions failed', {
+            message: String(error?.message || error),
+        });
+
+        res.status(500).json({
+            ok: false,
+            error: 'Could not load scanner name suggestions.',
+        });
+    }
+});
+
+exports.scannerCandidates = functions.https.onRequest(async (req, res) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, X-PV-Catalog-Secret');
+        res.status(204).send('');
+        return;
+    }
+
+    if (req.method !== 'POST') {
+        res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+        return;
+    }
+
+    if (!isCardCatalogCandidatesEnabled()) {
+        res.status(200).json({
+            ok: true,
+            enabled: false,
+            source: 'firestore-cardCatalog',
+            data: [],
+        });
+        return;
+    }
+
+    const expectedSecret = getCardCatalogCandidatesSecret();
+    const providedSecret = String(req.get('x-pv-catalog-secret') || '').trim();
+
+    if (!expectedSecret || !providedSecret || !timingSafeStringEquals(providedSecret, expectedSecret)) {
+        res.status(401).json({ ok: false, error: 'Unauthorized' });
+        return;
+    }
+
+    const input = normalizeScannerCandidateInput(req.body || {});
+
+    if (!input.name && !input.numberKey) {
+        res.status(400).json({
+            ok: false,
+            error: 'Missing scanner candidate input. Provide name or number.',
+        });
+        return;
+    }
+
+    try {
+        const data = await findScannerCatalogCandidates(input);
+
+        res.status(200).json({
+            ok: true,
+            enabled: true,
+            source: 'firestore-cardCatalog',
+            count: data.length,
+            data,
+            input: {
+                name: input.name,
+                number: input.number,
+                numberKey: input.numberKey,
+                setId: input.setId,
+                limit: input.limit,
+            },
+        });
+    } catch (error) {
+        functions.logger.error('scannerCandidates failed', {
+            message: String(error?.message || error),
+        });
+
+        res.status(500).json({
+            ok: false,
+            error: 'Could not load scanner candidates.',
+        });
+    }
+});
+

@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "requestId": "c8f7540f-6d3e-431b-b3a8-199a15f169cf",
+  "detections": [
+    {
+      "confidence": "High",
+      "card": {
+        "id": "75147e1f-8c90-423b-8fec-72291fe20327",
+        "segmentId": "3266fff9-dfcb-4e00-80fb-922a8ab023d5",
+        "releaseId": "36c318db-8e6e-4023-a995-f6254755afbf",
+        "setId": "6621b8f8-6f7e-44ec-aa7e-ef66074b1cd1",
+        "year": "2025",
+        "manufacturer": "The Pokemon Company",
+        "releaseName": "Phantasmal Flames",
+        "setName": "Checklist",
+        "name": "Mega Charizard X ex",
+        "number": "125",
+        "attributes": [
+          "pokemon-ex",
+          "pokemon-fire",
+          "pokemon-illustration-rare"
+        ],
+        "fields": [
+          { "key": "LANGUAGE", "value": "en" },
+          { "key": "RELEASE_CODE", "value": "PFL" },
+          { "key": "ACTUAL_TOTAL", "value": "130" },
+          { "key": "PRINTED_TOTAL", "value": "094" },
+          { "key": "RARITY", "value": "Special Illustration Rare" }
+        ]
+      }
+    }
+  ],
+  "processingTime": 225,
+  "messages": [
+    {
+      "type": "warning",
+      "message": "Image resolution (367x512) is below the recommended size for accurate results."
+    }
+  ]
+}

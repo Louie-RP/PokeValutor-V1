@@ -128,6 +128,17 @@ service cloud.firestore {
       allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
+    // Trusted card catalog is readable by clients but writable only via Admin SDK.
+    match /cardCatalog/{cardId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Scanner name index is server-only. Client access stays blocked.
+    match /scannerNameIndex/{nameId} {
+      allow read, write: if false;
+    }
+
     // Deny everything else by default.
     match /{document=**} {
       allow read, write: if false;
