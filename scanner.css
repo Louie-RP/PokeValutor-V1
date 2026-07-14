@@ -1,0 +1,652 @@
+/* PokeValutor Card Scanner MVP */
+/* Isolated styles only. Does not modify search.js behavior. */
+
+.pv-cardScannerShell {
+  margin: 0 0 1.5rem;
+  border: 1px solid rgba(255, 203, 5, 0.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 203, 5, 0.1), rgba(255, 203, 5, 0) 40%),
+    rgba(2, 6, 23, 0.4);
+  overflow: hidden;
+}
+
+.pv-cardScannerShell__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.pv-cardScannerShell__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pv-cardScannerShell__summaryTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+.pv-cardScannerShell__summaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.45);
+  color: var(--pv-primary, #ffcb05);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pv-cardScanner {
+  position: relative;
+  margin: 0;
+  padding: 1rem;
+  border: 0;
+  border-top: 1px solid rgba(255, 203, 5, 0.2);
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 203, 5, 0.14), rgba(255, 203, 5, 0) 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0)),
+    var(--pv-surface, #0a0a0a);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.pv-cardScanner__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.pv-cardScanner__title {
+  margin: 0 0 0.25rem;
+  color: var(--pv-primary, #ffcb05);
+  font-family: var(--pv-heading-font, serif);
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+}
+
+.pv-cardScanner__text {
+  margin: 0;
+  color: var(--pv-muted, #cbd5e1);
+}
+
+.pv-cardScanner__badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.38);
+  background: rgba(255, 203, 5, 0.13);
+  color: var(--pv-primary, #ffcb05);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pv-cardScanner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+#pv-cardScanner-start { order: 1; }
+#pv-cardScanner-capture { order: 2; }
+#pv-cardScanner-retake { order: 3; }
+#pv-cardScanner-find-candidates { order: 4; }
+#pv-cardScanner-search { order: 5; }
+#pv-cardScanner-stop { order: 6; }
+
+#pv-cardScanner-stop {
+  border-color: rgba(239, 68, 68, 0.9);
+  background: rgba(127, 29, 29, 0.9);
+  color: #fff;
+}
+
+#pv-cardScanner-stop:hover,
+#pv-cardScanner-stop:focus-visible {
+  border-color: rgba(248, 113, 113, 1);
+  background: rgba(153, 27, 27, 0.95);
+}
+
+#pv-cardScanner-retake,
+#pv-cardScanner-find-candidates {
+  border-color: rgba(255, 203, 5, 0.85);
+  background: rgba(255, 203, 5, 0.14);
+  color: #fff8d6;
+}
+
+#pv-cardScanner-retake:hover,
+#pv-cardScanner-retake:focus-visible,
+#pv-cardScanner-find-candidates:hover,
+#pv-cardScanner-find-candidates:focus-visible {
+  border-color: rgba(255, 224, 102, 1);
+  background: rgba(255, 203, 5, 0.24);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.35);
+}
+
+.pv-cardScanner__cameraWrap {
+  position: relative;
+  min-height: 0;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.42);
+  overflow: hidden;
+}
+
+.pv-cardScanner__empty {
+  padding: 1rem;
+  color: var(--pv-muted, #cbd5e1);
+  text-align: center;
+}
+
+.pv-cardScanner__video,
+.pv-cardScanner__preview {
+  display: block;
+  width: 100%;
+  max-height: 64vh;
+  object-fit: contain;
+  background: #050505;
+}
+
+.pv-cardScanner__searchReview {
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
+.pv-cardScanner__frame {
+  pointer-events: none;
+  position: absolute;
+  top: 51%;
+  left: 50%;
+  height: 84%;
+  width: auto;
+  aspect-ratio: 5 / 7;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 203, 5, 0.72);
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.22),
+    0 0 24px rgba(255, 203, 5, 0.2);
+}
+
+.pv-cardScanner__captureFab {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  display: none;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.9rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid rgba(255, 203, 5, 0.55);
+  border-radius: 999px;
+  background: rgba(7, 12, 25, 0.9);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+}
+
+.pv-cardScanner__captureFab:hover,
+.pv-cardScanner__captureFab:focus-visible {
+  border-color: rgba(255, 203, 5, 0.9);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.pv-cardScanner__captureIcon {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: currentColor;
+}
+
+.pv-cardScanner__captureLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.pv-cardScanner[data-state="idle"] .pv-cardScanner__frame,
+.pv-cardScanner[data-state="stopped"] .pv-cardScanner__frame {
+  display: none;
+}
+
+.pv-cardScanner__status {
+  margin: 0.85rem 0;
+  color: #ffffff;
+}
+
+.pv-cardScanner__limitNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.35rem 0 0.9rem;
+  padding: 0.78rem 0.9rem;
+  border: 1px solid rgba(248, 113, 113, 0.75);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.9), rgba(69, 10, 10, 0.88));
+  color: #fee2e2;
+  box-shadow: 0 10px 24px rgba(127, 29, 29, 0.32);
+}
+
+.pv-cardScanner__limitNoticeText {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.pv-cardScanner__limitNoticeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.28rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 203, 5, 0.9);
+  background: rgba(255, 203, 5, 0.16);
+  color: #ffcb05;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.pv-cardScanner__limitNoticeLink:hover,
+.pv-cardScanner__limitNoticeLink:focus-visible {
+  color: #ffe066;
+  border-color: rgba(255, 224, 102, 1);
+  background: rgba(255, 203, 5, 0.24);
+  box-shadow: 0 0 0 1px rgba(255, 224, 102, 0.45);
+}
+
+.pv-cardScanner__review {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 0.42fr);
+  margin-bottom: 0.9rem;
+}
+
+.pv-cardScanner__field {
+  min-width: 0;
+}
+
+.pv-cardScanner__field--name {
+  grid-column: 1;
+}
+
+.pv-cardScanner__field--number {
+  grid-column: 2;
+}
+
+.pv-cardScanner__reviewHelp {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--pv-muted, #cbd5e1);
+}
+
+.pv-cardScanner__searchReview {
+  grid-column: 1 / -1;
+}
+
+.pv-cardScanner__ocrField {
+  grid-column: 1 / -1;
+}
+
+.pv-cardScanner__ocrDetails {
+  margin: 0;
+}
+
+.pv-cardScanner__ocrSummary {
+  cursor: pointer;
+  color: #f8fafc;
+  font-weight: 600;
+  margin: 0 0 0.45rem;
+}
+
+.pv-cardScanner__ocrToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 0.45rem;
+}
+
+.pv-cardScanner__ocrCopy {
+  min-height: 2.25rem;
+  padding: 0.38rem 0.8rem;
+  border-color: rgba(255, 203, 5, 0.72);
+  background: rgba(255, 203, 5, 0.12);
+  color: #fff8d6;
+  font-size: 0.84rem;
+}
+
+.pv-cardScanner__ocrCopy:hover,
+.pv-cardScanner__ocrCopy:focus-visible {
+  border-color: rgba(255, 224, 102, 1);
+  background: rgba(255, 203, 5, 0.22);
+}
+
+.pv-cardScanner__nameSuggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.9rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(255, 203, 5, 0.55);
+  border-radius: 12px;
+  background: rgba(255, 203, 5, 0.1);
+  color: #f8fafc;
+}
+
+.pv-cardScanner__nameSuggestion strong {
+  color: #ffe066;
+}
+
+.pv-cardScanner__candidates {
+  margin: 0 0 0.9rem;
+  padding: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.pv-cardScanner__candidatesTitle {
+  margin: 0;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.pv-cardScanner__candidatesText {
+  margin: 0.35rem 0 0.7rem;
+  color: var(--pv-muted, #cbd5e1);
+  font-size: 0.92rem;
+}
+
+.pv-cardScanner__searchNearCandidates {
+  width: 100%;
+  margin: 0 0 0.7rem;
+}
+
+.pv-cardScanner__candidateList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pv-cardScanner__candidate {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.52);
+  color: #f8fafc;
+  text-align: left;
+  padding: 0.48rem;
+}
+
+.pv-cardScanner__candidate:hover,
+.pv-cardScanner__candidate:focus-visible {
+  border-color: rgba(255, 203, 5, 0.6);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.35);
+}
+
+.pv-cardScanner__candidate.is-recommended {
+  border-color: rgba(34, 197, 94, 0.7);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+@media (max-width: 768px) {
+  .pv-cardScanner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.85rem;
+  }
+
+  .pv-cardScanner__header {
+    order: 1;
+    margin-bottom: 0;
+  }
+
+  .pv-cardScanner__cameraWrap {
+    order: 2;
+  }
+
+  .pv-cardScanner__actions {
+    order: 3;
+    position: sticky;
+    bottom: 0.5rem;
+    z-index: 2;
+    margin: 0 -0.15rem;
+    padding: 0.6rem;
+    border: 1px solid rgba(255, 203, 5, 0.2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(10, 15, 28, 0.96), rgba(10, 15, 28, 0.88));
+    backdrop-filter: blur(14px);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+  }
+
+  .pv-cardScanner__actions .pv-button {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-height: 2.55rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.88rem;
+  }
+
+  #pv-cardScanner-capture {
+    display: none;
+  }
+
+  #pv-cardScanner-search {
+    display: none;
+  }
+
+  #pv-cardScanner-start,
+  #pv-cardScanner-stop,
+  #pv-cardScanner-capture-fab {
+    flex-basis: calc(50% - 0.4rem);
+  }
+
+  #pv-cardScanner-retake,
+  #pv-cardScanner-stop {
+    flex-basis: calc(50% - 0.4rem);
+  }
+
+  #pv-cardScanner-find-candidates,
+  #pv-cardScanner-search {
+    flex-basis: 100%;
+  }
+
+  #pv-cardScanner-retake { order: 1; }
+  #pv-cardScanner-stop { order: 2; }
+  #pv-cardScanner-find-candidates { order: 3; }
+  #pv-cardScanner-start { order: 5; }
+  #pv-cardScanner-search { order: 6; }
+
+  .pv-cardScanner__cameraWrap .pv-cardScanner__captureFab {
+    display: inline-flex;
+    left: 50%;
+    right: auto;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    min-width: 4.5rem;
+    min-height: 4.5rem;
+    padding: 0;
+    border-radius: 999px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pv-cardScanner__captureLabel {
+    display: none;
+  }
+
+  .pv-cardScanner__captureIcon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .pv-cardScanner__frame {
+    width: min(82vw, 320px);
+    aspect-ratio: 5 / 8;
+    height: auto;
+    max-height: 78%;
+  }
+
+  .pv-cardScanner__video,
+  .pv-cardScanner__preview {
+    max-height: 58vh;
+  }
+
+  .pv-cardScanner__status {
+    order: 4;
+    margin-top: 0.1rem;
+  }
+
+  .pv-cardScanner__review {
+    order: 5;
+    margin-bottom: 0;
+  }
+
+  .pv-cardScanner__nameSuggestion {
+    order: 6;
+  }
+
+  .pv-cardScanner__candidates {
+    order: 7;
+  }
+
+  .pv-cardScanner__selected {
+    order: 8;
+  }
+}
+
+.pv-cardScanner__candidate.is-selected {
+  border-color: rgba(255, 203, 5, 0.9);
+  background: rgba(255, 203, 5, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.4);
+}
+
+.pv-cardScanner__candidate.is-selected .pv-cardScanner__candidateTitle {
+  color: #ffe066;
+}
+
+.pv-cardScanner__candidateImage {
+  width: 60px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: 7px;
+  background: #0b1120;
+}
+
+.pv-cardScanner__candidateContent {
+  min-width: 0;
+}
+
+.pv-cardScanner__candidateTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pv-cardScanner__candidateBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.6);
+  color: #bbf7d0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pv-cardScanner__candidateMeta {
+  margin-top: 0.22rem;
+  color: var(--pv-muted, #cbd5e1);
+  font-size: 0.82rem;
+}
+
+.pv-cardScanner__candidateDebug {
+  margin-top: 0.2rem;
+  color: #93c5fd;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+.pv-cardScanner__candidateDetails {
+  margin-top: 0.3rem;
+}
+
+.pv-cardScanner__candidateDetailsSummary {
+  cursor: pointer;
+  color: #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pv-cardScanner__selected {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(255, 203, 5, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 203, 5, 0.08);
+  color: #f8fafc;
+  font-size: 0.9rem;
+}
+
+.pv-cardScanner textarea {
+  resize: vertical;
+}
+
+.pv-cardScanner [hidden] {
+  display: none !important;
+}
+
+@media (min-width: 768px) {
+  .pv-cardScanner {
+    padding: 1.15rem;
+  }
+
+  .pv-cardScanner__review {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .pv-cardScanner__header {
+    flex-direction: column;
+  }
+
+  .pv-cardScanner__actions .pv-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .pv-cardScanner__nameSuggestion {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pv-cardScanner__frame {
+    height: 80%;
+  }
+}

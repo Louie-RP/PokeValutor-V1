@@ -68,7 +68,7 @@
         <section class="pv-hero container" aria-labelledby="pv-policies-title">
             <h1 id="pv-policies-title" class="pv-hero__title">Policies</h1>
             <p class="pv-hero__subtitle">Disclaimer, privacy, terms, and accessibility details.</p>
-            <p class="pv-hero__fineprint">Last updated: May 29, 2026</p>
+            <p class="pv-hero__fineprint">Last updated: July 12, 2026</p>
         </section>
 
         <section class="pv-section" aria-label="On this page">
@@ -134,6 +134,10 @@
                     <p class="pv-feature__text">When you search, your browser makes requests to the PokéValutor API endpoint (a Cloudflare Worker) which proxies requests to a third-party Pokémon data provider. Those services may receive standard request metadata such as IP address, user agent, and timestamps.</p>
                 </div>
                 <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Card scanner (AI identification)</h3>
+                    <p class="pv-feature__text">When you use the card scanner feature, captured image frames from your camera are sent to the PokéValutor Worker, which forwards them to CardSight AI for card identification (name, set, number). CardSight AI may process, analyze, and log submitted image data in accordance with their own policies. Do not submit images containing sensitive or personal information. Scanner use is optional and requires explicit camera permission from your browser.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Redis caching</h3>
                     <p class="pv-feature__text">To improve performance and reduce repeated upstream requests, the Worker may cache selected API responses in Upstash Redis for limited time windows. Cache entries are temporary and primarily keyed by request context (for example endpoint/query and quota keys).</p>
                 </div>
@@ -143,7 +147,7 @@
                 </div>
             </div>
 
-            <p class="pv-section__text">Third-party services used by this site (for example Firebase, Stripe, hosting/CDN, fonts, contact form processing, and data providers) may have their own privacy practices. Review their policies for service-specific details.</p>
+            <p class="pv-section__text">Third-party services used by this site (for example Firebase, Stripe, CardSight AI, hosting/CDN, fonts, contact form processing, and data providers) may have their own privacy practices. Review their policies for service-specific details.</p>
             <p class="pv-section__text"><strong>Your choices:</strong> you can remove watchlist/tracker items with in-app controls, clear browser storage in your browser settings, and stop future cloud sync by signing out. Deleting your account in Firebase Authentication removes sign-in access, but data cleanup timing depends on Firebase processing and any configured retention.</p>
             <p class="pv-section__text"><strong>Delete my account/data:</strong></p>
             <p class="pv-section__text">1. Sign in on the <a class="pv-inlineLink" href="account.html">Account</a> page and use the <strong>Delete account</strong> button. You will be asked to confirm by typing DELETE.</p>

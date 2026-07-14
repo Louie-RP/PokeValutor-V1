@@ -31,11 +31,12 @@
             }
         }
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net 'wasm-unsafe-eval'; worker-src 'self' blob: https://cdn.jsdelivr.net; child-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' blob:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260601-condition-tip-6" />
+    <link rel="stylesheet" href="styles.css?v=20260712-mobile-search-form-1" />
+    <link rel="stylesheet" href="scanner.css?v=20260709-2" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -78,18 +79,20 @@
 
         <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
             <div class="pv-searchPanel">
+                <div id="pv-card-scanner-root" data-target-input="pv-search-query" data-target-form="pv-search-form"></div>
+
                 <form id="pv-search-form" class="pv-form row g-3" role="search">
                     <div class="pv-form__field pv-searchField--query col-12 col-md-6 col-lg-4">
-                        <label for="pv-search-query" class="form-label">Search</label>
+                        <div class="pv-searchFieldHeader">
+                            <label for="pv-search-query" class="form-label">Search</label>
+                            <label for="pv-search-series-set-toggle" class="pv-searchSeriesSetToggle">
+                                <input id="pv-search-series-set-toggle" name="pv-search-series-set-toggle" type="checkbox"
+                                    aria-controls="pv-search-series pv-search-set" />
+                                <span>Series/Set</span>
+                            </label>
+                        </div>
                         <input id="pv-search-query" name="pv-search-query" type="search" class="form-control"
                         placeholder="e.g., Pikachu or SWSH101" aria-controls="pv-search-results" />
-                    </div>
-                    <div class="pv-form__field pv-searchField--seriesSetToggle col-12">
-                        <label for="pv-search-series-set-toggle" class="pv-searchSeriesSetToggle">
-                            <input id="pv-search-series-set-toggle" name="pv-search-series-set-toggle" type="checkbox"
-                                aria-controls="pv-search-series pv-search-set" />
-                            <span>Series/Set</span>
-                        </label>
                     </div>
                     <div class="pv-form__field pv-searchField--series col-12 col-md-6 col-lg-4">
                         <label for="pv-search-series" class="form-label">Series <span class="pv-desktopOptional">(Optional)</span></label>
@@ -224,7 +227,8 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js?v=2026-05-30-2" defer></script>
 
-    <script src="search.js?v=2026-06-11-1" defer></script>
+    <script src="search.js?v=2026-06-30-4" defer></script>
+    <script src="scanner.js?v=20260712-37" defer></script>
 </body>
 
 </html>

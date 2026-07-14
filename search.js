@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_COLLECTIONS_META_KEY = `${CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -1273,6 +1274,27 @@ document.addEventListener('DOMContentLoaded', function () {
         return Number.isFinite(n) && n > 0 ? n : 0;
     }
 
+    function readDexOwnerUid() {
+        try {
+            return String(localStorage.getItem(DEX_OWNER_UID_KEY) || '').trim();
+        } catch {
+            return '';
+        }
+    }
+
+    function writeDexOwnerUid(uid) {
+        const nextUid = String(uid || '').trim();
+        try {
+            if (nextUid) {
+                localStorage.setItem(DEX_OWNER_UID_KEY, nextUid);
+            } else {
+                localStorage.removeItem(DEX_OWNER_UID_KEY);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     function normalizeDexMasterSetEntry(entry, fallbackExpansionId) {
         if (!entry || typeof entry !== 'object') return null;
 
@@ -1316,6 +1338,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState) return;
+
+        writeDexOwnerUid(user.uid);
 
         const run = () => {
             const payload = {
@@ -1455,30 +1479,43 @@ document.addEventListener('DOMContentLoaded', function () {
     function syncDexStateFromCloudOnSignIn() {
         if (!enableDexTrackingControls || !window?.PV_AUTH?.loadDexState) return;
 
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        const currentUid = String(user?.uid || '').trim();
+        if (!currentUid) return;
+
         const localCollection = loadDexCollection();
         const localMasterSets = loadDexMasterSets();
+        const localOwnerUid = readDexOwnerUid();
+        const allowLocalMerge = localOwnerUid === currentUid;
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
-        Promise.resolve(window.PV_AUTH.loadDexState())
+        Promise.resolve(authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
 
-                const mergedCollection = mergeDexCollectionState(localCollection, cloudCollection);
-                const mergedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, mergedCollection);
+                let resolvedCollection = cloudCollection;
+                let resolvedMasterSets = cloudMasterSets;
 
-                saveDexCollection(mergedCollection, { skipCloudSync: true });
-                saveDexMasterSets(mergedMasterSets, { skipCloudSync: true });
-                mergedPayload = {
-                    collection: mergedCollection,
-                    masterSets: mergedMasterSets,
-                };
+                if (allowLocalMerge) {
+                    resolvedCollection = mergeDexCollectionState(localCollection, cloudCollection);
+                    resolvedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                    mergedPayload = {
+                        collection: resolvedCollection,
+                        masterSets: resolvedMasterSets,
+                    };
+                }
+
+                saveDexCollection(resolvedCollection, { skipCloudSync: true });
+                saveDexMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeDexOwnerUid(currentUid);
 
                 if (isDexPage) {
-                    updateDexCollectionStats(mergedCollection);
+                    updateDexCollectionStats(resolvedCollection);
                 }
 
                 const restoredState = loadLastResults();
@@ -1490,8 +1527,8 @@ document.addEventListener('DOMContentLoaded', function () {
             .finally(() => {
                 dexCloudSyncHydrating = false;
 
-                if (mergedPayload && window?.PV_AUTH?.saveDexState) {
-                    Promise.resolve(window.PV_AUTH.saveDexState(mergedPayload)).catch(() => {
+                if (mergedPayload && authApi?.saveDexState) {
+                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
                         // ignore
                     });
                 }
@@ -2409,8 +2446,46 @@ document.addEventListener('DOMContentLoaded', function () {
         setDexSearchPanelOpen(true);
     }
 
+    function isCreditCapCode(value) {
+        const code = String(value || '').trim().toUpperCase();
+        return code === 'CREDIT_CAP_HIT' || code === 'QUOTA_EXCEEDED';
+    }
+
+    function extractApiErrorDetails(payload, status) {
+        const nestedError = payload && typeof payload === 'object' ? payload.error : null;
+        const nestedMessage = nestedError && typeof nestedError === 'object'
+            ? (nestedError.message || nestedError.error || '')
+            : '';
+        const topMessage = payload && typeof payload === 'object'
+            ? (payload.message || '')
+            : '';
+        const code = nestedError && typeof nestedError === 'object'
+            ? String(nestedError.code || payload?.code || '').trim()
+            : String(payload?.code || '').trim();
+
+        const message = String(nestedMessage || topMessage || `API error ${status}`).trim();
+        return { message, code };
+    }
+
     function isQuotaExceededError(err) {
-        return !!(err && typeof err === 'object' && (err.isQuotaExceeded === true || err.status === 429));
+        if (!err || typeof err !== 'object') return false;
+        // @ts-ignore
+        const code = String(err.code || '').trim();
+        // @ts-ignore
+        const message = String(err.message || '').toLowerCase();
+        // @ts-ignore
+        return Boolean(err.isQuotaExceeded === true || err.status === 429 || isCreditCapCode(code) || message.includes('credit cap'));
+    }
+
+    function getQuotaExceededStatusMessage(err) {
+        // @ts-ignore
+        const code = String(err?.code || '').trim();
+        // @ts-ignore
+        const message = String(err?.message || '').toLowerCase();
+        if (isCreditCapCode(code) || message.includes('credit cap')) {
+            return 'Search is temporarily unavailable. Please try again later.';
+        }
+        return 'Daily guest allowance reached. Sign in to continue.';
     }
 
     function safeParseIntOrNull(value) {
@@ -3561,24 +3636,28 @@ document.addEventListener('DOMContentLoaded', function () {
             throw new Error(`Non-JSON response (${res.status})`);
         }
         if (!res.ok) {
-            const msg = data?.error || data?.message || `API error ${res.status}`;
-            const err = new Error(String(msg));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message);
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
 
         // Some APIs return HTTP 200 with an { ok:false } payload.
         // Never cache those responses.
         if (data && typeof data === 'object' && data.ok === false) {
-            const msg = data?.error || data?.message || 'API error';
-            const err = new Error(String(msg));
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message || 'API error');
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
-            err.isQuotaExceeded = res.status === 429;
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
         cacheSet(cacheKey, data, ttlMs);
@@ -4839,7 +4918,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -4952,7 +5031,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5002,6 +5081,43 @@ document.addEventListener('DOMContentLoaded', function () {
             return `${left}/${right}`;
         }
 
+        function buildPrintedFractionCandidates(raw) {
+            const s = String(raw || '').trim();
+            const m = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+            if (!m) return [];
+
+            const leftRaw = String(m[1] || '').trim();
+            const rightRaw = String(m[2] || '').trim();
+            const left = String(leftRaw).replace(/^0+(?=\d)/, '') || '0';
+            const right = String(rightRaw).replace(/^0+(?=\d)/, '') || '0';
+
+            const out = [];
+            const seen = new Set();
+
+            function push(v) {
+                const key = String(v || '').trim();
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                out.push(key);
+            }
+
+            // Keep exact user format first.
+            push(`${leftRaw}/${rightRaw}`);
+
+            // Always try fully padded retry as many cards are indexed as XXX/YYY.
+            const rightPad3 = padLeftZeros(right, 3);
+            const leftPad3 = padLeftZeros(left, 3);
+            push(`${leftPad3}/${rightPad3}`);
+
+            // Then try right-side set-total padding (common source of misses).
+            push(`${left}/${rightPad3}`);
+
+            // Finally try fully normalized no-leading-zero form.
+            push(`${left}/${right}`);
+
+            return out;
+        }
+
         setStatus('Searching…');
         if (grid) {
             grid.innerHTML = '';
@@ -5035,9 +5151,19 @@ document.addEventListener('DOMContentLoaded', function () {
             // 1) Exact input first.
             candidates.push(pn);
 
-            // 2) For common fractions like 109/094, retry without leading zeros.
+            // 2) Try fraction permutations (leading-zero preserving first).
+            const fractionCandidates = buildPrintedFractionCandidates(pn);
+            for (const fc of fractionCandidates) {
+                if (fc && !candidates.includes(fc)) {
+                    candidates.push(fc);
+                }
+            }
+
+            // 2b) Keep stripped fraction fallback last.
             const normalizedFraction = normalizeSimplePrintedFraction(pn);
-            if (normalizedFraction && normalizedFraction !== pn) candidates.push(normalizedFraction);
+            if (normalizedFraction && normalizedFraction !== pn && !candidates.includes(normalizedFraction)) {
+                candidates.push(normalizedFraction);
+            }
 
             // 3) For promos (e.g., SVP 052), retry numeric forms with/without padding.
             if (/^\d+$/.test(pn)) {
@@ -5103,16 +5229,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // 2) printed_number search (works for most non-promo cards, and fractions).
-            let matchedPn = uniqueCandidates[0] || pn;
+            // Keep trying candidates until we find an exact normalized number match,
+            // so inputs like "94/165" can still resolve cards stored as "094/165".
+            let matchedPn = pn;
             for (const attempt of uniqueCandidates) {
-                matchedPn = attempt;
-                const q = buildFieldQuery('printed_number', matchedPn);
+                const q = buildFieldQuery('printed_number', attempt);
                 const url = `${base}/cards/search?q=${encodeURIComponent(q)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
                 const found = Array.isArray(data?.data) ? data.data : [];
                 if (found.length) {
                     mergeUniqueById(cards, found);
-                    break;
+                    if (hasExactNumberMatch(found, pn) || hasExactNumberMatch(found, attempt)) {
+                        matchedPn = attempt;
+                        break;
+                    }
                 }
             }
 
@@ -5131,6 +5261,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 const idUrl = `${base}/cards/search?q=${encodeURIComponent(idQ)}&page=1&pageSize=${RESULT_LIMIT}&lang=en&consumeQuota=1`;
                 const idData = await fetchJsonWithCache(idUrl, SEARCH_TTL_MS);
                 mergeUniqueById(cards, Array.isArray(idData?.data) ? idData.data : []);
+            }
+
+            // Rank exact normalized printed-number matches first so the most relevant
+            // card(s) are visible even when broader candidate queries also return data.
+            const wantedPrinted = normalizePrintedNumberForCompare(pn);
+            if (wantedPrinted) {
+                cards.sort((a, b) => {
+                    const aRaw = a?.printedNumber ?? a?.printed_number ?? a?.number;
+                    const bRaw = b?.printedNumber ?? b?.printed_number ?? b?.number;
+                    const aExact = normalizePrintedNumberForCompare(aRaw) === wantedPrinted ? 1 : 0;
+                    const bExact = normalizePrintedNumberForCompare(bRaw) === wantedPrinted ? 1 : 0;
+                    if (aExact !== bExact) return bExact - aExact;
+                    return String(a?.id || '').localeCompare(String(b?.id || ''));
+                });
             }
 
             // Respect UI limit.
@@ -5158,7 +5302,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5251,7 +5395,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('[PokeValutor] expansion top search error', e);
             renderCards([]);
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5352,7 +5496,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCards([]);
             resetDexSetBrowseState();
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
                 // @ts-ignore
                 setStatus(String(e.message || 'Sign-in required'));
@@ -5423,7 +5567,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('[PokeValutor] dex load more error', e);
             setLoadMoreState(true, false);
             if (isQuotaExceededError(e)) {
-                setStatus('Daily guest allowance reached. Sign in to continue.');
+                setStatus(getQuotaExceededStatusMessage(e));
             } else {
                 setStatus('Unable to load more cards right now. Please try again.');
             }

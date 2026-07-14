@@ -3,6 +3,7 @@
     const CACHE_PREFIX = 'pv:scrydex:';
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
+    const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -10,11 +11,17 @@
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
-    const VALUE_CACHE_TTL_MS = 20 * 60 * 1000;
-    const SEALED_VALUE_CACHE_TTL_MS = 60 * 1000;
+    const COLLECTION_TOTALS_HIDDEN_PREF_KEY = `${CACHE_PREFIX}collectionTotalsHidden:v1`;
+    const VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+    const SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+    const COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+    const COLLECTION_VALUE_LAST_REFRESH_KEY = `${CACHE_PREFIX}collectionValueLastRefresh:v1`;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
+    const COLLECTION_PAGE_SIZE_MOBILE = 36;
+    const COLLECTION_PAGE_SIZE_DESKTOP = 60;
+    const COLLECTION_PAGE_BREAKPOINT_QUERY = '(max-width: 767.98px)';
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
     const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
@@ -24,8 +31,30 @@
         nameDir: 'asc',
         valueDir: 'desc',
     };
+    const collectionSnapshotState = {
+        byCollectionId: {},
+        inFlightByCollectionId: {},
+        errorUntilByCollectionId: {},
+    };
+    const collectionTotalsState = {
+        hidden: false,
+        valueText: 'Value: $0.00',
+        amountText: 'Amount: 0 items • 0 card copies',
+    };
+    const collectionPaginationState = {
+        page: 1,
+        perPage: 0,
+        signature: '',
+    };
+    let collectionPageSizeMediaBound = false;
     /** @type {Record<string, number>} */
     const collectionValueById = {};
+    /** @type {Record<string, Promise<any>>} */
+    const cardPriceRequestInFlightById = {};
+    /** @type {Record<string, Promise<any>>} */
+    const sealedPriceRequestInFlightById = {};
+    /** @type {Record<string, Promise<any>>} */
+    const sealedSearchRequestInFlightById = {};
 
     function safeParseJson(raw) {
         try {
@@ -467,6 +496,22 @@
         }
     }
 
+    function loadCollectionTotalsHiddenPreference() {
+        try {
+            return String(localStorage.getItem(COLLECTION_TOTALS_HIDDEN_PREF_KEY) || '') === '1';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveCollectionTotalsHiddenPreference(hidden) {
+        try {
+            localStorage.setItem(COLLECTION_TOTALS_HIDDEN_PREF_KEY, hidden ? '1' : '0');
+        } catch {
+            // ignore
+        }
+    }
+
     function getCollectionSortMode() {
         if (collectionSortState.active === 'name') {
             return collectionSortState.nameDir === 'desc' ? 'name-desc' : 'name-asc';
@@ -550,6 +595,132 @@
         }
     }
 
+    function getCollectionPageSize() {
+        try {
+            if (window?.matchMedia && window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY).matches) {
+                return COLLECTION_PAGE_SIZE_MOBILE;
+            }
+        } catch {
+            // ignore
+        }
+        return COLLECTION_PAGE_SIZE_DESKTOP;
+    }
+
+    function sortCollectionMatches(matches) {
+        const list = Array.isArray(matches) ? matches.slice() : [];
+        if (list.length <= 1) return list;
+
+        list.sort((a, b) => {
+            const relevanceA = Number(a?.score || 0);
+            const relevanceB = Number(b?.score || 0);
+            if (relevanceA !== relevanceB) {
+                return relevanceB - relevanceA;
+            }
+
+            const itemA = a?.item || {};
+            const itemB = b?.item || {};
+            const nameA = safeString(itemA?.name, '').toLowerCase();
+            const nameB = safeString(itemB?.name, '').toLowerCase();
+
+            if (collectionSortState.active === 'name') {
+                const dir = collectionSortState.nameDir === 'asc' ? 1 : -1;
+                return nameA.localeCompare(nameB) * dir;
+            }
+
+            const keyA = getCollectionEntryKey(itemA);
+            const keyB = getCollectionEntryKey(itemB);
+            const va = Number(collectionValueById[keyA]);
+            const vb = Number(collectionValueById[keyB]);
+            const hasA = Number.isFinite(va);
+            const hasB = Number.isFinite(vb);
+
+            if (!hasA && !hasB) {
+                return nameA.localeCompare(nameB);
+            }
+            if (!hasA) return 1;
+            if (!hasB) return -1;
+
+            const dir = collectionSortState.valueDir === 'asc' ? 1 : -1;
+            if (va === vb) return nameA.localeCompare(nameB);
+            return (va - vb) * dir;
+        });
+
+        return list;
+    }
+
+    function renderCollectionPagination(container, options) {
+        if (!(container instanceof HTMLElement)) return;
+
+        const totalItems = Math.max(0, Math.floor(Number(options?.totalItems) || 0));
+        const pageSize = Math.max(1, Math.floor(Number(options?.pageSize) || COLLECTION_PAGE_SIZE_DESKTOP));
+        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+        const currentPage = Math.min(Math.max(1, Math.floor(Number(options?.currentPage) || 1)), totalPages);
+
+        if (totalItems <= pageSize) {
+            container.hidden = true;
+            container.innerHTML = '';
+            return;
+        }
+
+        const start = ((currentPage - 1) * pageSize) + 1;
+        const end = Math.min(totalItems, currentPage * pageSize);
+        const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+        const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+
+        container.hidden = false;
+        container.innerHTML = `
+            <div class="pv-collectionPagination__inner">
+                <p class="pv-collectionPagination__status">Showing ${start}-${end} of ${totalItems}</p>
+                <div class="pv-collectionPagination__controls" role="group" aria-label="Collection pages">
+                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="prev" ${prevDisabled}>Previous</button>
+                    <span class="pv-collectionPagination__pageLabel">Page ${currentPage} of ${totalPages}</span>
+                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="next" ${nextDisabled}>Next</button>
+                </div>
+            </div>
+        `;
+
+        const prevBtn = container.querySelector('[data-page-nav="prev"]');
+        const nextBtn = container.querySelector('[data-page-nav="next"]');
+
+        function scrollCollectionToTop() {
+            const grid = document.getElementById('pv-collection-grid');
+            const firstCard = grid instanceof HTMLElement
+                ? grid.querySelector('.pv-collectionCol')
+                : null;
+            const target = firstCard instanceof HTMLElement
+                ? firstCard
+                : ((grid instanceof HTMLElement) ? grid : container);
+            const header = document.getElementById('pv-search-header');
+            const headerHeight = header instanceof HTMLElement
+                ? Math.max(0, Math.ceil(header.getBoundingClientRect().height))
+                : 0;
+            const topClearance = headerHeight + 20;
+            const top = Math.max(
+                0,
+                Math.round(target.getBoundingClientRect().top + window.scrollY - topClearance)
+            );
+            window.scrollTo({ top, behavior: 'smooth' });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (collectionPaginationState.page <= 1) return;
+                collectionPaginationState.page -= 1;
+                renderCollectionPage();
+                scrollCollectionToTop();
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                if (collectionPaginationState.page >= totalPages) return;
+                collectionPaginationState.page += 1;
+                renderCollectionPage();
+                scrollCollectionToTop();
+            });
+        }
+    }
+
     function bindCollectionSortControls() {
         const sortSelect = document.getElementById('pv-collection-sort-select');
 
@@ -558,9 +729,8 @@
             sortSelect.addEventListener('change', () => {
                 applyCollectionSortMode(sortSelect.value);
                 updateCollectionSortUi();
-                const grid = document.getElementById('pv-collection-grid');
-                applyCollectionSortToGrid(grid);
                 saveCollectionSortPreference(getCollectionSortMode());
+                renderCollectionPage();
             });
         }
 
@@ -746,6 +916,206 @@
         return entries.map((x) => `${getConditionLabel(x.code)} x${x.qty}`).join(', ');
     }
 
+    function formatSignedUsdFromCents(centsRaw) {
+        const cents = Math.round(Number(centsRaw) || 0);
+        const sign = cents > 0 ? '+' : cents < 0 ? '-' : '';
+        return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`;
+    }
+
+    function areCollectionTotalsHidden() {
+        return Boolean(collectionTotalsState.hidden);
+    }
+
+    function applyCollectionTotalsVisibilityUi() {
+        const hidden = areCollectionTotalsHidden();
+        const totalEl = document.getElementById('pv-collection-total');
+        const valueEl = document.getElementById('pv-collection-total-value');
+        const amountEl = document.getElementById('pv-collection-total-amount');
+        const toggleBtn = document.getElementById('pv-collection-total-toggle');
+        const toggleLabelEl = document.getElementById('pv-collection-total-toggle-label');
+
+        if (totalEl) {
+            totalEl.classList.toggle('pv-collectionTotal--hidden', hidden);
+        }
+
+        if (valueEl) {
+            valueEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+        } else if (totalEl) {
+            totalEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+        }
+
+        if (amountEl) {
+            amountEl.textContent = safeString(collectionTotalsState.amountText, 'Amount: 0 items • 0 card copies');
+        }
+
+        if (toggleBtn) {
+            const actionText = hidden ? 'Show' : 'Hide';
+            const toggleDescription = `${actionText} collection value and amount`;
+            toggleBtn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+            toggleBtn.setAttribute('aria-label', toggleDescription);
+            toggleBtn.setAttribute('title', toggleDescription);
+        }
+
+        if (toggleLabelEl) {
+            toggleLabelEl.textContent = hidden ? 'Show' : 'Hide';
+        }
+    }
+
+    function setCollectionTotalsHidden(nextHidden, options) {
+        const hidden = Boolean(nextHidden);
+        collectionTotalsState.hidden = hidden;
+
+        if (options?.persist !== false) {
+            saveCollectionTotalsHiddenPreference(hidden);
+        }
+
+        applyCollectionTotalsVisibilityUi();
+        void loadAndRenderCollectionValueSnapshot();
+    }
+
+    function bindCollectionTotalsVisibilityToggle() {
+        const toggleBtn = document.getElementById('pv-collection-total-toggle');
+        if (!(toggleBtn instanceof HTMLButtonElement)) {
+            return;
+        }
+
+        if (toggleBtn.getAttribute('data-bound') !== '1') {
+            toggleBtn.setAttribute('data-bound', '1');
+            toggleBtn.addEventListener('click', () => {
+                setCollectionTotalsHidden(!areCollectionTotalsHidden());
+            });
+        }
+
+        applyCollectionTotalsVisibilityUi();
+    }
+
+    function setCollectionTotalValueText(text) {
+        collectionTotalsState.valueText = safeString(text, 'Value: $0.00');
+        if (areCollectionTotalsHidden()) {
+            applyCollectionTotalsVisibilityUi();
+            return;
+        }
+
+        const totalValueEl = document.getElementById('pv-collection-total-value');
+        if (totalValueEl) {
+            totalValueEl.textContent = collectionTotalsState.valueText;
+            return;
+        }
+
+        const totalEl = document.getElementById('pv-collection-total');
+        if (totalEl) {
+            totalEl.textContent = collectionTotalsState.valueText;
+        }
+    }
+
+    function setCollectionTotalAmountText(text) {
+        collectionTotalsState.amountText = safeString(text, 'Amount: 0 items • 0 card copies');
+        if (areCollectionTotalsHidden()) {
+            applyCollectionTotalsVisibilityUi();
+            return;
+        }
+
+        const amountEl = document.getElementById('pv-collection-total-amount');
+        if (amountEl) {
+            amountEl.textContent = collectionTotalsState.amountText;
+        }
+    }
+
+    function hideCollectionValueSnapshotTrend() {
+        const trendEl = document.getElementById('pv-collection-total-trend');
+        if (!trendEl) return;
+
+        trendEl.hidden = true;
+        trendEl.textContent = '';
+        trendEl.classList.remove('pv-collectionTotalTrend--up', 'pv-collectionTotalTrend--down', 'pv-collectionTotalTrend--flat');
+    }
+
+    function renderCollectionValueSnapshotUnavailable() {
+        const trendEl = document.getElementById('pv-collection-total-trend');
+        if (!trendEl) return;
+
+        trendEl.hidden = false;
+        trendEl.textContent = 'Snapshot unavailable';
+        trendEl.classList.remove('pv-collectionTotalTrend--up', 'pv-collectionTotalTrend--down');
+        trendEl.classList.add('pv-collectionTotalTrend--flat');
+    }
+
+    function renderCollectionValueSnapshot(snapshot) {
+        const trendEl = document.getElementById('pv-collection-total-trend');
+        if (!trendEl) return;
+
+        if (!snapshot || typeof snapshot !== 'object') {
+            hideCollectionValueSnapshotTrend();
+            return;
+        }
+
+        const changeCents = Math.round(Number(snapshot.changeCents || 0));
+        const changePercent = Number(snapshot.changePercent || 0);
+        const previousValueCents = Math.round(Number(snapshot.previousValueCents || 0));
+        const hasPrevious = previousValueCents > 0;
+
+        trendEl.hidden = false;
+        trendEl.classList.toggle('pv-collectionTotalTrend--up', changeCents > 0);
+        trendEl.classList.toggle('pv-collectionTotalTrend--down', changeCents < 0);
+        trendEl.classList.toggle('pv-collectionTotalTrend--flat', changeCents === 0);
+
+        if (hasPrevious) {
+            trendEl.textContent = `Since last check: ${formatSignedUsdFromCents(changeCents)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`;
+        } else {
+            hideCollectionValueSnapshotTrend();
+        }
+    }
+
+    async function loadAndRenderCollectionValueSnapshot(options) {
+        const forceRefresh = Boolean(options?.forceRefresh);
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        if (!user || !authApi?.loadCollectionValueSnapshot) {
+            hideCollectionValueSnapshotTrend();
+            return;
+        }
+
+        const collectionId = getActiveCollectionId();
+        const nowMs = Date.now();
+        const errorUntilMs = Number(collectionSnapshotState.errorUntilByCollectionId[collectionId] || 0);
+
+        if (!forceRefresh && errorUntilMs > nowMs) {
+            renderCollectionValueSnapshotUnavailable();
+            return;
+        }
+
+        if (!forceRefresh && Object.prototype.hasOwnProperty.call(collectionSnapshotState.byCollectionId, collectionId)) {
+            renderCollectionValueSnapshot(collectionSnapshotState.byCollectionId[collectionId]);
+            return;
+        }
+
+        if (!forceRefresh && collectionSnapshotState.inFlightByCollectionId[collectionId]) {
+            try {
+                await collectionSnapshotState.inFlightByCollectionId[collectionId];
+            } catch {
+                // ignore
+            }
+            return;
+        }
+
+        const request = Promise.resolve(authApi.loadCollectionValueSnapshot(collectionId));
+        collectionSnapshotState.inFlightByCollectionId[collectionId] = request;
+
+        try {
+            const result = await request;
+            const snapshot = result?.snapshot || null;
+            delete collectionSnapshotState.errorUntilByCollectionId[collectionId];
+            collectionSnapshotState.byCollectionId[collectionId] = snapshot;
+            renderCollectionValueSnapshot(snapshot);
+        } catch {
+            delete collectionSnapshotState.byCollectionId[collectionId];
+            collectionSnapshotState.errorUntilByCollectionId[collectionId] = Date.now() + 60 * 1000;
+            renderCollectionValueSnapshotUnavailable();
+        } finally {
+            delete collectionSnapshotState.inFlightByCollectionId[collectionId];
+        }
+    }
+
     function readValueCache() {
         try {
             const raw = localStorage.getItem(VALUE_CACHE_KEY);
@@ -764,6 +1134,40 @@
         } catch {
             // ignore
         }
+    }
+
+    function readCollectionValueRefreshMap() {
+        try {
+            const raw = localStorage.getItem(COLLECTION_VALUE_LAST_REFRESH_KEY);
+            if (!raw) return {};
+            const parsed = safeParseJson(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    function writeCollectionValueRefreshMap(next) {
+        try {
+            const safe = next && typeof next === 'object' ? next : {};
+            localStorage.setItem(COLLECTION_VALUE_LAST_REFRESH_KEY, JSON.stringify(safe));
+        } catch {
+            // ignore
+        }
+    }
+
+    function getCollectionLastValueRefreshMs(collectionId) {
+        const id = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
+        const map = readCollectionValueRefreshMap();
+        const ts = Number(map[id] || 0);
+        return Number.isFinite(ts) && ts > 0 ? ts : 0;
+    }
+
+    function setCollectionLastValueRefreshMs(collectionId, ts) {
+        const id = normalizeCollectionId(collectionId, DEX_DEFAULT_COLLECTION_ID);
+        const map = readCollectionValueRefreshMap();
+        map[id] = Number.isFinite(Number(ts)) ? Number(ts) : Date.now();
+        writeCollectionValueRefreshMap(map);
     }
 
     function getCachedValue(cacheKey) {
@@ -1001,96 +1405,161 @@
         return markets[0];
     }
 
+    function getInFlightRequest(map, key, factory) {
+        const existing = map[key];
+        if (existing) return existing;
+
+        const request = Promise.resolve()
+            .then(factory)
+            .finally(() => {
+                delete map[key];
+            });
+
+        map[key] = request;
+        return request;
+    }
+
     async function fetchCardWithPrices(cardId) {
         const id = safeString(cardId, '');
         if (!id) return null;
 
-        try {
-            let headers;
+        return getInFlightRequest(cardPriceRequestInFlightById, id, async () => {
             try {
-                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-                const token = String(tokenRaw || '').trim();
-                if (token) headers = { Authorization: `Bearer ${token}` };
+                let headers;
+                try {
+                    const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                    const token = String(tokenRaw || '').trim();
+                    if (token) headers = { Authorization: `Bearer ${token}` };
+                } catch {
+                    // ignore
+                }
+
+                const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+                const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+                const res = await fetch(url, requestInit);
+                if (!res.ok) return null;
+
+                const text = await res.text();
+                const parsed = safeParseJson(text);
+                if (!parsed || typeof parsed !== 'object') return null;
+                return parsed?.data || parsed;
             } catch {
-                // ignore
+                return null;
             }
-
-            const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-            const res = await fetch(url, requestInit);
-            if (!res.ok) return null;
-
-            const text = await res.text();
-            const parsed = safeParseJson(text);
-            if (!parsed || typeof parsed !== 'object') return null;
-            return parsed?.data || parsed;
-        } catch {
-            return null;
-        }
+        });
     }
 
     async function fetchSealedWithPrices(sealedId) {
         const id = safeString(sealedId, '');
         if (!id) return null;
 
-        try {
-            let headers;
+        return getInFlightRequest(sealedPriceRequestInFlightById, id, async () => {
             try {
-                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-                const token = String(tokenRaw || '').trim();
-                if (token) headers = { Authorization: `Bearer ${token}` };
+                let headers;
+                try {
+                    const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                    const token = String(tokenRaw || '').trim();
+                    if (token) headers = { Authorization: `Bearer ${token}` };
+                } catch {
+                    // ignore
+                }
+
+                const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
+                const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+                const res = await fetch(url, requestInit);
+                if (!res.ok) return null;
+
+                const text = await res.text();
+                const parsed = safeParseJson(text);
+                if (!parsed || typeof parsed !== 'object') return null;
+                return parsed?.data || parsed;
             } catch {
-                // ignore
+                return null;
             }
-
-            const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
-            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-            const res = await fetch(url, requestInit);
-            if (!res.ok) return null;
-
-            const text = await res.text();
-            const parsed = safeParseJson(text);
-            if (!parsed || typeof parsed !== 'object') return null;
-            return parsed?.data || parsed;
-        } catch {
-            return null;
-        }
+        });
     }
 
     async function fetchSealedFromSearchById(sealedId) {
         const id = safeString(sealedId, '').trim();
         if (!id) return null;
 
-        try {
-            let headers;
+        return getInFlightRequest(sealedSearchRequestInFlightById, id, async () => {
             try {
-                const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-                const token = String(tokenRaw || '').trim();
-                if (token) headers = { Authorization: `Bearer ${token}` };
+                let headers;
+                try {
+                    const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
+                    const token = String(tokenRaw || '').trim();
+                    if (token) headers = { Authorization: `Bearer ${token}` };
+                } catch {
+                    // ignore
+                }
+
+                const query = `id:${id}`;
+                const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
+                const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+                const res = await fetch(url, requestInit);
+                if (!res.ok) return null;
+
+                const text = await res.text();
+                const parsed = safeParseJson(text);
+                if (!parsed || typeof parsed !== 'object') return null;
+
+                const rows = Array.isArray(parsed)
+                    ? parsed
+                    : (Array.isArray(parsed?.data) ? parsed.data : []);
+                return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
             } catch {
-                // ignore
+                return null;
             }
-
-            const query = `id:${id}`;
-            const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
-            const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-            const res = await fetch(url, requestInit);
-            if (!res.ok) return null;
-
-            const text = await res.text();
-            const parsed = safeParseJson(text);
-            if (!parsed || typeof parsed !== 'object') return null;
-
-            const rows = Array.isArray(parsed)
-                ? parsed
-                : (Array.isArray(parsed?.data) ? parsed.data : []);
-            return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
-        } catch {
-            return null;
-        }
+        });
     }
 
-    async function getCurrentCardValue(item) {
+    function isCollectionItemValueFullyCached(item) {
+        if (!item || typeof item !== 'object') return true;
+
+        if (isSealedCollectionItem(item)) {
+            const id = safeString(item?.id, '');
+            if (!id) return true;
+            const sealedCached = getCachedValue(`sealed:${id}`);
+            return Boolean(sealedCached && Number.isFinite(sealedCached.market) && sealedCached.market > 0);
+        }
+
+        const id = safeString(item?.id, '');
+        if (!id) return true;
+
+        const selectedVariant = safeString(item?.selectedVariant, '');
+        const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
+        if (!conditionEntries.length) return true;
+
+        for (const entry of conditionEntries) {
+            const code = normalizeDexConditionCode(entry?.code);
+            if (!code) continue;
+            const cacheKey = `${id}|${selectedVariant}|${code}`;
+            const cached = getCachedValue(cacheKey);
+            if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function shouldAllowCollectionNetworkRefresh(items) {
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) return false;
+
+        const hasIncompleteCache = list.some((item) => !isCollectionItemValueFullyCached(item));
+        if (!hasIncompleteCache) return false;
+
+        const collectionId = getActiveCollectionId();
+        const lastRefreshMs = getCollectionLastValueRefreshMs(collectionId);
+        if (!lastRefreshMs) return true;
+
+        return (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
+    }
+
+    async function getCurrentCardValue(item, options) {
+        const allowNetwork = options?.allowNetwork !== false;
         const id = safeString(item?.id, '');
         const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
         if (!id || !conditionCode) return null;
@@ -1101,6 +1570,16 @@
         if (cached && Number.isFinite(cached.market)) {
             return cached;
         }
+
+        // Prefer prices already stored on the collection entry before making network calls.
+        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const localBest = getBestVariantMarket(localVariants, selectedVariant, conditionCode);
+        if (localBest && Number.isFinite(localBest.market)) {
+            setCachedValue(cacheKey, localBest.market, localBest.variantUsed);
+            return localBest;
+        }
+
+        if (!allowNetwork) return null;
 
         const fetched = await fetchCardWithPrices(id);
         const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
@@ -1114,7 +1593,8 @@
         return best;
     }
 
-    async function getCurrentSealedValue(item) {
+    async function getCurrentSealedValue(item, options) {
+        const allowNetwork = options?.allowNetwork !== false;
         const id = safeString(item?.id, '');
         if (!id) return null;
 
@@ -1123,6 +1603,16 @@
         if (cached && Number.isFinite(cached.market)) {
             return { market: cached.market };
         }
+
+        // Prefer prices already stored on the collection entry before making network calls.
+        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const localMarket = getBestSealedMarketFromVariants(localVariants);
+        if (Number.isFinite(localMarket)) {
+            setCachedValue(cacheKey, localMarket, '');
+            return { market: localMarket };
+        }
+
+        if (!allowNetwork) return null;
 
         const fetchedFromSearch = await fetchSealedFromSearchById(id);
         const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
@@ -1137,8 +1627,10 @@
         return { market };
     }
 
-    async function refreshCollectionValues(items, totalEl) {
+    async function refreshCollectionValues(items, totalEl, options) {
         if (!totalEl) return;
+
+        const allowNetwork = options?.allowNetwork !== false;
 
         const list = Array.isArray(items) ? items : [];
         for (const key of Object.keys(collectionValueById)) {
@@ -1146,11 +1638,11 @@
         }
 
         if (!list.length) {
-            totalEl.textContent = 'Value: $0.00';
-            return;
+            setCollectionTotalValueText('Value: $0.00');
+            return { total: 0, totalUnits: 0, pricedUnits: 0 };
         }
 
-        totalEl.textContent = 'Value: Loading...';
+        setCollectionTotalValueText('Value: Loading...');
 
         let total = 0;
         let totalUnits = 0;
@@ -1169,7 +1661,7 @@
                 totalUnits += quantity;
                 if (valueEl) valueEl.textContent = '...';
 
-                const valueInfo = await getCurrentSealedValue(item);
+                const valueInfo = await getCurrentSealedValue(item, { allowNetwork });
                 const market = Number(valueInfo?.market ?? null);
                 if (!Number.isFinite(market) || market <= 0) {
                     delete collectionValueById[entryKey];
@@ -1208,7 +1700,7 @@
                 const valueInfo = await getCurrentCardValue({
                     ...item,
                     selectedCondition: entry.code,
-                });
+                }, { allowNetwork });
                 if (!valueInfo || !Number.isFinite(valueInfo.market)) return;
 
                 cardTotal += valueInfo.market * entry.qty;
@@ -1237,10 +1729,12 @@
         }));
 
         const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
-        totalEl.textContent = `Value: ${formatUsd(total)}${coverage}`;
+        setCollectionTotalValueText(`Value: ${formatUsd(total)}${coverage}`);
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
+
+        return { total, totalUnits, pricedUnits };
     }
 
     function pickFrontMediumImage(images) {
@@ -1495,11 +1989,34 @@
         return Number.isFinite(n) && n > 0 ? n : 0;
     }
 
+    function readDexOwnerUid() {
+        try {
+            return String(localStorage.getItem(DEX_OWNER_UID_KEY) || '').trim();
+        } catch {
+            return '';
+        }
+    }
+
+    function writeDexOwnerUid(uid) {
+        const nextUid = String(uid || '').trim();
+        try {
+            if (nextUid) {
+                localStorage.setItem(DEX_OWNER_UID_KEY, nextUid);
+            } else {
+                localStorage.removeItem(DEX_OWNER_UID_KEY);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     function queueDexCloudStateSync(immediate) {
         if (dexCloudSyncHydrating) return;
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState) return;
+
+        writeDexOwnerUid(user.uid);
 
         const run = () => {
             const payload = {
@@ -1645,27 +2162,40 @@
     function syncDexStateFromCloudOnSignIn() {
         if (!window?.PV_AUTH?.loadDexState) return;
 
+        const authApi = window?.PV_AUTH;
+        const user = authApi?.getUser ? authApi.getUser() : null;
+        const currentUid = String(user?.uid || '').trim();
+        if (!currentUid) return;
+
         const localCollection = readCollection();
         const localMasterSets = readMasterSets();
+        const localOwnerUid = readDexOwnerUid();
+        const allowLocalMerge = localOwnerUid === currentUid;
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
-        Promise.resolve(window.PV_AUTH.loadDexState())
+        Promise.resolve(authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
 
-                const mergedCollection = mergeCollectionState(localCollection, cloudCollection);
-                const mergedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, mergedCollection);
+                let resolvedCollection = cloudCollection;
+                let resolvedMasterSets = cloudMasterSets;
 
-                writeCollection(mergedCollection, { skipCloudSync: true });
-                writeMasterSets(mergedMasterSets, { skipCloudSync: true });
-                mergedPayload = {
-                    collection: mergedCollection,
-                    masterSets: mergedMasterSets,
-                };
+                if (allowLocalMerge) {
+                    resolvedCollection = mergeCollectionState(localCollection, cloudCollection);
+                    resolvedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                    mergedPayload = {
+                        collection: resolvedCollection,
+                        masterSets: resolvedMasterSets,
+                    };
+                }
+
+                writeCollection(resolvedCollection, { skipCloudSync: true });
+                writeMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeDexOwnerUid(currentUid);
                 renderActivePage();
             })
             .catch(() => {
@@ -1674,8 +2204,8 @@
             .finally(() => {
                 dexCloudSyncHydrating = false;
 
-                if (mergedPayload && window?.PV_AUTH?.saveDexState) {
-                    Promise.resolve(window.PV_AUTH.saveDexState(mergedPayload)).catch(() => {
+                if (mergedPayload && authApi?.saveDexState) {
+                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
                         // ignore
                     });
                 }
@@ -2142,7 +2672,10 @@
         const totalEl = document.getElementById('pv-collection-total');
         const filterInput = document.getElementById('pv-collection-filter');
         const typeFilterSelect = document.getElementById('pv-collection-type-filter');
+        const paginationEl = document.getElementById('pv-collection-pagination');
         if (!grid || !summary || !totalEl) return;
+
+        bindCollectionTotalsVisibilityToggle();
 
         const activeCollectionId = getActiveCollectionId();
         const items = readCollection()
@@ -2205,6 +2738,30 @@
             : typeFilteredItems.map((item) => ({ item, score: 0 }));
 
         const filteredItems = filteredMatches.map((x) => x.item);
+        const sortedMatches = sortCollectionMatches(filteredMatches);
+        const paginationSignature = [
+            activeCollectionId,
+            selectedType,
+            normalizeSearchText(filterQuery),
+        ].join('|');
+        const pageSize = getCollectionPageSize();
+
+        if (collectionPaginationState.signature !== paginationSignature) {
+            collectionPaginationState.signature = paginationSignature;
+            collectionPaginationState.page = 1;
+        }
+
+        if (collectionPaginationState.perPage !== pageSize) {
+            const previousSize = collectionPaginationState.perPage || pageSize;
+            const firstVisibleIndex = Math.max(0, (collectionPaginationState.page - 1) * previousSize);
+            collectionPaginationState.page = Math.floor(firstVisibleIndex / pageSize) + 1;
+            collectionPaginationState.perPage = pageSize;
+        }
+
+        const totalPages = Math.max(1, Math.ceil(sortedMatches.length / pageSize));
+        collectionPaginationState.page = Math.min(Math.max(1, collectionPaginationState.page), totalPages);
+        const pageStart = (collectionPaginationState.page - 1) * pageSize;
+        const visibleMatches = sortedMatches.slice(pageStart, pageStart + pageSize);
         const filteredCardCopies = filteredItems.reduce((sum, item) => {
             if (!isCardCollectionItem(item)) return sum;
             return sum + getTotalCopiesFromConditionMap(item?.conditionQuantities, item?.selectedCondition);
@@ -2219,6 +2776,10 @@
         if (dexCardsStat) dexCardsStat.textContent = String(cardItems.length);
         if (dexSealedStat) dexSealedStat.textContent = String(sealedItems.length);
         if (dexCopiesStat) dexCopiesStat.textContent = String(totalCardCopies);
+
+        const itemLabel = items.length === 1 ? 'item' : 'items';
+        const copyLabel = totalCardCopies === 1 ? 'copy' : 'copies';
+        setCollectionTotalAmountText(`Amount: ${items.length} ${itemLabel} • ${totalCardCopies} card ${copyLabel}`);
 
         if (!items.length) {
             summary.textContent = '0 cards • 0 sealed products.';
@@ -2251,7 +2812,7 @@
         bindCollectionSortControls();
 
         if (!items.length) {
-            totalEl.textContent = 'Value: $0.00';
+            setCollectionTotalValueText('Value: $0.00');
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items tracked yet. Add cards from Dex search or sealed products from Sealed.</div></div>';
         } else if (!typeFilteredItems.length) {
             grid.innerHTML = selectedType === 'sealed'
@@ -2272,7 +2833,7 @@
                 summary.textContent = `${summary.textContent} Did you mean "${collectionSuggestion}"?`;
             }
         } else {
-            const rows = filteredMatches.map((match) => {
+            const rows = visibleMatches.map((match) => {
                 const item = match.item;
                 const id = safeString(item?.id, '');
                 const entryKey = getCollectionEntryKey(item);
@@ -2525,19 +3086,40 @@
         if (suggestionButton && filterInput instanceof HTMLInputElement) {
             suggestionButton.addEventListener('click', () => {
                 filterInput.value = safeString(suggestionButton.getAttribute('data-collection-suggestion'), '');
+                collectionPaginationState.page = 1;
                 renderCollectionPage();
                 filterInput.focus();
                 filterInput.select();
             });
         }
 
+        renderCollectionPagination(paginationEl, {
+            totalItems: filteredItems.length,
+            pageSize,
+            currentPage: collectionPaginationState.page,
+        });
+
         if (items.length) {
-            void refreshCollectionValues(items, totalEl);
+            const allowNetworkRefresh = shouldAllowCollectionNetworkRefresh(items);
+            void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
+                .then((result) => {
+                    if (!allowNetworkRefresh) return;
+                    const pricedUnits = Number(result?.pricedUnits || 0);
+                    if (pricedUnits > 0) {
+                        setCollectionLastValueRefreshMs(getActiveCollectionId(), Date.now());
+                    }
+                })
+                .catch(() => {
+                    // ignore
+                });
         }
+
+        void loadAndRenderCollectionValueSnapshot();
 
         if (filterInput instanceof HTMLInputElement && filterInput.getAttribute('data-bound') !== '1') {
             filterInput.setAttribute('data-bound', '1');
             filterInput.addEventListener('input', () => {
+                collectionPaginationState.page = 1;
                 renderCollectionPage();
             });
         }
@@ -2549,6 +3131,7 @@
                 const next = normalizeCollectionTypeFilter(typeFilterSelect.value);
                 typeFilterSelect.value = next;
                 saveCollectionTypeFilterPreference(next);
+                collectionPaginationState.page = 1;
                 renderCollectionPage();
             });
         }
@@ -2805,13 +3388,39 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        setCollectionTotalsHidden(loadCollectionTotalsHiddenPreference(), { persist: false });
         renderActivePage();
+
+        try {
+            if (!collectionPageSizeMediaBound && window?.matchMedia) {
+                const mediaQuery = window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY);
+                const handleBreakpointChange = () => {
+                    renderCollectionPage();
+                };
+
+                if (typeof mediaQuery.addEventListener === 'function') {
+                    mediaQuery.addEventListener('change', handleBreakpointChange);
+                } else if (typeof mediaQuery.addListener === 'function') {
+                    mediaQuery.addListener(handleBreakpointChange);
+                }
+                collectionPageSizeMediaBound = true;
+            }
+        } catch {
+            // ignore
+        }
 
         try {
             if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
                 window.PV_AUTH.onAuthStateChanged((user) => {
-                    if (!user) return;
+                    if (!user) {
+                        collectionSnapshotState.byCollectionId = {};
+                        collectionSnapshotState.inFlightByCollectionId = {};
+                        collectionSnapshotState.errorUntilByCollectionId = {};
+                        hideCollectionValueSnapshotTrend();
+                        return;
+                    }
                     syncDexStateFromCloudOnSignIn();
+                    void loadAndRenderCollectionValueSnapshot({ forceRefresh: true });
                 });
             }
         } catch {
@@ -2820,6 +3429,9 @@
 
         window.addEventListener('storage', renderActivePage);
         window.addEventListener('pv:dex-state-changed', renderActivePage);
-        window.addEventListener('pv:dex-collection-context-changed', renderActivePage);
+        window.addEventListener('pv:dex-collection-context-changed', () => {
+            renderActivePage();
+            void loadAndRenderCollectionValueSnapshot({ forceRefresh: true });
+        });
     });
 })();
