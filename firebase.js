@@ -1331,4 +1331,31 @@
         loadDexCollectionsMeta,
         saveDexCollectionsMeta,
     };
+
+    // Central sign-out handler: runs on every page since firebase.js is loaded everywhere.
+    // Clears user-specific localStorage data so it cannot bleed into a different account
+    // after sign-out. Only clears on an actual sign-out (not on initial load while signed out).
+    let _pvWasSignedIn = false;
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            _pvWasSignedIn = true;
+        } else if (_pvWasSignedIn) {
+            _pvWasSignedIn = false;
+            try {
+                const P = 'pv:scrydex:';
+                [
+                    `${P}watchlist:v1`,
+                    `${P}favorites:v1`,
+                    `${P}collection:v1`,
+                    `${P}masterSets:v1`,
+                    `${P}dexOwnerUid:v1`,
+                    'pv:quota:last:v1',
+                ].forEach((key) => {
+                    try { localStorage.removeItem(key); } catch { }
+                });
+            } catch {
+                // ignore storage errors
+            }
+        }
+    });
 })();
