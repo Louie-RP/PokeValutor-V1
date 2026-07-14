@@ -1101,6 +1101,9 @@
     const cachedVersion = getHomeLatestSetsVersion();
     let renderedFromCache = false;
     const cached = cacheGet(CACHE_KEY);
+    if ((!Array.isArray(cached) || !cached.length) && cachedVersion) {
+      setHomeLatestSetsVersion('');
+    }
     const shouldUseCachedExpansions = Array.isArray(cached)
       && cached.length
       && (!latestVersion || (cachedVersion && cachedVersion === latestVersion));
