@@ -422,15 +422,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function renderQuotaBanner(quota) {
+    function renderQuotaBanner(quota, authStateKnownArg) {
         if (!quotaBanner || !quotaMessageEl) return;
         const signedIn = Boolean(window?.PV_AUTH?.getUser && window.PV_AUTH.getUser());
-
-        // Requirement: don't show the quota / sign-in banner at all when signed in.
-        if (signedIn) {
-            forceHideQuotaBanner();
-            return;
-        }
 
         if (!quota || typeof quota !== 'object') {
             quotaBanner.hidden = true;
@@ -442,20 +436,40 @@ document.addEventListener('DOMContentLoaded', function () {
         const limit = quota.limit;
         const remaining = quota.remaining;
 
+        // If signed in, only show banner if limit has been reached (remaining <= 0).
+        // Otherwise hide it.
+        if (signedIn) {
+            if (remaining == null || remaining > 0) {
+                // No data yet or limit not reached: hide banner
+                forceHideQuotaBanner();
+                return;
+            }
+            // Limit reached: continue to show error banner below
+        }
+
         quotaBanner.classList.remove('pv-quotaBanner--warn', 'pv-quotaBanner--error');
 
-        const hasNumbers = remaining != null && limit != null;
+        // Only show quota numbers after auth state is known, to avoid displaying stale cached data.
+        const canShowNumbers = authStateKnownArg === true;
+        const hasNumbers = canShowNumbers && remaining != null && limit != null;
         const ratioText = hasNumbers ? `${remaining}/${limit} remaining` : 'Daily allowance';
 
         let message = '';
         let showCta = false;
 
-        if (tier === 'admin') {
-            message = 'Admin access: unlimited.';
-        } else if (tier === 'tester') {
-            message = 'Tester access: unlimited.';
+        // admin/tester require auth; when signed out this is stale quota from a
+        // previous session, but signed-in privileged users should still see their
+        // unlimited-access messaging.
+        if (tier === 'admin' || tier === 'tester') {
+            if (!signedIn) {
+                quotaBanner.hidden = true;
+                if (quotaCtaEl) quotaCtaEl.hidden = true;
+                return;
+            }
+
+            message = tier === 'admin' ? 'Admin access: unlimited.' : 'Tester access: unlimited.';
         } else if (tier === 'anon' || tier === 'guest') {
-            showCta = true;
+            showCta = !signedIn;  // Only show CTA if signed out
             if (remaining != null && remaining <= 0) {
                 quotaBanner.classList.add('pv-quotaBanner--error');
                 message = 'Daily guest allowance reached. Sign in to continue (and sync your Watchlist).';
@@ -466,14 +480,40 @@ document.addEventListener('DOMContentLoaded', function () {
                 message = `Guest allowance: ${ratioText}. Sign in to increase your daily limit.`;
             }
         } else if (tier === 'premium' || tier === 'pro') {
-            message = hasNumbers ? `Premium allowance: ${ratioText}.` : 'Premium allowance available.';
+            if (signedIn && remaining != null && remaining <= 0) {
+                quotaBanner.classList.add('pv-quotaBanner--error');
+                message = hasNumbers ? `Premium limit reached: ${ratioText}. Limit resets at midnight.` : 'Premium limit reached.';
+                // No button for premium users—they already pay
+            } else {
+                message = hasNumbers ? `Premium allowance: ${ratioText}.` : 'Premium allowance available.';
+            }
         } else {
-            message = hasNumbers ? `Daily allowance: ${ratioText}.` : 'Daily allowance available.';
+            // free/basic/unknown
+            if (signedIn && remaining != null && remaining <= 0) {
+                quotaBanner.classList.add('pv-quotaBanner--error');
+                message = hasNumbers ? `Daily limit reached: ${ratioText}. Subscribe now for unlimited access.` : 'Daily limit reached. Subscribe now for unlimited access.';
+                showCta = true;  // Show button to upgrade
+            } else {
+                message = hasNumbers ? `Daily allowance: ${ratioText}.` : 'Daily allowance available.';
+            }
         }
 
         quotaMessageEl.textContent = message;
         clearForcedHideQuotaBanner();
         if (quotaCtaEl) {
+            // Set button text and href based on tier and situation
+            if (tier === 'anon' || tier === 'guest') {
+                quotaCtaEl.textContent = 'Sign in';
+                quotaCtaEl.href = 'account.html';
+            } else if ((tier === 'basic' || tier === 'free' || tier === '') && signedIn && remaining != null && remaining <= 0) {
+                // Show upgrade button for basic/free/unsubscribed users at limit
+                quotaCtaEl.textContent = 'Subscribe Now';
+                quotaCtaEl.href = 'pricing.html';
+            } else {
+                quotaCtaEl.textContent = 'Sign in';
+                quotaCtaEl.href = 'account.html';
+            }
+
             quotaCtaEl.hidden = !showCta;
             if (showCta) {
                 quotaCtaEl.style.removeProperty('display');
@@ -484,6 +524,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     }
+
+    // True once onAuthStateChanged has fired at least once. Until then,
+    // updateQuotaFromResponse will not render the banner to avoid races with Firebase auth.
+    let authStateKnown = false;
 
     function updateQuotaFromResponse(res) {
         try {
@@ -501,7 +545,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const quota = { tier, limit, used, remaining };
             saveQuota(quota);
-            renderQuotaBanner(quota);
+            // Only update the banner once we know auth state to avoid a race where an
+            // API response arrives before Firebase confirms the signed-in user.
+            if (authStateKnown) {
+                renderQuotaBanner(quota, authStateKnown);
+            }
         } catch {
             // ignore
         }
@@ -515,18 +563,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (window?.PV_AUTH?.onAuthStateChanged) {
             window.PV_AUTH.onAuthStateChanged((user) => {
+                authStateKnown = true;
                 if (debug) console.info('[PokeValutor] auth state (sealed)', user ? 'signed-in' : 'signed-out');
                 if (user) {
                     forceHideQuotaBanner();
                 } else {
-                    renderQuotaBanner(loadSavedQuota());
+                    renderQuotaBanner(loadSavedQuota(), authStateKnown);
                 }
             });
         } else {
-            renderQuotaBanner(loadSavedQuota());
+            authStateKnown = true;
+            renderQuotaBanner(loadSavedQuota(), authStateKnown);
         }
     } catch {
-        renderQuotaBanner(loadSavedQuota());
+        authStateKnown = true;
+        renderQuotaBanner(loadSavedQuota(), authStateKnown);
     }
 
     function getRoleFromClaims(claims) {
@@ -1183,7 +1234,14 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
         if (window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadWatchlist) {
             window.PV_AUTH.onAuthStateChanged((user) => {
-                if (!user) return;
+                if (!user) {
+                    // Sign out: clear in-memory watchlist and re-render so the UI reflects the cleared state.
+                    favorites = [];
+                    saveFavorites([]);
+                    renderFavorites();
+                    renderProducts(currentResultsProducts);
+                    return;
+                }
                 const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
 
                 Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
