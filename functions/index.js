@@ -24,33 +24,10 @@ function serverTimestamp() {
     return FieldValue.serverTimestamp();
 }
 
-function legacyConfigValue(nestedPath) {
-    if (!Array.isArray(nestedPath) || nestedPath.length === 0) return '';
-
-    try {
-        if (typeof functions.config !== 'function') return '';
-        let cursor = functions.config();
-
-        for (const partRaw of nestedPath) {
-            const part = String(partRaw || '').trim();
-            if (!part || !cursor || typeof cursor !== 'object') return '';
-            cursor = cursor[part];
-        }
-
-        return String(cursor || '').trim();
-    } catch {
-        return '';
-    }
-}
-
 function configValue(envKey, nestedPath, fallback) {
     // Prefer explicit environment variables.
     const envValue = String(process.env?.[envKey] || '').trim();
     if (envValue) return envValue;
-
-    // Backward compatibility for existing functions.config() deployments.
-    const legacyValue = legacyConfigValue(nestedPath);
-    if (legacyValue) return legacyValue;
 
     return String(fallback || '').trim();
 }
@@ -864,14 +841,15 @@ async function upstashPost(pathname) {
     return res;
 }
 
-async function markScrydexDirtyVersions(expansionIds) {
+async function markScrydexDirtyVersions(expansionIds, options = {}) {
     const ids = Array.from(new Set((Array.isArray(expansionIds) ? expansionIds : [])
         .map((x) => String(x || '').trim().toLowerCase())
         .filter((x) => /^[a-z0-9_-]{2,64}$/.test(x))));
 
     const ttlSeconds = getScrydexDirtyTtlSeconds();
     const hasUpstash = Boolean(getUpstashRestUrl() && getUpstashRestToken());
-    if (!hasUpstash || !ids.length) {
+    const includeGlobal = options?.includeGlobal !== false;
+    if (!hasUpstash || (!ids.length && !includeGlobal)) {
         return {
             updatedExpansionCount: 0,
             updatedGlobal: false,
@@ -879,20 +857,24 @@ async function markScrydexDirtyVersions(expansionIds) {
         };
     }
 
-    const expansionTasks = ids.map(async (id) => {
-        const key = `pv:scrydex:dirty:expansion:${encodeURIComponent(id)}:v1`;
-        await upstashPost(`/incr/${key}`);
-        await upstashPost(`/expire/${key}/${encodeURIComponent(String(ttlSeconds))}`);
-    });
-    await Promise.all(expansionTasks);
+    if (ids.length) {
+        const expansionTasks = ids.map(async (id) => {
+            const key = `pv:scrydex:dirty:expansion:${encodeURIComponent(id)}:v1`;
+            await upstashPost(`/incr/${key}`);
+            await upstashPost(`/expire/${key}/${encodeURIComponent(String(ttlSeconds))}`);
+        });
+        await Promise.all(expansionTasks);
+    }
 
-    const globalKey = 'pv:scrydex:dirty:global:v1';
-    await upstashPost(`/incr/${encodeURIComponent(globalKey)}`);
-    await upstashPost(`/expire/${encodeURIComponent(globalKey)}/${encodeURIComponent(String(ttlSeconds))}`);
+    if (includeGlobal) {
+        const globalKey = 'pv:scrydex:dirty:global:v1';
+        await upstashPost(`/incr/${encodeURIComponent(globalKey)}`);
+        await upstashPost(`/expire/${encodeURIComponent(globalKey)}/${encodeURIComponent(String(ttlSeconds))}`);
+    }
 
     return {
         updatedExpansionCount: ids.length,
-        updatedGlobal: true,
+        updatedGlobal: includeGlobal,
         upstashEnabled: true,
     };
 }
@@ -1738,6 +1720,30 @@ exports.setUserRole = functions.https.onCall(async (data, context) => {
     await admin.auth().setCustomUserClaims(uid, claims);
 
     return { ok: true, uid, role };
+});
+
+exports.refreshHomeLatestSets = functions.https.onCall(async (_data, context) => {
+    if (!context?.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'Sign-in required.');
+    }
+    if (!isCallerAdmin(context)) {
+        throw new functions.https.HttpsError('permission-denied', 'Admin role required.');
+    }
+
+    try {
+        const dirtyResult = await markScrydexDirtyVersions([], { includeGlobal: true });
+        if (!dirtyResult?.upstashEnabled) {
+            throw new functions.https.HttpsError('failed-precondition', 'Upstash cache invalidation is not configured.');
+        }
+
+        return {
+            ok: true,
+            refreshedAt: Date.now(),
+            dirtyResult,
+        };
+    } catch (error) {
+        throw asHttpsError(error, 'internal', 'Could not refresh Home latest sets.');
+    }
 });
 
 exports.createStripeCheckoutSession = functions.https.onCall(async (data, context) => {

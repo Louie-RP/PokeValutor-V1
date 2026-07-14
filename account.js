@@ -1825,9 +1825,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
+                if (!window?.PV_AUTH?.callFunction) {
+                    throw new Error('Global refresh is not configured (Firebase Functions missing).');
+                }
+
+                await window.PV_AUTH.callFunction('refreshHomeLatestSets', {});
                 const removedCount = clearHomeLatestSetsCacheEntries();
                 const noun = removedCount === 1 ? 'entry' : 'entries';
-                setAdminRefreshLatestSetsStatus(`Done. Cleared ${removedCount} cache ${noun}. Open Home to fetch fresh latest sets.`);
+                setAdminRefreshLatestSetsStatus(`Done. Forced a global latest-sets refresh and cleared ${removedCount} local cache ${noun}. Home will refetch fresh data on the next load.`);
             } catch (error) {
                 const message = String(error?.message || 'Could not refresh Home latest sets cache.');
                 setAdminRefreshLatestSetsStatus(message);
