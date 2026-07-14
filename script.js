@@ -558,6 +558,7 @@
   const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
   const HOME_SPOTLIGHTS_TTL_MS = 60 * 60 * 1000;
   const HOME_LATEST_EXPANSIONS_CACHE_KEY = 'pv:expansions:latestEnglish:v6';
+  const HOME_LATEST_EXPANSIONS_VERSION_KEY = 'pv:expansions:latestEnglish:version:v1';
   const HOME_LATEST_EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const HOME_LATEST_EXPANSIONS_REVALIDATE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -632,6 +633,27 @@
     try {
       const payload = { value, expiresAt: Date.now() + ttlMs, savedAt: Date.now() };
       localStorage.setItem(key, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  }
+
+  function getHomeLatestSetsVersion() {
+    try {
+      return String(localStorage.getItem(HOME_LATEST_EXPANSIONS_VERSION_KEY) || '').trim();
+    } catch {
+      return '';
+    }
+  }
+
+  function setHomeLatestSetsVersion(version) {
+    try {
+      const value = String(version || '').trim();
+      if (!value) {
+        localStorage.removeItem(HOME_LATEST_EXPANSIONS_VERSION_KEY);
+        return;
+      }
+      localStorage.setItem(HOME_LATEST_EXPANSIONS_VERSION_KEY, value);
     } catch {
       // ignore
     }
@@ -748,6 +770,12 @@
     const data = await fetchJsonWithOptionalAuth(url);
     cacheSet(cacheKey, data, ttlMs);
     return data;
+  }
+
+  async function fetchHomeLatestSetsVersion() {
+    const base = getWorkerBase();
+    const data = await fetchJsonWithOptionalAuth(`${base}/expansions/latest-version`, { cache: 'no-store' });
+    return String(data?.version || '').trim();
   }
 
   function buildSearchLinkForCard(cardLike) {
@@ -1063,9 +1091,21 @@
         .slice(0, LATEST_EXPANSIONS_COUNT);
     }
 
+    let latestVersion = '';
+    try {
+      latestVersion = await fetchHomeLatestSetsVersion();
+    } catch {
+      latestVersion = '';
+    }
+
+    const cachedVersion = getHomeLatestSetsVersion();
     let renderedFromCache = false;
     const cached = cacheGet(CACHE_KEY);
-    if (Array.isArray(cached) && cached.length) {
+    const shouldUseCachedExpansions = Array.isArray(cached)
+      && cached.length
+      && (!latestVersion || (cachedVersion && cachedVersion === latestVersion));
+
+    if (shouldUseCachedExpansions) {
       const cleaned = normalizeExpansions(cached);
       if (cleaned.length) {
         // If older cache entries included excluded sets, overwrite cache with the cleaned list.
@@ -1147,6 +1187,7 @@
 
       if (normalized.length) {
         cacheSet(CACHE_KEY, normalized, TTL_MS);
+        if (latestVersion) setHomeLatestSetsVersion(latestVersion);
         renderExpansionsList(normalized);
         void renderLatestSetSpotlights(normalized);
       }
