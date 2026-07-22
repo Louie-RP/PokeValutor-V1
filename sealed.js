@@ -1486,9 +1486,9 @@ document.addEventListener('DOMContentLoaded', function () {
             throw new Error('Invalid JSON response');
         }
 
-        if (!res.ok) {
+        if (!res.ok || (data && typeof data === 'object' && data.ok === false)) {
             const details = extractApiErrorDetails(data, res.status);
-            const err = new Error(details.message);
+            const err = new Error(details.message || `API error ${res.status}`);
             // @ts-ignore
             err.status = res.status;
             // @ts-ignore
@@ -1953,17 +1953,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function buildMarketLineHtml(product, tradePercent) {
+    function renderMarketLineContent(targetEl, product, tradePercent) {
+        if (!(targetEl instanceof HTMLElement)) return;
+
+        targetEl.textContent = '';
         const quote = getMarketQuote(product);
         if (!quote) {
-            return '<span class="pv-priceMessage">Market price unavailable.</span>';
+            const msg = document.createElement('span');
+            msg.className = 'pv-priceMessage';
+            msg.textContent = 'Market price unavailable.';
+            targetEl.appendChild(msg);
+            return;
         }
 
         const pct = normalizeTradePercent(tradePercent);
         const marketText = formatCurrency(quote.market, quote.currency);
         const tradeText = formatCurrency(quote.market * (pct / 100), quote.currency);
 
-        return `<div class="pv-priceLine"><span class="pv-priceLine__condition">Value:</span><span class="pv-priceLine__values"><span class="pv-priceToken pv-priceToken--market"><span class="pv-priceToken__amount">${escapeHtml(marketText)}</span></span></span></div><div class="pv-priceLine pv-priceLine--tradeRow"><span class="pv-priceLine__condition">Trade:</span><span class="pv-priceLine__values"><span class="pv-priceToken pv-priceToken--trade"><span class="pv-priceToken__label">@${escapeHtml(String(pct))}%</span><span class="pv-priceToken__amount">${escapeHtml(tradeText)}</span></span></span></div>`;
+        const valueRow = document.createElement('div');
+        valueRow.className = 'pv-priceLine';
+        const valueCondition = document.createElement('span');
+        valueCondition.className = 'pv-priceLine__condition';
+        valueCondition.textContent = 'Value:';
+        const valueValues = document.createElement('span');
+        valueValues.className = 'pv-priceLine__values';
+        const valueToken = document.createElement('span');
+        valueToken.className = 'pv-priceToken pv-priceToken--market';
+        const valueAmount = document.createElement('span');
+        valueAmount.className = 'pv-priceToken__amount';
+        valueAmount.textContent = marketText;
+        valueToken.appendChild(valueAmount);
+        valueValues.appendChild(valueToken);
+        valueRow.appendChild(valueCondition);
+        valueRow.appendChild(valueValues);
+
+        const tradeRow = document.createElement('div');
+        tradeRow.className = 'pv-priceLine pv-priceLine--tradeRow';
+        const tradeCondition = document.createElement('span');
+        tradeCondition.className = 'pv-priceLine__condition';
+        tradeCondition.textContent = 'Trade:';
+        const tradeValues = document.createElement('span');
+        tradeValues.className = 'pv-priceLine__values';
+        const tradeToken = document.createElement('span');
+        tradeToken.className = 'pv-priceToken pv-priceToken--trade';
+        const tradeLabel = document.createElement('span');
+        tradeLabel.className = 'pv-priceToken__label';
+        tradeLabel.textContent = `@${String(pct)}%`;
+        const tradeAmount = document.createElement('span');
+        tradeAmount.className = 'pv-priceToken__amount';
+        tradeAmount.textContent = tradeText;
+        tradeToken.appendChild(tradeLabel);
+        tradeToken.appendChild(tradeAmount);
+        tradeValues.appendChild(tradeToken);
+        tradeRow.appendChild(tradeCondition);
+        tradeRow.appendChild(tradeValues);
+
+        targetEl.appendChild(valueRow);
+        targetEl.appendChild(tradeRow);
     }
 
     async function refreshSealedFavoriteMarketSnapshot(favoriteProduct, restoreState) {
@@ -2049,7 +2095,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const marketEl = document.getElementById(`pv-sealed-market-${encodeURIComponent(favoriteId)}`);
         if (marketEl) {
             const pct = getSavedTradePercentForId(favoriteId, latestState);
-            marketEl.innerHTML = buildMarketLineHtml(refreshed, pct);
+            renderMarketLineContent(marketEl, refreshed, pct);
         }
         updateFavoritesTotals(latestState || undefined);
         } finally {
@@ -2260,11 +2306,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const marketLine = document.createElement('div');
             marketLine.className = 'pv-card__text pv-card__prices';
             marketLine.id = `pv-sealed-market-${encodeURIComponent(productId)}`;
-            marketLine.innerHTML = buildMarketLineHtml(fav, pct);
+            renderMarketLineContent(marketLine, fav, pct);
 
             tradeSelect.addEventListener('change', () => {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
-                marketLine.innerHTML = buildMarketLineHtml(fav, nextPct);
+                renderMarketLineContent(marketLine, fav, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
                 updateFavoritesTotals(loadLastResults() || restoreState);
             });
@@ -2418,11 +2464,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const marketLine = document.createElement('div');
             marketLine.className = 'pv-card__text pv-card__prices';
-            marketLine.innerHTML = buildMarketLineHtml(p, pct);
+            renderMarketLineContent(marketLine, p, pct);
 
             tradeSelect.addEventListener('change', () => {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
-                marketLine.innerHTML = buildMarketLineHtml(p, nextPct);
+                renderMarketLineContent(marketLine, p, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
             });
 
