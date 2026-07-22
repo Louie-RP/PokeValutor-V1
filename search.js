@@ -52,6 +52,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const MAX_SAVED_RESULTS_CARDS = 250;
     const MAX_RESTORE_RENDER_CARDS = 120;
     const FAVORITE_PRICE_PRELOAD_LIMIT = 12;
+    const FAVORITE_PRICE_REFRESH_LIMIT = 24;
+    const FAVORITE_PRICE_REFRESH_STAGGER_MS = 180;
+    const FAVORITE_PRICE_REFRESH_INTERVAL_MS = 8 * 60 * 60 * 1000;
+    const FAVORITE_PRICE_SCHEMA_VERSION = 2;
     const MAX_STORAGE_JSON_CHARS = 800000;
     const MAX_LAST_RESULTS_JSON_CHARS = 220000;
     const MAX_CACHE_ITEM_JSON_CHARS = 240000;
@@ -208,6 +212,20 @@ document.addEventListener('DOMContentLoaded', function () {
         nameDir: 'asc',
         valueDir: 'desc',
     };
+    const favoritePriceRefreshInFlight = new Set();
+    let favoritesForceRefreshRenderTimer = 0;
+
+    function scheduleFavoritesForceRefreshRender(restoreState) {
+        if (favoritesForceRefreshRenderTimer) return;
+        favoritesForceRefreshRenderTimer = window.setTimeout(() => {
+            favoritesForceRefreshRenderTimer = 0;
+            try {
+                renderFavorites(loadLastResults() || restoreState || undefined);
+            } catch {
+                // ignore
+            }
+        }, 350);
+    }
 
     /** @type {any|null|undefined} undefined=not loaded yet */
     let lastResultsCache = undefined;
@@ -1986,6 +2004,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function normalizeFavoriteCard(card) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
+        const pricesUpdatedAtRaw = Number(card?.pricesUpdatedAt || 0);
+        const pricesSchemaVersionRaw = Number(card?.pricesSchemaVersion || 0);
         return {
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -1996,7 +2016,17 @@ document.addEventListener('DOMContentLoaded', function () {
             variants: Array.isArray(card?.variants) ? card.variants : [],
             selectedVariant: safeString(card?.selectedVariant, ''),
             pricesText: safeString(card?.pricesText, ''),
+            pricesUpdatedAt: Number.isFinite(pricesUpdatedAtRaw) && pricesUpdatedAtRaw > 0 ? pricesUpdatedAtRaw : 0,
+            pricesSchemaVersion: Number.isFinite(pricesSchemaVersionRaw) ? Math.max(0, Math.floor(pricesSchemaVersionRaw)) : 0,
         };
+    }
+
+    function isFavoritePriceRefreshDue(card) {
+        const schemaVersion = Number(card?.pricesSchemaVersion || 0);
+        if (!Number.isFinite(schemaVersion) || schemaVersion < FAVORITE_PRICE_SCHEMA_VERSION) return true;
+        const lastUpdated = Number(card?.pricesUpdatedAt || 0);
+        if (!Number.isFinite(lastUpdated) || lastUpdated <= 0) return true;
+        return (Date.now() - lastUpdated) >= FAVORITE_PRICE_REFRESH_INTERVAL_MS;
     }
 
     function loadFavorites() {
@@ -3415,6 +3445,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             favoritesGrid.innerHTML = '';
             let favoritePricePreloadCount = 0;
+            let favoritePriceRefreshCount = 0;
 
             if (!Array.isArray(favorites) || favorites.length === 0) {
                 const empty = document.createElement('div');
@@ -3491,17 +3522,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
             setCardPricesDisplay(pricesEl, pricesDisplayText);
 
-            async function ensureFavoritePricesLoaded() {
+            async function ensureFavoritePricesLoaded(forceRefresh) {
                 if (!pricesEl) return;
+                if (forceRefresh) {
+                    if (favoritePriceRefreshInFlight.has(id)) return;
+                    favoritePriceRefreshInFlight.add(id);
+                }
+                try {
+                const getLivePricesEl = () => {
+                    const live = document.getElementById(`pv-fav-prices-${id}`);
+                    return (live instanceof HTMLElement) ? live : pricesEl;
+                };
+
                 // If we already have real prices text, don't refetch.
-                const currentText = String(pricesEl.textContent || '').trim();
+                const currentText = String(getLivePricesEl().textContent || '').trim();
                 const looksPlaceholder = isPriceTextPlaceholder(currentText);
-                if (!looksPlaceholder) return;
+                if (!forceRefresh && !looksPlaceholder) return;
 
                 let variantName = selectedVariant;
                 let loadedPrices = variantName ? getPricesForVariant(fav, variantName) : null;
 
-                if ((!variantName || !Array.isArray(loadedPrices) || loadedPrices.length === 0) && Array.isArray(fav?.variants)) {
+                if (!forceRefresh && (!variantName || !Array.isArray(loadedPrices) || loadedPrices.length === 0) && Array.isArray(fav?.variants)) {
                     const bestLocal = getBestVariantWithPrices(fav.variants);
                     if (bestLocal?.name) {
                         variantName = bestLocal.name;
@@ -3509,13 +3550,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                if (variantName && Array.isArray(loadedPrices) && loadedPrices.length > 0) {
+                if (!forceRefresh && variantName && Array.isArray(loadedPrices) && loadedPrices.length > 0) {
                     const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
-                    setCardPricesDisplay(pricesEl, formatted);
+                    setCardPricesDisplay(getLivePricesEl(), formatted);
 
                     favorites = favorites.map((f) => {
                         if (String(f?.id || '') !== id) return f;
-                        return { ...f, selectedVariant: variantName, pricesText: formatted };
+                        return {
+                            ...f,
+                            selectedVariant: variantName,
+                            pricesText: formatted,
+                            pricesUpdatedAt: Number(f?.pricesUpdatedAt || 0),
+                            pricesSchemaVersion: FAVORITE_PRICE_SCHEMA_VERSION,
+                        };
                     });
                     saveFavorites(favorites);
 
@@ -3528,17 +3575,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     updateFavoritesTotals(loadLastResults() || restoreState);
-                    if (favoritesSortState.active === 'value') {
+                    if (!forceRefresh && favoritesSortState.active === 'value') {
                         renderFavorites(loadLastResults() || restoreState);
                     }
                     return;
                 }
 
-                setCardPricesDisplay(pricesEl, 'Loading prices…');
+                if (looksPlaceholder) {
+                    setCardPricesDisplay(getLivePricesEl(), 'Loading prices...');
+                }
                 try {
                     const base = getWorkerBase();
                     const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-                    const data = await fetchJsonWithCache(url, CARD_TTL_MS);
+                    const data = forceRefresh
+                        ? await fetchJsonFresh(url)
+                        : await fetchJsonWithCache(url, CARD_TTL_MS);
                     const cardObj = data?.data || data;
                     const allVariants = Array.isArray(cardObj?.variants) ? cardObj.variants : [];
                     if (!variantName || !findVariantByName(allVariants, variantName)) {
@@ -3551,11 +3602,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     const match = variantName ? findVariantByName(allVariants, variantName) : null;
                     loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
-                    setCardPricesDisplay(pricesEl, formatted);
+                    setCardPricesDisplay(getLivePricesEl(), formatted);
 
                     favorites = favorites.map((f) => {
                         if (String(f?.id || '') !== id) return f;
-                        return { ...f, variants: allVariants, selectedVariant: variantName, pricesText: formatted };
+                        return {
+                            ...f,
+                            variants: allVariants,
+                            selectedVariant: variantName,
+                            pricesText: formatted,
+                            pricesUpdatedAt: Date.now(),
+                            pricesSchemaVersion: FAVORITE_PRICE_SCHEMA_VERSION,
+                        };
                     });
                     saveFavorites(favorites);
 
@@ -3568,12 +3626,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     updateFavoritesTotals(loadLastResults() || restoreState);
-                    if (favoritesSortState.active === 'value') {
+                    if (!forceRefresh && favoritesSortState.active === 'value') {
                         renderFavorites(loadLastResults() || restoreState);
+                    } else if (forceRefresh && favoritesSortState.active === 'value') {
+                        scheduleFavoritesForceRefreshRender(restoreState);
                     }
                 } catch (e) {
-                    setCardPricesDisplay(pricesEl, 'Unable to load prices.');
+                    if (looksPlaceholder) {
+                        setCardPricesDisplay(getLivePricesEl(), 'Unable to load prices.');
+                    }
                     console.warn('[PokeValutor] favorite prices preload error', e);
+                }
+                } finally {
+                    if (forceRefresh) {
+                        favoritePriceRefreshInFlight.delete(id);
+                    }
                 }
             }
             if (tradeEl) {
@@ -3651,7 +3718,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 && favoritePricePreloadCount < FAVORITE_PRICE_PRELOAD_LIMIT
             ) {
                 favoritePricePreloadCount += 1;
-                void ensureFavoritePricesLoaded();
+                void ensureFavoritePricesLoaded(false);
+            } else if (
+                favoritePriceRefreshCount < FAVORITE_PRICE_REFRESH_LIMIT
+                && isFavoritePriceRefreshDue(fav)
+                && !favoritePriceRefreshInFlight.has(id)
+            ) {
+                favoritePriceRefreshCount += 1;
+                const refreshIndex = favoritePriceRefreshCount;
+                window.setTimeout(() => {
+                    void ensureFavoritePricesLoaded(true);
+                }, refreshIndex * FAVORITE_PRICE_REFRESH_STAGGER_MS);
             }
 
                 favoritesGrid.appendChild(col);
@@ -3742,6 +3819,45 @@ document.addEventListener('DOMContentLoaded', function () {
             throw err;
         }
         cacheSet(cacheKey, data, ttlMs);
+        return data;
+    }
+
+    async function fetchJsonFresh(url) {
+        let headers;
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+            if (token && token.split('.').length === 3) {
+                headers = { Authorization: `Bearer ${token}` };
+            }
+        } catch {
+            // ignore
+        }
+
+        const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+        const res = await fetch(url, requestInit);
+        updateQuotaFromResponse(res);
+        const text = await res.text();
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(`Non-JSON response (${res.status})`);
+        }
+
+        if (!res.ok || (data && typeof data === 'object' && data.ok === false)) {
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message || `API error ${res.status}`);
+            // @ts-ignore
+            err.status = res.status;
+            // @ts-ignore
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
+            throw err;
+        }
+
         return data;
     }
 

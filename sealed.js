@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
+    const WATCHLIST_MARKET_REFRESH_INTERVAL_MS = 8 * 60 * 60 * 1000;
+    const WATCHLIST_MARKET_REFRESH_LIMIT = 24;
     const SEARCH_PAGE_SIZE = 10;
     const DEFAULT_TRADE_PERCENT = 80;
     const TRADE_PERCENT_CHOICES = [100, 90, 80, 70, 60, 50];
@@ -97,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
         nameDir: 'asc',
         valueDir: 'desc',
     };
+    const sealedFavoriteRefreshInFlight = new Set();
     /** @type {Record<string, number>} */
     const sealedValueById = {};
     let currentSearchQuery = '';
@@ -890,6 +893,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function normalizeFavoriteProduct(product) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
+        const marketUpdatedAtRaw = Number(product?.marketUpdatedAt || 0);
         return {
             id: safeString(product?.id, ''),
             baseProductId: safeString(product?.baseProductId, safeString(product?.id, '')),
@@ -901,6 +905,7 @@ document.addEventListener('DOMContentLoaded', function () {
             images: Array.isArray(product?.images) ? product.images : [],
             expansion: (product?.expansion && typeof product.expansion === 'object') ? product.expansion : null,
             variants: Array.isArray(product?.variants) ? product.variants : [],
+            marketUpdatedAt: Number.isFinite(marketUpdatedAtRaw) && marketUpdatedAtRaw > 0 ? marketUpdatedAtRaw : 0,
         };
     }
 
@@ -1481,6 +1486,46 @@ document.addEventListener('DOMContentLoaded', function () {
             throw new Error('Invalid JSON response');
         }
 
+        if (!res.ok || (data && typeof data === 'object' && data.ok === false)) {
+            const details = extractApiErrorDetails(data, res.status);
+            const err = new Error(details.message || `API error ${res.status}`);
+            // @ts-ignore
+            err.status = res.status;
+            // @ts-ignore
+            err.code = details.code;
+            // @ts-ignore
+            err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
+            throw err;
+        }
+
+        cacheSet(cacheKey, data, ttlMs);
+        return data;
+    }
+
+    async function fetchJsonFresh(url) {
+        let headers;
+        try {
+            const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(true) : null;
+            const token = typeof tokenRaw === 'string' ? tokenRaw.trim() : '';
+            if (token && token.split('.').length === 3) {
+                headers = { Authorization: `Bearer ${token}` };
+            }
+        } catch {
+            // ignore
+        }
+
+        const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
+        const res = await fetch(url, requestInit);
+        updateQuotaFromResponse(res);
+        const text = await res.text();
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error('Invalid JSON response');
+        }
+
         if (!res.ok) {
             const details = extractApiErrorDetails(data, res.status);
             const err = new Error(details.message);
@@ -1493,7 +1538,6 @@ document.addEventListener('DOMContentLoaded', function () {
             throw err;
         }
 
-        cacheSet(cacheKey, data, ttlMs);
         return data;
     }
 
@@ -1701,6 +1745,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return series || 'Sealed product';
     }
 
+    function normalizeSealedVariantNameForCompare(name) {
+        return safeString(name, '').trim().toLowerCase();
+    }
+
+    function findSealedVariantByName(variants, variantName) {
+        if (!Array.isArray(variants)) return null;
+        const wanted = normalizeSealedVariantNameForCompare(variantName);
+        if (!wanted) return null;
+        return variants.find((variant) => normalizeSealedVariantNameForCompare(variant?.name) === wanted) || null;
+    }
+
+    function isSealedFavoriteMarketRefreshDue(productLike) {
+        const lastUpdated = Number(productLike?.marketUpdatedAt || 0);
+        if (!Number.isFinite(lastUpdated) || lastUpdated <= 0) return true;
+        return (Date.now() - lastUpdated) >= WATCHLIST_MARKET_REFRESH_INTERVAL_MS;
+    }
+
     function isDefaultSealedVariantName(rawName) {
         const normalized = safeString(rawName, '').trim().toLowerCase();
         return !normalized || normalized === 'normal' || normalized === 'default' || normalized === 'standard';
@@ -1892,17 +1953,154 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function buildMarketLineHtml(product, tradePercent) {
+    function renderMarketLineContent(targetEl, product, tradePercent) {
+        if (!(targetEl instanceof HTMLElement)) return;
+
+        targetEl.textContent = '';
         const quote = getMarketQuote(product);
         if (!quote) {
-            return '<span class="pv-priceMessage">Market price unavailable.</span>';
+            const msg = document.createElement('span');
+            msg.className = 'pv-priceMessage';
+            msg.textContent = 'Market price unavailable.';
+            targetEl.appendChild(msg);
+            return;
         }
 
         const pct = normalizeTradePercent(tradePercent);
         const marketText = formatCurrency(quote.market, quote.currency);
         const tradeText = formatCurrency(quote.market * (pct / 100), quote.currency);
 
-        return `<div class="pv-priceLine"><span class="pv-priceLine__condition">Value:</span><span class="pv-priceLine__values"><span class="pv-priceToken pv-priceToken--market"><span class="pv-priceToken__amount">${escapeHtml(marketText)}</span></span></span></div><div class="pv-priceLine pv-priceLine--tradeRow"><span class="pv-priceLine__condition">Trade:</span><span class="pv-priceLine__values"><span class="pv-priceToken pv-priceToken--trade"><span class="pv-priceToken__label">@${escapeHtml(String(pct))}%</span><span class="pv-priceToken__amount">${escapeHtml(tradeText)}</span></span></span></div>`;
+        const valueRow = document.createElement('div');
+        valueRow.className = 'pv-priceLine';
+        const valueCondition = document.createElement('span');
+        valueCondition.className = 'pv-priceLine__condition';
+        valueCondition.textContent = 'Value:';
+        const valueValues = document.createElement('span');
+        valueValues.className = 'pv-priceLine__values';
+        const valueToken = document.createElement('span');
+        valueToken.className = 'pv-priceToken pv-priceToken--market';
+        const valueAmount = document.createElement('span');
+        valueAmount.className = 'pv-priceToken__amount';
+        valueAmount.textContent = marketText;
+        valueToken.appendChild(valueAmount);
+        valueValues.appendChild(valueToken);
+        valueRow.appendChild(valueCondition);
+        valueRow.appendChild(valueValues);
+
+        const tradeRow = document.createElement('div');
+        tradeRow.className = 'pv-priceLine pv-priceLine--tradeRow';
+        const tradeCondition = document.createElement('span');
+        tradeCondition.className = 'pv-priceLine__condition';
+        tradeCondition.textContent = 'Trade:';
+        const tradeValues = document.createElement('span');
+        tradeValues.className = 'pv-priceLine__values';
+        const tradeToken = document.createElement('span');
+        tradeToken.className = 'pv-priceToken pv-priceToken--trade';
+        const tradeLabel = document.createElement('span');
+        tradeLabel.className = 'pv-priceToken__label';
+        tradeLabel.textContent = `@${String(pct)}%`;
+        const tradeAmount = document.createElement('span');
+        tradeAmount.className = 'pv-priceToken__amount';
+        tradeAmount.textContent = tradeText;
+        tradeToken.appendChild(tradeLabel);
+        tradeToken.appendChild(tradeAmount);
+        tradeValues.appendChild(tradeToken);
+        tradeRow.appendChild(tradeCondition);
+        tradeRow.appendChild(tradeValues);
+
+        targetEl.appendChild(valueRow);
+        targetEl.appendChild(tradeRow);
+    }
+
+    async function refreshSealedFavoriteMarketSnapshot(favoriteProduct, restoreState) {
+        const favoriteId = safeString(favoriteProduct?.id, '').trim();
+        if (!favoriteId) return;
+        if (sealedFavoriteRefreshInFlight.has(favoriteId)) return;
+        sealedFavoriteRefreshInFlight.add(favoriteId);
+        try {
+
+        const baseProductId = safeString(favoriteProduct?.baseProductId, favoriteId).trim();
+        if (!baseProductId) return;
+
+        const baseUrl = getWorkerBase();
+        const searchUrl = `${baseUrl}/sealed/search?q=${encodeURIComponent(`id:${baseProductId}`)}&page=1&pageSize=10`;
+        const detailUrl = `${baseUrl}/sealed/${encodeURIComponent(baseProductId)}?includePrices=1`;
+
+        let resolved = null;
+        try {
+            const searchData = await fetchJsonFresh(searchUrl);
+            const rows = Array.isArray(searchData)
+                ? searchData
+                : (Array.isArray(searchData?.data) ? searchData.data : []);
+            resolved = rows.find((row) => safeString(row?.id, '').trim() === baseProductId) || null;
+        } catch {
+            // ignore
+        }
+
+        if (!resolved) {
+            try {
+                const detailData = await fetchJsonFresh(detailUrl);
+                resolved = detailData?.data || detailData || null;
+            } catch {
+                return;
+            }
+        }
+
+        if (!resolved || typeof resolved !== 'object') return;
+
+        const fetchedVariants = Array.isArray(resolved?.variants) ? resolved.variants : [];
+        const fallbackVariants = Array.isArray(favoriteProduct?.variants) ? favoriteProduct.variants : [];
+        const wantedVariantName = safeString(favoriteProduct?.variantName, '').trim();
+
+        let chosenVariant = wantedVariantName ? findSealedVariantByName(fetchedVariants, wantedVariantName) : null;
+        if (!chosenVariant && wantedVariantName) {
+            chosenVariant = findSealedVariantByName(fallbackVariants, wantedVariantName);
+        }
+        if (!chosenVariant && fetchedVariants.length) {
+            chosenVariant = fetchedVariants.find((variant) => isDefaultSealedVariantName(variant?.name)) || fetchedVariants[0];
+        }
+
+        const hasMultipleVariants = fetchedVariants.length > 1;
+        const nextVariantName = safeString(chosenVariant?.name, wantedVariantName);
+        const nextVariantLabel = deriveSealedVariantLabel(nextVariantName, hasMultipleVariants);
+
+        const refreshed = normalizeFavoriteProduct({
+            ...favoriteProduct,
+            ...resolved,
+            id: favoriteId,
+            baseProductId,
+            variantName: nextVariantName,
+            variantLabel: nextVariantLabel,
+            hasMultipleVariants,
+            images: Array.isArray(chosenVariant?.images) && chosenVariant.images.length
+                ? chosenVariant.images
+                : (Array.isArray(resolved?.images) ? resolved.images : favoriteProduct?.images),
+            variants: chosenVariant
+                ? [chosenVariant]
+                : (fetchedVariants.length ? fetchedVariants : fallbackVariants),
+            marketUpdatedAt: Date.now(),
+        });
+
+        let didChange = false;
+        favorites = favorites.map((entry) => {
+            if (safeString(entry?.id, '') !== favoriteId) return entry;
+            didChange = true;
+            return refreshed;
+        });
+        if (!didChange) return;
+
+        saveFavorites(favorites);
+
+        const latestState = loadLastResults() || restoreState;
+        const marketEl = document.getElementById(`pv-sealed-market-${encodeURIComponent(favoriteId)}`);
+        if (marketEl) {
+            const pct = getSavedTradePercentForId(favoriteId, latestState);
+            renderMarketLineContent(marketEl, refreshed, pct);
+        }
+        updateFavoritesTotals(latestState || undefined);
+        } finally {
+            sealedFavoriteRefreshInFlight.delete(favoriteId);
+        }
     }
 
     function setFavoritesTotalsText(totalText, tradeText) {
@@ -2005,6 +2203,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderFavorites(restoreState) {
         if (!favoritesGrid) return;
         favoritesGrid.innerHTML = '';
+        let favoriteMarketRefreshCount = 0;
 
         if (!Array.isArray(favorites) || favorites.length === 0) {
             favoritesGrid.innerHTML = '<div class="col-12"><p class="pv-section__text">No watchlist items yet.</p></div>';
@@ -2106,11 +2305,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const marketLine = document.createElement('div');
             marketLine.className = 'pv-card__text pv-card__prices';
-            marketLine.innerHTML = buildMarketLineHtml(fav, pct);
+            marketLine.id = `pv-sealed-market-${encodeURIComponent(productId)}`;
+            renderMarketLineContent(marketLine, fav, pct);
 
             tradeSelect.addEventListener('change', () => {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
-                marketLine.innerHTML = buildMarketLineHtml(fav, nextPct);
+                renderMarketLineContent(marketLine, fav, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
                 updateFavoritesTotals(loadLastResults() || restoreState);
             });
@@ -2123,6 +2323,15 @@ document.addEventListener('DOMContentLoaded', function () {
             card.appendChild(body);
             col.appendChild(card);
             favoritesGrid.appendChild(col);
+
+            if (
+                favoriteMarketRefreshCount < WATCHLIST_MARKET_REFRESH_LIMIT
+                && isSealedFavoriteMarketRefreshDue(fav)
+                && !sealedFavoriteRefreshInFlight.has(productId)
+            ) {
+                favoriteMarketRefreshCount += 1;
+                void refreshSealedFavoriteMarketSnapshot(fav, restoreState);
+            }
         }
 
         updateFavoritesTotals(restoreState);
@@ -2255,11 +2464,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const marketLine = document.createElement('div');
             marketLine.className = 'pv-card__text pv-card__prices';
-            marketLine.innerHTML = buildMarketLineHtml(p, pct);
+            renderMarketLineContent(marketLine, p, pct);
 
             tradeSelect.addEventListener('change', () => {
                 const nextPct = normalizeTradePercent(tradeSelect.value);
-                marketLine.innerHTML = buildMarketLineHtml(p, nextPct);
+                renderMarketLineContent(marketLine, p, nextPct);
                 if (productId) persistTradePercent(productId, nextPct);
             });
 
