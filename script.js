@@ -1151,7 +1151,18 @@
       const q = 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket';
       // Fetch more than we need so we can filter client-side and still show the latest N.
       const pageSize = Math.max(30, LATEST_EXPANSIONS_COUNT * 4);
-      const url = `${base}/expansions/search?q=${encodeURIComponent(q)}&orderBy=-release_date&page=1&pageSize=${pageSize}&select=id,name,logo,release_date,is_online_only,series,language,language_code&casing=camel`;
+      const urlObj = new URL(`${base}/expansions/search`);
+      urlObj.searchParams.set('q', q);
+      urlObj.searchParams.set('orderBy', '-release_date');
+      urlObj.searchParams.set('page', '1');
+      urlObj.searchParams.set('pageSize', String(pageSize));
+      urlObj.searchParams.set('select', 'id,name,logo,release_date,is_online_only,series,language,language_code');
+      urlObj.searchParams.set('casing', 'camel');
+      if (latestVersion) {
+        // Include refresh version in the URL so browser caches are naturally invalidated.
+        urlObj.searchParams.set('latestVersion', latestVersion);
+      }
+      const url = urlObj.toString();
 
       /** @type {Record<string, string>|undefined} */
       let headers;
@@ -1163,7 +1174,9 @@
         // ignore
       }
 
-      const res = await fetch(url, { method: 'GET', headers });
+      // Avoid browser HTTP-cache reuse for this endpoint because freshness is
+      // controlled by localStorage versioning plus the latest-version check.
+      const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
       const text = await res.text();
       const data = safeParseJson(text);
 
