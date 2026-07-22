@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
-    const WATCHLIST_MARKET_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+    const WATCHLIST_MARKET_REFRESH_INTERVAL_MS = 8 * 60 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_LIMIT = 24;
     const SEARCH_PAGE_SIZE = 10;
     const DEFAULT_TRADE_PERCENT = 80;
