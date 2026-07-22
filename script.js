@@ -733,7 +733,7 @@
   }
 
 
-  async function fetchJsonWithOptionalAuth(url, initOverrides) {
+  async function getOptionalAuthHeaders() {
     /** @type {Record<string, string>|undefined} */
     let headers;
     try {
@@ -743,6 +743,11 @@
     } catch {
       // ignore
     }
+    return headers;
+  }
+
+  async function fetchJsonWithOptionalAuth(url, initOverrides) {
+    const headers = await getOptionalAuthHeaders();
 
     const init = {
       method: 'GET',
@@ -776,6 +781,33 @@
     const base = getWorkerBase();
     const data = await fetchJsonWithOptionalAuth(`${base}/expansions/latest-version`, { cache: 'no-store' });
     return String(data?.version || '').trim();
+  }
+
+  function buildLatestExpansionsSearchUrl(base, pageSize, latestVersion) {
+    const q = 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket';
+    const urlObj = new URL(`${base}/expansions/search`);
+    urlObj.searchParams.set('q', q);
+    urlObj.searchParams.set('orderBy', '-release_date');
+    urlObj.searchParams.set('page', '1');
+    urlObj.searchParams.set('pageSize', String(pageSize));
+    urlObj.searchParams.set('select', 'id,name,logo,release_date,is_online_only,series,language,language_code');
+    urlObj.searchParams.set('casing', 'camel');
+    if (latestVersion) {
+      // Include refresh version in the URL so browser caches are naturally invalidated.
+      urlObj.searchParams.set('latestVersion', latestVersion);
+    }
+    return urlObj.toString();
+  }
+
+  async function fetchLatestExpansionsSearch(url) {
+    const headers = await getOptionalAuthHeaders();
+
+    // Avoid browser HTTP-cache reuse for this endpoint because freshness is
+    // controlled by localStorage versioning plus the latest-version check.
+    const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
+    const text = await res.text();
+    const data = safeParseJson(text);
+    return { res, data };
   }
 
   function buildSearchLinkForCard(cardLike) {
@@ -1148,37 +1180,10 @@
       // - Remove Pokémon Pocket / TCGP expansions (typically online-only)
       // - Remove promo expansions
       // - Keep English only
-      const q = 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket';
       // Fetch more than we need so we can filter client-side and still show the latest N.
       const pageSize = Math.max(30, LATEST_EXPANSIONS_COUNT * 4);
-      const urlObj = new URL(`${base}/expansions/search`);
-      urlObj.searchParams.set('q', q);
-      urlObj.searchParams.set('orderBy', '-release_date');
-      urlObj.searchParams.set('page', '1');
-      urlObj.searchParams.set('pageSize', String(pageSize));
-      urlObj.searchParams.set('select', 'id,name,logo,release_date,is_online_only,series,language,language_code');
-      urlObj.searchParams.set('casing', 'camel');
-      if (latestVersion) {
-        // Include refresh version in the URL so browser caches are naturally invalidated.
-        urlObj.searchParams.set('latestVersion', latestVersion);
-      }
-      const url = urlObj.toString();
-
-      /** @type {Record<string, string>|undefined} */
-      let headers;
-      try {
-        const tokenRaw = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-        const token = String(tokenRaw || '').trim();
-        if (token) headers = { Authorization: `Bearer ${token}` };
-      } catch {
-        // ignore
-      }
-
-      // Avoid browser HTTP-cache reuse for this endpoint because freshness is
-      // controlled by localStorage versioning plus the latest-version check.
-      const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
-      const text = await res.text();
-      const data = safeParseJson(text);
+      const url = buildLatestExpansionsSearchUrl(base, pageSize, latestVersion);
+      const { res, data } = await fetchLatestExpansionsSearch(url);
 
       if (!res.ok) {
         // If quota ever blocks this endpoint, fall back to last known cache so home never goes blank.
