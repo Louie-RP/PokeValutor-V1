@@ -7,15 +7,15 @@
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
-    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v1`;
+    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v2`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
     const COLLECTION_TOTALS_HIDDEN_PREF_KEY = `${CACHE_PREFIX}collectionTotalsHidden:v1`;
     const VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
-    const COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
-    const COLLECTION_VALUE_LAST_REFRESH_KEY = `${CACHE_PREFIX}collectionValueLastRefresh:v1`;
+    const COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+    const COLLECTION_VALUE_LAST_REFRESH_KEY = `${CACHE_PREFIX}collectionValueLastRefresh:v2`;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
@@ -1548,14 +1548,14 @@
         const list = Array.isArray(items) ? items : [];
         if (!list.length) return false;
 
-        const hasIncompleteCache = list.some((item) => !isCollectionItemValueFullyCached(item));
-        if (!hasIncompleteCache) return false;
-
         const collectionId = getActiveCollectionId();
         const lastRefreshMs = getCollectionLastValueRefreshMs(collectionId);
-        if (!lastRefreshMs) return true;
+        const refreshDue = !lastRefreshMs || (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
 
-        return (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
+        if (refreshDue) return true;
+
+        const hasIncompleteCache = list.some((item) => !isCollectionItemValueFullyCached(item));
+        return hasIncompleteCache;
     }
 
     async function getCurrentCardValue(item, options) {
@@ -1571,26 +1571,26 @@
             return cached;
         }
 
-        // Prefer prices already stored on the collection entry before making network calls.
         const localVariants = Array.isArray(item?.variants) ? item.variants : [];
         const localBest = getBestVariantMarket(localVariants, selectedVariant, conditionCode);
+
+        if (allowNetwork) {
+            const fetched = await fetchCardWithPrices(id);
+            const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
+            const sourceVariants = fetchedVariants.length ? fetchedVariants : localVariants;
+
+            const best = getBestVariantMarket(sourceVariants, selectedVariant, conditionCode);
+            if (best && Number.isFinite(best.market)) {
+                setCachedValue(cacheKey, best.market, best.variantUsed);
+                return best;
+            }
+        }
+
         if (localBest && Number.isFinite(localBest.market)) {
-            setCachedValue(cacheKey, localBest.market, localBest.variantUsed);
             return localBest;
         }
 
-        if (!allowNetwork) return null;
-
-        const fetched = await fetchCardWithPrices(id);
-        const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
-        const fallbackVariants = Array.isArray(item?.variants) ? item.variants : [];
-        const sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
-
-        const best = getBestVariantMarket(sourceVariants, selectedVariant, conditionCode);
-        if (!best || !Number.isFinite(best.market)) return null;
-
-        setCachedValue(cacheKey, best.market, best.variantUsed);
-        return best;
+        return null;
     }
 
     async function getCurrentSealedValue(item, options) {
@@ -1604,27 +1604,27 @@
             return { market: cached.market };
         }
 
-        // Prefer prices already stored on the collection entry before making network calls.
         const localVariants = Array.isArray(item?.variants) ? item.variants : [];
         const localMarket = getBestSealedMarketFromVariants(localVariants);
+
+        if (allowNetwork) {
+            const fetchedFromSearch = await fetchSealedFromSearchById(id);
+            const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
+            const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
+            const sourceVariants = fetchedVariants.length ? fetchedVariants : localVariants;
+
+            const market = getBestSealedMarketFromVariants(sourceVariants);
+            if (Number.isFinite(market)) {
+                setCachedValue(cacheKey, market, '');
+                return { market };
+            }
+        }
+
         if (Number.isFinite(localMarket)) {
-            setCachedValue(cacheKey, localMarket, '');
             return { market: localMarket };
         }
 
-        if (!allowNetwork) return null;
-
-        const fetchedFromSearch = await fetchSealedFromSearchById(id);
-        const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
-        const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
-        const fallbackVariants = Array.isArray(item?.variants) ? item.variants : [];
-        const sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
-
-        const market = getBestSealedMarketFromVariants(sourceVariants);
-        if (!Number.isFinite(market)) return null;
-
-        setCachedValue(cacheKey, market, '');
-        return { market };
+        return null;
     }
 
     async function refreshCollectionValues(items, totalEl, options) {
