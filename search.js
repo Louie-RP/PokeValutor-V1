@@ -3939,7 +3939,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (amount == null) return null;
             const n = typeof amount === 'number' ? amount : Number(amount);
             if (!Number.isFinite(n)) return null;
-            return `${moneySymbol}${n.toFixed(2)}`;
+            return `${moneySymbol}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
         /** @type {Array<{rank: number, line: string}>} */
@@ -4094,8 +4094,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const code = extractConditionCodeFromLabel(prefix);
             const conditionLabel = code || prefix;
-            const marketMatch = body.match(/(\$[0-9]+(?:\.[0-9]+)?)/);
-            const tradeMatch = body.match(/@([0-9]+(?:\.[0-9]+)?)%\s*(\$[0-9]+(?:\.[0-9]+)?)/i);
+            const marketMatch = body.match(/(\$[0-9][0-9,]*(?:\.[0-9]+)?)/);
+            const tradeMatch = body.match(/@([0-9]+(?:\.[0-9]+)?)%\s*(\$[0-9][0-9,]*(?:\.[0-9]+)?)/i);
 
             if (!marketMatch) {
                 out.push(`<div class="pv-priceLine pv-priceLine--raw">${escapeHtml(line)}</div>`);
@@ -4138,7 +4138,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function formatUsd(amount) {
         const n = typeof amount === 'number' ? amount : Number(amount);
         if (!Number.isFinite(n)) return '$0.00';
-        return `$${n.toFixed(2)}`;
+        return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     function normalizeConditionKeyForTotals(raw) {
@@ -4205,9 +4205,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!text) return null;
 
         // Legacy format support (older cached text): "market $12.34".
-        const legacy = text.match(/market\s+\$([0-9]+(?:\.[0-9]+)?)/i);
+        const legacy = text.match(/market\s+\$([0-9][0-9,]*(?:\.[0-9]+)?)/i);
         if (legacy) {
-            const n = Number(legacy[1]);
+            const n = Number(String(legacy[1] || '').replace(/,/g, ''));
             if (Number.isFinite(n)) return n;
         }
 
@@ -4219,9 +4219,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .find(Boolean);
         if (!firstLine) return null;
 
-        const marketMatch = firstLine.match(/\$([0-9]+(?:\.[0-9]+)?)/);
+        const marketMatch = firstLine.match(/\$([0-9][0-9,]*(?:\.[0-9]+)?)/);
         if (!marketMatch) return null;
-        const parsed = Number(marketMatch[1]);
+        const parsed = Number(String(marketMatch[1] || '').replace(/,/g, ''));
         return Number.isFinite(parsed) ? parsed : null;
     }
 
