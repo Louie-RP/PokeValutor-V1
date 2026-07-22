@@ -458,6 +458,12 @@
         return `$${n.toFixed(2)}`;
     }
 
+    function formatUsdWithCommas(amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n)) return '$0.00';
+        return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
     const COLLECTION_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
 
     function loadCollectionTypeFilterPreference() {
@@ -919,7 +925,7 @@
     function formatSignedUsdFromCents(centsRaw) {
         const cents = Math.round(Number(centsRaw) || 0);
         const sign = cents > 0 ? '+' : cents < 0 ? '-' : '';
-        return `${sign}$${(Math.abs(cents) / 100).toFixed(2)}`;
+        return `${sign}${formatUsdWithCommas(Math.abs(cents) / 100)}`;
     }
 
     function areCollectionTotalsHidden() {
@@ -1729,7 +1735,7 @@
         }));
 
         const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
-        setCollectionTotalValueText(`Value: ${formatUsd(total)}${coverage}`);
+        setCollectionTotalValueText(`Value: ${formatUsdWithCommas(total)}${coverage}`);
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
