@@ -52,8 +52,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const MAX_SAVED_RESULTS_CARDS = 250;
     const MAX_RESTORE_RENDER_CARDS = 120;
     const FAVORITE_PRICE_PRELOAD_LIMIT = 12;
-    const FAVORITE_PRICE_REFRESH_LIMIT = 24;
+    const FAVORITE_PRICE_REFRESH_LIMIT = 120;
+    const FAVORITE_PRICE_REFRESH_STAGGER_MS = 120;
     const FAVORITE_PRICE_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+    const FAVORITE_PRICE_SCHEMA_VERSION = 2;
     const MAX_STORAGE_JSON_CHARS = 800000;
     const MAX_LAST_RESULTS_JSON_CHARS = 220000;
     const MAX_CACHE_ITEM_JSON_CHARS = 240000;
@@ -211,6 +213,19 @@ document.addEventListener('DOMContentLoaded', function () {
         valueDir: 'desc',
     };
     const favoritePriceRefreshInFlight = new Set();
+    let favoritesForceRefreshRenderTimer = 0;
+
+    function scheduleFavoritesForceRefreshRender(restoreState) {
+        if (favoritesForceRefreshRenderTimer) return;
+        favoritesForceRefreshRenderTimer = window.setTimeout(() => {
+            favoritesForceRefreshRenderTimer = 0;
+            try {
+                renderFavorites(loadLastResults() || restoreState || undefined);
+            } catch {
+                // ignore
+            }
+        }, 350);
+    }
 
     /** @type {any|null|undefined} undefined=not loaded yet */
     let lastResultsCache = undefined;
@@ -1990,6 +2005,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function normalizeFavoriteCard(card) {
         // Keep a minimal snapshot so Watchlist can render without extra API calls.
         const pricesUpdatedAtRaw = Number(card?.pricesUpdatedAt || 0);
+        const pricesSchemaVersionRaw = Number(card?.pricesSchemaVersion || 0);
         return {
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -2001,10 +2017,13 @@ document.addEventListener('DOMContentLoaded', function () {
             selectedVariant: safeString(card?.selectedVariant, ''),
             pricesText: safeString(card?.pricesText, ''),
             pricesUpdatedAt: Number.isFinite(pricesUpdatedAtRaw) && pricesUpdatedAtRaw > 0 ? pricesUpdatedAtRaw : 0,
+            pricesSchemaVersion: Number.isFinite(pricesSchemaVersionRaw) ? Math.max(0, Math.floor(pricesSchemaVersionRaw)) : 0,
         };
     }
 
     function isFavoritePriceRefreshDue(card) {
+        const schemaVersion = Number(card?.pricesSchemaVersion || 0);
+        if (!Number.isFinite(schemaVersion) || schemaVersion < FAVORITE_PRICE_SCHEMA_VERSION) return true;
         const lastUpdated = Number(card?.pricesUpdatedAt || 0);
         if (!Number.isFinite(lastUpdated) || lastUpdated <= 0) return true;
         return (Date.now() - lastUpdated) >= FAVORITE_PRICE_REFRESH_INTERVAL_MS;
@@ -3510,8 +3529,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     favoritePriceRefreshInFlight.add(id);
                 }
                 try {
+                const getLivePricesEl = () => {
+                    const live = document.getElementById(`pv-fav-prices-${id}`);
+                    return (live instanceof HTMLElement) ? live : pricesEl;
+                };
+
                 // If we already have real prices text, don't refetch.
-                const currentText = String(pricesEl.textContent || '').trim();
+                const currentText = String(getLivePricesEl().textContent || '').trim();
                 const looksPlaceholder = isPriceTextPlaceholder(currentText);
                 if (!forceRefresh && !looksPlaceholder) return;
 
@@ -3528,7 +3552,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (!forceRefresh && variantName && Array.isArray(loadedPrices) && loadedPrices.length > 0) {
                     const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
-                    setCardPricesDisplay(pricesEl, formatted);
+                    setCardPricesDisplay(getLivePricesEl(), formatted);
 
                     favorites = favorites.map((f) => {
                         if (String(f?.id || '') !== id) return f;
@@ -3537,6 +3561,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             selectedVariant: variantName,
                             pricesText: formatted,
                             pricesUpdatedAt: Number(f?.pricesUpdatedAt || 0),
+                            pricesSchemaVersion: FAVORITE_PRICE_SCHEMA_VERSION,
                         };
                     });
                     saveFavorites(favorites);
@@ -3557,7 +3582,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 if (looksPlaceholder) {
-                    setCardPricesDisplay(pricesEl, 'Loading prices...');
+                    setCardPricesDisplay(getLivePricesEl(), 'Loading prices...');
                 }
                 try {
                     const base = getWorkerBase();
@@ -3577,7 +3602,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const match = variantName ? findVariantByName(allVariants, variantName) : null;
                     loadedPrices = Array.isArray(match?.prices) ? match.prices : [];
                     const formatted = formatPriceList(loadedPrices, getSavedTradePercentForId(id, restoreState));
-                    setCardPricesDisplay(pricesEl, formatted);
+                    setCardPricesDisplay(getLivePricesEl(), formatted);
 
                     favorites = favorites.map((f) => {
                         if (String(f?.id || '') !== id) return f;
@@ -3587,6 +3612,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             selectedVariant: variantName,
                             pricesText: formatted,
                             pricesUpdatedAt: Date.now(),
+                            pricesSchemaVersion: FAVORITE_PRICE_SCHEMA_VERSION,
                         };
                     });
                     saveFavorites(favorites);
@@ -3602,10 +3628,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateFavoritesTotals(loadLastResults() || restoreState);
                     if (!forceRefresh && favoritesSortState.active === 'value') {
                         renderFavorites(loadLastResults() || restoreState);
+                    } else if (forceRefresh && favoritesSortState.active === 'value') {
+                        scheduleFavoritesForceRefreshRender(restoreState);
                     }
                 } catch (e) {
                     if (looksPlaceholder) {
-                        setCardPricesDisplay(pricesEl, 'Unable to load prices.');
+                        setCardPricesDisplay(getLivePricesEl(), 'Unable to load prices.');
                     }
                     console.warn('[PokeValutor] favorite prices preload error', e);
                 }
@@ -3697,7 +3725,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 && !favoritePriceRefreshInFlight.has(id)
             ) {
                 favoritePriceRefreshCount += 1;
-                void ensureFavoritePricesLoaded(true);
+                const refreshIndex = favoritePriceRefreshCount;
+                window.setTimeout(() => {
+                    void ensureFavoritePricesLoaded(true);
+                }, refreshIndex * FAVORITE_PRICE_REFRESH_STAGGER_MS);
             }
 
                 favoritesGrid.appendChild(col);
