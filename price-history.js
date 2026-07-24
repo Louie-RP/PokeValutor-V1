@@ -405,7 +405,7 @@
     function buildChartElement(rows) {
         const width = 720;
         const height = 300;
-        const left = 64;
+        const left = 72;
         const right = 20;
         const top = 24;
         const bottom = 44;
@@ -459,7 +459,7 @@
         gridValues.reverse().forEach((value) => {
             const y = top + ((max - value) / span) * (height - top - bottom);
             const label = createSvgElement('text', {
-                x: left - 8,
+                x: left - 12,
                 y: y + 4,
                 'text-anchor': 'end',
                 class: 'pv-priceHistory__axisLabel',
