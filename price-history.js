@@ -197,7 +197,7 @@
             createElement('a', {
                 className: 'pv-button pv-button--primary btn',
                 text: 'View plans',
-                attributes: { href: 'pricing.html' },
+                attributes: { href: '/pricing.html' },
             })
         );
         container.append(preview, overlay);

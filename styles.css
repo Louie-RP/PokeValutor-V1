@@ -43,11 +43,7 @@ html {
 }
 body {
   margin: 0;
-  /* Glossy black background: subtle radial sheen + vertical gradient */
   background-color: var(--pv-bg);
-  background-image:
-    radial-gradient(ellipse at 20% -10%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 35%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 40%, #0a0a0a 100%);
   color: var(--pv-text);
   line-height: 1.6;
   min-height: 100vh;
