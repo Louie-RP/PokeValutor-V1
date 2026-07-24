@@ -2754,6 +2754,15 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin-bottom: 1.25rem;
 }
 
+/* Inner card-page sections share the card detail's full content width.
+   The outer container already supplies the page gutter. */
+.pv-cardPageContent > .pv-section {
+  width: 100%;
+  max-width: none;
+  margin: clamp(2.25rem, 5vw, 3rem) 0;
+  padding-inline: 0;
+}
+
 .pv-cardDetail__mediaWrap {
   border: 1px solid var(--pv-border);
   border-radius: 12px;
