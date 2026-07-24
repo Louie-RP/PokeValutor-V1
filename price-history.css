@@ -1,0 +1,181 @@
+/* Isolated styles for the NM Price History feature. */
+.pv-priceHistory {
+    position: relative;
+    display: grid;
+    gap: 1rem;
+    min-height: 18rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 1rem;
+    background: rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+}
+
+.pv-priceHistory__controls,
+.pv-priceHistory__toolbar,
+.pv-priceHistory__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.pv-priceHistory__condition {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.pv-priceHistory__condition span,
+.pv-priceHistory__eyebrow {
+    font-size: 0.8rem;
+    opacity: 0.75;
+}
+
+.pv-priceHistory__currentPrice {
+    display: block;
+    font-size: clamp(1.5rem, 4vw, 2.4rem);
+}
+
+.pv-priceHistory__trend {
+    display: inline-block;
+    margin-top: 0.25rem;
+    font-weight: 700;
+}
+
+.pv-priceHistory__trend.is-positive { color: #7fe39a; }
+.pv-priceHistory__trend.is-negative { color: #ff9b9b; }
+
+.pv-priceHistory__ranges {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.pv-priceHistory__ranges button {
+    min-width: 3rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.pv-priceHistory__ranges button[aria-pressed="true"] {
+    background: rgba(255, 255, 255, 0.16);
+    font-weight: 800;
+}
+
+.pv-priceHistory__ranges button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.pv-priceHistory__chartWrap {
+    overflow-x: auto;
+}
+
+.pv-priceHistory__chart {
+    display: block;
+    width: 100%;
+    min-width: 34rem;
+    height: auto;
+}
+
+.pv-priceHistory__grid,
+.pv-priceHistory__gridLine {
+    fill: none;
+    stroke: currentColor;
+    stroke-opacity: 0.12;
+    stroke-width: 1;
+}
+
+.pv-priceHistory__line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pv-priceHistory__area {
+    fill: currentColor;
+    opacity: 0.08;
+}
+
+.pv-priceHistory__axisLabel {
+    fill: currentColor;
+    opacity: 0.65;
+    font-size: 12px;
+}
+
+.pv-priceHistory--locked {
+    min-height: 20rem;
+}
+
+.pv-priceHistory__preview {
+    filter: blur(7px);
+    opacity: 0.45;
+    user-select: none;
+    pointer-events: none;
+}
+
+.pv-priceHistory__fakePrice {
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.pv-priceHistory__lockOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.6rem;
+    padding: 1.5rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(2px);
+}
+
+.pv-priceHistory__lockOverlay h3,
+.pv-priceHistory__lockOverlay p {
+    margin: 0;
+}
+
+.pv-priceHistory__lockIcon {
+    font-size: 2rem;
+}
+
+.pv-priceHistory--error {
+    min-height: auto;
+}
+
+@media (max-width: 640px) {
+    .pv-priceHistory {
+        padding: 0.8rem;
+    }
+
+    .pv-priceHistory__controls,
+    .pv-priceHistory__toolbar,
+    .pv-priceHistory__footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .pv-priceHistory__ranges {
+        width: 100%;
+    }
+
+    .pv-priceHistory__ranges button {
+        flex: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pv-priceHistory * {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}
