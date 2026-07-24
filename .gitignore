@@ -25,6 +25,10 @@ serviceAccountKey.json
 .dev.vars
 .wrangler/
 
+# Local price-history verification harnesses
+/tests/price-history-static.test.mjs
+/tests/price-history-worker.test.mjs
+
 # Node
 node_modules/
 npm-debug.log*

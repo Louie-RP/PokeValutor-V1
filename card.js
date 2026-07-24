@@ -786,6 +786,13 @@ document.addEventListener('DOMContentLoaded', function () {
         setSeo(card);
         renderPricing(card);
         void renderRelated(card);
+
+        window.dispatchEvent(new CustomEvent('pv:card-loaded', {
+            detail: {
+                cardId: safeString(card?.id, ''),
+                card,
+            },
+        }));
     }
 
     async function loadCardById(cardId) {

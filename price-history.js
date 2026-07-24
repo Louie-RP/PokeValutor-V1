@@ -17,11 +17,11 @@
     let loadedPayload = null;
     let selectedRange = 90;
     let initialized = false;
+    let renderGeneration = 0;
 
     function isFeatureEnabled() {
-        // Explicit false disables the feature. Undefined defaults to enabled so
-        // rollout can be controlled by the Worker kill switch as well.
-        return window?.PV_FEATURES?.[FEATURE_NAME] !== false;
+        // Fail closed when the configuration asset is missing or malformed.
+        return window?.PV_FEATURES?.[FEATURE_NAME] === true;
     }
 
     function getRoot() {
@@ -60,13 +60,21 @@
 
     function normalizeRoleFromClaims(claims) {
         const source = claims && typeof claims === 'object' ? claims : {};
-        const role = String(source.role || source.userRole || source.user_role || '').trim().toLowerCase();
+        const role = String(
+            source.role
+            || source.userRole
+            || source.user_role
+            || source.tier
+            || source.plan
+            || source.subscriptionTier
+            || source.subscription_tier
+            || ''
+        ).trim().toLowerCase();
         if (role === 'admin' || role === 'tester' || role === 'premium' || role === 'basic' || role === 'free') {
             return role;
         }
+        if (role) return 'basic';
 
-        const tier = String(source.tier || source.plan || source.subscriptionTier || source.subscription_tier || '').trim().toLowerCase();
-        if (tier === 'premium' || tier === 'pro') return 'premium';
         if (source.admin === true || String(source.admin).toLowerCase() === 'true') return 'admin';
         if (source.tester === true || String(source.tester).toLowerCase() === 'true') return 'tester';
         if (source.premium === true || String(source.premium).toLowerCase() === 'true') return 'premium';
@@ -94,9 +102,9 @@
     }
 
     function getCardVariants(card) {
-        return (Array.isArray(card?.variants) ? card.variants : [])
+        return [...new Set((Array.isArray(card?.variants) ? card.variants : [])
             .map((variant) => String(variant?.name || '').trim().toLowerCase())
-            .filter(Boolean);
+            .filter(Boolean))];
     }
 
     function pickDefaultVariant(card) {
@@ -289,10 +297,26 @@
     }
 
     function parseScrydexDate(value) {
-        const match = String(value || '').match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+        const match = String(value || '').trim().match(/^(\d{4})([/-])(\d{2})\2(\d{2})$/);
         if (!match) return null;
-        const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-        return Number.isNaN(date.getTime()) ? null : date;
+        const year = Number(match[1]);
+        const month = Number(match[3]);
+        const day = Number(match[4]);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        if (
+            date.getUTCFullYear() !== year
+            || date.getUTCMonth() !== month - 1
+            || date.getUTCDate() !== day
+        ) {
+            return null;
+        }
+        return date;
+    }
+
+    function finiteNumberOrNull(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
     }
 
     function normalizeRows(payload) {
@@ -300,13 +324,13 @@
             .map((row) => {
                 const date = parseScrydexDate(row?.date);
                 const price = Array.isArray(row?.prices) ? row.prices[0] : null;
-                const market = Number(price?.market);
-                const low = Number(price?.low);
+                const market = finiteNumberOrNull(price?.market);
+                const low = finiteNumberOrNull(price?.low);
                 return {
                     date,
                     dateLabel: String(row?.date || ''),
-                    market: Number.isFinite(market) ? market : null,
-                    low: Number.isFinite(low) ? low : null,
+                    market,
+                    low,
                 };
             })
             .filter((row) => row.date && Number.isFinite(row.market))
@@ -328,7 +352,7 @@
     }
 
     function formatPercent(value) {
-        const number = Number(value);
+        const number = finiteNumberOrNull(value);
         if (!Number.isFinite(number)) return 'n/a';
         return `${number > 0 ? '+' : ''}${number.toFixed(2)}%`;
     }
@@ -505,7 +529,10 @@
             let payload = null;
             try { payload = JSON.parse(text); } catch { /* handled below */ }
             if (!response.ok || !payload || payload.ok === false) {
-                const message = payload?.error || payload?.message || `Price history request failed (${response.status}).`;
+                let message = payload?.error || payload?.message || `Price history request failed (${response.status}).`;
+                if (response.status === 401) message = 'Please sign in again to view price history.';
+                if (response.status === 403) message = 'A Premium subscription is required to view NM price history.';
+                if (response.status === 429) message = 'NM price history has reached its daily refresh limit. Please try again later.';
                 throw new Error(String(message));
             }
             if (payload?.meta?.enabled === false) {
@@ -524,6 +551,7 @@
     }
 
     async function renderForCurrentState() {
+        const generation = ++renderGeneration;
         if (!isFeatureEnabled()) {
             const section = getSection();
             if (section) section.hidden = true;
@@ -534,7 +562,9 @@
         currentRole = 'basic';
         loadedPayload = null;
         renderLocked();
-        currentRole = await resolveRole();
+        const role = await resolveRole();
+        if (generation !== renderGeneration) return;
+        currentRole = role;
         authResolved = true;
         if (isPremiumRole(currentRole)) renderPremiumReady();
         else renderLocked();
