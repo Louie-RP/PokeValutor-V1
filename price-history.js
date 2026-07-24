@@ -32,13 +32,26 @@
         return document.getElementById('pv-price-history');
     }
 
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+    function createElement(tagName, { className, text, attributes } = {}) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = String(text);
+        Object.entries(attributes || {}).forEach(([name, value]) => {
+            if (value !== undefined && value !== null) {
+                element.setAttribute(name, String(value));
+            }
+        });
+        return element;
+    }
+
+    function createSvgElement(tagName, attributes = {}) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+        Object.entries(attributes).forEach(([name, value]) => {
+            if (value !== undefined && value !== null) {
+                element.setAttribute(name, String(value));
+            }
+        });
+        return element;
     }
 
     function getWorkerBase() {
@@ -113,27 +126,66 @@
         const root = getRoot();
         if (!root) return;
         const path = pointsToSvgPath(buildPreviewPoints(), 720, 260, 28);
-        root.innerHTML = `
-            <div class="pv-priceHistory pv-priceHistory--locked" aria-label="Premium NM price history preview">
-                <div class="pv-priceHistory__preview" aria-hidden="true">
-                    <div class="pv-priceHistory__toolbar">
-                        <span class="pv-priceHistory__fakePrice">$000.00</span>
-                        <div class="pv-priceHistory__ranges">
-                            ${RANGE_DAYS.map((days) => `<button type="button" disabled>${days}D</button>`).join('')}
-                        </div>
-                    </div>
-                    <svg class="pv-priceHistory__chart" viewBox="0 0 720 260" role="img">
-                        <path class="pv-priceHistory__grid" d="M28 54 H692 M28 104 H692 M28 154 H692 M28 204 H692"></path>
-                        <path class="pv-priceHistory__line" d="${path}"></path>
-                    </svg>
-                </div>
-                <div class="pv-priceHistory__lockOverlay">
-                    <span class="pv-priceHistory__lockIcon" aria-hidden="true">🔒</span>
-                    <h3>Subscribe to view NM card trends</h3>
-                    <p>Unlock the full 7-day, 30-day, and 90-day Near Mint price history.</p>
-                    <a class="pv-button pv-button--primary btn" href="pricing.html">View plans</a>
-                </div>
-            </div>`;
+        const container = createElement('div', {
+            className: 'pv-priceHistory pv-priceHistory--locked',
+            attributes: { 'aria-label': 'Premium NM price history preview' },
+        });
+        const preview = createElement('div', {
+            className: 'pv-priceHistory__preview',
+            attributes: { 'aria-hidden': 'true' },
+        });
+        const toolbar = createElement('div', { className: 'pv-priceHistory__toolbar' });
+        toolbar.append(createElement('span', {
+            className: 'pv-priceHistory__fakePrice',
+            text: '$000.00',
+        }));
+        const ranges = createElement('div', { className: 'pv-priceHistory__ranges' });
+        RANGE_DAYS.forEach((days) => {
+            const button = createElement('button', {
+                text: `${days}D`,
+                attributes: { type: 'button' },
+            });
+            button.disabled = true;
+            ranges.append(button);
+        });
+        toolbar.append(ranges);
+
+        const svg = createSvgElement('svg', {
+            class: 'pv-priceHistory__chart',
+            viewBox: '0 0 720 260',
+            role: 'img',
+        });
+        svg.append(
+            createSvgElement('path', {
+                class: 'pv-priceHistory__grid',
+                d: 'M28 54 H692 M28 104 H692 M28 154 H692 M28 204 H692',
+            }),
+            createSvgElement('path', {
+                class: 'pv-priceHistory__line',
+                d: path,
+            })
+        );
+        preview.append(toolbar, svg);
+
+        const overlay = createElement('div', { className: 'pv-priceHistory__lockOverlay' });
+        overlay.append(
+            createElement('span', {
+                className: 'pv-priceHistory__lockIcon',
+                text: '🔒',
+                attributes: { 'aria-hidden': 'true' },
+            }),
+            createElement('h3', { text: 'Subscribe to view NM card trends' }),
+            createElement('p', {
+                text: 'Unlock the full 7-day, 30-day, and 90-day Near Mint price history.',
+            }),
+            createElement('a', {
+                className: 'pv-button pv-button--primary btn',
+                text: 'View plans',
+                attributes: { href: 'pricing.html' },
+            })
+        );
+        container.append(preview, overlay);
+        root.replaceChildren(container);
     }
 
     function renderPremiumReady() {
@@ -141,30 +193,64 @@
         if (!root || !currentCard) return;
         const variants = getCardVariants(currentCard);
         const selected = pickDefaultVariant(currentCard);
-        root.innerHTML = `
-            <div class="pv-priceHistory" data-state="ready">
-                <div class="pv-priceHistory__controls">
-                    <div class="pv-form__field">
-                        <label class="form-label" for="pv-price-history-variant">Variant</label>
-                        <select id="pv-price-history-variant" class="form-select">
-                            ${(variants.length ? variants : [selected]).map((variant) =>
-                                `<option value="${escapeHtml(variant)}" ${variant === selected ? 'selected' : ''}>${escapeHtml(variant)}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div class="pv-priceHistory__condition" aria-label="History condition">
-                        <span>Condition</span>
-                        <strong>Near Mint (NM)</strong>
-                    </div>
-                </div>
-                <p class="pv-section__text">History is loaded only when requested to conserve API credits.</p>
-                <button id="pv-price-history-load" class="pv-button pv-button--primary btn" type="button">
-                    View NM Price History
-                </button>
-                <p id="pv-price-history-status" class="pv-section__text" role="status" aria-live="polite"></p>
-            </div>`;
+        const container = createElement('div', {
+            className: 'pv-priceHistory',
+            attributes: { 'data-state': 'ready' },
+        });
+        const controls = createElement('div', { className: 'pv-priceHistory__controls' });
+        const field = createElement('div', { className: 'pv-form__field' });
+        const select = createElement('select', {
+            className: 'form-select',
+            attributes: { id: 'pv-price-history-variant' },
+        });
+        (variants.length ? variants : [selected]).forEach((variant) => {
+            const option = createElement('option', { text: variant });
+            option.value = variant;
+            option.selected = variant === selected;
+            select.append(option);
+        });
+        field.append(
+            createElement('label', {
+                className: 'form-label',
+                text: 'Variant',
+                attributes: { for: 'pv-price-history-variant' },
+            }),
+            select
+        );
 
-        document.getElementById('pv-price-history-load')?.addEventListener('click', loadHistory);
+        const condition = createElement('div', {
+            className: 'pv-priceHistory__condition',
+            attributes: { 'aria-label': 'History condition' },
+        });
+        condition.append(
+            createElement('span', { text: 'Condition' }),
+            createElement('strong', { text: 'Near Mint (NM)' })
+        );
+        controls.append(field, condition);
+
+        const loadButton = createElement('button', {
+            className: 'pv-button pv-button--primary btn',
+            text: 'View NM Price History',
+            attributes: { id: 'pv-price-history-load', type: 'button' },
+        });
+        loadButton.addEventListener('click', loadHistory);
+        container.append(
+            controls,
+            createElement('p', {
+                className: 'pv-section__text',
+                text: 'History is loaded only when requested to conserve API credits.',
+            }),
+            loadButton,
+            createElement('p', {
+                className: 'pv-section__text',
+                attributes: {
+                    id: 'pv-price-history-status',
+                    role: 'status',
+                    'aria-live': 'polite',
+                },
+            })
+        );
+        root.replaceChildren(container);
     }
 
     function renderLoading() {
@@ -180,15 +266,26 @@
     function renderUnavailable(message) {
         const root = getRoot();
         if (!root) return;
-        root.innerHTML = `
-            <div class="pv-priceHistory pv-priceHistory--error" role="status">
-                <p>${escapeHtml(message || 'NM price history is temporarily unavailable.')}</p>
-                ${isPremiumRole(currentRole) ? '<button id="pv-price-history-retry" class="pv-button pv-button--secondary btn" type="button">Try again</button>' : ''}
-            </div>`;
-        document.getElementById('pv-price-history-retry')?.addEventListener('click', () => {
-            loadedPayload = null;
-            renderPremiumReady();
+        const container = createElement('div', {
+            className: 'pv-priceHistory pv-priceHistory--error',
+            attributes: { role: 'status' },
         });
+        container.append(createElement('p', {
+            text: message || 'NM price history is temporarily unavailable.',
+        }));
+        if (isPremiumRole(currentRole)) {
+            const retryButton = createElement('button', {
+                className: 'pv-button pv-button--secondary btn',
+                text: 'Try again',
+                attributes: { id: 'pv-price-history-retry', type: 'button' },
+            });
+            retryButton.addEventListener('click', () => {
+                loadedPayload = null;
+                renderPremiumReady();
+            });
+            container.append(retryButton);
+        }
+        root.replaceChildren(container);
     }
 
     function parseScrydexDate(value) {
@@ -236,14 +333,16 @@
         return `${number > 0 ? '+' : ''}${number.toFixed(2)}%`;
     }
 
-    function buildChartSvg(rows) {
+    function buildChartElement(rows) {
         const width = 720;
         const height = 300;
         const left = 64;
         const right = 20;
         const top = 24;
         const bottom = 44;
-        if (rows.length < 2) return '<p>Not enough history points to draw a chart.</p>';
+        if (rows.length < 2) {
+            return createElement('p', { text: 'Not enough history points to draw a chart.' });
+        }
 
         const values = rows.map((row) => row.market);
         const rawMin = Math.min(...values);
@@ -260,22 +359,55 @@
         });
         const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
         const area = `${path} L ${points[points.length - 1].x.toFixed(2)} ${(height - bottom).toFixed(2)} L ${points[0].x.toFixed(2)} ${(height - bottom).toFixed(2)} Z`;
-        const yTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+        const svg = createSvgElement('svg', {
+            class: 'pv-priceHistory__chart',
+            viewBox: `0 0 ${width} ${height}`,
+            role: 'img',
+            'aria-label': 'Near Mint market price history',
+        });
+        [0, 0.25, 0.5, 0.75, 1].forEach((ratio) => {
             const y = top + ratio * (height - top - bottom);
             const value = max - ratio * span;
-            return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="pv-priceHistory__gridLine" />
-                <text x="${left - 8}" y="${y + 4}" text-anchor="end" class="pv-priceHistory__axisLabel">${escapeHtml(formatMoney(value))}</text>`;
-        }).join('');
+            const label = createSvgElement('text', {
+                x: left - 8,
+                y: y + 4,
+                'text-anchor': 'end',
+                class: 'pv-priceHistory__axisLabel',
+            });
+            label.textContent = formatMoney(value);
+            svg.append(
+                createSvgElement('line', {
+                    x1: left,
+                    y1: y,
+                    x2: width - right,
+                    y2: y,
+                    class: 'pv-priceHistory__gridLine',
+                }),
+                label
+            );
+        });
         const startLabel = rows[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
         const endLabel = rows[rows.length - 1].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-
-        return `<svg class="pv-priceHistory__chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Near Mint market price history">
-            ${yTicks}
-            <path class="pv-priceHistory__area" d="${area}"></path>
-            <path class="pv-priceHistory__line" d="${path}"></path>
-            <text x="${left}" y="${height - 12}" class="pv-priceHistory__axisLabel">${escapeHtml(startLabel)}</text>
-            <text x="${width - right}" y="${height - 12}" text-anchor="end" class="pv-priceHistory__axisLabel">${escapeHtml(endLabel)}</text>
-        </svg>`;
+        const startText = createSvgElement('text', {
+            x: left,
+            y: height - 12,
+            class: 'pv-priceHistory__axisLabel',
+        });
+        startText.textContent = startLabel;
+        const endText = createSvgElement('text', {
+            x: width - right,
+            y: height - 12,
+            'text-anchor': 'end',
+            class: 'pv-priceHistory__axisLabel',
+        });
+        endText.textContent = endLabel;
+        svg.append(
+            createSvgElement('path', { class: 'pv-priceHistory__area', d: area }),
+            createSvgElement('path', { class: 'pv-priceHistory__line', d: path }),
+            startText,
+            endText
+        );
+        return svg;
     }
 
     function trendForRange(payload, days) {
@@ -292,33 +424,61 @@
         const percent = Number(trend?.percent_change);
         const trendClass = Number.isFinite(percent) ? (percent > 0 ? 'is-positive' : percent < 0 ? 'is-negative' : '') : '';
         const variant = String(loadedPayload?.meta?.variant || pickDefaultVariant(currentCard));
+        const container = createElement('div', {
+            className: 'pv-priceHistory',
+            attributes: { 'data-state': 'loaded' },
+        });
+        const toolbar = createElement('div', { className: 'pv-priceHistory__toolbar' });
+        const summary = createElement('div');
+        summary.append(
+            createElement('span', {
+                className: 'pv-priceHistory__eyebrow',
+                text: `${variant} · Near Mint`,
+            }),
+            createElement('strong', {
+                className: 'pv-priceHistory__currentPrice',
+                text: formatMoney(latest?.market),
+            }),
+            createElement('span', {
+                className: `pv-priceHistory__trend${trendClass ? ` ${trendClass}` : ''}`,
+                text: `${formatPercent(percent)} over ${selectedRange} days`,
+            })
+        );
+        const ranges = createElement('div', {
+            className: 'pv-priceHistory__ranges',
+            attributes: { role: 'group', 'aria-label': 'Price history range' },
+        });
+        RANGE_DAYS.forEach((days) => {
+            ranges.append(createElement('button', {
+                text: `${days}D`,
+                attributes: {
+                    type: 'button',
+                    'data-range': days,
+                    'aria-pressed': days === selectedRange ? 'true' : 'false',
+                },
+            }));
+        });
+        toolbar.append(summary, ranges);
 
-        root.innerHTML = `
-            <div class="pv-priceHistory" data-state="loaded">
-                <div class="pv-priceHistory__toolbar">
-                    <div>
-                        <span class="pv-priceHistory__eyebrow">${escapeHtml(variant)} · Near Mint</span>
-                        <strong class="pv-priceHistory__currentPrice">${escapeHtml(formatMoney(latest?.market))}</strong>
-                        <span class="pv-priceHistory__trend ${trendClass}">${escapeHtml(formatPercent(percent))} over ${selectedRange} days</span>
-                    </div>
-                    <div class="pv-priceHistory__ranges" role="group" aria-label="Price history range">
-                        ${RANGE_DAYS.map((days) => `<button type="button" data-range="${days}" aria-pressed="${days === selectedRange ? 'true' : 'false'}">${days}D</button>`).join('')}
-                    </div>
-                </div>
-                <div class="pv-priceHistory__chartWrap">${buildChartSvg(rows)}</div>
-                <div class="pv-priceHistory__footer">
-                    <span>Market price shown</span>
-                    <button id="pv-price-history-change" class="pv-button pv-button--secondary btn" type="button">Change variant</button>
-                </div>
-            </div>`;
+        const chartWrap = createElement('div', { className: 'pv-priceHistory__chartWrap' });
+        chartWrap.append(buildChartElement(rows));
+        const footer = createElement('div', { className: 'pv-priceHistory__footer' });
+        const changeButton = createElement('button', {
+            className: 'pv-button pv-button--secondary btn',
+            text: 'Change variant',
+            attributes: { id: 'pv-price-history-change', type: 'button' },
+        });
+        footer.append(createElement('span', { text: 'Market price shown' }), changeButton);
+        container.append(toolbar, chartWrap, footer);
+        root.replaceChildren(container);
 
-        root.querySelectorAll('[data-range]').forEach((button) => {
+        ranges.querySelectorAll('[data-range]').forEach((button) => {
             button.addEventListener('click', () => {
                 selectedRange = Number(button.getAttribute('data-range')) || 90;
                 renderChart();
             });
         });
-        document.getElementById('pv-price-history-change')?.addEventListener('click', () => {
+        changeButton.addEventListener('click', () => {
             loadedPayload = null;
             selectedRange = 90;
             renderPremiumReady();
