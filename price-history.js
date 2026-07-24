@@ -15,7 +15,8 @@
     let authResolved = false;
     let requestInFlight = false;
     let loadedPayload = null;
-    let selectedRange = 90;
+    let selectedRange = 30;
+    let selectedVariant = '';
     let initialized = false;
     let renderGeneration = 0;
 
@@ -112,6 +113,13 @@
         return variants.includes('holofoil') ? 'holofoil' : (variants[0] || 'holofoil');
     }
 
+    function formatVariant(value) {
+        return String(value || '')
+            .trim()
+            .replace(/[_-]+/g, ' ')
+            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    }
+
     function buildPreviewPoints() {
         // Decorative only. Never derived from Scrydex and never presented as
         // actual card data.
@@ -200,7 +208,8 @@
         const root = getRoot();
         if (!root || !currentCard) return;
         const variants = getCardVariants(currentCard);
-        const selected = pickDefaultVariant(currentCard);
+        const selected = selectedVariant || pickDefaultVariant(currentCard);
+        selectedVariant = selected;
         const container = createElement('div', {
             className: 'pv-priceHistory',
             attributes: { 'data-state': 'ready' },
@@ -212,7 +221,7 @@
             attributes: { id: 'pv-price-history-variant' },
         });
         (variants.length ? variants : [selected]).forEach((variant) => {
-            const option = createElement('option', { text: variant });
+            const option = createElement('option', { text: formatVariant(variant) });
             option.value = variant;
             option.selected = variant === selected;
             select.append(option);
@@ -241,7 +250,7 @@
             text: 'View NM Price History',
             attributes: { id: 'pv-price-history-load', type: 'button' },
         });
-        loadButton.addEventListener('click', loadHistory);
+        loadButton.addEventListener('click', () => loadHistory());
         container.append(
             controls,
             createElement('p', {
@@ -269,6 +278,10 @@
             button.textContent = 'Loading NM Price History…';
         }
         if (status) status.textContent = 'Loading price history…';
+        const loadedContainer = getRoot()?.querySelector('.pv-priceHistory');
+        if (loadedContainer) loadedContainer.setAttribute('aria-busy', 'true');
+        const loadedSelect = document.getElementById('pv-price-history-active-variant');
+        if (loadedSelect instanceof HTMLSelectElement) loadedSelect.disabled = true;
     }
 
     function renderUnavailable(message) {
@@ -357,6 +370,38 @@
         return `${number > 0 ? '+' : ''}${number.toFixed(2)}%`;
     }
 
+    function calculateMetrics(rows) {
+        const values = rows.map((row) => row.market).filter(Number.isFinite);
+        if (!values.length) return { high: null, low: null, average: null };
+        return {
+            high: Math.max(...values),
+            low: Math.min(...values),
+            average: values.reduce((sum, value) => sum + value, 0) / values.length,
+        };
+    }
+
+    function niceScale(rawMin, rawMax, tickCount = 5) {
+        const range = Math.max(1, rawMax - rawMin);
+        const roughStep = range / Math.max(1, tickCount - 1);
+        const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+        const fraction = roughStep / magnitude;
+        const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+        const step = niceFraction * magnitude;
+        const min = Math.max(0, Math.floor(rawMin / step) * step);
+        let max = Math.ceil(rawMax / step) * step;
+        if (max === min) max = min + step;
+        return { min, max, step };
+    }
+
+    function formatChartDate(date, long = false) {
+        return date.toLocaleDateString('en-US', {
+            month: long ? 'long' : 'short',
+            day: 'numeric',
+            year: long ? 'numeric' : undefined,
+            timeZone: 'UTC',
+        });
+    }
+
     function buildChartElement(rows) {
         const width = 720;
         const height = 300;
@@ -371,15 +416,20 @@
         const values = rows.map((row) => row.market);
         const rawMin = Math.min(...values);
         const rawMax = Math.max(...values);
-        const paddingValue = Math.max(1, (rawMax - rawMin) * 0.12);
-        const min = Math.max(0, rawMin - paddingValue);
-        const max = rawMax + paddingValue;
+        const { min, max, step } = niceScale(rawMin, rawMax);
         const span = Math.max(1, max - min);
+        const startTime = rows[0].date.getTime();
+        const endTime = rows[rows.length - 1].date.getTime();
+        const timeSpan = Math.max(1, endTime - startTime);
 
         const points = rows.map((row, index) => {
-            const x = left + (index / (rows.length - 1)) * (width - left - right);
+            const x = left + ((row.date.getTime() - startTime) / timeSpan) * (width - left - right);
             const y = top + ((max - row.market) / span) * (height - top - bottom);
-            return { ...row, x, y };
+            const previous = rows[index - 1]?.market;
+            const dailyPercent = Number.isFinite(previous) && previous !== 0
+                ? ((row.market - previous) / previous) * 100
+                : null;
+            return { ...row, x, y, dailyPercent };
         });
         const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
         const area = `${path} L ${points[points.length - 1].x.toFixed(2)} ${(height - bottom).toFixed(2)} L ${points[0].x.toFixed(2)} ${(height - bottom).toFixed(2)} Z`;
@@ -389,9 +439,25 @@
             role: 'img',
             'aria-label': 'Near Mint market price history',
         });
-        [0, 0.25, 0.5, 0.75, 1].forEach((ratio) => {
-            const y = top + ratio * (height - top - bottom);
-            const value = max - ratio * span;
+        const defs = createSvgElement('defs');
+        const gradient = createSvgElement('linearGradient', {
+            id: 'pv-price-history-area-gradient',
+            x1: '0',
+            y1: '0',
+            x2: '0',
+            y2: '1',
+        });
+        gradient.append(
+            createSvgElement('stop', { offset: '0%', class: 'pv-priceHistory__areaStopTop' }),
+            createSvgElement('stop', { offset: '100%', class: 'pv-priceHistory__areaStopBottom' })
+        );
+        defs.append(gradient);
+        svg.append(defs);
+
+        const gridValues = [];
+        for (let value = min; value <= max + step / 2; value += step) gridValues.push(value);
+        gridValues.reverse().forEach((value) => {
+            const y = top + ((max - value) / span) * (height - top - bottom);
             const label = createSvgElement('text', {
                 x: left - 8,
                 y: y + 4,
@@ -410,28 +476,127 @@
                 label
             );
         });
-        const startLabel = rows[0].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-        const endLabel = rows[rows.length - 1].date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-        const startText = createSvgElement('text', {
-            x: left,
-            y: height - 12,
-            class: 'pv-priceHistory__axisLabel',
-        });
-        startText.textContent = startLabel;
-        const endText = createSvgElement('text', {
-            x: width - right,
-            y: height - 12,
-            'text-anchor': 'end',
-            class: 'pv-priceHistory__axisLabel',
-        });
-        endText.textContent = endLabel;
         svg.append(
             createSvgElement('path', { class: 'pv-priceHistory__area', d: area }),
-            createSvgElement('path', { class: 'pv-priceHistory__line', d: path }),
-            startText,
-            endText
+            createSvgElement('path', { class: 'pv-priceHistory__line', d: path })
         );
-        return svg;
+
+        const tickCount = Math.min(5, rows.length);
+        const usedTickIndexes = new Set();
+        for (let tick = 0; tick < tickCount; tick += 1) {
+            const targetTime = startTime + (tick / Math.max(1, tickCount - 1)) * timeSpan;
+            let closestIndex = 0;
+            rows.forEach((row, index) => {
+                if (
+                    Math.abs(row.date.getTime() - targetTime)
+                    < Math.abs(rows[closestIndex].date.getTime() - targetTime)
+                ) closestIndex = index;
+            });
+            if (usedTickIndexes.has(closestIndex)) continue;
+            usedTickIndexes.add(closestIndex);
+            const point = points[closestIndex];
+            const text = createSvgElement('text', {
+                x: point.x,
+                y: height - 12,
+                'text-anchor': tick === 0 ? 'start' : tick === tickCount - 1 ? 'end' : 'middle',
+                class: 'pv-priceHistory__axisLabel',
+            });
+            text.textContent = formatChartDate(point.date);
+            svg.append(text);
+        }
+
+        const crosshair = createSvgElement('line', {
+            y1: top,
+            y2: height - bottom,
+            class: 'pv-priceHistory__crosshair is-hidden',
+        });
+        const marker = createSvgElement('circle', {
+            r: 5,
+            class: 'pv-priceHistory__marker is-hidden',
+        });
+        const hitArea = createSvgElement('rect', {
+            x: left,
+            y: top,
+            width: width - left - right,
+            height: height - top - bottom,
+            class: 'pv-priceHistory__hitArea',
+            tabindex: '0',
+            role: 'slider',
+            'aria-label': 'Explore price history points',
+            'aria-valuemin': '1',
+            'aria-valuemax': String(points.length),
+        });
+        svg.append(crosshair, marker, hitArea);
+
+        const tooltip = createElement('div', {
+            className: 'pv-priceHistory__tooltip',
+            attributes: { role: 'status', 'aria-live': 'polite', hidden: '' },
+        });
+        const tooltipDate = createElement('strong');
+        const tooltipPrice = createElement('span');
+        const tooltipChange = createElement('span');
+        tooltip.append(tooltipDate, tooltipPrice, tooltipChange);
+
+        let activeIndex = points.length - 1;
+        const showPoint = (index) => {
+            activeIndex = Math.max(0, Math.min(points.length - 1, index));
+            const point = points[activeIndex];
+            crosshair.setAttribute('x1', point.x.toFixed(2));
+            crosshair.setAttribute('x2', point.x.toFixed(2));
+            marker.setAttribute('cx', point.x.toFixed(2));
+            marker.setAttribute('cy', point.y.toFixed(2));
+            crosshair.classList.remove('is-hidden');
+            marker.classList.remove('is-hidden');
+            tooltip.hidden = false;
+            tooltip.style.left = `${Math.max(14, Math.min(86, (point.x / width) * 100))}%`;
+            tooltip.style.top = `${(point.y / height) * 100}%`;
+            tooltipDate.textContent = formatChartDate(point.date, true);
+            tooltipPrice.textContent = formatMoney(point.market);
+            tooltipChange.textContent = Number.isFinite(point.dailyPercent)
+                ? `${formatPercent(point.dailyPercent)} vs. prior day`
+                : 'First point in range';
+            tooltipChange.className = Number.isFinite(point.dailyPercent)
+                ? (point.dailyPercent > 0 ? 'is-positive' : point.dailyPercent < 0 ? 'is-negative' : '')
+                : '';
+            hitArea.setAttribute('aria-valuenow', String(activeIndex + 1));
+            hitArea.setAttribute(
+                'aria-valuetext',
+                `${formatChartDate(point.date, true)}, ${formatMoney(point.market)}, ${tooltipChange.textContent}`
+            );
+        };
+        const hidePoint = () => {
+            crosshair.classList.add('is-hidden');
+            marker.classList.add('is-hidden');
+            tooltip.hidden = true;
+        };
+        const showNearestPointer = (event) => {
+            const rect = svg.getBoundingClientRect();
+            if (!rect.width) return;
+            const svgX = ((event.clientX - rect.left) / rect.width) * width;
+            let closestIndex = 0;
+            points.forEach((point, index) => {
+                if (Math.abs(point.x - svgX) < Math.abs(points[closestIndex].x - svgX)) {
+                    closestIndex = index;
+                }
+            });
+            showPoint(closestIndex);
+        };
+        hitArea.addEventListener('pointermove', showNearestPointer);
+        hitArea.addEventListener('pointerdown', showNearestPointer);
+        hitArea.addEventListener('pointerleave', (event) => {
+            if (event.pointerType !== 'touch') hidePoint();
+        });
+        hitArea.addEventListener('focus', () => showPoint(activeIndex));
+        hitArea.addEventListener('blur', hidePoint);
+        hitArea.addEventListener('keydown', (event) => {
+            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+            event.preventDefault();
+            showPoint(activeIndex + (event.key === 'ArrowRight' ? 1 : -1));
+        });
+
+        const fragment = document.createDocumentFragment();
+        fragment.append(svg, tooltip);
+        return fragment;
     }
 
     function trendForRange(payload, days) {
@@ -445,29 +610,47 @@
         const rows = filterRowsForRange(normalizeRows(loadedPayload), selectedRange);
         const latest = rows[rows.length - 1] || null;
         const trend = trendForRange(loadedPayload, selectedRange);
-        const percent = Number(trend?.percent_change);
+        const percent = finiteNumberOrNull(trend?.percent_change);
         const trendClass = Number.isFinite(percent) ? (percent > 0 ? 'is-positive' : percent < 0 ? 'is-negative' : '') : '';
-        const variant = String(loadedPayload?.meta?.variant || pickDefaultVariant(currentCard));
+        const variant = String(loadedPayload?.meta?.variant || selectedVariant || pickDefaultVariant(currentCard));
+        selectedVariant = variant;
+        const metrics = calculateMetrics(rows);
         const container = createElement('div', {
-            className: 'pv-priceHistory',
+            className: `pv-priceHistory${trendClass ? ` ${trendClass}` : ''}`,
             attributes: { 'data-state': 'loaded' },
         });
         const toolbar = createElement('div', { className: 'pv-priceHistory__toolbar' });
-        const summary = createElement('div');
-        summary.append(
+        const marketSelector = createElement('div', { className: 'pv-priceHistory__marketSelector' });
+        const selectorLabel = createElement('label', {
+            className: 'pv-priceHistory__selectorLabel',
+            text: 'Variant / condition',
+            attributes: { for: 'pv-price-history-active-variant' },
+        });
+        const selectorRow = createElement('div', { className: 'pv-priceHistory__selectorRow' });
+        const variantSelect = createElement('select', {
+            className: 'pv-priceHistory__variantSelect',
+            attributes: {
+                id: 'pv-price-history-active-variant',
+                'aria-label': 'Price history variant',
+            },
+        });
+        const variants = getCardVariants(currentCard);
+        (variants.length ? variants : [variant]).forEach((item) => {
+            const option = createElement('option', { text: formatVariant(item) });
+            option.value = item;
+            option.selected = item === variant;
+            variantSelect.append(option);
+        });
+        selectorRow.append(
+            variantSelect,
             createElement('span', {
-                className: 'pv-priceHistory__eyebrow',
-                text: `${variant} · Near Mint`,
-            }),
-            createElement('strong', {
-                className: 'pv-priceHistory__currentPrice',
-                text: formatMoney(latest?.market),
-            }),
-            createElement('span', {
-                className: `pv-priceHistory__trend${trendClass ? ` ${trendClass}` : ''}`,
-                text: `${formatPercent(percent)} over ${selectedRange} days`,
+                className: 'pv-priceHistory__conditionPill',
+                text: 'Near Mint',
+                attributes: { title: 'Price history currently supports Near Mint only' },
             })
         );
+        marketSelector.append(selectorLabel, selectorRow);
+
         const ranges = createElement('div', {
             className: 'pv-priceHistory__ranges',
             attributes: { role: 'group', 'aria-label': 'Price history range' },
@@ -482,34 +665,55 @@
                 },
             }));
         });
-        toolbar.append(summary, ranges);
+        toolbar.append(marketSelector, ranges);
+
+        const summary = createElement('div', { className: 'pv-priceHistory__summary' });
+        summary.append(
+            createElement('strong', {
+                className: 'pv-priceHistory__currentPrice',
+                text: formatMoney(latest?.market),
+            }),
+            createElement('span', {
+                className: `pv-priceHistory__trend${trendClass ? ` ${trendClass}` : ''}`,
+                text: `${formatPercent(percent)} over ${selectedRange} days`,
+            })
+        );
+        const metricRow = createElement('dl', { className: 'pv-priceHistory__metrics' });
+        [
+            [`${selectedRange}D High`, metrics.high],
+            [`${selectedRange}D Low`, metrics.low],
+            ['Avg Price', metrics.average],
+        ].forEach(([label, value]) => {
+            const metric = createElement('div', { className: 'pv-priceHistory__metric' });
+            metric.append(
+                createElement('dt', { text: label }),
+                createElement('dd', { text: formatMoney(value) })
+            );
+            metricRow.append(metric);
+        });
 
         const chartWrap = createElement('div', { className: 'pv-priceHistory__chartWrap' });
         chartWrap.append(buildChartElement(rows));
         const footer = createElement('div', { className: 'pv-priceHistory__footer' });
-        const changeButton = createElement('button', {
-            className: 'pv-button pv-button--secondary btn',
-            text: 'Change variant',
-            attributes: { id: 'pv-price-history-change', type: 'button' },
-        });
-        footer.append(createElement('span', { text: 'Market price shown' }), changeButton);
-        container.append(toolbar, chartWrap, footer);
+        footer.append(createElement('span', {
+            text: latest ? `Data through ${formatChartDate(latest.date)} · Market price shown` : 'Market price shown',
+        }));
+        container.append(toolbar, summary, metricRow, chartWrap, footer);
         root.replaceChildren(container);
 
         ranges.querySelectorAll('[data-range]').forEach((button) => {
             button.addEventListener('click', () => {
-                selectedRange = Number(button.getAttribute('data-range')) || 90;
+                selectedRange = Number(button.getAttribute('data-range')) || 30;
                 renderChart();
             });
         });
-        changeButton.addEventListener('click', () => {
-            loadedPayload = null;
-            selectedRange = 90;
-            renderPremiumReady();
+        variantSelect.addEventListener('change', () => {
+            selectedVariant = String(variantSelect.value || pickDefaultVariant(currentCard));
+            loadHistory(selectedVariant);
         });
     }
 
-    async function loadHistory() {
+    async function loadHistory(requestedVariant) {
         if (requestInFlight || !currentCard || !authResolved || !isPremiumRole(currentRole)) return;
         requestInFlight = true;
         renderLoading();
@@ -517,7 +721,10 @@
             const token = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
             if (!token) throw new Error('Please sign in again to view price history.');
             const variantEl = document.getElementById('pv-price-history-variant');
-            const variant = String(variantEl?.value || pickDefaultVariant(currentCard)).trim().toLowerCase();
+            const variant = String(requestedVariant || variantEl?.value || selectedVariant || pickDefaultVariant(currentCard))
+                .trim()
+                .toLowerCase();
+            selectedVariant = variant;
             const cardId = String(currentCard?.id || '').trim();
             const url = `${getWorkerBase()}/cards/${encodeURIComponent(cardId)}/scrydex-price-history?variant=${encodeURIComponent(variant)}&condition=${CONDITION}`;
             const response = await fetch(url, {
@@ -540,7 +747,7 @@
                 return;
             }
             loadedPayload = payload;
-            selectedRange = 90;
+            selectedRange = 30;
             renderChart();
         } catch (error) {
             console.error('Price History request failed:', error);
@@ -561,6 +768,7 @@
         authResolved = false;
         currentRole = 'basic';
         loadedPayload = null;
+        selectedVariant = pickDefaultVariant(currentCard);
         renderLocked();
         const role = await resolveRole();
         if (generation !== renderGeneration) return;
