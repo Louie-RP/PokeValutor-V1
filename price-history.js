@@ -537,6 +537,37 @@
         const tooltipChange = createElement('span');
         tooltip.append(tooltipDate, tooltipPrice, tooltipChange);
 
+        const positionTooltip = (point) => {
+            const scrollContainer = tooltip.parentElement;
+            const svgRect = svg.getBoundingClientRect();
+            if (!scrollContainer || !svgRect.width) return;
+
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const pointContentX = scrollContainer.scrollLeft
+                + (svgRect.left - containerRect.left)
+                + (point.x / width) * svgRect.width;
+            const pointContentY = (svgRect.top - containerRect.top)
+                + (point.y / height) * svgRect.height;
+            const tooltipHalfWidth = Math.max(84, tooltip.offsetWidth / 2);
+            const tooltipHeight = tooltip.offsetHeight;
+            const edgePadding = 8;
+            const visibleMin = scrollContainer.scrollLeft + tooltipHalfWidth + edgePadding;
+            const visibleMax = scrollContainer.scrollLeft
+                + scrollContainer.clientWidth
+                - tooltipHalfWidth
+                - edgePadding;
+            const tooltipLeft = visibleMin <= visibleMax
+                ? Math.max(visibleMin, Math.min(visibleMax, pointContentX))
+                : scrollContainer.scrollLeft + scrollContainer.clientWidth / 2;
+
+            tooltip.style.left = `${tooltipLeft}px`;
+            tooltip.style.top = `${pointContentY}px`;
+            tooltip.classList.toggle(
+                'is-below',
+                pointContentY < tooltipHeight + edgePadding + 4
+            );
+        };
+
         let activeIndex = points.length - 1;
         const showPoint = (index) => {
             activeIndex = Math.max(0, Math.min(points.length - 1, index));
@@ -548,8 +579,6 @@
             crosshair.classList.remove('is-hidden');
             marker.classList.remove('is-hidden');
             tooltip.hidden = false;
-            tooltip.style.left = `${Math.max(14, Math.min(86, (point.x / width) * 100))}%`;
-            tooltip.style.top = `${(point.y / height) * 100}%`;
             tooltipDate.textContent = formatChartDate(point.date, true);
             tooltipPrice.textContent = formatMoney(point.market);
             tooltipChange.textContent = Number.isFinite(point.dailyPercent)
@@ -563,6 +592,7 @@
                 'aria-valuetext',
                 `${formatChartDate(point.date, true)}, ${formatMoney(point.market)}, ${tooltipChange.textContent}`
             );
+            positionTooltip(point);
         };
         const hidePoint = () => {
             crosshair.classList.add('is-hidden');

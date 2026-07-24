@@ -25,13 +25,6 @@
     --pv-history-trend-soft: rgba(251, 113, 133, 0.3);
 }
 
-#pv-card-history-title {
-    color: var(--pv-text, #e5e7eb);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
-    font-weight: 750;
-    letter-spacing: -0.02em;
-}
-
 .pv-priceHistory__controls,
 .pv-priceHistory__toolbar,
 .pv-priceHistory__footer {
@@ -269,6 +262,10 @@
     font-size: 0.78rem;
     pointer-events: none;
     transform: translate(-50%, -112%);
+}
+
+.pv-priceHistory__tooltip.is-below {
+    transform: translate(-50%, 12px);
 }
 
 .pv-priceHistory__tooltip[hidden] {
