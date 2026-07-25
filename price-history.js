@@ -830,8 +830,7 @@
         try {
             const token = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
             if (!token) throw new Error('Please sign in again to view price history.');
-            const variantEl = document.getElementById('pv-price-history-variant');
-            const variant = String(requestedVariant || variantEl?.value || selectedVariant || pickDefaultVariant(currentCard))
+            const variant = String(requestedVariant || selectedVariant || pickDefaultVariant(currentCard))
                 .trim()
                 .toLowerCase();
             selectedVariant = variant;
