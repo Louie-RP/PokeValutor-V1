@@ -170,7 +170,23 @@ document.addEventListener('DOMContentLoaded', function () {
             cardLike?.local_id,
             idNumber,
         ]);
-        if (!printedNumber || printedNumber.includes('/')) return printedNumber;
+        if (!printedNumber) return printedNumber;
+
+        const rarityName = firstValue([
+            cardLike?.rarity?.name,
+            cardLike?.rarity,
+            cardLike?.rarityName,
+            cardLike?.rarity_name,
+        ]);
+        const setName = firstValue([
+            cardLike?.expansion?.name,
+            cardLike?.set?.name,
+            cardLike?.expansionName,
+            cardLike?.setName,
+        ]);
+        const isPromo = /\bpromo(?:tional)?s?\b/i.test(`${rarityName} ${setName}`);
+        if (isPromo) return printedNumber.split('/')[0].trim();
+        if (printedNumber.includes('/')) return printedNumber;
 
         const printedTotal = firstValue([
             cardLike?.expansion?.printedTotal,
@@ -180,8 +196,12 @@ document.addEventListener('DOMContentLoaded', function () {
             cardLike?.printedTotal,
             cardLike?.printed_total,
         ]);
-        if (/^\d+[a-z]?$/i.test(printedNumber) && /^\d+$/.test(printedTotal)) {
-            return `${printedNumber}/${printedTotal}`;
+        const numberMatch = printedNumber.match(/^([a-z]{0,2})(\d+[a-z]?)$/i);
+        const totalMatch = printedTotal.match(/^([a-z]{0,2})(\d+)$/i);
+        if (numberMatch && totalMatch) {
+            const numberPrefix = numberMatch[1].toUpperCase();
+            const totalPrefix = (totalMatch[1] || numberPrefix).toUpperCase();
+            return `${numberPrefix}${numberMatch[2]}/${totalPrefix}${totalMatch[2]}`;
         }
         return printedNumber;
     }
