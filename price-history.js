@@ -190,9 +190,9 @@
                 text: '🔒',
                 attributes: { 'aria-hidden': 'true' },
             }),
-            createElement('h3', { text: 'Subscribe to view NM card trends' }),
+            createElement('h3', { text: 'Unlock Interactive Trend Charts with Premium' }),
             createElement('p', {
-                text: 'Unlock the full 7-day, 30-day, and 90-day Near Mint price history.',
+                text: 'Explore 7-day, 30-day, and 90-day Near Mint trends in an interactive chart.',
             }),
             createElement('a', {
                 className: 'pv-button pv-button--primary btn',

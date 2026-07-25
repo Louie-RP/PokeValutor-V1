@@ -35,8 +35,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
-    <link rel="stylesheet" href="price-history.css?v=20260724-6" />
+    <link rel="stylesheet" href="styles.css?v=20260724-card-layout-1" />
+    <link rel="stylesheet" href="price-history.css?v=20260724-card-layout-1" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -86,39 +86,39 @@
             <p id="pv-card-status" class="pv-section__text" role="status" aria-live="polite"></p>
 
             <article id="pv-card-detail" class="pv-cardDetail" hidden>
-                <div class="pv-cardDetail__mediaWrap">
+                <button id="pv-card-image-open" class="pv-cardDetail__mediaWrap" type="button" aria-label="Open full-size card image">
                     <img id="pv-card-image" class="pv-cardDetail__image" alt="Pokemon card image" loading="lazy" />
-                </div>
+                    <span class="pv-cardDetail__imageHint" aria-hidden="true">Tap to enlarge</span>
+                </button>
                 <div class="pv-cardDetail__content">
-                    <h2 id="pv-card-name" class="pv-section__title">Card</h2>
                     <dl class="pv-cardDetail__meta">
                         <div><dt>Set</dt><dd id="pv-card-set">n/a</dd></div>
-                        <div><dt>Number</dt><dd id="pv-card-number">n/a</dd></div>
                         <div><dt>Rarity</dt><dd id="pv-card-rarity">n/a</dd></div>
+                        <div class="pv-cardDetail__market"><dt>Latest market price</dt><dd id="pv-card-market">n/a</dd></div>
+                        <div><dt>Number</dt><dd id="pv-card-number">n/a</dd></div>
                         <div><dt>Last updated</dt><dd id="pv-card-last-updated">n/a</dd></div>
                     </dl>
+                    <section class="pv-cardDetail__pricing" aria-labelledby="pv-card-pricing-title">
+                        <h2 id="pv-card-pricing-title" class="pv-section__title">Variant Pricing</h2>
+                        <div class="pv-tableWrap">
+                            <table class="pv-cardTable" id="pv-card-pricing-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Variant</th>
+                                        <th scope="col">NM Market</th>
+                                        <th scope="col">LP Market</th>
+                                        <th scope="col">MP Market</th>
+                                        <th scope="col">Best Market</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pv-card-pricing-body">
+                                    <tr><td colspan="5">Loading pricing...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
             </article>
-
-            <section class="pv-section" aria-labelledby="pv-card-pricing-title">
-                <h2 id="pv-card-pricing-title" class="pv-section__title">Variant Pricing</h2>
-                <div class="pv-tableWrap">
-                    <table class="pv-cardTable" id="pv-card-pricing-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Variant</th>
-                                <th scope="col">NM Market</th>
-                                <th scope="col">LP Market</th>
-                                <th scope="col">MP Market</th>
-                                <th scope="col">Best Market</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pv-card-pricing-body">
-                            <tr><td colspan="5">Loading pricing...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
 
             <section id="pv-price-history" class="pv-section" aria-labelledby="pv-card-history-title">
                 <h2 id="pv-card-history-title" class="pv-section__title">Price History</h2>
@@ -136,6 +136,11 @@
             </section>
         </section>
     </main>
+
+    <dialog id="pv-card-image-modal" class="pv-cardImageModal" aria-label="Full-size card image">
+        <button id="pv-card-image-close" class="pv-cardImageModal__close" type="button" aria-label="Close full-size card image">Close</button>
+        <img id="pv-card-image-full" class="pv-cardImageModal__image" alt="" />
+    </dialog>
 
     <footer id="pv-card-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
@@ -162,8 +167,8 @@
     <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
 
     <script src="feature-flags.js?v=20260724-1" defer></script>
-    <script src="card.js?v=20260724-price-history-1" defer></script>
-    <script src="price-history.js?v=20260724-6" defer></script>
+    <script src="card.js?v=20260724-card-layout-1" defer></script>
+    <script src="price-history.js?v=20260724-card-layout-1" defer></script>
 </body>
 
 </html>

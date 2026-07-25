@@ -12,16 +12,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusEl = document.getElementById('pv-card-status');
     const detailEl = document.getElementById('pv-card-detail');
     const imageEl = /** @type {HTMLImageElement|null} */ (document.getElementById('pv-card-image'));
-    const nameEl = document.getElementById('pv-card-name');
     const setEl = document.getElementById('pv-card-set');
     const numberEl = document.getElementById('pv-card-number');
     const rarityEl = document.getElementById('pv-card-rarity');
+    const marketEl = document.getElementById('pv-card-market');
     const updatedEl = document.getElementById('pv-card-last-updated');
     const pricingBodyEl = document.getElementById('pv-card-pricing-body');
     const relatedGridEl = document.getElementById('pv-card-related-grid');
     const watchToggleEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-watch-toggle'));
     const shareBtnEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-share'));
     const shareStatusEl = document.getElementById('pv-card-share-status');
+    const imageOpenEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-image-open'));
+    const imageModalEl = /** @type {HTMLDialogElement|null} */ (document.getElementById('pv-card-image-modal'));
+    const imageCloseEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-image-close'));
+    const fullImageEl = /** @type {HTMLImageElement|null} */ (document.getElementById('pv-card-image-full'));
     const historyVariantEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-history-variant'));
     const historyConditionEl = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-history-condition'));
     const historyBodyEl = document.getElementById('pv-card-history-body');
@@ -64,13 +68,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return s ? s : (fallback || '');
     }
 
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+    function createElement(tagName, { className, text, attributes } = {}) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = String(text);
+        Object.entries(attributes || {}).forEach(([name, value]) => {
+            if (value !== undefined && value !== null) element.setAttribute(name, String(value));
+        });
+        return element;
+    }
+
+    function renderTableMessage(body, columnCount, message) {
+        if (!body) return;
+        const row = createElement('tr');
+        row.append(createElement('td', {
+            text: message,
+            attributes: { colspan: columnCount },
+        }));
+        body.replaceChildren(row);
     }
 
     function slugify(value) {
@@ -553,19 +568,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const variantName = safeString(historyVariantEl.value, '');
         const conditionCode = safeString(historyConditionEl.value, 'NM').toUpperCase();
         if (!variantName) {
-            historyBodyEl.innerHTML = '<tr><td colspan="2">No variant selected.</td></tr>';
+            renderTableMessage(historyBodyEl, 2, 'No variant selected.');
             return;
         }
 
         const rows = getHistoryRows(card?.id, variantName, conditionCode).slice(0, 10);
         if (!rows.length) {
-            historyBodyEl.innerHTML = '<tr><td colspan="2">No observed history yet for this selection.</td></tr>';
+            renderTableMessage(historyBodyEl, 2, 'No observed history yet for this selection.');
             return;
         }
 
-        historyBodyEl.innerHTML = rows
-            .map((row) => `<tr><td>${escapeHtml(toUiDate(row.ts))}</td><td>${escapeHtml(formatMoney(row.market))}</td></tr>`)
-            .join('');
+        historyBodyEl.replaceChildren(...rows.map((item) => {
+            const row = createElement('tr');
+            row.append(
+                createElement('td', { text: toUiDate(item.ts) }),
+                createElement('td', { text: formatMoney(item.market) })
+            );
+            return row;
+        }));
     }
 
     function renderPricing(card) {
@@ -573,11 +593,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const variants = Array.isArray(card?.variants) ? card.variants : [];
         if (!variants.length) {
-            pricingBodyEl.innerHTML = '<tr><td colspan="5">No variant pricing available.</td></tr>';
+            renderTableMessage(pricingBodyEl, 5, 'No variant pricing available.');
             return;
         }
 
-        pricingBodyEl.innerHTML = variants.map((variant) => {
+        pricingBodyEl.replaceChildren(...variants.map((variant) => {
             const variantName = safeString(variant?.name, 'Standard');
             const prices = Array.isArray(variant?.prices) ? variant.prices : [];
             const nm = getMarketByCondition(prices, 'NM');
@@ -589,25 +609,26 @@ document.addEventListener('DOMContentLoaded', function () {
             if (Number.isFinite(lp)) recordHistoryPoint(card?.id, variantName, 'LP', lp);
             if (Number.isFinite(mp)) recordHistoryPoint(card?.id, variantName, 'MP', mp);
 
-            return `
-                <tr>
-                    <td>${escapeHtml(variantName)}</td>
-                    <td>${escapeHtml(formatMoney(nm))}</td>
-                    <td>${escapeHtml(formatMoney(lp))}</td>
-                    <td>${escapeHtml(formatMoney(mp))}</td>
-                    <td>${escapeHtml(formatMoney(best))}</td>
-                </tr>
-            `;
-        }).join('');
+            const row = createElement('tr');
+            [variantName, formatMoney(nm), formatMoney(lp), formatMoney(mp), formatMoney(best)]
+                .forEach((value) => row.append(createElement('td', { text: value })));
+            return row;
+        }));
 
         if (historyVariantEl) {
             const current = safeString(historyVariantEl.value, '');
             const options = variants
                 .map((variant) => safeString(variant?.name, ''))
-                .filter(Boolean)
-                .map((name) => `<option value="${escapeHtml(name)}" ${name === current ? 'selected' : ''}>${escapeHtml(name)}</option>`)
-                .join('');
-            historyVariantEl.innerHTML = options || '<option value="">No variants</option>';
+                .filter(Boolean);
+            const optionNodes = options.length
+                ? options.map((name) => {
+                    const option = createElement('option', { text: name });
+                    option.value = name;
+                    option.selected = name === current;
+                    return option;
+                })
+                : [createElement('option', { text: 'No variants', attributes: { value: '' } })];
+            historyVariantEl.replaceChildren(...optionNodes);
 
             if (!historyVariantEl.value && variants[0]?.name) {
                 historyVariantEl.value = safeString(variants[0].name, '');
@@ -620,12 +641,12 @@ document.addEventListener('DOMContentLoaded', function () {
     async function renderRelated(card) {
         if (!relatedGridEl) return;
 
-        const resultLimit = 3;
+        const resultLimit = 6;
         const cardId = safeString(card?.id, '');
         const cardName = safeString(card?.name, '');
         const pokemonFamily = derivePokemonFamilyName(cardName);
 
-        relatedGridEl.innerHTML = '<div class="col-12">Loading related cards...</div>';
+        relatedGridEl.replaceChildren(createElement('div', { className: 'col-12', text: 'Loading related cards...' }));
 
         /** @type {Array<any>} */
         let all = [];
@@ -670,29 +691,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!rows.length) {
             if (lastError && (lastError.status === 429 || lastError.isQuotaExceeded)) {
-                relatedGridEl.innerHTML = '<div class="col-12">Related cards are temporarily unavailable because the daily allowance was reached.</div>';
+                relatedGridEl.replaceChildren(createElement('div', {
+                    className: 'col-12',
+                    text: 'Related cards are temporarily unavailable because the daily allowance was reached.',
+                }));
                 return;
             }
-            relatedGridEl.innerHTML = '<div class="col-12">No related cards available for this Pokemon yet.</div>';
+            relatedGridEl.replaceChildren(createElement('div', {
+                className: 'col-12',
+                text: 'No related cards available for this Pokemon yet.',
+            }));
             return;
         }
 
-        relatedGridEl.innerHTML = rows.map((item) => {
+        relatedGridEl.replaceChildren(...rows.map((item) => {
             const name = safeString(item?.name, 'Card');
             const setName = getCardSetName(item);
             const img = sanitizeUrl(pickFrontMediumImage(item?.images));
             const href = buildCardDetailPath(item);
 
-            return `
-                <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-                    <a class="pv-relatedCard" href="${escapeHtml(href)}" aria-label="View ${escapeHtml(name)} details">
-                        ${img ? `<img class="pv-relatedCard__img" src="${escapeHtml(img)}" alt="${escapeHtml(name)} card image" loading="lazy" />` : ''}
-                        <span class="pv-relatedCard__name">${escapeHtml(name)}</span>
-                        <span class="pv-relatedCard__set">${escapeHtml(setName)}</span>
-                    </a>
-                </div>
-            `;
-        }).join('');
+            const column = createElement('div', { className: 'pv-relatedCardItem' });
+            const link = createElement('a', {
+                className: 'pv-relatedCard',
+                attributes: { href, 'aria-label': `View ${name} details` },
+            });
+            if (img) {
+                link.append(createElement('img', {
+                    className: 'pv-relatedCard__img',
+                    attributes: { src: img, alt: `${name} card image`, loading: 'lazy' },
+                }));
+            }
+            link.append(
+                createElement('span', { className: 'pv-relatedCard__name', text: name }),
+                createElement('span', { className: 'pv-relatedCard__set', text: setName })
+            );
+            column.append(link);
+            return column;
+        }));
     }
 
     async function copyToClipboard(text) {
@@ -762,10 +797,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (titleEl) titleEl.textContent = name;
         if (subtitleEl) subtitleEl.textContent = `${setName}${number && number !== 'n/a' ? ` • #${number}` : ''}`;
-        if (nameEl) nameEl.textContent = name;
         if (setEl) setEl.textContent = setName;
         if (numberEl) numberEl.textContent = number || 'n/a';
         if (rarityEl) rarityEl.textContent = rarity || 'n/a';
+        if (marketEl) marketEl.textContent = formatMoney(getBestMarketFromCard(card));
         if (updatedEl) updatedEl.textContent = toUiDate(updatedAt);
 
         if (imageEl) {
@@ -778,6 +813,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 imageEl.alt = '';
                 imageEl.hidden = true;
             }
+        }
+        if (fullImageEl) {
+            fullImageEl.src = image;
+            fullImageEl.alt = image ? `${name} card image, full size` : '';
         }
 
         if (detailEl) detailEl.hidden = false;
@@ -836,6 +875,22 @@ document.addEventListener('DOMContentLoaded', function () {
     if (shareBtnEl) {
         shareBtnEl.addEventListener('click', () => {
             void shareCurrentCard();
+        });
+    }
+
+    if (imageOpenEl && imageModalEl) {
+        imageOpenEl.addEventListener('click', () => {
+            if (fullImageEl?.getAttribute('src')) imageModalEl.showModal();
+        });
+    }
+
+    if (imageCloseEl && imageModalEl) {
+        imageCloseEl.addEventListener('click', () => imageModalEl.close());
+    }
+
+    if (imageModalEl) {
+        imageModalEl.addEventListener('click', (event) => {
+            if (event.target === imageModalEl) imageModalEl.close();
         });
     }
 
