@@ -17,6 +17,11 @@
         { color: '#fb7185', soft: 'rgba(251, 113, 133, 0.24)' },
         { color: '#fb923c', soft: 'rgba(251, 146, 60, 0.24)' },
     ];
+    const SINGLE_SERIES_COLORS = {
+        positive: { color: '#34d399', soft: 'rgba(52, 211, 153, 0.3)' },
+        negative: { color: '#fb7185', soft: 'rgba(251, 113, 133, 0.3)' },
+        neutral: { color: '#e5e7eb', soft: 'rgba(229, 231, 235, 0.24)' },
+    };
 
     let currentCard = null;
     let currentRole = 'basic';
@@ -634,6 +639,17 @@
         return trends[`days_${days}`] || null;
     }
 
+    function getSingleSeriesPalette(rows) {
+        const firstPrice = Number(rows?.[0]?.market);
+        const lastPrice = Number(rows?.[Math.max(0, (rows?.length || 1) - 1)]?.market);
+        if (!Number.isFinite(firstPrice) || !Number.isFinite(lastPrice) || lastPrice === firstPrice) {
+            return SINGLE_SERIES_COLORS.neutral;
+        }
+        return lastPrice > firstPrice
+            ? SINGLE_SERIES_COLORS.positive
+            : SINGLE_SERIES_COLORS.negative;
+    }
+
     function getVariantColor(variant) {
         const variants = getCardVariants(currentCard);
         const index = Math.max(0, variants.indexOf(String(variant || '').toLowerCase()));
@@ -703,12 +719,16 @@
         const trendClass = Number.isFinite(percent) ? (percent > 0 ? 'is-positive' : percent < 0 ? 'is-negative' : '') : '';
         const variant = String(loadedPayload?.meta?.variant || selectedVariant || pickDefaultVariant(currentCard));
         selectedVariant = variant;
+        const variants = getCardVariants(currentCard);
+        const isMultiVariant = variants.length > 1;
         const metrics = calculateMetrics(rows);
         const container = createElement('div', {
             className: `pv-priceHistory${trendClass ? ` ${trendClass}` : ''}`,
             attributes: { 'data-state': 'loaded' },
         });
-        const activePalette = getVariantColor(variant);
+        const activePalette = isMultiVariant
+            ? getVariantColor(variant)
+            : getSingleSeriesPalette(rows);
         container.style.setProperty('--pv-history-trend', activePalette.color);
         container.style.setProperty('--pv-history-trend-soft', activePalette.soft);
         const toolbar = createElement('div', { className: 'pv-priceHistory__toolbar' });
@@ -726,7 +746,6 @@
                 'aria-label': 'Price history variant',
             },
         });
-        const variants = getCardVariants(currentCard);
         (variants.length ? variants : [variant]).forEach((item) => {
             const option = createElement('option', { text: formatVariant(item) });
             option.value = item;
@@ -788,7 +807,7 @@
             .map((item) => ({
                 variant: item,
                 rows: filterRowsForRange(normalizeRows(loadedPayloads.get(item)), selectedRange),
-                palette: getVariantColor(item),
+                palette: isMultiVariant ? getVariantColor(item) : activePalette,
             }))
             .filter((item) => item.rows.length > 1);
         const chartWrap = createElement('div', { className: 'pv-priceHistory__chartWrap' });
