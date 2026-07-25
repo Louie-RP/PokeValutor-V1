@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const numberEl = document.getElementById('pv-card-number');
     const rarityEl = document.getElementById('pv-card-rarity');
     const marketEl = document.getElementById('pv-card-market');
+    const marketLabelEl = document.getElementById('pv-card-market-label');
+    const marketLinkEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-card-market-link'));
     const updatedEl = document.getElementById('pv-card-last-updated');
     const pricingBodyEl = document.getElementById('pv-card-pricing-body');
     const relatedGridEl = document.getElementById('pv-card-related-grid');
@@ -149,6 +151,48 @@ document.addEventListener('DOMContentLoaded', function () {
         const n = Number(value);
         if (!Number.isFinite(n)) return 'n/a';
         return `$${n.toFixed(2)}`;
+    }
+
+    function formatVariantLabel(value) {
+        const words = String(value || 'Standard')
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/[_-]+/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+        return words
+            .join(' ')
+            .replace(/\bFirst Edition\b/g, '1st Edition')
+            .replace(/\bHolofoil\b/g, 'Holo');
+    }
+
+    function getPrimaryPriceSummary(card) {
+        const variants = Array.isArray(card?.variants) ? card.variants : [];
+        const nmMarkets = variants
+            .map((variant) => getMarketByCondition(variant?.prices, 'NM'))
+            .filter(Number.isFinite);
+        const values = nmMarkets.length
+            ? nmMarkets
+            : variants.map((variant) => getBestMarket(variant?.prices)).filter(Number.isFinite);
+        const isMultiple = variants.length > 1;
+        if (!values.length) {
+            return { label: isMultiple ? 'Market price range' : 'NM market price', text: 'n/a', isMultiple };
+        }
+        if (!isMultiple) {
+            return {
+                label: nmMarkets.length ? 'NM market price' : 'Latest market price',
+                text: formatMoney(values[0]),
+                isMultiple: false,
+            };
+        }
+        const minimum = Math.min(...values);
+        const maximum = Math.max(...values);
+        return {
+            label: nmMarkets.length ? 'NM market range' : 'Market price range',
+            text: minimum === maximum ? formatMoney(minimum) : `${formatMoney(minimum)} – ${formatMoney(maximum)}`,
+            isMultiple: true,
+        };
     }
 
     function toUiDate(value) {
@@ -599,6 +643,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         pricingBodyEl.replaceChildren(...variants.map((variant) => {
             const variantName = safeString(variant?.name, 'Standard');
+            const variantLabel = formatVariantLabel(variantName);
             const prices = Array.isArray(variant?.prices) ? variant.prices : [];
             const nm = getMarketByCondition(prices, 'NM');
             const lp = getMarketByCondition(prices, 'LP');
@@ -610,8 +655,19 @@ document.addEventListener('DOMContentLoaded', function () {
             if (Number.isFinite(mp)) recordHistoryPoint(card?.id, variantName, 'MP', mp);
 
             const row = createElement('tr');
-            [variantName, formatMoney(nm), formatMoney(lp), formatMoney(mp), formatMoney(best)]
-                .forEach((value) => row.append(createElement('td', { text: value })));
+            [
+                ['Variant', variantLabel],
+                ['NM', formatMoney(nm)],
+                ['LP', formatMoney(lp)],
+                ['MP', formatMoney(mp)],
+                ['Best', formatMoney(best)],
+            ].forEach(([label, value], index) => row.append(createElement('td', {
+                text: value,
+                attributes: {
+                    'data-label': label,
+                    ...(index === 0 ? { 'data-variant': variantName } : {}),
+                },
+            })));
             return row;
         }));
 
@@ -622,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .filter(Boolean);
             const optionNodes = options.length
                 ? options.map((name) => {
-                    const option = createElement('option', { text: name });
+                    const option = createElement('option', { text: formatVariantLabel(name) });
                     option.value = name;
                     option.selected = name === current;
                     return option;
@@ -800,7 +856,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (setEl) setEl.textContent = setName;
         if (numberEl) numberEl.textContent = number || 'n/a';
         if (rarityEl) rarityEl.textContent = rarity || 'n/a';
-        if (marketEl) marketEl.textContent = formatMoney(getBestMarketFromCard(card));
+        const primaryPrice = getPrimaryPriceSummary(card);
+        if (marketLabelEl) marketLabelEl.textContent = primaryPrice.label;
+        if (marketEl) marketEl.textContent = primaryPrice.text;
+        if (marketLinkEl) marketLinkEl.hidden = !primaryPrice.isMultiple;
         if (updatedEl) updatedEl.textContent = toUiDate(updatedAt);
 
         if (imageEl) {

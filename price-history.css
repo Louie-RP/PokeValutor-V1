@@ -59,6 +59,14 @@
     flex-wrap: wrap;
 }
 
+.pv-priceHistory__controls--ready {
+    display: block;
+}
+
+.pv-priceHistory__controls--ready .pv-priceHistory__variantSelect {
+    min-width: min(32rem, 60vw);
+}
+
 .pv-priceHistory__variantSelect {
     min-height: 2.35rem;
     padding: 0.42rem 2rem 0.42rem 0.75rem;
@@ -337,30 +345,6 @@
         flex-direction: column;
     }
 
-    .pv-priceHistory__controls {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        align-items: end;
-        gap: 0.5rem;
-    }
-
-    .pv-priceHistory__controls .pv-form__field,
-    .pv-priceHistory__condition {
-        min-width: 0;
-    }
-
-    .pv-priceHistory__controls select,
-    .pv-priceHistory__condition strong {
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-        width: 100%;
-        min-height: 2.5rem;
-        padding: 0.45rem 0.55rem;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 8px;
-    }
-
     .pv-priceHistory--locked {
         min-height: 14rem;
     }
@@ -384,6 +368,10 @@
     .pv-priceHistory__conditionPill {
         box-sizing: border-box;
         width: 100%;
+        min-width: 0;
+    }
+
+    .pv-priceHistory__controls--ready .pv-priceHistory__variantSelect {
         min-width: 0;
     }
 

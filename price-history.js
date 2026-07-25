@@ -116,8 +116,11 @@
     function formatVariant(value) {
         return String(value || '')
             .trim()
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
             .replace(/[_-]+/g, ' ')
-            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+            .replace(/\b\w/g, (letter) => letter.toUpperCase())
+            .replace(/\bFirst Edition\b/g, '1st Edition')
+            .replace(/\bHolofoil\b/g, 'Holo');
     }
 
     function buildPreviewPoints() {
@@ -214,11 +217,22 @@
             className: 'pv-priceHistory',
             attributes: { 'data-state': 'ready' },
         });
-        const controls = createElement('div', { className: 'pv-priceHistory__controls' });
-        const field = createElement('div', { className: 'pv-form__field' });
+        const controls = createElement('div', {
+            className: 'pv-priceHistory__controls pv-priceHistory__controls--ready',
+        });
+        const marketSelector = createElement('div', { className: 'pv-priceHistory__marketSelector' });
+        const selectorLabel = createElement('label', {
+            className: 'pv-priceHistory__selectorLabel',
+            text: 'Variant / condition',
+            attributes: { for: 'pv-price-history-variant' },
+        });
+        const selectorRow = createElement('div', { className: 'pv-priceHistory__selectorRow' });
         const select = createElement('select', {
-            className: 'form-select',
-            attributes: { id: 'pv-price-history-variant' },
+            className: 'pv-priceHistory__variantSelect',
+            attributes: {
+                id: 'pv-price-history-variant',
+                'aria-label': 'Price history variant',
+            },
         });
         (variants.length ? variants : [selected]).forEach((variant) => {
             const option = createElement('option', { text: formatVariant(variant) });
@@ -226,24 +240,16 @@
             option.selected = variant === selected;
             select.append(option);
         });
-        field.append(
-            createElement('label', {
-                className: 'form-label',
-                text: 'Variant',
-                attributes: { for: 'pv-price-history-variant' },
-            }),
-            select
+        selectorRow.append(
+            select,
+            createElement('span', {
+                className: 'pv-priceHistory__conditionPill',
+                text: 'Near Mint',
+                attributes: { title: 'Price history currently supports Near Mint only' },
+            })
         );
-
-        const condition = createElement('div', {
-            className: 'pv-priceHistory__condition',
-            attributes: { 'aria-label': 'History condition' },
-        });
-        condition.append(
-            createElement('span', { text: 'Condition' }),
-            createElement('strong', { text: 'Near Mint (NM)' })
-        );
-        controls.append(field, condition);
+        marketSelector.append(selectorLabel, selectorRow);
+        controls.append(marketSelector);
 
         const loadButton = createElement('button', {
             className: 'pv-button pv-button--primary btn',
