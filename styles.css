@@ -3104,10 +3104,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     background: var(--pv-surface-2);
   }
 
-  .pv-cardDetail__meta > div:nth-child(4),
   .pv-cardDetail__meta > div:nth-child(5) {
     display: none;
   }
+
+  .pv-cardDetail__meta > div:nth-child(1) { order: 1; }
+  .pv-cardDetail__meta > div:nth-child(2) { order: 2; }
+  .pv-cardDetail__meta > div:nth-child(4) { order: 3; }
+  .pv-cardDetail__meta > div:nth-child(3) { order: 4; }
 
   .pv-cardDetail__meta dt {
     margin-bottom: 0.08rem;

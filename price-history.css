@@ -25,6 +25,40 @@
     --pv-history-trend-soft: rgba(251, 113, 133, 0.3);
 }
 
+.pv-priceHistory--prompt {
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+}
+
+.pv-priceHistory__promptCopy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.pv-priceHistory__promptCopy strong {
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.pv-priceHistory__promptCopy span {
+    color: var(--pv-muted, #cbd5e1);
+    font-size: 0.8rem;
+}
+
+.pv-priceHistory--prompt .pv-button {
+    flex: 0 0 auto;
+    min-width: 13rem;
+}
+
+.pv-priceHistory__promptStatus:empty {
+    display: none;
+}
+
 .pv-priceHistory__controls,
 .pv-priceHistory__toolbar,
 .pv-priceHistory__footer {
@@ -408,8 +442,8 @@
 
     .pv-priceHistory__selectorRow {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 0.5rem;
+        grid-template-columns: minmax(0, 1fr) minmax(7.5rem, auto);
+        gap: 0.75rem;
         width: 100%;
     }
 
@@ -426,6 +460,17 @@
 
     .pv-priceHistory__conditionPill {
         justify-content: center;
+    }
+
+    .pv-priceHistory--prompt {
+        display: grid;
+        gap: 0.7rem;
+        padding: 0.8rem;
+    }
+
+    .pv-priceHistory--prompt .pv-button {
+        width: 100%;
+        min-width: 0;
     }
 
     .pv-priceHistory__metrics {
@@ -454,6 +499,12 @@
     .pv-priceHistory__chartWrap,
     .pv-priceHistory__chart {
         min-height: 220px;
+    }
+}
+
+@media (max-width: 360px) {
+    .pv-priceHistory__selectorRow {
+        grid-template-columns: 1fr;
     }
 }
 

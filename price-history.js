@@ -220,47 +220,17 @@
     function renderPremiumReady() {
         const root = getRoot();
         if (!root || !currentCard) return;
-        const variants = getCardVariants(currentCard);
         const selected = selectedVariant || pickDefaultVariant(currentCard);
         selectedVariant = selected;
         const container = createElement('div', {
-            className: 'pv-priceHistory',
+            className: 'pv-priceHistory pv-priceHistory--prompt',
             attributes: { 'data-state': 'ready' },
         });
-        const controls = createElement('div', {
-            className: 'pv-priceHistory__controls pv-priceHistory__controls--ready',
-        });
-        const marketSelector = createElement('div', { className: 'pv-priceHistory__marketSelector' });
-        const selectorLabel = createElement('label', {
-            className: 'pv-priceHistory__selectorLabel',
-            text: 'Variant / condition',
-            attributes: { for: 'pv-price-history-variant' },
-        });
-        const selectorRow = createElement('div', { className: 'pv-priceHistory__selectorRow' });
-        const select = createElement('select', {
-            className: 'pv-priceHistory__variantSelect',
-            attributes: {
-                id: 'pv-price-history-variant',
-                'aria-label': 'Price history variant',
-            },
-        });
-        (variants.length ? variants : [selected]).forEach((variant) => {
-            const option = createElement('option', { text: formatVariant(variant) });
-            option.value = variant;
-            option.selected = variant === selected;
-            select.append(option);
-        });
-        selectorRow.append(
-            select,
-            createElement('span', {
-                className: 'pv-priceHistory__conditionPill',
-                text: 'Near Mint',
-                attributes: { title: 'Price history currently supports Near Mint only' },
-            })
+        const promptCopy = createElement('div', { className: 'pv-priceHistory__promptCopy' });
+        promptCopy.append(
+            createElement('strong', { text: 'Near Mint price trends' }),
+            createElement('span', { text: 'Load the interactive chart only when you need it.' })
         );
-        marketSelector.append(selectorLabel, selectorRow);
-        controls.append(marketSelector);
-
         const loadButton = createElement('button', {
             className: 'pv-button pv-button--primary btn',
             text: 'View NM Price History',
@@ -268,14 +238,10 @@
         });
         loadButton.addEventListener('click', () => loadHistory());
         container.append(
-            controls,
-            createElement('p', {
-                className: 'pv-section__text',
-                text: 'History is loaded only when requested to conserve API credits.',
-            }),
+            promptCopy,
             loadButton,
             createElement('p', {
-                className: 'pv-section__text',
+                className: 'pv-priceHistory__promptStatus',
                 attributes: {
                     id: 'pv-price-history-status',
                     role: 'status',
