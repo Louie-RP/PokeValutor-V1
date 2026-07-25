@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const HISTORY_MAX_POINTS = 30;
 
     const titleEl = document.getElementById('pv-card-title');
-    const subtitleEl = document.getElementById('pv-card-subtitle');
     const statusEl = document.getElementById('pv-card-status');
     const detailEl = document.getElementById('pv-card-detail');
     const imageEl = /** @type {HTMLImageElement|null} */ (document.getElementById('pv-card-image'));
@@ -147,6 +146,46 @@ document.addEventListener('DOMContentLoaded', function () {
         return expansionName || setName || directExpansionName || directSetName || 'n/a';
     }
 
+    function getCardDisplayNumber(cardLike) {
+        const firstValue = (values) => {
+            for (const value of values) {
+                if (typeof value !== 'string' && typeof value !== 'number') continue;
+                const normalized = String(value).trim();
+                if (normalized) return normalized;
+            }
+            return '';
+        };
+        const cardId = firstValue([cardLike?.id]);
+        const idNumber = cardId.includes('-') ? cardId.split('-').pop() : '';
+        const printedNumber = firstValue([
+            cardLike?.printedNumber,
+            cardLike?.printed_number,
+            cardLike?.collectorNumber,
+            cardLike?.collector_number,
+            cardLike?.cardNumber,
+            cardLike?.card_number,
+            cardLike?.card_no,
+            cardLike?.number,
+            cardLike?.localId,
+            cardLike?.local_id,
+            idNumber,
+        ]);
+        if (!printedNumber || printedNumber.includes('/')) return printedNumber;
+
+        const printedTotal = firstValue([
+            cardLike?.expansion?.printedTotal,
+            cardLike?.expansion?.printed_total,
+            cardLike?.set?.printedTotal,
+            cardLike?.set?.printed_total,
+            cardLike?.printedTotal,
+            cardLike?.printed_total,
+        ]);
+        if (/^\d+[a-z]?$/i.test(printedNumber) && /^\d+$/.test(printedTotal)) {
+            return `${printedNumber}/${printedTotal}`;
+        }
+        return printedNumber;
+    }
+
     function formatMoney(value) {
         const n = Number(value);
         if (!Number.isFinite(n)) return 'n/a';
@@ -163,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
         return words
             .join(' ')
-            .replace(/\bFirst Edition\b/g, '1st Edition')
+            .replace(/\bFirst Edition\b/g, '1st Ed.')
             .replace(/\bHolofoil\b/g, 'Holo');
     }
 
@@ -497,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function setSeo(card) {
         const name = safeString(card?.name, 'Card');
-        const number = safeString(card?.number, '');
+        const number = getCardDisplayNumber(card);
         const setName = getCardSetName(card);
         const detailPath = buildCardDetailPath(card);
         const detailUrl = buildAbsoluteUrl(detailPath);
@@ -845,14 +884,13 @@ document.addEventListener('DOMContentLoaded', function () {
         currentCard = card;
 
         const name = safeString(card?.name, 'Unknown card');
-        const number = safeString(card?.number, 'n/a');
+        const number = getCardDisplayNumber(card) || 'n/a';
         const rarity = safeString(card?.rarity, 'n/a');
         const setName = getCardSetName(card);
         const image = sanitizeUrl(pickFrontMediumImage(card?.images));
         const updatedAt = card?.updatedAt || card?.updated_at || Date.now();
 
         if (titleEl) titleEl.textContent = name;
-        if (subtitleEl) subtitleEl.textContent = `${setName}${number && number !== 'n/a' ? ` • #${number}` : ''}`;
         if (setEl) setEl.textContent = setName;
         if (numberEl) numberEl.textContent = number || 'n/a';
         if (rarityEl) rarityEl.textContent = rarity || 'n/a';

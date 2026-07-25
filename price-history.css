@@ -64,7 +64,9 @@
 }
 
 .pv-priceHistory__controls--ready .pv-priceHistory__variantSelect {
-    min-width: min(32rem, 60vw);
+    box-sizing: border-box;
+    width: min(18rem, 45vw);
+    min-width: 0;
 }
 
 .pv-priceHistory__variantSelect {
@@ -95,6 +97,53 @@
     background: rgba(255, 255, 255, 0.035);
     font-size: 0.88rem;
     font-weight: 650;
+}
+
+.pv-priceHistory__variantChips {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.1rem 0 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.pv-priceHistory__variantChip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.42rem;
+    min-height: 2.2rem;
+    padding: 0.4rem 0.72rem;
+    border: 1px solid color-mix(in srgb, var(--pv-chip-color) 45%, transparent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--pv-muted, #cbd5e1);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 750;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.pv-priceHistory__variantChip.is-active {
+    border-color: var(--pv-chip-color);
+    background: var(--pv-chip-soft);
+    color: #fff;
+    opacity: 1;
+}
+
+.pv-priceHistory__variantChipDot {
+    width: 0.58rem;
+    height: 0.58rem;
+    border-radius: 50%;
+    background: var(--pv-chip-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--pv-chip-color) 20%, transparent);
+}
+
+.pv-priceHistory__variantChip:focus-visible {
+    outline: 3px solid var(--pv-focus, #ffd54a);
+    outline-offset: 2px;
 }
 
 .pv-priceHistory__summary {

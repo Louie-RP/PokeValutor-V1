@@ -9,12 +9,22 @@
     const DEFAULT_WORKER = 'https://pokevalutor-v1.lreyperez18.workers.dev';
     const CONDITION = 'NM';
     const RANGE_DAYS = [7, 30, 90];
+    const VARIANT_COLORS = [
+        { color: '#c084fc', soft: 'rgba(192, 132, 252, 0.24)' },
+        { color: '#34d399', soft: 'rgba(52, 211, 153, 0.24)' },
+        { color: '#facc15', soft: 'rgba(250, 204, 21, 0.24)' },
+        { color: '#60a5fa', soft: 'rgba(96, 165, 250, 0.24)' },
+        { color: '#fb7185', soft: 'rgba(251, 113, 133, 0.24)' },
+        { color: '#fb923c', soft: 'rgba(251, 146, 60, 0.24)' },
+    ];
 
     let currentCard = null;
     let currentRole = 'basic';
     let authResolved = false;
     let requestInFlight = false;
     let loadedPayload = null;
+    const loadedPayloads = new Map();
+    const activeVariants = new Set();
     let selectedRange = 30;
     let selectedVariant = '';
     let initialized = false;
@@ -119,7 +129,7 @@
             .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
             .replace(/[_-]+/g, ' ')
             .replace(/\b\w/g, (letter) => letter.toUpperCase())
-            .replace(/\bFirst Edition\b/g, '1st Edition')
+            .replace(/\bFirst Edition\b/g, '1st Ed.')
             .replace(/\bHolofoil\b/g, 'Holo');
     }
 
@@ -408,7 +418,7 @@
         });
     }
 
-    function buildChartElement(rows) {
+    function buildChartElement(rows, series = []) {
         const width = 720;
         const height = 300;
         const left = 72;
@@ -419,13 +429,16 @@
             return createElement('p', { text: 'Not enough history points to draw a chart.' });
         }
 
-        const values = rows.map((row) => row.market);
+        const allRows = series.length
+            ? series.flatMap((item) => item.rows)
+            : rows;
+        const values = allRows.map((row) => row.market);
         const rawMin = Math.min(...values);
         const rawMax = Math.max(...values);
         const { min, max, step } = niceScale(rawMin, rawMax);
         const span = Math.max(1, max - min);
-        const startTime = rows[0].date.getTime();
-        const endTime = rows[rows.length - 1].date.getTime();
+        const startTime = Math.min(...allRows.map((row) => row.date.getTime()));
+        const endTime = Math.max(...allRows.map((row) => row.date.getTime()));
         const timeSpan = Math.max(1, endTime - startTime);
 
         const points = rows.map((row, index) => {
@@ -482,10 +495,25 @@
                 label
             );
         });
-        svg.append(
-            createSvgElement('path', { class: 'pv-priceHistory__area', d: area }),
-            createSvgElement('path', { class: 'pv-priceHistory__line', d: path })
-        );
+        svg.append(createSvgElement('path', { class: 'pv-priceHistory__area', d: area }));
+        const chartSeries = series.length
+            ? series
+            : [{ variant: selectedVariant, rows, palette: getVariantColor(selectedVariant) }];
+        chartSeries.forEach((item) => {
+            if (item.rows.length < 2) return;
+            const seriesPath = item.rows.map((row, index) => {
+                const x = left + ((row.date.getTime() - startTime) / timeSpan) * (width - left - right);
+                const y = top + ((max - row.market) / span) * (height - top - bottom);
+                return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+            }).join(' ');
+            const line = createSvgElement('path', {
+                class: 'pv-priceHistory__line',
+                d: seriesPath,
+                'data-variant': item.variant,
+            });
+            line.style.stroke = item.palette.color;
+            svg.append(line);
+        });
 
         const tickCount = Math.min(5, rows.length);
         const usedTickIndexes = new Set();
@@ -640,6 +668,65 @@
         return trends[`days_${days}`] || null;
     }
 
+    function getVariantColor(variant) {
+        const variants = getCardVariants(currentCard);
+        const index = Math.max(0, variants.indexOf(String(variant || '').toLowerCase()));
+        return VARIANT_COLORS[index % VARIANT_COLORS.length];
+    }
+
+    function buildVariantChips(activeVariant) {
+        const variants = getCardVariants(currentCard);
+        if (variants.length < 2) return null;
+        const group = createElement('div', {
+            className: 'pv-priceHistory__variantChips',
+            attributes: {
+                role: 'group',
+                'aria-label': 'Choose price history variant',
+            },
+        });
+        variants.forEach((variant) => {
+            const isActive = activeVariants.has(variant);
+            const palette = getVariantColor(variant);
+            const button = createElement('button', {
+                className: `pv-priceHistory__variantChip${isActive ? ' is-active' : ''}`,
+                attributes: {
+                    type: 'button',
+                    'aria-pressed': isActive ? 'true' : 'false',
+                    'data-variant': variant,
+                    title: loadedPayloads.has(variant)
+                        ? `${formatVariant(variant)} history is ready`
+                        : `Load ${formatVariant(variant)} history`,
+                },
+            });
+            button.style.setProperty('--pv-chip-color', palette.color);
+            button.style.setProperty('--pv-chip-soft', palette.soft);
+            button.append(
+                createElement('span', {
+                    className: 'pv-priceHistory__variantChipDot',
+                    attributes: { 'aria-hidden': 'true' },
+                }),
+                createElement('span', { text: formatVariant(variant) })
+            );
+            button.addEventListener('click', () => {
+                if (requestInFlight) return;
+                if (activeVariants.has(variant)) {
+                    if (activeVariants.size === 1) return;
+                    activeVariants.delete(variant);
+                    if (variant === selectedVariant) {
+                        selectedVariant = activeVariants.values().next().value;
+                        loadedPayload = loadedPayloads.get(selectedVariant);
+                    }
+                    renderChart();
+                    return;
+                }
+                selectedVariant = variant;
+                void loadHistory(variant);
+            });
+            group.append(button);
+        });
+        return group;
+    }
+
     function renderChart() {
         const root = getRoot();
         if (!root || !loadedPayload) return;
@@ -655,6 +742,9 @@
             className: `pv-priceHistory${trendClass ? ` ${trendClass}` : ''}`,
             attributes: { 'data-state': 'loaded' },
         });
+        const activePalette = getVariantColor(variant);
+        container.style.setProperty('--pv-history-trend', activePalette.color);
+        container.style.setProperty('--pv-history-trend-soft', activePalette.soft);
         const toolbar = createElement('div', { className: 'pv-priceHistory__toolbar' });
         const marketSelector = createElement('div', { className: 'pv-priceHistory__marketSelector' });
         const selectorLabel = createElement('label', {
@@ -728,13 +818,23 @@
             metricRow.append(metric);
         });
 
+        const activeSeries = [...activeVariants]
+            .map((item) => ({
+                variant: item,
+                rows: filterRowsForRange(normalizeRows(loadedPayloads.get(item)), selectedRange),
+                palette: getVariantColor(item),
+            }))
+            .filter((item) => item.rows.length > 1);
         const chartWrap = createElement('div', { className: 'pv-priceHistory__chartWrap' });
-        chartWrap.append(buildChartElement(rows));
+        chartWrap.append(buildChartElement(rows, activeSeries));
         const footer = createElement('div', { className: 'pv-priceHistory__footer' });
         footer.append(createElement('span', {
             text: latest ? `Data through ${formatChartDate(latest.date)} · Market price shown` : 'Market price shown',
         }));
-        container.append(toolbar, summary, metricRow, chartWrap, footer);
+        const variantChips = buildVariantChips(variant);
+        container.append(toolbar);
+        if (variantChips) container.append(variantChips);
+        container.append(summary, metricRow, chartWrap, footer);
         root.replaceChildren(container);
 
         ranges.querySelectorAll('[data-range]').forEach((button) => {
@@ -751,6 +851,14 @@
 
     async function loadHistory(requestedVariant) {
         if (requestInFlight || !currentCard || !authResolved || !isPremiumRole(currentRole)) return;
+        const requested = String(requestedVariant || '').trim().toLowerCase();
+        if (requested && loadedPayloads.has(requested)) {
+            selectedVariant = requested;
+            loadedPayload = loadedPayloads.get(requested);
+            activeVariants.add(requested);
+            renderChart();
+            return;
+        }
         requestInFlight = true;
         renderLoading();
         try {
@@ -783,6 +891,8 @@
                 return;
             }
             loadedPayload = payload;
+            loadedPayloads.set(variant, payload);
+            activeVariants.add(variant);
             selectedRange = 30;
             renderChart();
         } catch (error) {
@@ -804,6 +914,8 @@
         authResolved = false;
         currentRole = 'basic';
         loadedPayload = null;
+        loadedPayloads.clear();
+        activeVariants.clear();
         selectedVariant = pickDefaultVariant(currentCard);
         renderLocked();
         const role = await resolveRole();
