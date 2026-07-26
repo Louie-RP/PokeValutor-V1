@@ -10,12 +10,12 @@
     const CONDITION = 'NM';
     const RANGE_DAYS = [7, 30, 90];
     const VARIANT_COLORS = [
-        { color: '#c084fc', soft: 'rgba(192, 132, 252, 0.24)' },
-        { color: '#22d3ee', soft: 'rgba(34, 211, 238, 0.24)' },
-        { color: '#fbbf24', soft: 'rgba(251, 191, 36, 0.24)' },
-        { color: '#60a5fa', soft: 'rgba(96, 165, 250, 0.24)' },
-        { color: '#e879f9', soft: 'rgba(232, 121, 249, 0.24)' },
-        { color: '#fb923c', soft: 'rgba(251, 146, 60, 0.24)' },
+        { color: '#9b5de5', soft: 'rgba(155, 93, 229, 0.24)' },
+        { color: '#ff8c42', soft: 'rgba(255, 140, 66, 0.24)' },
+        { color: '#ffd166', soft: 'rgba(255, 209, 102, 0.24)' },
+        { color: '#3a86ff', soft: 'rgba(58, 134, 255, 0.24)' },
+        { color: '#8ecae6', soft: 'rgba(142, 202, 230, 0.24)' },
+        { color: '#c77dff', soft: 'rgba(199, 125, 255, 0.24)' },
     ];
     const SINGLE_SERIES_COLORS = {
         positive: { color: '#34d399', soft: 'rgba(52, 211, 153, 0.3)' },
