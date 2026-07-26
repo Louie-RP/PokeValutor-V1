@@ -3212,9 +3212,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     position: sticky;
     left: 0;
     z-index: 1;
-    width: 190px;
-    min-width: 190px;
-    max-width: 190px;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
