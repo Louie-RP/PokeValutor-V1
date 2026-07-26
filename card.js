@@ -211,7 +211,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function formatMoney(value) {
         const n = Number(value);
         if (!Number.isFinite(n)) return 'n/a';
-        return `$${n.toFixed(2)}`;
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(n);
     }
 
     function formatVariantLabel(value) {
