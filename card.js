@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const marketLinkEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-card-market-link'));
     const updatedEl = document.getElementById('pv-card-last-updated');
     const pricingBodyEl = document.getElementById('pv-card-pricing-body');
+    let variantTooltipEl = null;
+    let pinnedVariantTrigger = null;
     const relatedGridEl = document.getElementById('pv-card-related-grid');
     const watchToggleEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-watch-toggle'));
     const shareBtnEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-share'));
@@ -224,6 +226,90 @@ document.addEventListener('DOMContentLoaded', function () {
             .join(' ')
             .replace(/\bFirst Edition\b/g, '1st Ed.')
             .replace(/\bHolofoil\b/g, 'Holo');
+    }
+
+    function ensureVariantTooltip() {
+        if (variantTooltipEl) return variantTooltipEl;
+        variantTooltipEl = createElement('div', {
+            className: 'pv-variantNameTooltip',
+            attributes: {
+                id: 'pv-variant-name-tooltip',
+                role: 'tooltip',
+                hidden: '',
+            },
+        });
+        document.body.append(variantTooltipEl);
+
+        const dismiss = () => hideVariantTooltip();
+        document.addEventListener('click', (event) => {
+            if (pinnedVariantTrigger && !pinnedVariantTrigger.contains(event.target)) dismiss();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') dismiss();
+        });
+        window.addEventListener('resize', dismiss);
+        window.addEventListener('scroll', dismiss, true);
+        return variantTooltipEl;
+    }
+
+    function showVariantTooltip(trigger, label, pin = false) {
+        const tooltip = ensureVariantTooltip();
+        tooltip.textContent = label;
+        tooltip.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        if (pin) pinnedVariantTrigger = trigger;
+
+        const triggerRect = trigger.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const gutter = 8;
+        const left = Math.min(
+            window.innerWidth - tooltipRect.width - gutter,
+            Math.max(gutter, triggerRect.left)
+        );
+        const spaceBelow = window.innerHeight - triggerRect.bottom;
+        const top = spaceBelow >= tooltipRect.height + gutter
+            ? triggerRect.bottom + gutter
+            : triggerRect.top - tooltipRect.height - gutter;
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${Math.max(gutter, top)}px`;
+    }
+
+    function hideVariantTooltip(trigger) {
+        if (!variantTooltipEl) return;
+        if (trigger && pinnedVariantTrigger === trigger) return;
+        document.querySelectorAll('.pv-variantName[aria-expanded="true"]').forEach((button) => {
+            button.setAttribute('aria-expanded', 'false');
+        });
+        variantTooltipEl.hidden = true;
+        pinnedVariantTrigger = null;
+    }
+
+    function createVariantNameControl(label) {
+        ensureVariantTooltip();
+        const button = createElement('button', {
+            className: 'pv-variantName',
+            text: label,
+            attributes: {
+                type: 'button',
+                'aria-label': `Full variant name: ${label}`,
+                'aria-describedby': 'pv-variant-name-tooltip',
+                'aria-expanded': 'false',
+            },
+        });
+        button.addEventListener('pointerenter', () => showVariantTooltip(button, label));
+        button.addEventListener('pointerleave', () => hideVariantTooltip(button));
+        button.addEventListener('focus', () => showVariantTooltip(button, label));
+        button.addEventListener('blur', () => hideVariantTooltip(button));
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            if (pinnedVariantTrigger === button) {
+                hideVariantTooltip();
+                return;
+            }
+            hideVariantTooltip();
+            showVariantTooltip(button, label, true);
+        });
+        return button;
     }
 
     function getPrimaryPriceSummary(card) {
@@ -720,13 +806,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 ['LP', formatMoney(lp)],
                 ['MP', formatMoney(mp)],
                 ['Best', formatMoney(best)],
-            ].forEach(([label, value], index) => row.append(createElement('td', {
-                text: value,
-                attributes: {
+            ].forEach(([label, value], index) => {
+                const cell = createElement('td', {
+                    attributes: {
                     'data-label': label,
                     ...(index === 0 ? { 'data-variant': variantName } : {}),
-                },
-            })));
+                    },
+                });
+                if (index === 0) cell.append(createVariantNameControl(value));
+                else cell.textContent = value;
+                row.append(cell);
+            });
             return row;
         }));
 

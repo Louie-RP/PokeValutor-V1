@@ -2914,7 +2914,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   .pv-cardPricing .pv-cardTable th:first-child,
   .pv-cardPricing .pv-cardTable td:first-child {
-    width: 22%;
+    width: 32%;
     max-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2922,8 +2922,51 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   .pv-cardPricing .pv-cardTable th:not(:first-child),
   .pv-cardPricing .pv-cardTable td:not(:first-child) {
-    width: 19.5%;
+    width: 17%;
   }
+}
+
+.pv-variantName {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pv-variantName:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--pv-focus, #ffd54a);
+  outline-offset: 2px;
+}
+
+.pv-variantNameTooltip {
+  position: fixed;
+  z-index: 100;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 1rem));
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(255, 213, 74, 0.55);
+  border-radius: 8px;
+  background: #181818;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.pv-variantNameTooltip[hidden] {
+  display: none;
 }
 
 .pv-cardTable th:not(:first-child),
@@ -3154,7 +3197,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   }
 
   .pv-cardPricing .pv-cardTable {
-    min-width: 610px;
+    min-width: 590px;
     table-layout: fixed;
   }
 
@@ -3169,9 +3212,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     position: sticky;
     left: 0;
     z-index: 1;
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
+    width: 190px;
+    min-width: 190px;
+    max-width: 190px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -3188,7 +3231,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   .pv-cardPricing .pv-cardTable th:not(:first-child),
   .pv-cardPricing .pv-cardTable td:not(:first-child) {
-    width: 105px;
+    width: 100px;
   }
 
   .pv-cardPricing .pv-cardTable tbody tr:hover td:first-child {
