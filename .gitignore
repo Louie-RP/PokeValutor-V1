@@ -28,7 +28,6 @@ serviceAccountKey.json
 
 # Local test suites and verification harnesses
 /tests/
-/functions/scripts/test-price-history-xss.js
 
 # Node
 node_modules/
