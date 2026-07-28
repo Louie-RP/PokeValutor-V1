@@ -31,7 +31,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
+  <link rel="stylesheet" href="styles.css?v=20260727-trending-carousel-2" />
   <link rel="icon" href="PokeValuator.png" type="image/png">
   <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -164,7 +164,14 @@
         <h2 id="pv-trendingTitle" class="pv-section__title">Trending Cards</h2>
       </div>
       <p class="pv-section__text pv-expansions__subtitle">Movers from your watchlist.</p>
-      <div id="pv-trending-grid" class="pv-homeDataGrid" aria-live="polite">
+      <div
+        id="pv-trending-grid"
+        class="pv-homeDataGrid"
+        aria-label="Trending cards carousel. On smaller screens, swipe horizontally to browse groups of three cards."
+        aria-live="polite"
+        aria-roledescription="carousel"
+        tabindex="0"
+      >
         <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
         <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
         <article class="pv-miniCard pv-miniCard--loading" aria-hidden="true"></article>
@@ -198,4 +205,3 @@
   <script src="script.js?v=20260721-2" defer></script>
 </body>
 </html>
-

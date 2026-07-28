@@ -2052,6 +2052,36 @@ h1, h2, h3, h4, h5, h6,
   animation: pv-shimmer 1.4s ease infinite;
 }
 
+@media (max-width: 699.98px) {
+  #pv-trending-grid {
+    grid-template-columns: none;
+    grid-template-rows: repeat(3, max-content);
+    grid-auto-flow: column;
+    grid-auto-columns: 100%;
+    align-items: start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline mandatory;
+    scroll-behavior: smooth;
+    scrollbar-color: rgba(255, 203, 5, 0.62) rgba(255, 255, 255, 0.06);
+    scrollbar-width: thin;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #pv-trending-grid > .pv-miniCard {
+    width: 100%;
+    min-height: 0;
+    align-self: start;
+  }
+
+  #pv-trending-grid > .pv-miniCard:nth-child(3n + 1) {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+}
+
 @media (min-width: 700px) {
   .pv-homeDataGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
