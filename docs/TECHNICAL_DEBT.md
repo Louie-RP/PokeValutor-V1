@@ -6,16 +6,19 @@
 **Recorded:** July 28, 2026  
 **Priority:** Medium — maintainability work, not a current security or functional blocker
 
-### Deferred work
+### Progress
 
-1. Evaluate a shared safe DOM-construction helper for `card.js` and
-   `price-history.js`.
-   - Preserve the repository rule against `innerHTML` and other unsafe HTML
-     sinks.
-   - Keep Price History independently removable and feature-flagged.
-   - Standardize helper behavior before migrating call sites.
+The first refactor phase began July 28, 2026:
 
-2. Split `price-history.js` into focused modules.
+- `card.js` and Price History now use the shared safe `pv-dom.js` utility.
+- Scrydex normalization and metrics moved to `price-history-data.js`.
+- Local browser-history rendering moved to `price-history-local.js`.
+- Normalized provider rows are cached per payload instead of reparsed on every
+  range change.
+
+### Remaining work
+
+1. Continue splitting `price-history.js` into focused modules.
    - Suggested boundaries: data normalization, API/auth access, state
      management, local browser history, SVG/chart rendering, and UI event
      wiring.

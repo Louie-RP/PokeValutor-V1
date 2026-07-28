@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const CACHE_PREFIX = 'pv:scrydex:';
     const HISTORY_PREFIX = 'pv:cardHistory:v1:';
     const HISTORY_MAX_POINTS = 30;
+    const createElement = window.PV_DOM?.createElement;
+    if (typeof createElement !== 'function') {
+        throw new Error('Card page DOM utilities are unavailable.');
+    }
 
     const titleEl = document.getElementById('pv-card-title');
     const statusEl = document.getElementById('pv-card-status');
@@ -69,16 +73,6 @@ document.addEventListener('DOMContentLoaded', function () {
     function safeString(value, fallback) {
         const s = String(value ?? '');
         return s ? s : (fallback || '');
-    }
-
-    function createElement(tagName, { className, text, attributes } = {}) {
-        const element = document.createElement(tagName);
-        if (className) element.className = className;
-        if (text !== undefined) element.textContent = String(text);
-        Object.entries(attributes || {}).forEach(([name, value]) => {
-            if (value !== undefined && value !== null) element.setAttribute(name, String(value));
-        });
-        return element;
     }
 
     function renderTableMessage(body, columnCount, message) {
