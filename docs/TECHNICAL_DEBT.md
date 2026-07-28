@@ -13,15 +13,17 @@ The first refactor phase began July 28, 2026:
 - `card.js` and Price History now use the shared safe `pv-dom.js` utility.
 - Scrydex normalization and metrics moved to `price-history-data.js`.
 - Local browser-history rendering moved to `price-history-local.js`.
+- Role resolution and authenticated history requests moved to
+  `price-history-service.js`.
+- Interactive SVG construction and tooltip behavior moved to
+  `price-history-chart.js`.
 - Normalized provider rows are cached per payload instead of reparsed on every
   range change.
 
 ### Remaining work
 
-1. Continue splitting `price-history.js` into focused modules.
-   - Suggested boundaries: data normalization, API/auth access, state
-     management, local browser history, SVG/chart rendering, and UI event
-     wiring.
+1. Evaluate whether the remaining state management and UI event wiring in
+   `price-history.js` would benefit from another extraction.
    - Preserve the existing premium gate and fail-closed behavior.
    - Ensure non-premium users never trigger the Scrydex history endpoint.
    - Avoid changing visible behavior as part of the structural refactor.

@@ -5,7 +5,6 @@
     'use strict';
 
     const FEATURE_NAME = 'priceHistory';
-    const PREMIUM_ROLES = new Set(['premium', 'admin', 'tester']);
     const DEFAULT_WORKER = 'https://pokevalutor-v1.lreyperez18.workers.dev';
     const CONDITION = 'NM';
     const RANGE_DAYS = [7, 30, 90];
@@ -25,6 +24,8 @@
     const createElement = window.PV_DOM?.createElement;
     const createSvgElement = window.PV_DOM?.createSvgElement;
     const renderLocalHistoryPanel = window.PV_PRICE_HISTORY_LOCAL?.render;
+    const historyService = window.PV_PRICE_HISTORY_SERVICE;
+    const historyChart = window.PV_PRICE_HISTORY_CHART;
     const {
         calculateMetrics,
         filterRowsForRange,
@@ -36,6 +37,8 @@
         || typeof createSvgElement !== 'function'
         || typeof normalizeRows !== 'function'
         || typeof renderLocalHistoryPanel !== 'function'
+        || typeof historyService?.fetchHistory !== 'function'
+        || typeof historyChart?.build !== 'function'
     ) {
         throw new Error('Price History dependencies are unavailable.');
     }
@@ -79,47 +82,12 @@
         return String(window?.PV_SECRETS?.PV_API_URL || DEFAULT_WORKER).replace(/\/$/, '');
     }
 
-    function normalizeRoleFromClaims(claims) {
-        const source = claims && typeof claims === 'object' ? claims : {};
-        const role = String(
-            source.role
-            || source.userRole
-            || source.user_role
-            || source.tier
-            || source.plan
-            || source.subscriptionTier
-            || source.subscription_tier
-            || ''
-        ).trim().toLowerCase();
-        if (role === 'admin' || role === 'tester' || role === 'premium' || role === 'basic' || role === 'free') {
-            return role;
-        }
-        if (role) return 'basic';
-
-        if (source.admin === true || String(source.admin).toLowerCase() === 'true') return 'admin';
-        if (source.tester === true || String(source.tester).toLowerCase() === 'true') return 'tester';
-        if (source.premium === true || String(source.premium).toLowerCase() === 'true') return 'premium';
-        return 'basic';
-    }
-
     async function resolveRole() {
-        // Fail closed. Unknown or failed role resolution must never trigger a
-        // history request.
-        try {
-            const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
-            if (!user) return 'basic';
-            const tokenResult = window?.PV_AUTH?.getIdTokenResult
-                ? await window.PV_AUTH.getIdTokenResult(false)
-                : null;
-            return normalizeRoleFromClaims(tokenResult?.claims || {});
-        } catch (error) {
-            console.warn('Price History role resolution failed:', error);
-            return 'basic';
-        }
+        return historyService.resolveRole(window.PV_AUTH);
     }
 
     function isPremiumRole(role) {
-        return PREMIUM_ROLES.has(String(role || '').trim().toLowerCase());
+        return historyService.isPremiumRole(role);
     }
 
     function getCardVariants(card) {
@@ -334,273 +302,8 @@
         return `${number > 0 ? '+' : ''}${number.toFixed(2)}%`;
     }
 
-    function niceScale(rawMin, rawMax, tickCount = 5) {
-        const range = Math.max(1, rawMax - rawMin);
-        const roughStep = range / Math.max(1, tickCount - 1);
-        const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-        const fraction = roughStep / magnitude;
-        const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
-        const step = niceFraction * magnitude;
-        const min = Math.max(0, Math.floor(rawMin / step) * step);
-        let max = Math.ceil(rawMax / step) * step;
-        if (max === min) max = min + step;
-        return { min, max, step };
-    }
-
     function formatChartDate(date, long = false) {
-        return date.toLocaleDateString('en-US', {
-            month: long ? 'long' : 'short',
-            day: 'numeric',
-            year: long ? 'numeric' : undefined,
-            timeZone: 'UTC',
-        });
-    }
-
-    function buildChartElement(rows, series = [], showArea = true) {
-        const width = 720;
-        const height = 300;
-        const left = 72;
-        const right = 20;
-        const top = 24;
-        const bottom = 44;
-        if (rows.length < 2) {
-            return createElement('p', { text: 'Not enough history points to draw a chart.' });
-        }
-
-        const allRows = series.length
-            ? series.flatMap((item) => item.rows)
-            : rows;
-        const values = allRows.map((row) => row.market);
-        const rawMin = Math.min(...values);
-        const rawMax = Math.max(...values);
-        const { min, max, step } = niceScale(rawMin, rawMax);
-        const span = Math.max(1, max - min);
-        const startTime = Math.min(...allRows.map((row) => row.date.getTime()));
-        const endTime = Math.max(...allRows.map((row) => row.date.getTime()));
-        const timeSpan = Math.max(1, endTime - startTime);
-
-        const points = rows.map((row, index) => {
-            const x = left + ((row.date.getTime() - startTime) / timeSpan) * (width - left - right);
-            const y = top + ((max - row.market) / span) * (height - top - bottom);
-            const previous = rows[index - 1]?.market;
-            const dailyPercent = Number.isFinite(previous) && previous !== 0
-                ? ((row.market - previous) / previous) * 100
-                : null;
-            return { ...row, x, y, dailyPercent };
-        });
-        const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(' ');
-        const area = `${path} L ${points[points.length - 1].x.toFixed(2)} ${(height - bottom).toFixed(2)} L ${points[0].x.toFixed(2)} ${(height - bottom).toFixed(2)} Z`;
-        const svg = createSvgElement('svg', {
-            class: 'pv-priceHistory__chart',
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'img',
-            'aria-label': 'Near Mint market price history',
-        });
-        const defs = createSvgElement('defs');
-        const gradient = createSvgElement('linearGradient', {
-            id: 'pv-price-history-area-gradient',
-            x1: '0',
-            y1: '0',
-            x2: '0',
-            y2: '1',
-        });
-        gradient.append(
-            createSvgElement('stop', { offset: '0%', class: 'pv-priceHistory__areaStopTop' }),
-            createSvgElement('stop', { offset: '100%', class: 'pv-priceHistory__areaStopBottom' })
-        );
-        defs.append(gradient);
-        svg.append(defs);
-
-        const gridValues = [];
-        for (let value = min; value <= max + step / 2; value += step) gridValues.push(value);
-        gridValues.reverse().forEach((value) => {
-            const y = top + ((max - value) / span) * (height - top - bottom);
-            const label = createSvgElement('text', {
-                x: left - 12,
-                y: y + 4,
-                'text-anchor': 'end',
-                class: 'pv-priceHistory__axisLabel',
-            });
-            label.textContent = formatMoney(value);
-            svg.append(
-                createSvgElement('line', {
-                    x1: left,
-                    y1: y,
-                    x2: width - right,
-                    y2: y,
-                    class: 'pv-priceHistory__gridLine',
-                }),
-                label
-            );
-        });
-        if (showArea) {
-            svg.append(createSvgElement('path', { class: 'pv-priceHistory__area', d: area }));
-        }
-        const chartSeries = series.length
-            ? series
-            : [{ variant: selectedVariant, rows, palette: getVariantColor(selectedVariant) }];
-        chartSeries.forEach((item) => {
-            if (item.rows.length < 2) return;
-            const seriesPath = item.rows.map((row, index) => {
-                const x = left + ((row.date.getTime() - startTime) / timeSpan) * (width - left - right);
-                const y = top + ((max - row.market) / span) * (height - top - bottom);
-                return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-            }).join(' ');
-            const line = createSvgElement('path', {
-                class: 'pv-priceHistory__line',
-                d: seriesPath,
-                'data-variant': item.variant,
-            });
-            line.style.stroke = item.palette.color;
-            svg.append(line);
-        });
-
-        const tickCount = Math.min(5, rows.length);
-        const usedTickIndexes = new Set();
-        for (let tick = 0; tick < tickCount; tick += 1) {
-            const targetTime = startTime + (tick / Math.max(1, tickCount - 1)) * timeSpan;
-            let closestIndex = 0;
-            rows.forEach((row, index) => {
-                if (
-                    Math.abs(row.date.getTime() - targetTime)
-                    < Math.abs(rows[closestIndex].date.getTime() - targetTime)
-                ) closestIndex = index;
-            });
-            if (usedTickIndexes.has(closestIndex)) continue;
-            usedTickIndexes.add(closestIndex);
-            const point = points[closestIndex];
-            const text = createSvgElement('text', {
-                x: point.x,
-                y: height - 12,
-                'text-anchor': tick === 0 ? 'start' : tick === tickCount - 1 ? 'end' : 'middle',
-                class: 'pv-priceHistory__axisLabel',
-            });
-            text.textContent = formatChartDate(point.date);
-            svg.append(text);
-        }
-
-        const crosshair = createSvgElement('line', {
-            y1: top,
-            y2: height - bottom,
-            class: 'pv-priceHistory__crosshair is-hidden',
-        });
-        const marker = createSvgElement('circle', {
-            r: 5,
-            class: 'pv-priceHistory__marker is-hidden',
-        });
-        const hitArea = createSvgElement('rect', {
-            x: left,
-            y: top,
-            width: width - left - right,
-            height: height - top - bottom,
-            class: 'pv-priceHistory__hitArea',
-            tabindex: '0',
-            role: 'slider',
-            'aria-label': 'Explore price history points',
-            'aria-valuemin': '1',
-            'aria-valuemax': String(points.length),
-        });
-        svg.append(crosshair, marker, hitArea);
-
-        const tooltip = createElement('div', {
-            className: 'pv-priceHistory__tooltip',
-            attributes: { role: 'status', 'aria-live': 'polite', hidden: '' },
-        });
-        const tooltipDate = createElement('strong');
-        const tooltipPrice = createElement('span');
-        const tooltipChange = createElement('span');
-        tooltip.append(tooltipDate, tooltipPrice, tooltipChange);
-
-        const positionTooltip = (point) => {
-            const scrollContainer = tooltip.parentElement;
-            const svgRect = svg.getBoundingClientRect();
-            if (!scrollContainer || !svgRect.width) return;
-
-            const containerRect = scrollContainer.getBoundingClientRect();
-            const pointContentX = scrollContainer.scrollLeft
-                + (svgRect.left - containerRect.left)
-                + (point.x / width) * svgRect.width;
-            const pointContentY = (svgRect.top - containerRect.top)
-                + (point.y / height) * svgRect.height;
-            const tooltipHalfWidth = Math.max(84, tooltip.offsetWidth / 2);
-            const tooltipHeight = tooltip.offsetHeight;
-            const edgePadding = 8;
-            const visibleMin = scrollContainer.scrollLeft + tooltipHalfWidth + edgePadding;
-            const visibleMax = scrollContainer.scrollLeft
-                + scrollContainer.clientWidth
-                - tooltipHalfWidth
-                - edgePadding;
-            const tooltipLeft = visibleMin <= visibleMax
-                ? Math.max(visibleMin, Math.min(visibleMax, pointContentX))
-                : scrollContainer.scrollLeft + scrollContainer.clientWidth / 2;
-
-            tooltip.style.left = `${tooltipLeft}px`;
-            tooltip.style.top = `${pointContentY}px`;
-            tooltip.classList.toggle(
-                'is-below',
-                pointContentY < tooltipHeight + edgePadding + 4
-            );
-        };
-
-        let activeIndex = points.length - 1;
-        const showPoint = (index) => {
-            activeIndex = Math.max(0, Math.min(points.length - 1, index));
-            const point = points[activeIndex];
-            crosshair.setAttribute('x1', point.x.toFixed(2));
-            crosshair.setAttribute('x2', point.x.toFixed(2));
-            marker.setAttribute('cx', point.x.toFixed(2));
-            marker.setAttribute('cy', point.y.toFixed(2));
-            crosshair.classList.remove('is-hidden');
-            marker.classList.remove('is-hidden');
-            tooltip.hidden = false;
-            tooltipDate.textContent = formatChartDate(point.date, true);
-            tooltipPrice.textContent = formatMoney(point.market);
-            tooltipChange.textContent = Number.isFinite(point.dailyPercent)
-                ? `${formatPercent(point.dailyPercent)} vs. prior day`
-                : 'First point in range';
-            tooltipChange.className = Number.isFinite(point.dailyPercent)
-                ? (point.dailyPercent > 0 ? 'is-positive' : point.dailyPercent < 0 ? 'is-negative' : '')
-                : '';
-            hitArea.setAttribute('aria-valuenow', String(activeIndex + 1));
-            hitArea.setAttribute(
-                'aria-valuetext',
-                `${formatChartDate(point.date, true)}, ${formatMoney(point.market)}, ${tooltipChange.textContent}`
-            );
-            positionTooltip(point);
-        };
-        const hidePoint = () => {
-            crosshair.classList.add('is-hidden');
-            marker.classList.add('is-hidden');
-            tooltip.hidden = true;
-        };
-        const showNearestPointer = (event) => {
-            const rect = svg.getBoundingClientRect();
-            if (!rect.width) return;
-            const svgX = ((event.clientX - rect.left) / rect.width) * width;
-            let closestIndex = 0;
-            points.forEach((point, index) => {
-                if (Math.abs(point.x - svgX) < Math.abs(points[closestIndex].x - svgX)) {
-                    closestIndex = index;
-                }
-            });
-            showPoint(closestIndex);
-        };
-        hitArea.addEventListener('pointermove', showNearestPointer);
-        hitArea.addEventListener('pointerdown', showNearestPointer);
-        hitArea.addEventListener('pointerleave', (event) => {
-            if (event.pointerType !== 'touch') hidePoint();
-        });
-        hitArea.addEventListener('focus', () => showPoint(activeIndex));
-        hitArea.addEventListener('blur', hidePoint);
-        hitArea.addEventListener('keydown', (event) => {
-            if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-            event.preventDefault();
-            showPoint(activeIndex + (event.key === 'ArrowRight' ? 1 : -1));
-        });
-
-        const fragment = document.createDocumentFragment();
-        fragment.append(svg, tooltip);
-        return fragment;
+        return historyChart.formatDate(date, long);
     }
 
     function trendForRange(payload, days) {
@@ -785,7 +488,13 @@
             }))
             .filter((item) => item.rows.length > 1);
         const chartWrap = createElement('div', { className: 'pv-priceHistory__chartWrap' });
-        chartWrap.append(buildChartElement(rows, activeSeries, !comparisonMode));
+        chartWrap.append(historyChart.build({
+            rows,
+            series: activeSeries,
+            showArea: !comparisonMode,
+            selectedVariant,
+            getVariantColor,
+        }));
         const footer = createElement('div', { className: 'pv-priceHistory__footer' });
         footer.append(createElement('span', {
             text: latest ? `Data through ${formatChartDate(latest.date)} · Market price shown` : 'Market price shown',
@@ -827,8 +536,6 @@
         requestInFlight = true;
         renderLoading();
         try {
-            const token = window?.PV_AUTH?.getIdToken ? await window.PV_AUTH.getIdToken(false) : null;
-            if (!token) throw new Error('Please sign in again to view price history.');
             const variant = String(requestedVariant || selectedVariant || pickDefaultVariant(currentCard))
                 .trim()
                 .toLowerCase();
@@ -836,22 +543,14 @@
             const primaryPayload = loadedPayload;
             if (!addToComparison) selectedVariant = variant;
             const cardId = String(currentCard?.id || '').trim();
-            const url = `${getWorkerBase()}/cards/${encodeURIComponent(cardId)}/scrydex-price-history?variant=${encodeURIComponent(variant)}&condition=${CONDITION}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: { Authorization: `Bearer ${token}` },
-                cache: 'no-store',
+            const payload = await historyService.fetchHistory({
+                auth: window.PV_AUTH,
+                fetchImpl: window.fetch.bind(window),
+                workerBase: getWorkerBase(),
+                cardId,
+                variant,
+                condition: CONDITION,
             });
-            const text = await response.text();
-            let payload = null;
-            try { payload = JSON.parse(text); } catch { /* handled below */ }
-            if (!response.ok || !payload || payload.ok === false) {
-                let message = payload?.error || payload?.message || `Price history request failed (${response.status}).`;
-                if (response.status === 401) message = 'Please sign in again to view price history.';
-                if (response.status === 403) message = 'A Premium subscription is required to view NM price history.';
-                if (response.status === 429) message = 'NM price history has reached its daily refresh limit. Please try again later.';
-                throw new Error(String(message));
-            }
             if (payload?.meta?.enabled === false) {
                 renderUnavailable('NM price history is currently disabled.');
                 return;
