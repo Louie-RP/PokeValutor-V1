@@ -481,6 +481,17 @@
     scrollTopBtn.addEventListener('click', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
+
+    const footer = document.getElementById('pv-footer');
+    if (footer && 'IntersectionObserver' in window) {
+      const footerObserver = new IntersectionObserver((entries) => {
+        const footerIsVisible = entries.some((entry) => entry.isIntersecting);
+        scrollTopBtn.classList.toggle('is-over-footer', footerIsVisible);
+        scrollTopBtn.setAttribute('aria-hidden', String(footerIsVisible));
+        scrollTopBtn.tabIndex = footerIsVisible ? -1 : 0;
+      });
+      footerObserver.observe(footer);
+    }
   }
 
   // Contact form handler (Formspree)
@@ -888,6 +899,102 @@
   async function renderTrendingCards() {
     if (!trendingGrid) return;
 
+    function createTrendingMessage(message) {
+      const article = document.createElement('article');
+      article.className = 'pv-miniCard';
+
+      const text = document.createElement('p');
+      text.className = 'pv-miniCard__meta';
+      text.textContent = String(message || '');
+      article.append(text);
+
+      trendingGrid.replaceChildren(article);
+    }
+
+    function getSafeTrendingImageUrl(value, fallbackLabel) {
+      const fallback = svgLogoDataUri(fallbackLabel);
+      const candidate = String(value || '').trim();
+      if (!candidate) return fallback;
+
+      if (candidate.startsWith('data:image/')) return candidate;
+
+      try {
+        const parsed = new URL(candidate, window.location.href);
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') return parsed.href;
+      } catch {
+        // Use the generated image fallback.
+      }
+      return fallback;
+    }
+
+    function createTrendingCard(row) {
+      const delta = Number(row.delta);
+      const hasDelta = Number.isFinite(delta);
+      let deltaModifier = 'pv-miniCard__delta--flat';
+      let deltaText = 'New';
+
+      if (hasDelta && delta > 0.009) {
+        deltaModifier = 'pv-miniCard__delta--up';
+        deltaText = `+${formatUsd(delta)}`;
+      } else if (hasDelta && delta < -0.009) {
+        deltaModifier = 'pv-miniCard__delta--down';
+        deltaText = formatUsd(delta);
+      } else if (hasDelta) {
+        deltaText = 'Flat';
+      }
+
+      const article = document.createElement('article');
+      article.className = 'pv-miniCard pv-trendingCard';
+
+      const link = document.createElement('a');
+      link.className = 'pv-trendingCard__link';
+      link.href = String(row.href || 'search.html');
+      link.setAttribute('aria-label', `Open ${String(row.name || 'card')}`);
+
+      const image = document.createElement('img');
+      image.className = 'pv-miniCard__thumb';
+      image.src = getSafeTrendingImageUrl(row.image, row.name || 'Card');
+      image.alt = String(row.name || 'Card');
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.referrerPolicy = 'no-referrer';
+
+      const details = document.createElement('div');
+      details.className = 'pv-trendingCard__details';
+
+      const title = document.createElement('p');
+      title.className = 'pv-miniCard__title';
+      title.textContent = String(row.name || 'Unknown card');
+
+      const setName = document.createElement('p');
+      setName.className = 'pv-miniCard__meta';
+      setName.textContent = String(row.setName || 'Unknown set');
+      details.append(title, setName);
+
+      if (Number.isFinite(row.prevMarket)) {
+        const previous = document.createElement('p');
+        previous.className = 'pv-trendingCard__previous';
+        previous.textContent = `Previous ${formatUsd(row.prevMarket)}`;
+        details.append(previous);
+      }
+
+      const market = document.createElement('div');
+      market.className = 'pv-trendingCard__market';
+
+      const price = document.createElement('strong');
+      price.className = 'pv-trendingCard__price';
+      price.textContent = Number.isFinite(row.market) ? formatUsd(row.market) : 'Unavailable';
+
+      const badge = document.createElement('span');
+      badge.className = `pv-miniCard__delta ${deltaModifier}`;
+      badge.textContent = deltaText;
+      market.append(price, badge);
+
+      link.append(image, details, market);
+      article.append(link);
+      return article;
+    }
+
     const watchlist = readArrayStorage(HOME_CARD_WATCHLIST_KEY);
 
     /** @type {Map<string, any>} */
@@ -901,7 +1008,7 @@
 
     const candidates = Array.from(byId.values());
     if (!candidates.length) {
-      trendingGrid.innerHTML = '<article class="pv-miniCard"><p class="pv-miniCard__meta">Add cards to your watchlist to unlock movement tracking.</p></article>';
+      createTrendingMessage('Add cards to your watchlist to unlock movement tracking.');
       return;
     }
 
@@ -958,49 +1065,11 @@
       .sort((a, b) => Math.abs(Number(b?.delta || 0)) - Math.abs(Number(a?.delta || 0)));
 
     if (!rows.length) {
-      trendingGrid.innerHTML = '<article class="pv-miniCard"><p class="pv-miniCard__meta">Trending cards are temporarily unavailable.</p></article>';
+      createTrendingMessage('Trending cards are temporarily unavailable.');
       return;
     }
 
-    trendingGrid.innerHTML = rows.map((row) => {
-      const delta = Number(row.delta);
-      const hasDelta = Number.isFinite(delta);
-
-      let deltaClass = 'pv-miniCard__delta pv-miniCard__delta--flat';
-      let deltaText = 'New';
-      if (hasDelta) {
-        if (delta > 0.009) {
-          deltaClass = 'pv-miniCard__delta pv-miniCard__delta--up';
-          deltaText = `+${formatUsd(delta)}`;
-        } else if (delta < -0.009) {
-          deltaClass = 'pv-miniCard__delta pv-miniCard__delta--down';
-          deltaText = `${formatUsd(delta)}`;
-        } else {
-          deltaClass = 'pv-miniCard__delta pv-miniCard__delta--flat';
-          deltaText = 'Flat';
-        }
-      }
-
-      const marketLine = Number.isFinite(row.market)
-        ? `Now ${formatUsd(row.market)}${Number.isFinite(row.prevMarket) ? ` • Prev ${formatUsd(row.prevMarket)}` : ''}`
-        : 'Market currently unavailable';
-
-      return `
-        <article class="pv-miniCard">
-          <a href="${escapeText(row.href)}" aria-label="Open ${escapeText(row.name)}">
-            <div class="pv-miniCard__head">
-              <img class="pv-miniCard__thumb" src="${escapeText(row.image)}" alt="${escapeText(row.name)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
-              <div>
-                <p class="pv-miniCard__title">${escapeText(row.name)}</p>
-                <p class="pv-miniCard__meta">${escapeText(row.setName)}</p>
-              </div>
-              <span class="${deltaClass}">${escapeText(deltaText)}</span>
-            </div>
-          </a>
-          <p class="pv-miniCard__meta">${escapeText(marketLine)}</p>
-        </article>
-      `;
-    }).join('');
+    trendingGrid.replaceChildren(...rows.map(createTrendingCard));
   }
 
   function svgLogoDataUri(label) {

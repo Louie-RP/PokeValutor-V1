@@ -30,8 +30,8 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260727-trending-carousel-3" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260728-home-redesign-1" />
   <link rel="icon" href="PokeValuator.png" type="image/png">
   <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -118,25 +118,32 @@
       <h2 id="pv-audiencesTitle" class="pv-section__title">Built for quick checks</h2>
       <div class="pv-audienceGrid" role="list">
         <article class="pv-audienceCard" role="listitem" aria-labelledby="pv-collectors-title">
-          <h3 id="pv-collectors-title" class="pv-audienceCard__title">For Collectors</h3>
-          <ul class="pv-pointList">
-            <li>Track collection value.</li>
-            <li>Keep cards and sealed together.</li>
-            <li>Check master set progress in Dex.</li>
-          </ul>
-          <a class="pv-button pv-button--secondary" href="dex.html">Dex</a>
+          <span class="pv-audienceCard__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M4 7.5h6l1.5 2H20v9.5H4z"></path>
+              <path d="M4 7.5V5h5l1.5 2H20v2.5"></path>
+            </svg>
+          </span>
+          <div>
+            <h3 id="pv-collectors-title" class="pv-audienceCard__title">Unified Portfolio</h3>
+            <p class="pv-audienceCard__text">Track single cards and sealed product values in one place.</p>
+          </div>
         </article>
 
         <article class="pv-audienceCard" role="listitem" aria-labelledby="pv-vendors-title">
-          <h3 id="pv-vendors-title" class="pv-audienceCard__title">For Vendors</h3>
-          <ul class="pv-pointList">
-            <li>Compare variants faster.</li>
-            <li>Spot top cards by set.</li>
-            <li>Check sealed product values.</li>
-          </ul>
-          <a class="pv-button pv-button--secondary" href="search.html">Cards</a>
+          <span class="pv-audienceCard__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="m4 17 5-5 4 3 7-8"></path>
+              <path d="M15 7h5v5"></path>
+            </svg>
+          </span>
+          <div>
+            <h3 id="pv-vendors-title" class="pv-audienceCard__title">Market Intelligence</h3>
+            <p class="pv-audienceCard__text">Compare variants and spot top-performing cards faster.</p>
+          </div>
         </article>
       </div>
+      <a class="pv-inlineLink pv-audiences__link" href="search.html">Explore All Features <span aria-hidden="true">→</span></a>
     </section>
 
     <section id="pv-expansions" class="pv-section pv-expansions" aria-labelledby="pv-expansionsTitle">
@@ -203,6 +210,6 @@
   <script src="firebase-config.local.js" defer></script>
   <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
 
-  <script src="script.js?v=20260721-2" defer></script>
+  <script src="script.js?v=20260728-home-redesign-1" defer></script>
 </body>
 </html>
