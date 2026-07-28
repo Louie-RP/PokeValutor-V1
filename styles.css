@@ -43,11 +43,7 @@ html {
 }
 body {
   margin: 0;
-  /* Glossy black background: subtle radial sheen + vertical gradient */
   background-color: var(--pv-bg);
-  background-image:
-    radial-gradient(ellipse at 20% -10%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 35%),
-    linear-gradient(180deg, #0a0a0a 0%, #000000 40%, #0a0a0a 100%);
   color: var(--pv-text);
   line-height: 1.6;
   min-height: 100vh;
@@ -2749,16 +2745,36 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 .pv-cardDetail {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(260px, 38%) minmax(0, 62%);
+  align-items: start;
+  gap: 1.25rem;
   margin-bottom: 1.25rem;
 }
 
+#pv-card-body .container {
+  max-width: 1200px;
+}
+
+/* Inner card-page sections share the card detail's full content width.
+   The outer container already supplies the page gutter. */
+.pv-cardPageContent > .pv-section {
+  width: 100%;
+  max-width: none;
+  margin: clamp(2.25rem, 5vw, 3rem) 0;
+  padding-inline: 0;
+}
+
 .pv-cardDetail__mediaWrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
   border: 1px solid var(--pv-border);
   border-radius: 12px;
   background: #0a0a0a;
   overflow: hidden;
+  color: inherit;
+  cursor: zoom-in;
 }
 
 .pv-cardDetail__image {
@@ -2772,6 +2788,18 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   border-radius: 12px;
   background: var(--pv-surface-2);
   padding: 0.95rem;
+}
+
+.pv-cardDetail__imageHint {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.76);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .pv-cardDetail__meta {
@@ -2791,6 +2819,36 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin: 0;
   color: var(--pv-text);
   font-weight: 700;
+}
+
+.pv-cardDetail__market {
+  padding: 0.65rem;
+  border: 1px solid rgba(255, 203, 5, 0.25);
+  border-radius: 9px;
+  background: rgba(255, 203, 5, 0.08);
+}
+
+.pv-cardDetail__market dd {
+  color: var(--pv-primary);
+  font-size: 1.2rem;
+}
+
+.pv-cardDetail__marketLink {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.45rem;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-underline-offset: 0.2rem;
+}
+
+.pv-cardDetail__marketLink[hidden] {
+  display: none;
+}
+
+.pv-cardPricing {
+  scroll-margin-top: 1rem;
 }
 
 .pv-cardDetail__actions {
@@ -2819,7 +2877,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 .pv-cardTable {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   border: 1px solid var(--pv-border);
   background: #0a0a0a;
   border-radius: 12px;
@@ -2829,9 +2888,140 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 .pv-cardTable th,
 .pv-cardTable td {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.6rem 0.7rem;
+  padding: 0.58rem 0.8rem;
   text-align: left;
   white-space: nowrap;
+}
+
+.pv-cardTable thead th {
+  background: #161616;
+  color: #f8fafc;
+  font-weight: 800;
+}
+
+.pv-cardTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.pv-cardTable tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+@media (min-width: 641px) {
+  .pv-cardPricing .pv-cardTable {
+    table-layout: fixed;
+  }
+
+  .pv-cardPricing .pv-cardTable th:first-child,
+  .pv-cardPricing .pv-cardTable td:first-child {
+    width: 32%;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pv-cardPricing .pv-cardTable th:not(:first-child),
+  .pv-cardPricing .pv-cardTable td:not(:first-child) {
+    width: 17%;
+  }
+}
+
+.pv-variantName {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pv-variantName:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--pv-focus, #ffd54a);
+  outline-offset: 2px;
+}
+
+.pv-variantNameTooltip {
+  position: fixed;
+  z-index: 100;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 1rem));
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(255, 213, 74, 0.55);
+  border-radius: 8px;
+  background: #181818;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  color: #f8fafc;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  pointer-events: none;
+}
+
+.pv-variantNameTooltip[hidden] {
+  display: none;
+}
+
+.pv-cardTable th:not(:first-child),
+.pv-cardTable td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-cardImageModal {
+  width: min(92vw, 720px);
+  max-height: 94vh;
+  padding: 3rem 1rem 1rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 16px;
+  background: #080808;
+  color: #fff;
+}
+
+.pv-cardImageModal::backdrop {
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(5px);
+}
+
+.pv-cardImageModal__close {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  background: #171717;
+  color: #fff;
+  cursor: pointer;
+}
+
+.pv-cardImageModal__image {
+  display: block;
+  width: 100%;
+  max-height: calc(94vh - 4rem);
+  object-fit: contain;
+}
+
+#pv-card-related-grid {
+  display: flex;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.pv-relatedCardItem {
+  flex: 0 0 170px;
+  min-width: 170px;
+  scroll-snap-align: start;
 }
 
 .pv-cardTable th {
@@ -2863,6 +3053,210 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   height: 100%;
   max-width: 170px;
   margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+  #pv-card-body {
+    padding-bottom: 4.5rem;
+  }
+
+  #pv-card-body #pv-scroll-top {
+    bottom: 5rem;
+  }
+
+  #pv-card-hero {
+    padding-top: 0.75rem;
+    padding-bottom: 0.25rem;
+  }
+
+  #pv-card-hero .pv-backLink {
+    font-size: 0.82rem;
+  }
+
+  #pv-card-hero .pv-hero__title {
+    margin-top: 0.45rem;
+    margin-bottom: 0.2rem;
+    font-size: clamp(1.55rem, 7vw, 2rem);
+    line-height: 1.1;
+  }
+
+  #pv-card-hero .pv-hero__subtitle {
+    margin-bottom: 0;
+    font-size: 0.88rem;
+  }
+
+  #pv-card-hero .pv-cardDetail__actions {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0.55rem max(0.75rem, env(safe-area-inset-right)) calc(0.55rem + env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(8, 8, 8, 0.94);
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+  }
+
+  #pv-card-hero .pv-cardDetail__actions .pv-button {
+    min-height: 2.6rem;
+    padding: 0.55rem 0.8rem;
+  }
+
+  #pv-card-share-status:empty {
+    display: none;
+  }
+
+  .pv-cardPageContent {
+    padding-inline: 0.75rem;
+  }
+
+  .pv-cardDetail {
+    grid-template-columns: minmax(104px, 34vw) minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+
+  .pv-cardDetail__mediaWrap {
+    align-self: start;
+  }
+
+  .pv-cardDetail__imageHint {
+    right: 0.3rem;
+    bottom: 0.3rem;
+    padding: 0.2rem 0.35rem;
+    font-size: 0.6rem;
+  }
+
+  .pv-cardDetail__content {
+    display: contents;
+  }
+
+  .pv-cardDetail__meta {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: 1fr;
+    align-self: stretch;
+    gap: 0.48rem;
+    padding: 0.7rem;
+    border: 1px solid var(--pv-border);
+    border-radius: 12px;
+    background: var(--pv-surface-2);
+  }
+
+  .pv-cardDetail__meta > div:nth-child(5) {
+    display: none;
+  }
+
+  .pv-cardDetail__meta > div:nth-child(1) { order: 1; }
+  .pv-cardDetail__meta > div:nth-child(2) { order: 2; }
+  .pv-cardDetail__meta > div:nth-child(4) { order: 3; }
+  .pv-cardDetail__meta > div:nth-child(3) { order: 4; }
+
+  .pv-cardDetail__meta dt {
+    margin-bottom: 0.08rem;
+    font-size: 0.7rem;
+  }
+
+  .pv-cardDetail__meta dd {
+    font-size: 0.86rem;
+    line-height: 1.2;
+  }
+
+  .pv-cardDetail__market {
+    padding: 0.48rem;
+  }
+
+  .pv-cardDetail__market dd {
+    font-size: 1.08rem;
+  }
+
+  .pv-cardPageContent > .pv-section {
+    margin-block: 1.65rem;
+  }
+
+  .pv-cardPricing .pv-tableWrap {
+    position: relative;
+    margin-inline: -0.15rem;
+    padding-inline: 0.15rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .pv-cardPricing {
+    margin-top: 1.2rem !important;
+    margin-bottom: 1.35rem !important;
+  }
+
+  .pv-cardPricing .pv-section__title {
+    margin-bottom: 0.5rem;
+  }
+
+  .pv-cardPricing .pv-cardTable {
+    min-width: 590px;
+    table-layout: fixed;
+  }
+
+  .pv-cardPricing .pv-cardTable th,
+  .pv-cardPricing .pv-cardTable td {
+    padding: 0.48rem 0.62rem;
+    font-size: 0.8rem;
+  }
+
+  .pv-cardPricing .pv-cardTable th:first-child,
+  .pv-cardPricing .pv-cardTable td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pv-cardPricing .pv-cardTable th:first-child {
+    z-index: 2;
+    background: #161616;
+  }
+
+  .pv-cardPricing .pv-cardTable td:first-child {
+    background: #0a0a0a;
+    box-shadow: 8px 0 14px -12px rgba(255, 255, 255, 0.65);
+  }
+
+  .pv-cardPricing .pv-cardTable th:not(:first-child),
+  .pv-cardPricing .pv-cardTable td:not(:first-child) {
+    width: 100px;
+  }
+
+  .pv-cardPricing .pv-cardTable tbody tr:hover td:first-child {
+    background: #0d0d0d;
+  }
+
+  #pv-card-related-grid {
+    display: flex;
+    gap: 0.75rem;
+    margin-inline: -0.75rem;
+    padding: 0.1rem 0.75rem 0.75rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+  }
+
+  .pv-relatedCardItem {
+    flex: 0 0 145px;
+    scroll-snap-align: start;
+  }
+
+  .pv-relatedCard {
+    max-width: none;
+    margin: 0;
+  }
 }
 
 .pv-relatedCard__img {
@@ -6508,14 +6902,6 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 @media (max-width: 575.98px) {
   .pv-setFilterRow {
-    grid-template-columns: 1fr;
-  }
-
-  .pv-cardDetail {
-    grid-template-columns: 1fr;
-  }
-
-  .pv-cardDetail__meta {
     grid-template-columns: 1fr;
   }
 

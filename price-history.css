@@ -1,0 +1,539 @@
+/* Isolated styles for the NM Price History feature. */
+.pv-priceHistory {
+    --pv-history-trend: #e5e7eb;
+    --pv-history-trend-soft: rgba(229, 231, 235, 0.32);
+    position: relative;
+    display: grid;
+    gap: 0.85rem;
+    min-height: 18rem;
+    padding: clamp(0.9rem, 2.4vw, 1.35rem);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 1rem;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.035), rgba(0, 0, 0, 0.2));
+    color: var(--pv-text, #e5e7eb);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+    overflow: hidden;
+}
+
+.pv-priceHistory.is-positive {
+    --pv-history-trend: #34d399;
+    --pv-history-trend-soft: rgba(52, 211, 153, 0.3);
+}
+
+.pv-priceHistory.is-negative {
+    --pv-history-trend: #fb7185;
+    --pv-history-trend-soft: rgba(251, 113, 133, 0.3);
+}
+
+.pv-priceHistory--prompt {
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+}
+
+.pv-priceHistory__promptCopy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.pv-priceHistory__promptCopy strong {
+    color: #fff;
+    font-size: 0.95rem;
+}
+
+.pv-priceHistory__promptCopy span {
+    color: var(--pv-muted, #cbd5e1);
+    font-size: 0.8rem;
+}
+
+.pv-priceHistory--prompt .pv-button {
+    flex: 0 0 auto;
+    min-width: 13rem;
+}
+
+.pv-priceHistory__promptStatus:empty {
+    display: none;
+}
+
+.pv-priceHistory__controls,
+.pv-priceHistory__toolbar,
+.pv-priceHistory__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.pv-priceHistory__toolbar {
+    align-items: flex-end;
+}
+
+.pv-priceHistory__condition {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.pv-priceHistory__condition span,
+.pv-priceHistory__selectorLabel {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--pv-muted, #cbd5e1);
+}
+
+.pv-priceHistory__selectorRow {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
+.pv-priceHistory__controls--ready {
+    display: block;
+}
+
+.pv-priceHistory__controls--ready .pv-priceHistory__variantSelect {
+    box-sizing: border-box;
+    width: min(18rem, 45vw);
+    min-width: 0;
+}
+
+.pv-priceHistory__variantSelect {
+    min-height: 2.35rem;
+    padding: 0.42rem 2rem 0.42rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.07);
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pv-priceHistory__variantSelect option {
+    background: #111827;
+    color: #f8fafc;
+}
+
+.pv-priceHistory__conditionPill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.35rem;
+    padding: 0.42rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    color: var(--pv-muted, #cbd5e1);
+    background: rgba(255, 255, 255, 0.035);
+    font-size: 0.88rem;
+    font-weight: 650;
+}
+
+.pv-priceHistory__variantChips {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.1rem 0 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.pv-priceHistory__variantChip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.42rem;
+    min-height: 2.2rem;
+    padding: 0.4rem 0.72rem;
+    border: 1px solid color-mix(in srgb, var(--pv-chip-color) 45%, transparent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--pv-muted, #cbd5e1);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 750;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.pv-priceHistory__variantChip.is-active {
+    border-color: var(--pv-chip-color);
+    background: var(--pv-chip-soft);
+    color: #fff;
+    opacity: 1;
+}
+
+.pv-priceHistory__variantChipDot {
+    width: 0.58rem;
+    height: 0.58rem;
+    border-radius: 50%;
+    background: var(--pv-chip-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--pv-chip-color) 20%, transparent);
+}
+
+.pv-priceHistory__variantChip:focus-visible {
+    outline: 3px solid var(--pv-focus, #ffd54a);
+    outline-offset: 2px;
+}
+
+.pv-priceHistory__summary {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.pv-priceHistory__currentPrice {
+    font-size: clamp(1.5rem, 4vw, 2.4rem);
+    line-height: 1;
+}
+
+.pv-priceHistory__trend {
+    font-weight: 700;
+}
+
+.pv-priceHistory__trend.is-positive { color: #7fe39a; }
+.pv-priceHistory__trend.is-negative { color: #ff9b9b; }
+
+.pv-priceHistory__metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.pv-priceHistory__metric {
+    padding: 0.7rem 0.85rem;
+}
+
+.pv-priceHistory__metric + .pv-priceHistory__metric {
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pv-priceHistory__metric dt {
+    color: var(--pv-muted, #cbd5e1);
+    font-size: 0.74rem;
+    font-weight: 650;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+.pv-priceHistory__metric dd {
+    margin: 0.18rem 0 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.pv-priceHistory__ranges {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.pv-priceHistory__ranges button {
+    min-width: 3rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.pv-priceHistory__ranges button[aria-pressed="true"] {
+    border-color: var(--pv-history-trend);
+    background: var(--pv-history-trend-soft);
+    font-weight: 800;
+}
+
+.pv-priceHistory__ranges button:focus-visible,
+.pv-priceHistory__variantSelect:focus-visible,
+.pv-priceHistory__hitArea:focus-visible {
+    outline: 3px solid var(--pv-focus, #ffd54a);
+    outline-offset: 2px;
+}
+
+.pv-priceHistory__ranges button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.pv-priceHistory__chartWrap {
+    position: relative;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.pv-priceHistory__chart {
+    display: block;
+    width: 100%;
+    min-width: 34rem;
+    height: auto;
+}
+
+.pv-priceHistory__grid,
+.pv-priceHistory__gridLine {
+    fill: none;
+    stroke: currentColor;
+    stroke-opacity: 0.12;
+    stroke-width: 1;
+}
+
+.pv-priceHistory__line {
+    fill: none;
+    stroke: var(--pv-history-trend);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pv-priceHistory__area {
+    fill: url("#pv-price-history-area-gradient");
+}
+
+.pv-priceHistory__areaStopTop {
+    stop-color: var(--pv-history-trend);
+    stop-opacity: 0.28;
+}
+
+.pv-priceHistory__areaStopBottom {
+    stop-color: var(--pv-history-trend);
+    stop-opacity: 0;
+}
+
+.pv-priceHistory__axisLabel {
+    fill: #cbd5e1;
+    opacity: 1;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.pv-priceHistory__crosshair {
+    stroke: rgba(255, 255, 255, 0.68);
+    stroke-width: 1;
+    stroke-dasharray: 4 4;
+    pointer-events: none;
+}
+
+.pv-priceHistory__marker {
+    fill: #0a0a0a;
+    stroke: var(--pv-history-trend);
+    stroke-width: 3;
+    pointer-events: none;
+}
+
+.pv-priceHistory__crosshair.is-hidden,
+.pv-priceHistory__marker.is-hidden {
+    visibility: hidden;
+}
+
+.pv-priceHistory__hitArea {
+    fill: transparent;
+    cursor: crosshair;
+    touch-action: pan-y;
+}
+
+.pv-priceHistory__tooltip {
+    position: absolute;
+    z-index: 2;
+    display: grid;
+    gap: 0.12rem;
+    min-width: 10.5rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.6rem;
+    background: rgba(10, 10, 10, 0.94);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    color: #f8fafc;
+    font-size: 0.78rem;
+    pointer-events: none;
+    transform: translate(-50%, -112%);
+}
+
+.pv-priceHistory__tooltip.is-below {
+    transform: translate(-50%, 12px);
+}
+
+.pv-priceHistory__tooltip[hidden] {
+    display: none;
+}
+
+.pv-priceHistory__tooltip > span:first-of-type {
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.pv-priceHistory__tooltip .is-positive { color: #7fe39a; }
+.pv-priceHistory__tooltip .is-negative { color: #ff9b9b; }
+
+.pv-priceHistory__footer {
+    color: var(--pv-muted, #cbd5e1);
+    font-size: 0.8rem;
+}
+
+.pv-priceHistoryLocal {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.pv-priceHistoryLocal h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+}
+
+.pv-priceHistoryLocal__note {
+    margin: 0 0 1rem;
+    color: var(--pv-muted, #cbd5e1);
+}
+
+.pv-priceHistoryLocal .pv-tableWrap {
+    margin-top: 1rem;
+}
+
+.pv-priceHistory--locked {
+    min-height: 16rem;
+}
+
+.pv-priceHistory__preview {
+    filter: blur(7px);
+    opacity: 0.45;
+    user-select: none;
+    pointer-events: none;
+}
+
+.pv-priceHistory__fakePrice {
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.pv-priceHistory__lockOverlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.6rem;
+    padding: 1.5rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(2px);
+}
+
+.pv-priceHistory__lockOverlay h3,
+.pv-priceHistory__lockOverlay p {
+    margin: 0;
+}
+
+.pv-priceHistory__lockIcon {
+    font-size: 2rem;
+}
+
+.pv-priceHistory--error {
+    min-height: auto;
+}
+
+@media (max-width: 640px) {
+    .pv-priceHistory {
+        padding: 0.8rem;
+    }
+
+    .pv-priceHistory__toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .pv-priceHistory--locked {
+        min-height: 14rem;
+    }
+
+    .pv-priceHistory__ranges {
+        width: 100%;
+    }
+
+    .pv-priceHistory__ranges button {
+        flex: 1;
+    }
+
+    .pv-priceHistory__selectorRow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(7.5rem, auto);
+        gap: 0.75rem;
+        width: 100%;
+    }
+
+    .pv-priceHistory__variantSelect,
+    .pv-priceHistory__conditionPill {
+        box-sizing: border-box;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .pv-priceHistory__controls--ready .pv-priceHistory__variantSelect {
+        min-width: 0;
+    }
+
+    .pv-priceHistory__conditionPill {
+        justify-content: center;
+    }
+
+    .pv-priceHistory--prompt {
+        display: grid;
+        gap: 0.7rem;
+        padding: 0.8rem;
+    }
+
+    .pv-priceHistory--prompt .pv-button {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .pv-priceHistory__metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .pv-priceHistory__metric + .pv-priceHistory__metric {
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .pv-priceHistory__metric {
+        min-width: 0;
+        padding: 0.6rem 0.45rem;
+        text-align: center;
+    }
+
+    .pv-priceHistory__metric dt {
+        font-size: clamp(0.62rem, 2.6vw, 0.72rem);
+        white-space: nowrap;
+    }
+
+    .pv-priceHistory__metric dd {
+        font-size: clamp(0.86rem, 4vw, 1rem);
+    }
+
+    .pv-priceHistory__chartWrap,
+    .pv-priceHistory__chart {
+        min-height: 220px;
+    }
+}
+
+@media (max-width: 360px) {
+    .pv-priceHistory__selectorRow {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pv-priceHistory * {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}

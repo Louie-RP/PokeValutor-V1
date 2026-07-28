@@ -2,6 +2,7 @@
 secrets.js
 scrydex-worker.js
 firebase-config.local.js
+/worker.js
 
 # Credential/key files (never commit)
 serviceAccountKey.json
@@ -24,6 +25,10 @@ serviceAccountKey.json
 # Cloudflare Workers local secrets
 .dev.vars
 .wrangler/
+
+# Local test suites and verification harnesses
+/tests/
+/functions/scripts/test-price-history-xss.js
 
 # Node
 node_modules/
