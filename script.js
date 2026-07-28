@@ -811,12 +811,16 @@
   }
 
   function buildSearchLinkForCard(cardLike) {
-    const expansionId = String(cardLike?.expansion?.id || '').trim();
-    const expansionName = getCardSetName(cardLike);
-    if (expansionId) {
-      return `search.html?expansionId=${encodeURIComponent(expansionId)}&expansionName=${encodeURIComponent(expansionName)}`;
-    }
-    return 'search.html';
+    const cardId = String(cardLike?.id || '').trim();
+    if (!cardId) return 'search.html';
+
+    const params = new URLSearchParams();
+    params.set('cardId', cardId);
+
+    const cardName = String(cardLike?.name || '').trim();
+    if (cardName) params.set('cardName', cardName);
+
+    return `search.html?${params.toString()}`;
   }
 
   async function renderLatestSetSpotlights(expansions) {

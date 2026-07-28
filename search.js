@@ -5125,6 +5125,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    async function searchByCardId(cardId, cardName) {
+        activateDexSearchMode();
+        const id = String(cardId || '').trim();
+        const requestedName = String(cardName || '').trim();
+        if (!id) return;
+
+        resetDexSetBrowseState();
+        const base = getWorkerBase();
+        setStatus(`Loading ${requestedName || 'card'}...`);
+
+        if (grid) {
+            grid.textContent = '';
+            const col = document.createElement('div');
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
+            const skeleton = document.createElement('div');
+            skeleton.className = 'pv-card pv-skeleton';
+            skeleton.style.height = '260px';
+            col.appendChild(skeleton);
+            grid.appendChild(col);
+        }
+
+        try {
+            const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+            const data = await fetchJsonWithCache(url, CARD_TTL_MS);
+            const card = data?.data || data;
+            if (!card || typeof card !== 'object' || !String(card?.id || '').trim()) {
+                throw new Error('Card not found');
+            }
+
+            const cards = [card];
+            const resolvedName = getCardDisplayName(card) || requestedName || 'card';
+            const statusText = `Showing ${resolvedName}.`;
+            if (input) input.value = resolvedName;
+            renderCards(cards);
+            setStatus(statusText);
+            saveLastResults({
+                savedAt: Date.now(),
+                mode: 'card',
+                query: resolvedName,
+                cards,
+                statusText,
+                selections: (() => {
+                    const prev = loadLastResults();
+                    return (prev?.selections && typeof prev.selections === 'object') ? prev.selections : {};
+                })(),
+            });
+        } catch (e) {
+            console.warn('[PokeValutor] card deep-link error', e);
+            renderCards([]);
+            if (isQuotaExceededError(e)) {
+                setStatusAndHideIfQuotaError(e);
+            } else {
+                setStatus(`Unable to load ${requestedName || 'that card'}. Please try again.`);
+            }
+        }
+    }
+
     async function searchByNameInSet(expansionId, expansionName, seriesName, pokemonName) {
         activateDexSearchMode();
         const id = String(expansionId || '').trim();
@@ -6058,10 +6115,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let deepLinkExpansionId = '';
     let deepLinkExpansionName = '';
+    let deepLinkCardId = '';
+    let deepLinkCardName = '';
     try {
         const params = new URLSearchParams(window.location.search || '');
         deepLinkExpansionId = params.get('expansionId') || '';
         deepLinkExpansionName = params.get('expansionName') || '';
+        deepLinkCardId = params.get('cardId') || '';
+        deepLinkCardName = params.get('cardName') || '';
     } catch {
         // ignore
     }
@@ -6070,7 +6131,9 @@ document.addEventListener('DOMContentLoaded', function () {
         setResultsHeading('Search Results');
         setDexResultsContext('Search and add cards to your collection.');
 
-        if (deepLinkExpansionId) {
+        if (deepLinkCardId) {
+            void searchByCardId(deepLinkCardId, deepLinkCardName);
+        } else if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
         } else {
             clearResultsUI();
@@ -6088,6 +6151,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     : { ...restored, cards: restoredCards };
 
                 if (restored.mode === 'name' && input) input.value = String(restored.query || '');
+                if (restored.mode === 'card' && input) input.value = String(restored.query || '');
                 if (restored.mode === 'number' && input) input.value = String(restored.query || '');
                 if (restored.mode === 'setName' && input) input.value = String(restored.query || '');
                 if (restored.mode === 'set' && restored.expansionId) {
@@ -6119,8 +6183,10 @@ document.addEventListener('DOMContentLoaded', function () {
             setStatus('Previous results cache was reset. Search again to continue.');
         }
 
-        // Deep-link support: /search.html?expansionId=...&expansionName=...
-        if (deepLinkExpansionId) {
+        // Deep-link support for an exact card or an expansion's top cards.
+        if (deepLinkCardId) {
+            void searchByCardId(deepLinkCardId, deepLinkCardName);
+        } else if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
         }
     }
