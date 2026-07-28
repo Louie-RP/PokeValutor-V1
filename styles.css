@@ -2063,11 +2063,15 @@ h1, h2, h3, h4, h5, h6,
     overflow-y: hidden;
     overscroll-behavior-inline: contain;
     scroll-snap-type: inline mandatory;
-    scroll-behavior: smooth;
     scrollbar-color: rgba(255, 203, 5, 0.62) rgba(255, 255, 255, 0.06);
     scrollbar-width: thin;
-    touch-action: pan-x pan-y;
     -webkit-overflow-scrolling: touch;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    #pv-trending-grid {
+      scroll-behavior: smooth;
+    }
   }
 
   #pv-trending-grid > .pv-miniCard {
