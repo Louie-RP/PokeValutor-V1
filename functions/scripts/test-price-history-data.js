@@ -22,8 +22,16 @@ assert.deepEqual(data.calculateMetrics(rows), {
     low: 10,
     average: 11.25,
 });
+assert.deepEqual(data.calculateMetrics([]), {
+    high: null,
+    low: null,
+    average: null,
+});
+assert.deepEqual(data.filterRowsForRange([], 1), []);
 assert.equal(data.filterRowsForRange(rows, 1).length, 1);
 assert.equal(data.parseScrydexDate('2026-02-30'), null);
+assert.equal(data.parseScrydexDate('2026-07-01').toISOString(), '2026-07-01T00:00:00.000Z');
+assert.equal(data.parseScrydexDate('2026/07/01').toISOString(), '2026-07-01T00:00:00.000Z');
 
 const storage = {
     getItem() {
@@ -38,5 +46,12 @@ assert.deepEqual(localHistory.getRows(storage, 'card', 'holofoil', 'NM'), [
     { ts: 3, market: 6 },
     { ts: 1, market: 2 },
 ]);
+for (const storedValue of ['null', '{}']) {
+    assert.deepEqual(localHistory.getRows({
+        getItem() {
+            return storedValue;
+        },
+    }, 'card', 'holofoil', 'NM'), []);
+}
 
 console.log('Price history data checks passed.');

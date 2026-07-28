@@ -49,4 +49,11 @@ const rendered = createElement('span', { text: hostileText });
 assert.equal(rendered.textContent, hostileText);
 assert.equal(rendered.innerHTML, undefined);
 
+const hostileAttributeValue = 'preview" onerror="alert(1)';
+const attributed = createElement('span', {
+    attributes: { title: hostileAttributeValue },
+});
+assert.equal(attributed.attributes.title, hostileAttributeValue);
+assert.equal(attributed.attributes.onerror, undefined);
+
 console.log('Price history XSS static check passed.');
