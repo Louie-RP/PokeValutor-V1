@@ -3,8 +3,7 @@
     if (typeof module === 'object' && module.exports) module.exports = api;
     if (root?.document) api.initializeCardBackLink(root);
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
-    function getBackLabel(pathname) {
-        void pathname;
+    function getBackLabel() {
         return 'Back to previous page';
     }
 
@@ -17,7 +16,7 @@
             if (previousUrl.href === currentUrl.href) return null;
             return {
                 href: previousUrl.href,
-                label: getBackLabel(previousUrl.pathname),
+                label: getBackLabel(),
             };
         } catch {
             return null;
