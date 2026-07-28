@@ -35,7 +35,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260601-mobile-scroll-1" />
+    <link rel="stylesheet" href="styles.css?v=20260726-mobile-variant-width-1" />
+    <link rel="stylesheet" href="price-history.css?v=20260727-local-history-1" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -66,9 +67,8 @@
 
     <main id="pv-card-main" class="pv-main" role="main">
         <section id="pv-card-hero" class="pv-hero container" aria-labelledby="pv-card-title">
-            <a class="pv-backLink" href="search.html">Back to card search</a>
+            <a id="pv-card-back-link" class="pv-backLink" href="search.html">Back to previous page</a>
             <h1 id="pv-card-title" class="pv-hero__title">Card Details</h1>
-            <p id="pv-card-subtitle" class="pv-hero__subtitle">Loading card details...</p>
             <div class="pv-cardDetail__actions" role="group" aria-label="Card actions">
                 <button id="pv-card-watch-toggle" class="pv-button pv-button--secondary btn" type="button" aria-pressed="false">Add to Watchlist</button>
                 <button id="pv-card-share" class="pv-button pv-button--primary btn pv-shareAction" type="button" aria-label="Share card link" title="Share card link">
@@ -81,25 +81,30 @@
             <p id="pv-card-share-status" class="pv-section__text" role="status" aria-live="polite"></p>
         </section>
 
-        <section class="pv-section container">
+        <section class="pv-section container pv-cardPageContent">
             <p id="pv-card-status" class="pv-section__text" role="status" aria-live="polite"></p>
 
             <article id="pv-card-detail" class="pv-cardDetail" hidden>
-                <div class="pv-cardDetail__mediaWrap">
+                <button id="pv-card-image-open" class="pv-cardDetail__mediaWrap" type="button" aria-label="Open full-size card image">
                     <img id="pv-card-image" class="pv-cardDetail__image" alt="Pokemon card image" loading="lazy" />
-                </div>
+                    <span class="pv-cardDetail__imageHint" aria-hidden="true">Tap to enlarge</span>
+                </button>
                 <div class="pv-cardDetail__content">
-                    <h2 id="pv-card-name" class="pv-section__title">Card</h2>
                     <dl class="pv-cardDetail__meta">
-                        <div><dt>Set</dt><dd id="pv-card-set">n/a</dd></div>
-                        <div><dt>Number</dt><dd id="pv-card-number">n/a</dd></div>
+                        <div><dt>Card number</dt><dd id="pv-card-number">n/a</dd></div>
                         <div><dt>Rarity</dt><dd id="pv-card-rarity">n/a</dd></div>
+                        <div class="pv-cardDetail__market">
+                            <dt id="pv-card-market-label">NM market price</dt>
+                            <dd id="pv-card-market">n/a</dd>
+                            <a id="pv-card-market-link" class="pv-cardDetail__marketLink" href="#pv-card-pricing" hidden>View all variants ↓</a>
+                        </div>
+                        <div><dt>Set</dt><dd id="pv-card-set">n/a</dd></div>
                         <div><dt>Last updated</dt><dd id="pv-card-last-updated">n/a</dd></div>
                     </dl>
                 </div>
             </article>
 
-            <section class="pv-section" aria-labelledby="pv-card-pricing-title">
+            <section id="pv-card-pricing" class="pv-section pv-cardPricing" aria-labelledby="pv-card-pricing-title">
                 <h2 id="pv-card-pricing-title" class="pv-section__title">Variant Pricing</h2>
                 <div class="pv-tableWrap">
                     <table class="pv-cardTable" id="pv-card-pricing-table">
@@ -119,36 +124,9 @@
                 </div>
             </section>
 
-            <section class="pv-section" aria-labelledby="pv-card-history-title">
+            <section id="pv-price-history" class="pv-section" aria-labelledby="pv-card-history-title">
                 <h2 id="pv-card-history-title" class="pv-section__title">Price History</h2>
-                <p class="pv-section__text">History tracks observed market values from this browser as you revisit the page.</p>
-                <div class="pv-cardHistory__controls">
-                    <div class="pv-form__field">
-                        <label class="form-label" for="pv-history-variant">Variant</label>
-                        <select id="pv-history-variant" class="form-select"></select>
-                    </div>
-                    <div class="pv-form__field">
-                        <label class="form-label" for="pv-history-condition">Condition</label>
-                        <select id="pv-history-condition" class="form-select">
-                            <option value="NM">Near Mint (NM)</option>
-                            <option value="LP">Lightly Played (LP)</option>
-                            <option value="MP">Moderately Played (MP)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="pv-tableWrap">
-                    <table class="pv-cardTable" id="pv-card-history-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Timestamp</th>
-                                <th scope="col">Market</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pv-card-history-body">
-                            <tr><td colspan="2">No observed history yet.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+                <div id="pv-price-history-root"></div>
             </section>
 
             <section class="pv-section" aria-labelledby="pv-card-related-title">
@@ -156,12 +134,13 @@
                 <div id="pv-card-related-grid" class="row g-3" aria-live="polite"></div>
             </section>
 
-            <section class="pv-section" aria-labelledby="pv-card-disclaimer-title">
-                <h2 id="pv-card-disclaimer-title" class="pv-section__title">Pricing Disclaimer</h2>
-                <p class="pv-section__text">Pricing is informational only and may change rapidly. Verify values with your preferred marketplace before buying, selling, or trading.</p>
-            </section>
         </section>
     </main>
+
+    <dialog id="pv-card-image-modal" class="pv-cardImageModal" aria-label="Full-size card image">
+        <button id="pv-card-image-close" class="pv-cardImageModal__close" type="button" aria-label="Close full-size card image">Close</button>
+        <img id="pv-card-image-full" class="pv-cardImageModal__image" alt="" />
+    </dialog>
 
     <footer id="pv-card-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
@@ -187,7 +166,15 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
 
-    <script src="card.js?v=2026-05-10-1" defer></script>
+    <script src="feature-flags.js?v=20260724-1" defer></script>
+    <script src="card-navigation.js?v=20260726-2" defer></script>
+    <script src="pv-dom.js?v=20260728-1" defer></script>
+    <script src="price-history-data.js?v=20260728-1" defer></script>
+    <script src="price-history-local.js?v=20260728-1" defer></script>
+    <script src="price-history-service.js?v=20260728-1" defer></script>
+    <script src="price-history-chart.js?v=20260728-1" defer></script>
+    <script src="card.js?v=20260728-dom-utils-1" defer></script>
+    <script src="price-history.js?v=20260728-modules-1" defer></script>
 </body>
 
 </html>
