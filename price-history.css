@@ -376,6 +376,28 @@
     font-size: 0.8rem;
 }
 
+.pv-priceHistoryLocal {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.pv-priceHistoryLocal h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+}
+
+.pv-priceHistoryLocal__note {
+    margin: 0 0 1rem;
+    color: var(--pv-muted, #cbd5e1);
+}
+
+.pv-priceHistoryLocal .pv-tableWrap {
+    margin-top: 1rem;
+}
+
 .pv-priceHistory--locked {
     min-height: 16rem;
 }

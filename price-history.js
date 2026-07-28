@@ -6,6 +6,7 @@
 
     const FEATURE_NAME = 'priceHistory';
     const PREMIUM_ROLES = new Set(['premium', 'admin', 'tester']);
+    const LOCAL_HISTORY_PREFIX = 'pv:cardHistory:v1:';
     const DEFAULT_WORKER = 'https://pokevalutor-v1.lreyperez18.workers.dev';
     const CONDITION = 'NM';
     const RANGE_DAYS = [7, 30, 90];
@@ -160,6 +161,7 @@
     function renderLocked() {
         const root = getRoot();
         if (!root) return;
+        const localHistory = renderLocalHistory();
         const path = pointsToSvgPath(buildPreviewPoints(), 720, 260, 28);
         const container = createElement('div', {
             className: 'pv-priceHistory pv-priceHistory--locked',
@@ -209,9 +211,9 @@
                 text: '🔒',
                 attributes: { 'aria-hidden': 'true' },
             }),
-            createElement('h3', { text: 'Unlock Interactive Trend Charts with Premium' }),
+            createElement('h3', { text: 'See the full market trend with Premium' }),
             createElement('p', {
-                text: 'Explore 7-day, 30-day, and 90-day Near Mint trends in an interactive chart.',
+                text: 'Go beyond prices observed on this browser with continuous 7-day, 30-day, and 90-day Near Mint trends.',
             }),
             createElement('a', {
                 className: 'pv-button pv-button--primary btn',
@@ -220,7 +222,128 @@
             })
         );
         container.append(preview, overlay);
-        root.replaceChildren(container);
+        root.replaceChildren(localHistory, container);
+    }
+
+    function getLocalHistoryRows(cardId, variantName, conditionCode) {
+        const key = `${LOCAL_HISTORY_PREFIX}${cardId}:${variantName}:${conditionCode}`;
+        try {
+            const rows = JSON.parse(localStorage.getItem(key) || '[]');
+            return (Array.isArray(rows) ? rows : [])
+                .filter((row) => (
+                    row
+                    && Number.isFinite(Number(row.ts))
+                    && Number.isFinite(Number(row.market))
+                ))
+                .sort((a, b) => Number(b.ts) - Number(a.ts))
+                .slice(0, 10);
+        } catch {
+            return [];
+        }
+    }
+
+    function renderLocalHistory() {
+        const panel = createElement('div', { className: 'pv-priceHistoryLocal' });
+        panel.append(
+            createElement('h3', { text: 'Observed on this browser' }),
+            createElement('p', {
+                className: 'pv-priceHistoryLocal__note',
+                text: 'These snapshots are recorded when you visit this card. They stay on this device.',
+            })
+        );
+
+        const controls = createElement('div', { className: 'pv-cardHistory__controls' });
+        const variantField = createElement('div', { className: 'pv-form__field' });
+        const variantSelect = createElement('select', {
+            className: 'form-select',
+            attributes: { 'aria-label': 'Locally observed price variant' },
+        });
+        const variants = getCardVariants(currentCard);
+        variants.forEach((variant) => {
+            const option = createElement('option', { text: formatVariant(variant) });
+            option.value = variant;
+            variantSelect.append(option);
+        });
+        if (!variants.length) {
+            variantSelect.append(createElement('option', {
+                text: 'No variants',
+                attributes: { value: '' },
+            }));
+        }
+        variantField.append(
+            createElement('label', { className: 'form-label', text: 'Variant' }),
+            variantSelect
+        );
+
+        const conditionField = createElement('div', { className: 'pv-form__field' });
+        const conditionSelect = createElement('select', {
+            className: 'form-select',
+            attributes: { 'aria-label': 'Locally observed price condition' },
+        });
+        [
+            ['NM', 'Near Mint (NM)'],
+            ['LP', 'Lightly Played (LP)'],
+            ['MP', 'Moderately Played (MP)'],
+        ].forEach(([value, label]) => {
+            const option = createElement('option', { text: label });
+            option.value = value;
+            conditionSelect.append(option);
+        });
+        conditionField.append(
+            createElement('label', { className: 'form-label', text: 'Condition' }),
+            conditionSelect
+        );
+        controls.append(variantField, conditionField);
+
+        const tableWrap = createElement('div', { className: 'pv-tableWrap' });
+        const table = createElement('table', { className: 'pv-cardTable' });
+        const head = createElement('thead');
+        const headRow = createElement('tr');
+        headRow.append(
+            createElement('th', { text: 'Observed', attributes: { scope: 'col' } }),
+            createElement('th', { text: 'Market', attributes: { scope: 'col' } })
+        );
+        head.append(headRow);
+        const body = createElement('tbody');
+        table.append(head, body);
+        tableWrap.append(table);
+
+        const updateRows = () => {
+            const rows = getLocalHistoryRows(
+                String(currentCard?.id || ''),
+                String(variantSelect.value || ''),
+                String(conditionSelect.value || 'NM')
+            );
+            if (!rows.length) {
+                const row = createElement('tr');
+                row.append(createElement('td', {
+                    text: 'No observed history yet for this selection.',
+                    attributes: { colspan: '2' },
+                }));
+                body.replaceChildren(row);
+                return;
+            }
+            body.replaceChildren(...rows.map((item) => {
+                const row = createElement('tr');
+                row.append(
+                    createElement('td', {
+                        text: new Date(Number(item.ts)).toLocaleString(),
+                    }),
+                    createElement('td', {
+                        text: Number(item.market).toLocaleString('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                        }),
+                    })
+                );
+                return row;
+            }));
+        };
+        variantSelect.addEventListener('change', updateRows);
+        conditionSelect.addEventListener('change', updateRows);
+        updateRows();
+        panel.append(controls, tableWrap);
+        return panel;
     }
 
     function renderPremiumReady() {
