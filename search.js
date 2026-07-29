@@ -1413,17 +1413,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 .catch(() => {
                     // keep later saves moving after a transient failure
                 })
-                .then(() => {
+                .then(async () => {
                     const payload = {
                         collection: loadDexCollection(),
                         masterSets: loadDexMasterSets(),
                         revision: readDexCloudRevision(),
                         updatedAt: readDexStateUpdatedAt() || Date.now(),
                     };
-                    return authApi.saveDexState(payload);
+                    const result = await authApi.saveDexState(payload);
+                    return { result, submittedUpdatedAt: payload.updatedAt };
                 })
-                .then((result) => {
-                    handleDexCloudSaveResult(result, user.uid);
+                .then(({ result, submittedUpdatedAt }) => {
+                    handleDexCloudSaveResult(result, user.uid, submittedUpdatedAt);
                 })
                 .catch(() => {
                     // ignore transient sync failures
@@ -1445,11 +1446,14 @@ document.addEventListener('DOMContentLoaded', function () {
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
     }
 
-    function handleDexCloudSaveResult(result, ownerUid) {
+    function handleDexCloudSaveResult(result, ownerUid, submittedUpdatedAt) {
         if (!result || typeof result !== 'object') return;
 
         if (result.saved) {
             writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= getDexUpdatedAt(submittedUpdatedAt)) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
             return;
         }
 
@@ -1649,8 +1653,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 dexCloudSyncHydrating = false;
 
                 if (mergedPayload && authApi?.saveDexState) {
-                    Promise.resolve(authApi.saveDexState(mergedPayload))
-                        .then((result) => handleDexCloudSaveResult(result, currentUid))
+                    dexCloudSyncPromise = dexCloudSyncPromise
+                        .catch(() => {
+                            // keep the restore save ordered after any earlier sync
+                        })
+                        .then(() => authApi.saveDexState(mergedPayload))
+                        .then((result) => handleDexCloudSaveResult(result, currentUid, mergedPayload.updatedAt))
                         .catch(() => {
                             // ignore
                         });

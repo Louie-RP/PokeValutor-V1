@@ -1056,6 +1056,46 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let sealedCollectionCloudSyncPromise = Promise.resolve();
 
+    function isMatchingSealedCloudEntry(item, id, collectionId) {
+        return normalizeCollectionItemType(item?.itemType) === 'sealed'
+            && safeString(item?.id, '').trim() === id
+            && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === collectionId;
+    }
+
+    function resolveNextSealedQuantity(currentCloudEntry, requestedQuantity, quantityDelta) {
+        const currentCloudQuantity = currentCloudEntry
+            ? normalizeSealedQuantity(currentCloudEntry?.quantity ?? currentCloudEntry?.sealedQuantity, 1)
+            : 0;
+        if (Number.isFinite(quantityDelta) && quantityDelta !== 0) {
+            return Math.max(0, currentCloudQuantity + quantityDelta);
+        }
+        return requestedQuantity;
+    }
+
+    function handleSealedCloudSyncResult(result, submittedUpdatedAt) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= submittedUpdatedAt) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
+            return;
+        }
+        if (!result.conflict) return;
+
+        writeDexCollection(Array.isArray(result.collection) ? result.collection : [], {
+            preserveUpdatedAt: true,
+        });
+        const masterSets = (result.masterSets && typeof result.masterSets === 'object')
+            ? result.masterSets
+            : {};
+        writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(masterSets));
+        writeDexCloudRevision(result.revision);
+        writeDexStateUpdatedAt(result.updatedAt);
+        setSealedCollectionStatus('A newer collection was found in cloud sync. This page was refreshed without overwriting it.');
+    }
+
     function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw, quantityDeltaRaw) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
@@ -1076,16 +1116,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
                 const currentCloudEntry = cloudCollection.find((item) => {
-                    return normalizeCollectionItemType(item?.itemType) === 'sealed'
-                        && safeString(item?.id, '').trim() === id
-                        && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
+                    return isMatchingSealedCloudEntry(item, id, activeCollectionId);
                 }) || null;
-                const currentCloudQuantity = currentCloudEntry
-                    ? normalizeSealedQuantity(currentCloudEntry?.quantity ?? currentCloudEntry?.sealedQuantity, 1)
-                    : 0;
-                const nextQuantity = Number.isFinite(quantityDelta) && quantityDelta !== 0
-                    ? Math.max(0, currentCloudQuantity + quantityDelta)
-                    : requestedQuantity;
+                const nextQuantity = resolveNextSealedQuantity(currentCloudEntry, requestedQuantity, quantityDelta);
                 const normalized = nextQuantity > 0
                     ? normalizeSealedCollectionProduct({
                         ...(currentCloudEntry || {}),
@@ -1097,9 +1130,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     })
                     : null;
                 const nextCollection = cloudCollection.filter((item) => {
-                    return !(normalizeCollectionItemType(item?.itemType) === 'sealed'
-                        && safeString(item?.id, '').trim() === id
-                        && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
+                    return !isMatchingSealedCloudEntry(item, id, activeCollectionId);
                 });
 
                 if (normalized) {
@@ -1110,30 +1141,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? cloudState.masterSets
                     : readDexMasterSets();
 
-                return authApi.saveDexState({
+                const payload = {
                     collection: nextCollection,
                     masterSets,
                     revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
                     updatedAt: readDexStateUpdatedAt() || Date.now(),
-                });
+                };
+                return Promise.resolve(authApi.saveDexState(payload))
+                    .then((result) => ({ result, submittedUpdatedAt: payload.updatedAt }));
             })
-            .then((result) => {
-                if (result?.saved) {
-                    writeDexCloudRevision(result.revision);
-                    return;
-                }
-                if (!result?.conflict) return;
-
-                writeDexCollection(Array.isArray(result.collection) ? result.collection : [], {
-                    preserveUpdatedAt: true,
-                });
-                const masterSets = (result.masterSets && typeof result.masterSets === 'object')
-                    ? result.masterSets
-                    : {};
-                writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(masterSets));
-                writeDexCloudRevision(result.revision);
-                writeDexStateUpdatedAt(result.updatedAt);
-                setSealedCollectionStatus('A newer collection was found in cloud sync. This page was refreshed without overwriting it.');
+            .then(({ result, submittedUpdatedAt }) => {
+                handleSealedCloudSyncResult(result, submittedUpdatedAt);
             })
             .catch(() => {
                 // ignore
