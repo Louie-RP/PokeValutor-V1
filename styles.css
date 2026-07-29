@@ -3834,7 +3834,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   flex-wrap: nowrap;
 }
 
-#pv-search-body .pv-search-actions > .btn {
+#pv-search-body .pv-search-actions > .btn,
+#pv-sealed-body .pv-sealedActions > .btn {
   min-height: 46px;
   padding: 0.58rem 1.12rem;
   font-size: 1rem;
@@ -7439,7 +7440,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     gap: 0.55rem;
   }
 
-  #pv-search-body .pv-search-actions > .btn {
+  #pv-search-body .pv-search-actions > .btn,
+  #pv-sealed-body .pv-sealedActions > .btn {
     min-height: 50px;
     padding: 0.6rem 0.84rem;
     font-size: 1rem;
@@ -7464,7 +7466,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     font-size: 0.95rem;
   }
 
-  #pv-search-body .pv-search-actions > .btn {
+  #pv-search-body .pv-search-actions > .btn,
+  #pv-sealed-body .pv-sealedActions > .btn {
     min-height: 50px;
     font-size: 0.98rem;
   }
@@ -7485,7 +7488,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     font-size: 0.98rem;
   }
 
-  #pv-search-body .pv-search-actions > .btn {
+  #pv-search-body .pv-search-actions > .btn,
+  #pv-sealed-body .pv-sealedActions > .btn {
     min-height: 48px;
     font-size: 0.94rem;
   }
