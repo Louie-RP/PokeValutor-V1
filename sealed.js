@@ -704,12 +704,17 @@ document.addEventListener('DOMContentLoaded', function () {
         sealedCollectionContextMeta = normalized;
         if (!sealedCollectionSelectEl) return;
 
-        sealedCollectionSelectEl.innerHTML = normalized.collections.map((entry) => {
+        const options = normalized.collections.map((entry) => {
+            const option = document.createElement('option');
             const label = entry.id === DEX_DEFAULT_COLLECTION_ID
                 ? `${entry.name} (Master Sets)`
                 : entry.name;
-            return `<option value="${escapeAttr(entry.id)}">${escapeHtml(label)}</option>`;
-        }).join('');
+            option.value = entry.id;
+            option.textContent = label;
+            option.selected = entry.id === normalized.activeCollectionId;
+            return option;
+        });
+        sealedCollectionSelectEl.replaceChildren(...options);
         sealedCollectionSelectEl.value = normalized.activeCollectionId;
     }
 
