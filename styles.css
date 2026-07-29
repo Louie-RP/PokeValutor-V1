@@ -5496,6 +5496,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   #pv-dex-body .pv-collectionPagination__controls {
     width: 100%;
     justify-content: space-between;
+    gap: 0.22rem;
   }
 
   #pv-dex-body .pv-collectionPagination__pageLabel {
@@ -5505,6 +5506,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   #pv-dex-body .pv-collectionPagination__btn {
     flex: 0 0 auto;
+    padding-inline: 0.42rem;
   }
 
   #pv-dex-body .pv-dexTools__actions {
