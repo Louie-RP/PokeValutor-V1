@@ -4,6 +4,8 @@
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
+    const DEX_CLOUD_REVISION_KEY = `${CACHE_PREFIX}dexCloudRevision:v1`;
+    const DEX_STATE_UPDATED_AT_KEY = `${CACHE_PREFIX}dexStateUpdatedAt:v1`;
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -1905,6 +1907,10 @@
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
@@ -1973,6 +1979,10 @@
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
@@ -1983,10 +1993,49 @@
     const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
     let dexCloudSyncTimer = 0;
     let dexCloudSyncHydrating = false;
+    let dexCloudSyncPromise = Promise.resolve();
 
     function getDexUpdatedAt(value) {
         const n = Number(value);
         return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            return getDexUpdatedAt(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(getDexUpdatedAt(updatedAt)));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
     }
 
     function readDexOwnerUid() {
@@ -2019,14 +2068,25 @@
         writeDexOwnerUid(user.uid);
 
         const run = () => {
-            const payload = {
-                collection: readCollection(),
-                masterSets: readMasterSets(),
-            };
-
-            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
-                // ignore
-            });
+            dexCloudSyncPromise = dexCloudSyncPromise
+                .catch(() => {
+                    // keep later saves moving after a transient failure
+                })
+                .then(() => {
+                    const payload = {
+                        collection: readCollection(),
+                        masterSets: readMasterSets(),
+                        revision: readDexCloudRevision(),
+                        updatedAt: readDexStateUpdatedAt() || Date.now(),
+                    };
+                    return authApi.saveDexState(payload);
+                })
+                .then((result) => {
+                    handleDexCloudSaveResult(result, user.uid);
+                })
+                .catch(() => {
+                    // ignore transient sync failures
+                });
         };
 
         if (immediate) {
@@ -2042,6 +2102,40 @@
             window.clearTimeout(dexCloudSyncTimer);
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function handleDexCloudSaveResult(result, ownerUid) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            return;
+        }
+
+        if (!result.conflict) return;
+
+        dexCloudSyncHydrating = true;
+        try {
+            writeCollection(Array.isArray(result.collection) ? result.collection : [], {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeMasterSets((result.masterSets && typeof result.masterSets === 'object') ? result.masterSets : {}, {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeDexCloudRevision(result.revision);
+            writeDexStateUpdatedAt(result.updatedAt);
+            writeDexOwnerUid(ownerUid);
+            renderActivePage();
+            const summary = document.getElementById('pv-collection-summary');
+            if (summary) {
+                summary.hidden = false;
+                summary.textContent = 'A newer collection was found in cloud sync. This page was refreshed without overwriting it.';
+            }
+        } finally {
+            dexCloudSyncHydrating = false;
+        }
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -2170,7 +2264,8 @@
         const localCollection = readCollection();
         const localMasterSets = readMasterSets();
         const localOwnerUid = readDexOwnerUid();
-        const allowLocalMerge = localOwnerUid === currentUid;
+        const localRevision = readDexCloudRevision();
+        const localUpdatedAt = readDexStateUpdatedAt();
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
@@ -2180,21 +2275,28 @@
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
+                const cloudRevision = Math.max(0, Math.floor(Number(cloudState?.revision) || 0));
+                const cloudUpdatedAt = getDexUpdatedAt(cloudState?.updatedAt);
+                const canPushLocalState = localOwnerUid === currentUid
+                    && localRevision === cloudRevision
+                    && localUpdatedAt > cloudUpdatedAt;
 
-                let resolvedCollection = cloudCollection;
-                let resolvedMasterSets = cloudMasterSets;
+                const resolvedCollection = canPushLocalState ? localCollection : cloudCollection;
+                const resolvedMasterSets = canPushLocalState ? localMasterSets : cloudMasterSets;
 
-                if (allowLocalMerge) {
-                    resolvedCollection = mergeCollectionState(localCollection, cloudCollection);
-                    resolvedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                if (canPushLocalState) {
                     mergedPayload = {
                         collection: resolvedCollection,
                         masterSets: resolvedMasterSets,
+                        revision: cloudRevision,
+                        updatedAt: localUpdatedAt,
                     };
                 }
 
-                writeCollection(resolvedCollection, { skipCloudSync: true });
-                writeMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeCollection(resolvedCollection, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeMasterSets(resolvedMasterSets, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeDexCloudRevision(cloudRevision);
+                writeDexStateUpdatedAt(canPushLocalState ? localUpdatedAt : cloudUpdatedAt);
                 writeDexOwnerUid(currentUid);
                 renderActivePage();
             })
@@ -2205,9 +2307,11 @@
                 dexCloudSyncHydrating = false;
 
                 if (mergedPayload && authApi?.saveDexState) {
-                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
-                        // ignore
-                    });
+                    Promise.resolve(authApi.saveDexState(mergedPayload))
+                        .then((result) => handleDexCloudSaveResult(result, currentUid))
+                        .catch(() => {
+                            // ignore
+                        });
                 }
             });
     }
