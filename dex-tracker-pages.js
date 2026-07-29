@@ -4,6 +4,8 @@
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
+    const DEX_CLOUD_REVISION_KEY = `${CACHE_PREFIX}dexCloudRevision:v1`;
+    const DEX_STATE_UPDATED_AT_KEY = `${CACHE_PREFIX}dexStateUpdatedAt:v1`;
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -658,29 +660,48 @@
 
         if (totalItems <= pageSize) {
             container.hidden = true;
-            container.innerHTML = '';
+            container.replaceChildren();
             return;
         }
 
         const start = ((currentPage - 1) * pageSize) + 1;
         const end = Math.min(totalItems, currentPage * pageSize);
-        const prevDisabled = currentPage <= 1 ? 'disabled' : '';
-        const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
 
         container.hidden = false;
-        container.innerHTML = `
-            <div class="pv-collectionPagination__inner">
-                <p class="pv-collectionPagination__status">Showing ${start}-${end} of ${totalItems}</p>
-                <div class="pv-collectionPagination__controls" role="group" aria-label="Collection pages">
-                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="prev" ${prevDisabled}>Previous</button>
-                    <span class="pv-collectionPagination__pageLabel">Page ${currentPage} of ${totalPages}</span>
-                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="next" ${nextDisabled}>Next</button>
-                </div>
-            </div>
-        `;
+        const inner = document.createElement('div');
+        inner.className = 'pv-collectionPagination__inner';
 
-        const prevBtn = container.querySelector('[data-page-nav="prev"]');
-        const nextBtn = container.querySelector('[data-page-nav="next"]');
+        const status = document.createElement('p');
+        status.className = 'pv-collectionPagination__status';
+        status.textContent = `Showing ${start}-${end} of ${totalItems}`;
+
+        const controls = document.createElement('div');
+        controls.className = 'pv-collectionPagination__controls';
+        controls.setAttribute('role', 'group');
+        controls.setAttribute('aria-label', 'Collection pages');
+
+        const pageLabel = document.createElement('span');
+        pageLabel.className = 'pv-collectionPagination__pageLabel';
+        pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
+
+        function createPageButton(label, nav, disabled) {
+            const button = document.createElement('button');
+            button.className = 'pv-button pv-button--secondary btn pv-collectionPagination__btn';
+            button.type = 'button';
+            button.dataset.pageNav = nav;
+            button.textContent = label;
+            button.disabled = disabled;
+            return button;
+        }
+
+        const firstBtn = createPageButton('First', 'first', currentPage <= 1);
+        const prevBtn = createPageButton('Previous', 'prev', currentPage <= 1);
+        const nextBtn = createPageButton('Next', 'next', currentPage >= totalPages);
+        const lastBtn = createPageButton('Last', 'last', currentPage >= totalPages);
+
+        controls.append(firstBtn, prevBtn, pageLabel, nextBtn, lastBtn);
+        inner.append(status, controls);
+        container.replaceChildren(inner);
 
         function scrollCollectionToTop() {
             const grid = document.getElementById('pv-collection-grid');
@@ -702,23 +723,18 @@
             window.scrollTo({ top, behavior: 'smooth' });
         }
 
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => {
-                if (collectionPaginationState.page <= 1) return;
-                collectionPaginationState.page -= 1;
-                renderCollectionPage();
-                scrollCollectionToTop();
-            });
+        function goToPage(page) {
+            const targetPage = Math.min(Math.max(1, page), totalPages);
+            if (targetPage === collectionPaginationState.page) return;
+            collectionPaginationState.page = targetPage;
+            renderCollectionPage();
+            scrollCollectionToTop();
         }
 
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => {
-                if (collectionPaginationState.page >= totalPages) return;
-                collectionPaginationState.page += 1;
-                renderCollectionPage();
-                scrollCollectionToTop();
-            });
-        }
+        firstBtn.addEventListener('click', () => goToPage(1));
+        prevBtn.addEventListener('click', () => goToPage(collectionPaginationState.page - 1));
+        nextBtn.addEventListener('click', () => goToPage(collectionPaginationState.page + 1));
+        lastBtn.addEventListener('click', () => goToPage(totalPages));
     }
 
     function bindCollectionSortControls() {
@@ -1905,6 +1921,10 @@
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
@@ -1973,6 +1993,10 @@
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
         }
@@ -1983,10 +2007,49 @@
     const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
     let dexCloudSyncTimer = 0;
     let dexCloudSyncHydrating = false;
+    let dexCloudSyncPromise = Promise.resolve();
 
     function getDexUpdatedAt(value) {
         const n = Number(value);
         return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            return getDexUpdatedAt(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(getDexUpdatedAt(updatedAt)));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
     }
 
     function readDexOwnerUid() {
@@ -2019,14 +2082,26 @@
         writeDexOwnerUid(user.uid);
 
         const run = () => {
-            const payload = {
-                collection: readCollection(),
-                masterSets: readMasterSets(),
-            };
-
-            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
-                // ignore
-            });
+            dexCloudSyncPromise = dexCloudSyncPromise
+                .catch(() => {
+                    // keep later saves moving after a transient failure
+                })
+                .then(async () => {
+                    const payload = {
+                        collection: readCollection(),
+                        masterSets: readMasterSets(),
+                        revision: readDexCloudRevision(),
+                        updatedAt: readDexStateUpdatedAt() || Date.now(),
+                    };
+                    const result = await authApi.saveDexState(payload);
+                    return { result, submittedUpdatedAt: payload.updatedAt };
+                })
+                .then(({ result, submittedUpdatedAt }) => {
+                    handleDexCloudSaveResult(result, user.uid, submittedUpdatedAt);
+                })
+                .catch(() => {
+                    // ignore transient sync failures
+                });
         };
 
         if (immediate) {
@@ -2042,6 +2117,43 @@
             window.clearTimeout(dexCloudSyncTimer);
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function handleDexCloudSaveResult(result, ownerUid, submittedUpdatedAt) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= getDexUpdatedAt(submittedUpdatedAt)) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
+            return;
+        }
+
+        if (!result.conflict) return;
+
+        dexCloudSyncHydrating = true;
+        try {
+            writeCollection(Array.isArray(result.collection) ? result.collection : [], {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeMasterSets((result.masterSets && typeof result.masterSets === 'object') ? result.masterSets : {}, {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeDexCloudRevision(result.revision);
+            writeDexStateUpdatedAt(result.updatedAt);
+            writeDexOwnerUid(ownerUid);
+            renderActivePage();
+            const summary = document.getElementById('pv-collection-summary');
+            if (summary) {
+                summary.hidden = false;
+                summary.textContent = 'A newer collection was found in cloud sync. This page was refreshed without overwriting it.';
+            }
+        } finally {
+            dexCloudSyncHydrating = false;
+        }
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -2170,7 +2282,8 @@
         const localCollection = readCollection();
         const localMasterSets = readMasterSets();
         const localOwnerUid = readDexOwnerUid();
-        const allowLocalMerge = localOwnerUid === currentUid;
+        const localRevision = readDexCloudRevision();
+        const localUpdatedAt = readDexStateUpdatedAt();
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
@@ -2180,21 +2293,28 @@
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
+                const cloudRevision = Math.max(0, Math.floor(Number(cloudState?.revision) || 0));
+                const cloudUpdatedAt = getDexUpdatedAt(cloudState?.updatedAt);
+                const canPushLocalState = localOwnerUid === currentUid
+                    && localRevision === cloudRevision
+                    && localUpdatedAt > cloudUpdatedAt;
 
-                let resolvedCollection = cloudCollection;
-                let resolvedMasterSets = cloudMasterSets;
+                const resolvedCollection = canPushLocalState ? localCollection : cloudCollection;
+                const resolvedMasterSets = canPushLocalState ? localMasterSets : cloudMasterSets;
 
-                if (allowLocalMerge) {
-                    resolvedCollection = mergeCollectionState(localCollection, cloudCollection);
-                    resolvedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                if (canPushLocalState) {
                     mergedPayload = {
                         collection: resolvedCollection,
                         masterSets: resolvedMasterSets,
+                        revision: cloudRevision,
+                        updatedAt: localUpdatedAt,
                     };
                 }
 
-                writeCollection(resolvedCollection, { skipCloudSync: true });
-                writeMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeCollection(resolvedCollection, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeMasterSets(resolvedMasterSets, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeDexCloudRevision(cloudRevision);
+                writeDexStateUpdatedAt(canPushLocalState ? localUpdatedAt : cloudUpdatedAt);
                 writeDexOwnerUid(currentUid);
                 renderActivePage();
             })
@@ -2205,9 +2325,15 @@
                 dexCloudSyncHydrating = false;
 
                 if (mergedPayload && authApi?.saveDexState) {
-                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
-                        // ignore
-                    });
+                    dexCloudSyncPromise = dexCloudSyncPromise
+                        .catch(() => {
+                            // keep the restore save ordered after any earlier sync
+                        })
+                        .then(() => authApi.saveDexState(mergedPayload))
+                        .then((result) => handleDexCloudSaveResult(result, currentUid, mergedPayload.updatedAt))
+                        .catch(() => {
+                            // ignore
+                        });
                 }
             });
     }

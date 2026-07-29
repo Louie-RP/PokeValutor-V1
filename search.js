@@ -109,6 +109,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
+    const DEX_CLOUD_REVISION_KEY = `${CACHE_PREFIX}dexCloudRevision:v1`;
+    const DEX_STATE_UPDATED_AT_KEY = `${CACHE_PREFIX}dexStateUpdatedAt:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_COLLECTIONS_META_KEY = `${CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -731,18 +733,56 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function createSelectOption(value, label, selected) {
+        const option = document.createElement('option');
+        option.value = safeString(value, '');
+        option.textContent = safeString(label, '');
+        option.selected = selected === true;
+        return option;
+    }
+
+    function replaceSelectWithStatus(select, label) {
+        if (!select) return;
+        select.replaceChildren(createSelectOption('', label, true));
+    }
+
+    function createTextElement(tagName, className, text) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        element.textContent = safeString(text, '');
+        return element;
+    }
+
+    function renderCardSkeletons(container, count) {
+        if (!container) return;
+        container.replaceChildren();
+        for (let i = 0; i < count; i++) {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
+            const card = document.createElement('div');
+            card.className = 'pv-card';
+            card.style.height = '260px';
+            const skeleton = document.createElement('div');
+            skeleton.className = 'pv-skeleton';
+            skeleton.style.height = '100%';
+            card.appendChild(skeleton);
+            col.appendChild(card);
+            container.appendChild(col);
+        }
+    }
+
     function setSetFilterLoadingUi(isLoading) {
         if (seriesSelect) {
             seriesSelect.disabled = isLoading;
             if (isLoading) {
-                seriesSelect.innerHTML = '<option value="">Loading series...</option>';
+                replaceSelectWithStatus(seriesSelect, 'Loading series...');
             }
         }
 
         if (setSelect) {
             setSelect.disabled = true;
             if (isLoading) {
-                setSelect.innerHTML = '<option value="">Loading sets...</option>';
+                replaceSelectWithStatus(setSelect, 'Loading sets...');
             }
         }
     }
@@ -751,13 +791,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!seriesSelect) return;
 
         const current = safeString(selectedSeries, '');
-        const options = ['<option value="">Choose a series</option>'];
+        const options = [createSelectOption('', 'Choose a series', !current)];
         for (const s of seriesNames) {
             const isSelected = current && s === current;
-            options.push(`<option value="${escapeAttr(s)}" ${isSelected ? 'selected' : ''}>${escapeHtml(s)}</option>`);
+            options.push(createSelectOption(s, s, Boolean(isSelected)));
         }
 
-        seriesSelect.innerHTML = options.join('');
+        seriesSelect.replaceChildren(...options);
     }
 
     function getSeriesListFromCatalog() {
@@ -785,16 +825,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const sets = getSetsForSeries(seriesName);
         const selectedId = safeString(selectedExpansionId, '');
 
-        const options = ['<option value="">Choose a set</option>'];
+        const options = [createSelectOption('', 'Choose a set', !selectedId)];
         for (const ex of sets) {
             const id = safeString(ex?.id, '');
             if (!id) continue;
             const label = getSetOptionLabel(ex);
             const isSelected = selectedId && id === selectedId;
-            options.push(`<option value="${escapeAttr(id)}" ${isSelected ? 'selected' : ''}>${escapeHtml(label)}</option>`);
+            options.push(createSelectOption(id, label, Boolean(isSelected)));
         }
 
-        setSelect.innerHTML = options.join('');
+        setSelect.replaceChildren(...options);
         setSelect.disabled = sets.length === 0;
     }
 
@@ -906,11 +946,11 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {
             if (seriesSelect) {
                 seriesSelect.disabled = false;
-                seriesSelect.innerHTML = '<option value="">Unable to load series</option>';
+                replaceSelectWithStatus(seriesSelect, 'Unable to load series');
             }
             if (setSelect) {
                 setSelect.disabled = true;
-                setSelect.innerHTML = '<option value="">Unable to load sets</option>';
+                replaceSelectWithStatus(setSelect, 'Unable to load sets');
             }
             throw e;
         } finally {
@@ -1236,6 +1276,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
@@ -1266,6 +1310,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
@@ -1286,10 +1334,49 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
     let dexCloudSyncTimer = 0;
     let dexCloudSyncHydrating = false;
+    let dexCloudSyncPromise = Promise.resolve();
 
     function getDexUpdatedAt(value) {
         const n = Number(value);
         return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            return getDexUpdatedAt(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(getDexUpdatedAt(updatedAt)));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
     }
 
     function readDexOwnerUid() {
@@ -1360,14 +1447,26 @@ document.addEventListener('DOMContentLoaded', function () {
         writeDexOwnerUid(user.uid);
 
         const run = () => {
-            const payload = {
-                collection: loadDexCollection(),
-                masterSets: loadDexMasterSets(),
-            };
-
-            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
-                // ignore
-            });
+            dexCloudSyncPromise = dexCloudSyncPromise
+                .catch(() => {
+                    // keep later saves moving after a transient failure
+                })
+                .then(async () => {
+                    const payload = {
+                        collection: loadDexCollection(),
+                        masterSets: loadDexMasterSets(),
+                        revision: readDexCloudRevision(),
+                        updatedAt: readDexStateUpdatedAt() || Date.now(),
+                    };
+                    const result = await authApi.saveDexState(payload);
+                    return { result, submittedUpdatedAt: payload.updatedAt };
+                })
+                .then(({ result, submittedUpdatedAt }) => {
+                    handleDexCloudSaveResult(result, user.uid, submittedUpdatedAt);
+                })
+                .catch(() => {
+                    // ignore transient sync failures
+                });
         };
 
         if (immediate) {
@@ -1383,6 +1482,44 @@ document.addEventListener('DOMContentLoaded', function () {
             window.clearTimeout(dexCloudSyncTimer);
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function handleDexCloudSaveResult(result, ownerUid, submittedUpdatedAt) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= getDexUpdatedAt(submittedUpdatedAt)) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
+            return;
+        }
+
+        if (!result.conflict) return;
+
+        dexCloudSyncHydrating = true;
+        try {
+            saveDexCollection(Array.isArray(result.collection) ? result.collection : [], {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            saveDexMasterSets((result.masterSets && typeof result.masterSets === 'object') ? result.masterSets : {}, {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeDexCloudRevision(result.revision);
+            writeDexStateUpdatedAt(result.updatedAt);
+            writeDexOwnerUid(ownerUid);
+
+            if (isDexPage) {
+                updateDexCollectionStats(loadDexCollection());
+            }
+            const restoredState = loadLastResults();
+            renderCards(currentResultsCards, restoredState || undefined);
+            setSearchCollectionStatus('A newer collection was found in cloud sync. This page was refreshed without overwriting it.');
+        } finally {
+            dexCloudSyncHydrating = false;
+        }
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -1505,7 +1642,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const localCollection = loadDexCollection();
         const localMasterSets = loadDexMasterSets();
         const localOwnerUid = readDexOwnerUid();
-        const allowLocalMerge = localOwnerUid === currentUid;
+        const localRevision = readDexCloudRevision();
+        const localUpdatedAt = readDexStateUpdatedAt();
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
@@ -1515,21 +1653,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
+                const cloudRevision = Math.max(0, Math.floor(Number(cloudState?.revision) || 0));
+                const cloudUpdatedAt = getDexUpdatedAt(cloudState?.updatedAt);
+                const canPushLocalState = localOwnerUid === currentUid
+                    && localRevision === cloudRevision
+                    && localUpdatedAt > cloudUpdatedAt;
 
-                let resolvedCollection = cloudCollection;
-                let resolvedMasterSets = cloudMasterSets;
+                const resolvedCollection = canPushLocalState ? localCollection : cloudCollection;
+                const resolvedMasterSets = canPushLocalState ? localMasterSets : cloudMasterSets;
 
-                if (allowLocalMerge) {
-                    resolvedCollection = mergeDexCollectionState(localCollection, cloudCollection);
-                    resolvedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                if (canPushLocalState) {
                     mergedPayload = {
                         collection: resolvedCollection,
                         masterSets: resolvedMasterSets,
+                        revision: cloudRevision,
+                        updatedAt: localUpdatedAt,
                     };
                 }
 
-                saveDexCollection(resolvedCollection, { skipCloudSync: true });
-                saveDexMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                saveDexCollection(resolvedCollection, { skipCloudSync: true, preserveUpdatedAt: true });
+                saveDexMasterSets(resolvedMasterSets, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeDexCloudRevision(cloudRevision);
+                writeDexStateUpdatedAt(canPushLocalState ? localUpdatedAt : cloudUpdatedAt);
                 writeDexOwnerUid(currentUid);
 
                 if (isDexPage) {
@@ -1546,9 +1691,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 dexCloudSyncHydrating = false;
 
                 if (mergedPayload && authApi?.saveDexState) {
-                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
-                        // ignore
-                    });
+                    dexCloudSyncPromise = dexCloudSyncPromise
+                        .catch(() => {
+                            // keep the restore save ordered after any earlier sync
+                        })
+                        .then(() => authApi.saveDexState(mergedPayload))
+                        .then((result) => handleDexCloudSaveResult(result, currentUid, mergedPayload.updatedAt))
+                        .catch(() => {
+                            // ignore
+                        });
                 }
             });
     }
@@ -1873,21 +2024,6 @@ document.addEventListener('DOMContentLoaded', function () {
             removedMasterSet: false,
             expansionNames: [],
         };
-    }
-
-    function escapeHtml(value) {
-        const s = String(value ?? '');
-        return s
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function escapeAttr(value) {
-        // Same escaping as HTML text; safe for placing inside quoted attributes.
-        return escapeHtml(value);
     }
 
     function normalizeVariantNameForCompare(name) {
@@ -2863,12 +2999,13 @@ document.addEventListener('DOMContentLoaded', function () {
         searchCollectionContextMeta = normalized;
         if (!searchCollectionSelectEl) return;
 
-        searchCollectionSelectEl.innerHTML = normalized.collections.map((entry) => {
+        const options = normalized.collections.map((entry) => {
             const label = entry.id === DEX_DEFAULT_COLLECTION_ID
                 ? `${entry.name} (Master Sets)`
                 : entry.name;
-            return `<option value="${escapeAttr(entry.id)}">${escapeHtml(label)}</option>`;
-        }).join('');
+            return createSelectOption(entry.id, label, entry.id === normalized.activeCollectionId);
+        });
+        searchCollectionSelectEl.replaceChildren(...options);
         searchCollectionSelectEl.value = normalized.activeCollectionId;
     }
 
@@ -3443,7 +3580,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!favoritesGrid) return;
 
         try {
-            favoritesGrid.innerHTML = '';
+            favoritesGrid.replaceChildren();
             let favoritePricePreloadCount = 0;
             let favoritePriceRefreshCount = 0;
 
@@ -3472,15 +3609,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const restoredPricesText = safeString(restoreState?.selections?.[id]?.pricesText, '');
 
-            const idAttr = escapeAttr(id);
-            const nameHtml = escapeHtml(name);
-            const nameAttr = escapeAttr(name);
-            const rarityHtml = escapeHtml(rarity);
-            const setNameHtml = escapeHtml(setName);
-            const selectedVariantHtml = escapeHtml(selectedVariant);
-            const imgUrlAttr = escapeAttr(imgUrl);
             const detailPath = buildCardDetailPath(fav);
-            const detailPathAttr = escapeAttr(detailPath);
 
             const maybePrices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
             const pricesText = maybePrices
@@ -3488,37 +3617,74 @@ document.addEventListener('DOMContentLoaded', function () {
                 : (restoredPricesText || safeString(fav?.pricesText, ''));
             const pricesDisplayText = pricesText || 'No prices loaded yet. Load prices in Results to show them here.';
 
-            col.innerHTML = `
-                <div class="pv-card h-100">
-                    ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
-                    <div class="pv-card__body">
-                        <div class="pv-card__header">
-                            <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
-                            <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
-                        </div>
-                        <p class="pv-card__text pv-card__setName">${setNameHtml}</p>
-                        <p class="pv-card__text pv-card__rarity">${rarity ? rarityHtml : 'n/a'}</p>
-                        ${selectedVariant ? `<p class="pv-card__text pv-card__variant">Variant: ${selectedVariantHtml}</p>` : ''}
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-fav-trade-${idAttr}">Trade %</label>
-                            <select class="form-select pv-selectCompact pv-selectTrade" id="pv-fav-trade-${idAttr}">
-                                ${TRADE_PERCENT_CHOICES
-                                    .map((p) => `<option value="${p}" ${p === pct ? 'selected' : ''}>${p}%</option>`)
-                                    .join('')}
-                            </select>
-                        </div>
-                        <div class="pv-card__text pv-card__prices" id="pv-fav-prices-${idAttr}" aria-live="polite"></div>
-                    </div>
-                </div>
-            `;
+            const cardEl = document.createElement('div');
+            cardEl.className = 'pv-card h-100';
+            if (imgUrl) {
+                const imageLink = document.createElement('a');
+                imageLink.className = 'pv-card__imgLink';
+                imageLink.href = detailPath;
+                imageLink.setAttribute('aria-label', `View ${name} details`);
+                const image = document.createElement('img');
+                image.className = 'pv-card__img';
+                image.src = imgUrl;
+                image.alt = `${name} card image`;
+                imageLink.appendChild(image);
+                cardEl.appendChild(imageLink);
+            }
 
-            const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
+            const body = document.createElement('div');
+            body.className = 'pv-card__body';
+            const header = document.createElement('div');
+            header.className = 'pv-card__header';
+            const title = document.createElement('div');
+            title.className = 'pv-card__title';
+            const titleLink = document.createElement('a');
+            titleLink.className = 'pv-card__titleLink';
+            titleLink.href = detailPath;
+            titleLink.setAttribute('aria-label', `View ${name} details`);
+            titleLink.textContent = name;
+            title.appendChild(titleLink);
+
+            const favBtn = document.createElement('button');
+            favBtn.id = `pv-fav-${id}`;
+            favBtn.className = 'pv-fav-btn';
+            favBtn.type = 'button';
+            favBtn.setAttribute('aria-label', 'Remove from watchlist');
+            favBtn.setAttribute('aria-pressed', 'true');
+            favBtn.title = 'Remove from watchlist';
+            favBtn.textContent = '★';
+            header.append(title, favBtn);
+            body.append(
+                header,
+                createTextElement('p', 'pv-card__text pv-card__setName', setName),
+                createTextElement('p', 'pv-card__text pv-card__rarity', rarity || 'n/a')
+            );
+            if (selectedVariant) {
+                body.appendChild(createTextElement('p', 'pv-card__text pv-card__variant', `Variant: ${selectedVariant}`));
+            }
+
+            const tradeField = document.createElement('div');
+            tradeField.className = 'pv-form__field';
+            tradeField.style.marginBottom = '0.5rem';
+            const tradeLabel = createTextElement('label', 'form-label', 'Trade %');
+            tradeLabel.htmlFor = `pv-fav-trade-${id}`;
+            const tradeEl = document.createElement('select');
+            tradeEl.className = 'form-select pv-selectCompact pv-selectTrade';
+            tradeEl.id = `pv-fav-trade-${id}`;
+            tradeEl.replaceChildren(...TRADE_PERCENT_CHOICES.map((p) => createSelectOption(String(p), `${p}%`, p === pct)));
+            tradeField.append(tradeLabel, tradeEl);
+
+            const pricesEl = document.createElement('div');
+            pricesEl.className = 'pv-card__text pv-card__prices';
+            pricesEl.id = `pv-fav-prices-${id}`;
+            pricesEl.setAttribute('aria-live', 'polite');
+            body.append(tradeField, pricesEl);
+            cardEl.appendChild(body);
+            col.appendChild(cardEl);
+
             if (favBtn) {
                 favBtn.addEventListener('click', () => toggleFavorite(fav));
             }
-
-            const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-fav-trade-${CSS.escape(id)}`));
-            const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-fav-prices-${CSS.escape(id)}`));
 
             setCardPricesDisplay(pricesEl, pricesDisplayText);
 
@@ -3737,7 +3903,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateFavoritesTotals(restoreState);
         } catch (error) {
             console.error('[PokeValutor] renderFavorites failed', error);
-            favoritesGrid.innerHTML = '';
+            favoritesGrid.replaceChildren();
             const fallback = document.createElement('div');
             fallback.className = 'col-12';
             fallback.textContent = 'Watchlist is temporarily unavailable. Reload the page to retry.';
@@ -4068,12 +4234,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return nextLines.join('\n');
     }
 
-    function formatPriceDisplayHtml(rawText) {
+    function createPriceDisplayFragment(rawText) {
         const text = safeString(rawText, '').trim();
-        if (!text) return '';
+        const fragment = document.createDocumentFragment();
+        if (!text) return fragment;
 
         if (/loading prices|unable to load prices|select a holo type|no prices/i.test(text)) {
-            return `<span class="pv-priceMessage">${escapeHtml(text)}</span>`;
+            fragment.appendChild(createTextElement('span', 'pv-priceMessage', text));
+            return fragment;
         }
 
         const lines = text
@@ -4082,10 +4250,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .filter(Boolean);
 
         if (!lines.length) {
-            return `<span class="pv-priceMessage">${escapeHtml(text)}</span>`;
+            fragment.appendChild(createTextElement('span', 'pv-priceMessage', text));
+            return fragment;
         }
 
-        const out = [];
         for (const line of lines) {
             const colonAt = line.indexOf(':');
             const hasPrefix = colonAt > 0;
@@ -4098,7 +4266,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const tradeMatch = body.match(/@([0-9]+(?:\.[0-9]+)?)%\s*(\$[0-9][0-9,]*(?:\.[0-9]+)?)/i);
 
             if (!marketMatch) {
-                out.push(`<div class="pv-priceLine pv-priceLine--raw">${escapeHtml(line)}</div>`);
+                fragment.appendChild(createTextElement('div', 'pv-priceLine pv-priceLine--raw', line));
                 continue;
             }
 
@@ -4106,23 +4274,31 @@ document.addEventListener('DOMContentLoaded', function () {
             const tradePct = tradeMatch ? safeString(tradeMatch[1], '').trim() : '';
             const tradeValue = tradeMatch ? safeString(tradeMatch[2], '').trim() : '';
 
-            const valueBits = [
-                `<span class="pv-priceToken pv-priceToken--market"><span class="pv-priceToken__amount">${escapeHtml(marketValue)}</span></span>`,
-                tradeMatch
-                    ? `<span class="pv-priceToken pv-priceToken--trade"><span class="pv-priceToken__label">@${escapeHtml(tradePct)}%</span><span class="pv-priceToken__amount">${escapeHtml(tradeValue)}</span></span>`
-                    : '',
-            ].filter(Boolean);
-
-            const valuesHtml = valueBits.join(' ');
-
+            const priceLine = document.createElement('div');
+            priceLine.className = 'pv-priceLine';
             if (conditionLabel) {
-                out.push(`<div class="pv-priceLine"><span class="pv-priceLine__condition">${escapeHtml(conditionLabel)}:</span><span class="pv-priceLine__values">${valuesHtml}</span></div>`);
-            } else {
-                out.push(`<div class="pv-priceLine"><span class="pv-priceLine__values">${valuesHtml}</span></div>`);
+                priceLine.appendChild(createTextElement('span', 'pv-priceLine__condition', `${conditionLabel}:`));
             }
+            const values = document.createElement('span');
+            values.className = 'pv-priceLine__values';
+            const marketToken = document.createElement('span');
+            marketToken.className = 'pv-priceToken pv-priceToken--market';
+            marketToken.appendChild(createTextElement('span', 'pv-priceToken__amount', marketValue));
+            values.appendChild(marketToken);
+            if (tradeMatch) {
+                const tradeToken = document.createElement('span');
+                tradeToken.className = 'pv-priceToken pv-priceToken--trade';
+                tradeToken.append(
+                    createTextElement('span', 'pv-priceToken__label', `@${tradePct}%`),
+                    createTextElement('span', 'pv-priceToken__amount', tradeValue)
+                );
+                values.append(document.createTextNode(' '), tradeToken);
+            }
+            priceLine.appendChild(values);
+            fragment.appendChild(priceLine);
         }
 
-        return out.join('\n');
+        return fragment;
     }
 
     function setCardPricesDisplay(pricesEl, text) {
@@ -4132,7 +4308,7 @@ document.addEventListener('DOMContentLoaded', function () {
             pricesEl.textContent = '';
             return;
         }
-        pricesEl.innerHTML = formatPriceDisplayHtml(formattedText);
+        pricesEl.replaceChildren(createPriceDisplayFragment(formattedText));
     }
 
     function formatUsd(amount) {
@@ -4347,7 +4523,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!grid) return;
         const sourceCards = Array.isArray(cards) ? cards : [];
         currentResultsCards = sourceCards.slice();
-        grid.innerHTML = '';
+        grid.replaceChildren();
 
         const dexCollectionList = enableDexTrackingControls ? loadDexCollection() : [];
         if (isDexPage) {
@@ -4416,132 +4592,193 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `Add another copy to collection${trackedCopyLabel}`
                 : 'Add to collection and master set tracker';
 
-            const variantOptions = variants.length
-                ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
-                    const vv = String(v);
-                    return `<option value="${escapeAttr(vv)}">${escapeHtml(vv)}</option>`;
-                })].join('')
-                : '<option value="">No variants</option>';
-
             const restoredSelection = restoreState?.selections?.[id];
             const restoredTradePercent = getSavedTradePercentForId(id, restoreState);
-            const idAttr = escapeAttr(id);
-            const tradePercentOptions = isDexPage
-                ? ''
-                : TRADE_PERCENT_CHOICES
-                    .map((p) => `<option value="${p}" ${p === restoredTradePercent ? 'selected' : ''}>${p}%</option>`)
-                    .join('');
-
             const selectedDexCondition = normalizeDexConditionCode(dexTracked?.selectedCondition);
             const hideConditionUntilTracked = isSearchPage;
             const showConditionField = !hideConditionUntilTracked || inDexCollection;
             const selectedDexVariant = safeString(dexTracked?.selectedVariant, '');
-            const conditionOptions = ['<option value="">Select condition</option>', ...DEX_CARD_CONDITIONS.map((c) => {
-                const label = c === 'NM'
-                    ? 'Near Mint (NM)'
-                    : c === 'LP'
-                        ? 'Lightly Played (LP)'
-                        : c === 'MP'
-                            ? 'Moderately Played (MP)'
-                            : c === 'HP'
-                                ? 'Heavily Played (HP)'
-                                : 'Damaged (DM)';
-                const selected = selectedDexCondition === c ? 'selected' : '';
-                return `<option value="${c}" ${selected}>${escapeHtml(label)}</option>`;
-            })].join('');
-
-            const tradeFieldHtml = isDexPage
-                ? ''
-                : `
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-trade-${idAttr}">Trade %</label>
-                            <select class="form-select pv-selectCompact pv-selectTrade" id="pv-trade-${idAttr}">
-                                ${tradePercentOptions}
-                            </select>
-                        </div>
-                `;
-
-            const conditionFieldHtml = enableDexTrackingControls
-                ? `
-                        <div class="pv-form__field pv-conditionField" id="pv-condition-field-${idAttr}" style="margin-bottom:0.5rem" ${showConditionField ? '' : 'hidden'}>
-                            <label class="form-label" for="pv-condition-${idAttr}">Condition</label>
-                            <select class="form-select pv-selectCompact pv-selectCondition" id="pv-condition-${idAttr}">
-                                ${conditionOptions}
-                            </select>
-                        </div>
-                `
-                : '';
-
-            const nameHtml = escapeHtml(name);
-            const nameAttr = escapeAttr(name);
-            const rarityHtml = escapeHtml(rarity);
-            const setNameHtml = escapeHtml(setName);
-            const favLabelAttr = escapeAttr(favLabel);
-            const removeLabelAttr = escapeAttr(removeLabel);
-            const imgUrlAttr = escapeAttr(imgUrl);
             const detailPath = buildCardDetailPath(card);
-            const detailPathAttr = escapeAttr(detailPath);
-            const moreActionsLabelAttr = escapeAttr('More card actions');
             const dexCardClass = isDexPage ? ' pv-dexCard pv-dexCard--search' : '';
 
             col.setAttribute('data-card-id', id);
             col.setAttribute('data-card-name', name);
 
-            col.innerHTML = `
-                <div class="pv-card h-100${dexCardClass}">
-                    ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
-                    <div class="pv-card__body">
-                        <div class="pv-card__header">
-                            <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
-                            <div class="pv-card__actions" role="group" aria-label="Card actions">
-                                <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
-                                ${!isDexPage && enableDexTrackingControls
-                                    ? `<button id="pv-dex-add-${idAttr}" class="pv-fav-btn" type="button" aria-label="${escapeAttr(dexAddLabel)}" aria-pressed="${inDexCollection ? 'true' : 'false'}" title="${escapeAttr(dexAddLabel)}">${inDexCollection ? '✓' : '+'}</button>`
-                                    : ''}
-                                <details class="pv-card__actionsMore">
-                                    <summary class="pv-card__moreBtn" aria-label="${moreActionsLabelAttr}" title="${moreActionsLabelAttr}">
-                                        <span aria-hidden="true">...</span>
-                                    </summary>
-                                    <div class="pv-card__actionsMenu">
-                                        <button id="pv-share-${idAttr}" class="pv-share-btn pv-share-btn--menu" type="button" aria-label="Share card link" title="Share card link">
-                                            <svg class="pv-share-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                <path d="M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z"></path>
-                                            </svg>
-                                            <span class="pv-card__actionLabel">Share</span>
-                                        </button>
-                                        ${enableDexTrackingControls
-                                            ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn pv-dex-remove-btn--menu" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}><span class="pv-card__actionGlyph" aria-hidden="true">-</span><span class="pv-card__actionLabel">Remove copy</span></button>`
-                                            : ''}
-                                    </div>
-                                </details>
-                            </div>
-                        </div>
-                        <p class="pv-card__text pv-dexCard__setName pv-card__setName">${setNameHtml}</p>
-                        <p class="pv-card__text pv-dexCard__meta pv-card__rarity">${rarity ? rarityHtml : 'n/a'}</p>
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
-                            <select class="form-select pv-selectCompact pv-selectVariant" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
-                                ${variantOptions}
-                            </select>
-                        </div>
-                        ${conditionFieldHtml}
-                        ${tradeFieldHtml}
-                        <div class="pv-card__text pv-dexCard__prices pv-card__prices" id="pv-prices-${idAttr}" aria-live="polite"></div>
-                    </div>
-                </div>
-            `;
+            const cardEl = document.createElement('div');
+            cardEl.className = `pv-card h-100${dexCardClass}`;
+            if (imgUrl) {
+                const imageLink = document.createElement('a');
+                imageLink.className = 'pv-card__imgLink';
+                imageLink.href = detailPath;
+                imageLink.setAttribute('aria-label', `View ${name} details`);
+                const image = document.createElement('img');
+                image.className = 'pv-card__img';
+                image.src = imgUrl;
+                image.alt = `${name} card image`;
+                imageLink.appendChild(image);
+                cardEl.appendChild(imageLink);
+            }
 
-            // Declare these after col.innerHTML so the elements exist
-            const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
-            const conditionEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-condition-${CSS.escape(id)}`));
-            const conditionFieldWrapEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-condition-field-${CSS.escape(id)}`));
-            const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
-            const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
-            const shareBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-share-${CSS.escape(id)}`));
-            const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
-            const dexAddBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-add-${CSS.escape(id)}`));
-            const removeBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-remove-${CSS.escape(id)}`));
-            const actionsMoreEl = /** @type {HTMLDetailsElement|null} */ (col.querySelector('.pv-card__actionsMore'));
+            const body = document.createElement('div');
+            body.className = 'pv-card__body';
+            const header = document.createElement('div');
+            header.className = 'pv-card__header';
+            const title = document.createElement('div');
+            title.className = 'pv-card__title';
+            const titleLink = document.createElement('a');
+            titleLink.className = 'pv-card__titleLink';
+            titleLink.href = detailPath;
+            titleLink.setAttribute('aria-label', `View ${name} details`);
+            titleLink.textContent = name;
+            title.appendChild(titleLink);
+
+            const actions = document.createElement('div');
+            actions.className = 'pv-card__actions';
+            actions.setAttribute('role', 'group');
+            actions.setAttribute('aria-label', 'Card actions');
+            const favBtn = document.createElement('button');
+            favBtn.id = `pv-fav-${id}`;
+            favBtn.className = 'pv-fav-btn';
+            favBtn.type = 'button';
+            favBtn.setAttribute('aria-label', favLabel);
+            favBtn.setAttribute('aria-pressed', fav ? 'true' : 'false');
+            favBtn.title = favLabel;
+            favBtn.textContent = favSymbol;
+            actions.appendChild(favBtn);
+
+            let dexAddBtn = null;
+            if (!isDexPage && enableDexTrackingControls) {
+                dexAddBtn = document.createElement('button');
+                dexAddBtn.id = `pv-dex-add-${id}`;
+                dexAddBtn.className = 'pv-fav-btn';
+                dexAddBtn.type = 'button';
+                dexAddBtn.setAttribute('aria-label', dexAddLabel);
+                dexAddBtn.setAttribute('aria-pressed', inDexCollection ? 'true' : 'false');
+                dexAddBtn.title = dexAddLabel;
+                dexAddBtn.textContent = inDexCollection ? '✓' : '+';
+                actions.appendChild(dexAddBtn);
+            }
+
+            const actionsMoreEl = document.createElement('details');
+            actionsMoreEl.className = 'pv-card__actionsMore';
+            const actionsSummary = document.createElement('summary');
+            actionsSummary.className = 'pv-card__moreBtn';
+            actionsSummary.setAttribute('aria-label', 'More card actions');
+            actionsSummary.title = 'More card actions';
+            const summaryGlyph = createTextElement('span', '', '...');
+            summaryGlyph.setAttribute('aria-hidden', 'true');
+            actionsSummary.appendChild(summaryGlyph);
+            const actionsMenu = document.createElement('div');
+            actionsMenu.className = 'pv-card__actionsMenu';
+
+            const shareBtn = document.createElement('button');
+            shareBtn.id = `pv-share-${id}`;
+            shareBtn.className = 'pv-share-btn pv-share-btn--menu';
+            shareBtn.type = 'button';
+            shareBtn.setAttribute('aria-label', 'Share card link');
+            shareBtn.title = 'Share card link';
+            const shareIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            shareIcon.setAttribute('class', 'pv-share-btn__icon');
+            shareIcon.setAttribute('viewBox', '0 0 24 24');
+            shareIcon.setAttribute('aria-hidden', 'true');
+            shareIcon.setAttribute('focusable', 'false');
+            const sharePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            sharePath.setAttribute('d', 'M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z');
+            shareIcon.appendChild(sharePath);
+            shareBtn.append(shareIcon, createTextElement('span', 'pv-card__actionLabel', 'Share'));
+            actionsMenu.appendChild(shareBtn);
+
+            let removeBtn = null;
+            if (enableDexTrackingControls) {
+                removeBtn = document.createElement('button');
+                removeBtn.id = `pv-dex-remove-${id}`;
+                removeBtn.className = 'pv-dex-remove-btn pv-dex-remove-btn--menu';
+                removeBtn.type = 'button';
+                removeBtn.setAttribute('aria-label', removeLabel);
+                removeBtn.title = removeLabel;
+                removeBtn.disabled = !inDexCollection;
+                const removeGlyph = createTextElement('span', 'pv-card__actionGlyph', '-');
+                removeGlyph.setAttribute('aria-hidden', 'true');
+                removeBtn.append(removeGlyph, createTextElement('span', 'pv-card__actionLabel', 'Remove copy'));
+                actionsMenu.appendChild(removeBtn);
+            }
+            actionsMoreEl.append(actionsSummary, actionsMenu);
+            actions.appendChild(actionsMoreEl);
+            header.append(title, actions);
+            body.append(
+                header,
+                createTextElement('p', 'pv-card__text pv-dexCard__setName pv-card__setName', setName),
+                createTextElement('p', 'pv-card__text pv-dexCard__meta pv-card__rarity', rarity || 'n/a')
+            );
+
+            const variantField = document.createElement('div');
+            variantField.className = 'pv-form__field';
+            variantField.style.marginBottom = '0.5rem';
+            const variantLabel = createTextElement('label', 'form-label', 'Variant');
+            variantLabel.htmlFor = `pv-variant-${id}`;
+            const selectEl = document.createElement('select');
+            selectEl.id = `pv-variant-${id}`;
+            selectEl.className = 'form-select pv-selectCompact pv-selectVariant';
+            selectEl.disabled = variants.length === 0;
+            selectEl.appendChild(createSelectOption('', variants.length ? 'Select a holo type' : 'No variants', false));
+            for (const variant of variants) {
+                selectEl.appendChild(createSelectOption(String(variant), String(variant), false));
+            }
+            variantField.append(variantLabel, selectEl);
+            body.appendChild(variantField);
+
+            let conditionFieldWrapEl = null;
+            let conditionEl = null;
+            if (enableDexTrackingControls) {
+                conditionFieldWrapEl = document.createElement('div');
+                conditionFieldWrapEl.id = `pv-condition-field-${id}`;
+                conditionFieldWrapEl.className = 'pv-form__field pv-conditionField';
+                conditionFieldWrapEl.style.marginBottom = '0.5rem';
+                conditionFieldWrapEl.hidden = !showConditionField;
+                const conditionLabel = createTextElement('label', 'form-label', 'Condition');
+                conditionLabel.htmlFor = `pv-condition-${id}`;
+                conditionEl = document.createElement('select');
+                conditionEl.id = `pv-condition-${id}`;
+                conditionEl.className = 'form-select pv-selectCompact pv-selectCondition';
+                conditionEl.appendChild(createSelectOption('', 'Select condition', false));
+                for (const condition of DEX_CARD_CONDITIONS) {
+                    const label = condition === 'NM'
+                        ? 'Near Mint (NM)'
+                        : condition === 'LP'
+                            ? 'Lightly Played (LP)'
+                            : condition === 'MP'
+                                ? 'Moderately Played (MP)'
+                                : condition === 'HP'
+                                    ? 'Heavily Played (HP)'
+                                    : 'Damaged (DM)';
+                    conditionEl.appendChild(createSelectOption(condition, label, selectedDexCondition === condition));
+                }
+                conditionFieldWrapEl.append(conditionLabel, conditionEl);
+                body.appendChild(conditionFieldWrapEl);
+            }
+
+            let tradeEl = null;
+            if (!isDexPage) {
+                const tradeField = document.createElement('div');
+                tradeField.className = 'pv-form__field';
+                tradeField.style.marginBottom = '0.5rem';
+                const tradeLabel = createTextElement('label', 'form-label', 'Trade %');
+                tradeLabel.htmlFor = `pv-trade-${id}`;
+                tradeEl = document.createElement('select');
+                tradeEl.id = `pv-trade-${id}`;
+                tradeEl.className = 'form-select pv-selectCompact pv-selectTrade';
+                tradeEl.replaceChildren(...TRADE_PERCENT_CHOICES.map((p) => createSelectOption(String(p), `${p}%`, p === restoredTradePercent)));
+                tradeField.append(tradeLabel, tradeEl);
+                body.appendChild(tradeField);
+            }
+
+            const pricesEl = document.createElement('div');
+            pricesEl.id = `pv-prices-${id}`;
+            pricesEl.className = 'pv-card__text pv-dexCard__prices pv-card__prices';
+            pricesEl.setAttribute('aria-live', 'polite');
+            body.appendChild(pricesEl);
+            cardEl.appendChild(body);
+            col.appendChild(cardEl);
 
             if (shareBtn) {
                 shareBtn.addEventListener('click', () => {
@@ -5043,15 +5280,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const base = getWorkerBase();
 
         setStatus('Searching…');
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, 8);
 
         try {
             const queryCandidates = buildNameQueryCandidates(q).slice(0, 3);
@@ -5205,15 +5434,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const expansionClauses = [`expansion.id:${id}`, `expansion_id:${id}`, `expansion:${id}`];
 
         setStatus(`Searching ${name} in ${setName || id}...`);
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, 8);
 
         try {
             let cards = [];
@@ -5373,15 +5594,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         setStatus('Searching…');
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < Math.min(RESULT_LIMIT, 12); i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, Math.min(RESULT_LIMIT, 12));
 
         try {
             // Scrydex query: use printed_number:<value>
@@ -5610,15 +5823,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Clear inputs so manual searching doesn't feel blocked.
         clearSearchInputs();
 
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < RESULT_LIMIT; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, RESULT_LIMIT);
 
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
@@ -5675,15 +5880,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSearchInputs();
         resetDexSetBrowseState();
 
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < 10; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, 10);
 
         try {
             const queryCandidates = [
@@ -5999,7 +6196,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function clearResultsUI() {
-        if (grid) grid.innerHTML = '';
+        if (grid) grid.replaceChildren();
         if (status) status.textContent = '';
         currentResultsCards = [];
         for (const key of Object.keys(searchValueById)) {
@@ -6178,7 +6375,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error('[PokeValutor] failed to restore previous results', error);
             clearLastResults();
-            if (grid) grid.innerHTML = '';
+            if (grid) grid.replaceChildren();
             currentResultsCards = [];
             setStatus('Previous results cache was reset. Search again to continue.');
         }
