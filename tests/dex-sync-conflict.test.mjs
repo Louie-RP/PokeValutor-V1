@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 function extractFunction(source, name) {
-    const start = source.indexOf(`async function ${name}(`);
+    const asyncStart = source.indexOf(`async function ${name}(`);
+    const syncStart = source.indexOf(`function ${name}(`);
+    const start = asyncStart >= 0 ? asyncStart : syncStart;
     assert.ok(start >= 0, `${name} should exist`);
     const bodyStart = source.indexOf('{', start);
     let depth = 0;
@@ -93,6 +95,35 @@ assert.equal(currentResult.saved, true);
 assert.equal(currentResult.revision, 5);
 assert.equal(transactionSetPayload.revision, 5);
 assert.deepEqual(transactionSetPayload.collection, [{ id: 'current-card' }]);
+
+for (const file of ['dex-tracker-pages.js', 'search.js']) {
+    const source = await readFile(file, 'utf8');
+    const handlerSource = extractFunction(source, 'handleDexCloudSaveResult');
+    let currentLocalUpdatedAt = 100;
+    let persistedUpdatedAt = null;
+    let persistedRevision = null;
+    const handlerContext = {
+        readDexStateUpdatedAt: () => currentLocalUpdatedAt,
+        getDexUpdatedAt: (value) => Math.max(0, Number(value) || 0),
+        writeDexStateUpdatedAt: (value) => {
+            persistedUpdatedAt = value;
+        },
+        writeDexCloudRevision: (value) => {
+            persistedRevision = value;
+        },
+    };
+    vm.runInNewContext(`${handlerSource}; this.handle = handleDexCloudSaveResult;`, handlerContext);
+
+    handlerContext.handle({ saved: true, revision: 5, updatedAt: 500 }, 'user-1', 100);
+    assert.equal(persistedRevision, 5);
+    assert.equal(persistedUpdatedAt, 500, `${file} should persist the authoritative saved timestamp`);
+
+    currentLocalUpdatedAt = 200;
+    persistedUpdatedAt = null;
+    handlerContext.handle({ saved: true, revision: 6, updatedAt: 600 }, 'user-1', 100);
+    assert.equal(persistedRevision, 6);
+    assert.equal(persistedUpdatedAt, null, `${file} must preserve a newer in-flight local edit timestamp`);
+}
 
 const rules = await readFile('firestore.rules', 'utf8');
 assert.match(rules, /request\.resource\.data\.revision is int/);
