@@ -25,8 +25,8 @@
             loadWatchlist: async () => [],
             saveWatchlistItem: async () => { },
             removeWatchlistItem: async () => { },
-            loadDexState: async () => ({ collection: [], masterSets: {} }),
-            saveDexState: async () => { },
+            loadDexState: async () => ({ collection: [], masterSets: {}, revision: 0, updatedAt: 0 }),
+            saveDexState: async () => ({ saved: false, revision: 0, updatedAt: 0 }),
             loadCollectionValueSnapshot: async () => null,
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
@@ -69,8 +69,8 @@
             loadWatchlist: async () => [],
             saveWatchlistItem: async () => { },
             removeWatchlistItem: async () => { },
-            loadDexState: async () => ({ collection: [], masterSets: {} }),
-            saveDexState: async () => { },
+            loadDexState: async () => ({ collection: [], masterSets: {}, revision: 0, updatedAt: 0 }),
+            saveDexState: async () => ({ saved: false, revision: 0, updatedAt: 0 }),
             loadCollectionValueSnapshot: async () => null,
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
@@ -1220,19 +1220,21 @@
 
     async function loadDexState() {
         const user = getUser();
-        if (!user || !db) return { collection: [], masterSets: {} };
+        if (!user || !db) return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
         const ref = dexStateDocRef(user.uid);
-        if (!ref) return { collection: [], masterSets: {} };
+        if (!ref) return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
 
         try {
             const snap = await ref.get();
-            if (!snap.exists) return { collection: [], masterSets: {} };
+            if (!snap.exists) return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
             const data = snap.data();
             const collection = Array.isArray(data?.collection) ? data.collection : [];
             const masterSets = (data?.masterSets && typeof data.masterSets === 'object') ? data.masterSets : {};
-            return { collection, masterSets };
+            const revision = Math.max(0, Math.floor(Number(data?.revision) || 0));
+            const updatedAt = Math.max(0, Number(data?.updatedAt) || 0);
+            return { collection, masterSets, revision, updatedAt };
         } catch {
-            return { collection: [], masterSets: {} };
+            return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
         }
     }
 
@@ -1262,10 +1264,14 @@
 
         let collectionForCloud = compactDexCollectionForCloud(collection, false);
         const masterSetsForCloud = compactDexMasterSetsForCloud(masterSets);
+        const expectedRevision = Math.max(0, Math.floor(Number(payload?.revision) || 0));
+        const requestedUpdatedAt = Math.max(0, Number(payload?.updatedAt) || 0);
+        const nextUpdatedAt = Math.max(Date.now(), requestedUpdatedAt);
         const basePayload = {
             collection: collectionForCloud,
             masterSets: masterSetsForCloud,
-            updatedAt: Date.now(),
+            revision: expectedRevision + 1,
+            updatedAt: nextUpdatedAt,
             updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
         };
 
@@ -1274,14 +1280,49 @@
             basePayload.collection = collectionForCloud;
         }
 
+        const saveWithTransaction = async () => {
+            return db.runTransaction(async (transaction) => {
+                const snap = await transaction.get(ref);
+                const current = snap.exists ? (snap.data() || {}) : {};
+                const currentRevision = Math.max(0, Math.floor(Number(current?.revision) || 0));
+                const currentUpdatedAt = Math.max(0, Number(current?.updatedAt) || 0);
+
+                if (currentRevision !== expectedRevision) {
+                    return {
+                        saved: false,
+                        conflict: true,
+                        revision: currentRevision,
+                        updatedAt: currentUpdatedAt,
+                        collection: Array.isArray(current?.collection) ? current.collection : [],
+                        masterSets: (current?.masterSets && typeof current.masterSets === 'object')
+                            ? current.masterSets
+                            : {},
+                    };
+                }
+
+                transaction.set(ref, basePayload, { merge: true });
+                return {
+                    saved: true,
+                    conflict: false,
+                    revision: basePayload.revision,
+                    updatedAt: basePayload.updatedAt,
+                    collection: collectionForCloud,
+                    masterSets: masterSetsForCloud,
+                };
+            });
+        };
+
+        let saveResult;
         try {
-            await ref.set(basePayload, { merge: true });
+            saveResult = await saveWithTransaction();
         } catch (error) {
             if (!isFirestorePayloadTooLarge(error)) throw error;
             basePayload.collection = compactDexCollectionForCloud(collection, true);
-            await ref.set(basePayload, { merge: true });
             collectionForCloud = basePayload.collection;
+            saveResult = await saveWithTransaction();
         }
+
+        if (!saveResult?.saved) return saveResult;
 
         try {
             const settings = await loadDexShareSettingsFromProfile(false);
@@ -1290,6 +1331,8 @@
         } catch {
             // ignore share-sync failures so Dex save still succeeds
         }
+
+        return saveResult;
     }
 
     async function loadCollectionValueSnapshot(collectionId) {
@@ -1349,6 +1392,8 @@
                     `${P}collection:v1`,
                     `${P}masterSets:v1`,
                     `${P}dexOwnerUid:v1`,
+                    `${P}dexCloudRevision:v1`,
+                    `${P}dexStateUpdatedAt:v1`,
                     'pv:quota:last:v1',
                 ].forEach((key) => {
                     try { localStorage.removeItem(key); } catch { }

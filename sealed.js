@@ -77,6 +77,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const DEX_COLLECTION_KEY = 'pv:scrydex:collection:v1';
     const DEX_MASTER_SETS_KEY = 'pv:scrydex:masterSets:v1';
+    const DEX_CLOUD_REVISION_KEY = 'pv:scrydex:dexCloudRevision:v1';
+    const DEX_STATE_UPDATED_AT_KEY = 'pv:scrydex:dexStateUpdatedAt:v1';
     const DEX_ACTIVE_COLLECTION_KEY = 'pv:scrydex:activeCollectionId:v1';
     const DEX_COLLECTIONS_META_KEY = 'pv:scrydex:collectionsMeta:v1';
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -993,6 +995,46 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            const value = Number(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+            return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            const value = Number(updatedAt);
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(Number.isFinite(value) && value > 0 ? value : 0));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
+    }
+
     function writeCriticalStorageItem(key, serialized) {
         if (storageUtil?.writeCriticalStorageItem) {
             return storageUtil.writeCriticalStorageItem({
@@ -1012,7 +1054,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw) {
+    let sealedCollectionCloudSyncPromise = Promise.resolve();
+
+    function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw, quantityDeltaRaw) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState || !authApi?.loadDexState) return;
@@ -1021,14 +1065,37 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!id) return;
         const activeCollectionId = normalizeDexCollectionId(entryOrId?.collectionId, getActiveDexCollectionId());
 
-        const nextQuantity = normalizeSealedQuantity(nextQuantityRaw, 0);
-        const normalized = nextQuantity > 0
-            ? normalizeSealedCollectionProduct({ ...entryOrId, collectionId: activeCollectionId, quantity: nextQuantity, updatedAt: Date.now() })
-            : null;
+        const requestedQuantity = normalizeSealedQuantity(nextQuantityRaw, 0);
+        const quantityDelta = Math.floor(Number(quantityDeltaRaw));
 
-        Promise.resolve(authApi.loadDexState())
+        sealedCollectionCloudSyncPromise = sealedCollectionCloudSyncPromise
+            .catch(() => {
+                // keep later quantity changes moving after a transient failure
+            })
+            .then(() => authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+                const currentCloudEntry = cloudCollection.find((item) => {
+                    return normalizeCollectionItemType(item?.itemType) === 'sealed'
+                        && safeString(item?.id, '').trim() === id
+                        && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId;
+                }) || null;
+                const currentCloudQuantity = currentCloudEntry
+                    ? normalizeSealedQuantity(currentCloudEntry?.quantity ?? currentCloudEntry?.sealedQuantity, 1)
+                    : 0;
+                const nextQuantity = Number.isFinite(quantityDelta) && quantityDelta !== 0
+                    ? Math.max(0, currentCloudQuantity + quantityDelta)
+                    : requestedQuantity;
+                const normalized = nextQuantity > 0
+                    ? normalizeSealedCollectionProduct({
+                        ...(currentCloudEntry || {}),
+                        ...entryOrId,
+                        collectionId: activeCollectionId,
+                        quantity: nextQuantity,
+                        addedAt: currentCloudEntry?.addedAt ?? entryOrId?.addedAt,
+                        updatedAt: Date.now(),
+                    })
+                    : null;
                 const nextCollection = cloudCollection.filter((item) => {
                     return !(normalizeCollectionItemType(item?.itemType) === 'sealed'
                         && safeString(item?.id, '').trim() === id
@@ -1046,14 +1113,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 return authApi.saveDexState({
                     collection: nextCollection,
                     masterSets,
+                    revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
+                    updatedAt: readDexStateUpdatedAt() || Date.now(),
                 });
+            })
+            .then((result) => {
+                if (result?.saved) {
+                    writeDexCloudRevision(result.revision);
+                    return;
+                }
+                if (!result?.conflict) return;
+
+                writeDexCollection(Array.isArray(result.collection) ? result.collection : [], {
+                    preserveUpdatedAt: true,
+                });
+                const masterSets = (result.masterSets && typeof result.masterSets === 'object')
+                    ? result.masterSets
+                    : {};
+                writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(masterSets));
+                writeDexCloudRevision(result.revision);
+                writeDexStateUpdatedAt(result.updatedAt);
+                setSealedCollectionStatus('A newer collection was found in cloud sync. This page was refreshed without overwriting it.');
             })
             .catch(() => {
                 // ignore
             });
     }
 
-    function writeDexCollection(next) {
+    function writeDexCollection(next, options) {
         let persisted = false;
         try {
             persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
@@ -1062,6 +1149,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!persisted) return false;
+
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
 
         try {
             window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
@@ -1124,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!writeDexCollection(next)) {
                     return { changed: false, quantity: currentQty, storageWriteFailed: true };
                 }
-                syncSealedCollectionInCloud(removed, 0);
+                syncSealedCollectionInCloud(removed, 0, qtyDelta);
                 return { changed: true, quantity: 0, storageWriteFailed: false };
             }
 
@@ -1140,7 +1231,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!writeDexCollection(list)) {
                 return { changed: false, quantity: currentQty, storageWriteFailed: true };
             }
-            syncSealedCollectionInCloud(updated, nextQty);
+            syncSealedCollectionInCloud(updated, nextQty, qtyDelta);
             return { changed: true, quantity: nextQty, storageWriteFailed: false };
         }
 
@@ -1153,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!writeDexCollection(list)) {
             return { changed: false, quantity: currentQty, storageWriteFailed: true };
         }
-        syncSealedCollectionInCloud(normalized, nextQty);
+        syncSealedCollectionInCloud(normalized, nextQty, qtyDelta);
         return { changed: true, quantity: nextQty, storageWriteFailed: false };
     }
 
