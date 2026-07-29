@@ -660,29 +660,48 @@
 
         if (totalItems <= pageSize) {
             container.hidden = true;
-            container.innerHTML = '';
+            container.replaceChildren();
             return;
         }
 
         const start = ((currentPage - 1) * pageSize) + 1;
         const end = Math.min(totalItems, currentPage * pageSize);
-        const prevDisabled = currentPage <= 1 ? 'disabled' : '';
-        const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
 
         container.hidden = false;
-        container.innerHTML = `
-            <div class="pv-collectionPagination__inner">
-                <p class="pv-collectionPagination__status">Showing ${start}-${end} of ${totalItems}</p>
-                <div class="pv-collectionPagination__controls" role="group" aria-label="Collection pages">
-                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="prev" ${prevDisabled}>Previous</button>
-                    <span class="pv-collectionPagination__pageLabel">Page ${currentPage} of ${totalPages}</span>
-                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="next" ${nextDisabled}>Next</button>
-                </div>
-            </div>
-        `;
+        const inner = document.createElement('div');
+        inner.className = 'pv-collectionPagination__inner';
 
-        const prevBtn = container.querySelector('[data-page-nav="prev"]');
-        const nextBtn = container.querySelector('[data-page-nav="next"]');
+        const status = document.createElement('p');
+        status.className = 'pv-collectionPagination__status';
+        status.textContent = `Showing ${start}-${end} of ${totalItems}`;
+
+        const controls = document.createElement('div');
+        controls.className = 'pv-collectionPagination__controls';
+        controls.setAttribute('role', 'group');
+        controls.setAttribute('aria-label', 'Collection pages');
+
+        const pageLabel = document.createElement('span');
+        pageLabel.className = 'pv-collectionPagination__pageLabel';
+        pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
+
+        function createPageButton(label, nav, disabled) {
+            const button = document.createElement('button');
+            button.className = 'pv-button pv-button--secondary btn pv-collectionPagination__btn';
+            button.type = 'button';
+            button.dataset.pageNav = nav;
+            button.textContent = label;
+            button.disabled = disabled;
+            return button;
+        }
+
+        const firstBtn = createPageButton('First', 'first', currentPage <= 1);
+        const prevBtn = createPageButton('Previous', 'prev', currentPage <= 1);
+        const nextBtn = createPageButton('Next', 'next', currentPage >= totalPages);
+        const lastBtn = createPageButton('Last', 'last', currentPage >= totalPages);
+
+        controls.append(firstBtn, prevBtn, pageLabel, nextBtn, lastBtn);
+        inner.append(status, controls);
+        container.replaceChildren(inner);
 
         function scrollCollectionToTop() {
             const grid = document.getElementById('pv-collection-grid');
@@ -704,23 +723,18 @@
             window.scrollTo({ top, behavior: 'smooth' });
         }
 
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => {
-                if (collectionPaginationState.page <= 1) return;
-                collectionPaginationState.page -= 1;
-                renderCollectionPage();
-                scrollCollectionToTop();
-            });
+        function goToPage(page) {
+            const targetPage = Math.min(Math.max(1, page), totalPages);
+            if (targetPage === collectionPaginationState.page) return;
+            collectionPaginationState.page = targetPage;
+            renderCollectionPage();
+            scrollCollectionToTop();
         }
 
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => {
-                if (collectionPaginationState.page >= totalPages) return;
-                collectionPaginationState.page += 1;
-                renderCollectionPage();
-                scrollCollectionToTop();
-            });
-        }
+        firstBtn.addEventListener('click', () => goToPage(1));
+        prevBtn.addEventListener('click', () => goToPage(collectionPaginationState.page - 1));
+        nextBtn.addEventListener('click', () => goToPage(collectionPaginationState.page + 1));
+        lastBtn.addEventListener('click', () => goToPage(totalPages));
     }
 
     function bindCollectionSortControls() {
