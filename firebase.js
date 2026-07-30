@@ -991,6 +991,10 @@
             }
 
             if (itemType === 'sealed') {
+                entry.baseProductId = compactCollectionString(raw?.baseProductId, 120, '');
+                entry.variantName = compactCollectionString(raw?.variantName, 80, '');
+                entry.variantLabel = compactCollectionString(raw?.variantLabel, 80, '');
+                entry.hasMultipleVariants = raw?.hasMultipleVariants === true;
                 entry.type = compactCollectionString(raw?.type, 120, 'Sealed product');
                 entry.quantity = Math.max(1, Math.floor(Number(raw?.quantity ?? raw?.sealedQuantity ?? 1) || 1));
             } else {
