@@ -5096,6 +5096,16 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   margin-top: 0.08rem;
 }
 
+#pv-dex-body .pv-dexCard .pv-dexCard__rarity {
+  color: #ffe08a;
+  font-weight: 700;
+}
+
+#pv-dex-body .pv-dexCard .pv-dexCard__typeValue {
+  color: #ffe08a;
+  font-weight: 700;
+}
+
 #pv-dex-body .pv-dexCard .pv-collectionAmount {
   margin: 0.28rem 0 0.45rem;
   color: #86efac;
@@ -5257,6 +5267,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   }
 
   #pv-dex-body .pv-dexCard .pv-dexCard__meta {
+    font-size: 0.76rem;
+  }
+
+  #pv-dex-body .pv-dexCard .pv-dexCard__rarity {
+    font-size: 0.76rem;
+  }
+
+  #pv-dex-body .pv-dexCard .pv-dexCard__typeValue {
     font-size: 0.76rem;
   }
 
