@@ -1421,6 +1421,39 @@
         return markets[0];
     }
 
+    function getSealedPricingIdentity(item) {
+        const displayId = safeString(item?.id, '').trim();
+        const explicitBaseId = safeString(item?.baseProductId, '').trim();
+        const syntheticIdSeparator = displayId.indexOf('::');
+        const baseProductId = explicitBaseId
+            || (syntheticIdSeparator > 0 ? displayId.slice(0, syntheticIdSeparator) : displayId);
+        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
+        const variantName = safeString(item?.variantName, '').trim()
+            || (syntheticIdSeparator > 0 && localVariants.length === 1
+                ? safeString(localVariants[0]?.name, '').trim()
+                : '');
+
+        return { displayId, baseProductId, variantName };
+    }
+
+    function getTrackedSealedMarketFromVariants(variants, variantName) {
+        if (!Array.isArray(variants) || !variants.length) return null;
+
+        const wantedVariant = safeString(variantName, '').trim();
+        if (wantedVariant) {
+            const match = findVariantByName(variants, wantedVariant);
+            if (match) return getBestSealedMarketFromVariants([match]);
+        }
+
+        return getBestSealedMarketFromVariants(variants);
+    }
+
+    // displayId is item.id: either a raw product ID or a synthetic "baseProductId::variantName"
+    // string. Using displayId (not baseProductId) keeps per-variant cache entries separate.
+    function buildSealedValueCacheKey(displayId) {
+        return `sealed:v2:${safeString(displayId, '').trim()}`;
+    }
+
     function getInFlightRequest(map, key, factory) {
         const existing = map[key];
         if (existing) return existing;
@@ -1536,7 +1569,7 @@
         if (isSealedCollectionItem(item)) {
             const id = safeString(item?.id, '');
             if (!id) return true;
-            const sealedCached = getCachedValue(`sealed:${id}`);
+            const sealedCached = getCachedValue(buildSealedValueCacheKey(id));
             return Boolean(sealedCached && Number.isFinite(sealedCached.market) && sealedCached.market > 0);
         }
 
@@ -1611,25 +1644,24 @@
 
     async function getCurrentSealedValue(item, options) {
         const allowNetwork = options?.allowNetwork !== false;
-        const id = safeString(item?.id, '');
-        if (!id) return null;
+        const { displayId, baseProductId, variantName } = getSealedPricingIdentity(item);
+        if (!displayId || !baseProductId) return null;
 
-        const cacheKey = `sealed:${id}`;
+        const cacheKey = buildSealedValueCacheKey(displayId);
         const cached = getCachedValue(cacheKey);
         if (cached && Number.isFinite(cached.market)) {
             return { market: cached.market };
         }
 
         const localVariants = Array.isArray(item?.variants) ? item.variants : [];
-        const localMarket = getBestSealedMarketFromVariants(localVariants);
+        const localMarket = getTrackedSealedMarketFromVariants(localVariants, variantName);
 
         if (allowNetwork) {
-            const fetchedFromSearch = await fetchSealedFromSearchById(id);
-            const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
+            const fetchedFromSearch = await fetchSealedFromSearchById(baseProductId);
+            const fetched = fetchedFromSearch || await fetchSealedWithPrices(baseProductId);
             const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
-            const sourceVariants = fetchedVariants.length ? fetchedVariants : localVariants;
 
-            const market = getBestSealedMarketFromVariants(sourceVariants);
+            const market = getTrackedSealedMarketFromVariants(fetchedVariants, variantName);
             if (Number.isFinite(market)) {
                 setCachedValue(cacheKey, market, '');
                 return { market };
@@ -1820,6 +1852,10 @@
             itemType: 'sealed',
             collectionId,
             id: safeString(raw?.id, ''),
+            baseProductId: safeString(raw?.baseProductId, ''),
+            variantName: safeString(raw?.variantName, ''),
+            variantLabel: safeString(raw?.variantLabel, ''),
+            hasMultipleVariants: raw?.hasMultipleVariants === true,
             name: safeString(raw?.name, 'Unknown'),
             type: safeString(raw?.type, ''),
             expansionName,
