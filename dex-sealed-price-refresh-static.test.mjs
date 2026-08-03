@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = (...parts) => resolve(__dirname, ...parts);
 
 function extractFunction(source, name) {
     const asyncStart = source.indexOf(`async function ${name}(`);
@@ -18,7 +23,7 @@ function extractFunction(source, name) {
     throw new Error(`Could not extract ${name}`);
 }
 
-const dexSource = await readFile('dex-tracker-pages.js', 'utf8');
+const dexSource = await readFile(ROOT('dex-tracker-pages.js'), 'utf8');
 const identitySource = extractFunction(dexSource, 'getSealedPricingIdentity');
 const cacheKeySource = extractFunction(dexSource, 'buildSealedValueCacheKey');
 const currentValueSource = extractFunction(dexSource, 'getCurrentSealedValue');
@@ -43,7 +48,7 @@ for (const field of ['baseProductId', 'variantName', 'variantLabel', 'hasMultipl
     assert.match(normalizeSource, new RegExp(`${field}:`), `Dex normalization should preserve ${field}.`);
 }
 
-const firebaseSource = await readFile('firebase.js', 'utf8');
+const firebaseSource = await readFile(ROOT('firebase.js'), 'utf8');
 const compactSource = extractFunction(firebaseSource, 'compactDexCollectionForCloud');
 for (const field of ['baseProductId', 'variantName', 'variantLabel', 'hasMultipleVariants']) {
     assert.match(compactSource, new RegExp(`entry\\.${field}\\s*=`), `Cloud sync should preserve ${field}.`);
@@ -54,7 +59,7 @@ const unsafeHtmlSink = /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.wr
 assert.doesNotMatch(rendererSource, unsafeHtmlSink);
 assert.match(rendererSource, /valueEl\.textContent = formatUsd\(market\)/);
 assert.doesNotMatch(
-    await readFile('dex-sealed-price-refresh-static.test.mjs', 'utf8'),
+    await readFile(ROOT('dex-sealed-price-refresh-static.test.mjs'), 'utf8'),
     /\b(?:eval|Function|runInContext|runInNewContext)\s*\(/,
     'Security tests must not dynamically execute source text.',
 );
