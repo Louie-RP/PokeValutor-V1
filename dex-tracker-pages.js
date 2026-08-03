@@ -3064,7 +3064,7 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
-                                <p class="pv-card__text pv-dexCard__meta">Type: ${typeLabel}</p>
+                                <p class="pv-card__text pv-dexCard__meta"><span class="pv-dexCard__typeValue">${typeLabel}</span></p>
                                 <p class="pv-card__text pv-dexCard__meta">Sealed product</p>
                                 <p class="pv-card__text pv-dexCard__meta">Quantity: ${quantity}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
@@ -3122,7 +3122,7 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
-                                <p class="pv-card__text pv-dexCard__meta">${rarity}</p>
+                                <p class="pv-card__text pv-dexCard__meta pv-dexCard__rarity">${rarity}</p>
                                 <p class="pv-card__text pv-dexCard__meta">Copies: ${copyCount}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
                                 <details class="pv-dexCard__manage">
