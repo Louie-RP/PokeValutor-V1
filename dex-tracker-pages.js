@@ -1448,6 +1448,8 @@
         return getBestSealedMarketFromVariants(variants);
     }
 
+    // displayId is item.id: either a raw product ID or a synthetic "baseProductId::variantName"
+    // string. Using displayId (not baseProductId) keeps per-variant cache entries separate.
     function buildSealedValueCacheKey(displayId) {
         return `sealed:v2:${safeString(displayId, '').trim()}`;
     }
