@@ -4045,6 +4045,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
+    function buildCanonicalPokemonName(rawName) {
+        return String(rawName || '').replace(/\bpoke\b/gi, (match) =>
+            match[0] === match[0].toUpperCase() ? 'Poké' : 'poké',
+        );
+    }
+
     function buildNameQueryCandidates(rawName) {
         const raw = String(rawName || '').trim();
         if (!raw) return [];
@@ -4060,6 +4066,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         push(buildFieldQuery('name', raw));
+
+        const canonicalName = buildCanonicalPokemonName(raw);
+        if (canonicalName !== raw) {
+            push(buildFieldQuery('name', canonicalName));
+        }
 
         const tokens = raw.split(/\s+/).map(toWildcardToken).filter(Boolean);
         if (tokens.length) {
