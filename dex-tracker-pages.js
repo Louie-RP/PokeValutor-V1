@@ -1454,6 +1454,10 @@
         return `sealed:v2:${safeString(displayId, '').trim()}`;
     }
 
+    function buildCardValueCacheKey(id, selectedVariant, conditionCode) {
+        return `${safeString(id, '')}|${safeString(selectedVariant, '')}|${safeString(conditionCode, '')}`;
+    }
+
     function getInFlightRequest(map, key, factory) {
         const existing = map[key];
         if (existing) return existing;
@@ -1583,7 +1587,7 @@
         for (const entry of conditionEntries) {
             const code = normalizeDexConditionCode(entry?.code);
             if (!code) continue;
-            const cacheKey = `${id}|${selectedVariant}|${code}`;
+            const cacheKey = buildCardValueCacheKey(id, selectedVariant, code);
             const cached = getCachedValue(cacheKey);
             if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) {
                 return false;
@@ -1614,7 +1618,7 @@
         if (!id || !conditionCode) return null;
 
         const selectedVariant = safeString(item?.selectedVariant, '');
-        const cacheKey = `${id}|${selectedVariant}|${conditionCode}`;
+        const cacheKey = buildCardValueCacheKey(id, selectedVariant, conditionCode);
         const cached = getCachedValue(cacheKey);
         if (cached && Number.isFinite(cached.market)) {
             return cached;
@@ -2828,6 +2832,47 @@
         return `<div class="pv-masterSetDetailGrid">${rows}</div>`;
     }
 
+    function syncCollectionValuesFromCache(items) {
+        if (!Array.isArray(items)) return;
+
+        for (const item of items) {
+            const id = safeString(item?.id, '');
+            if (!id) continue;
+
+            const entryKey = getCollectionEntryKey(item);
+
+            if (isSealedCollectionItem(item)) {
+                const cached = getCachedValue(buildSealedValueCacheKey(id));
+                if (cached && Number.isFinite(cached.market) && cached.market > 0) {
+                    collectionValueById[entryKey] = cached.market;
+                }
+                continue;
+            }
+
+            const selectedVariant = safeString(item?.selectedVariant, '');
+            const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
+            const primaryCondition = normalizeDexConditionCode(item?.selectedCondition);
+            let cardDisplayUnit = null;
+            let primaryValue = null;
+
+            for (const entry of conditionEntries) {
+                const cached = getCachedValue(buildCardValueCacheKey(id, selectedVariant, entry.code));
+                if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) continue;
+                if (primaryCondition && entry.code === primaryCondition) {
+                    primaryValue = cached.market;
+                }
+                if (cardDisplayUnit == null) {
+                    cardDisplayUnit = cached.market;
+                }
+            }
+
+            if (primaryValue != null) cardDisplayUnit = primaryValue;
+            if (Number.isFinite(cardDisplayUnit) && cardDisplayUnit > 0) {
+                collectionValueById[entryKey] = cardDisplayUnit;
+            }
+        }
+    }
+
     function renderCollectionPage() {
         const grid = document.getElementById('pv-collection-grid');
         const summary = document.getElementById('pv-collection-summary');
@@ -2885,6 +2930,8 @@
                 safeString(item?.id, ''),
             ];
         }
+
+        syncCollectionValuesFromCache(typeFilteredItems);
 
         const filteredMatches = filterQuery
             ? typeFilteredItems.map((item) => {
@@ -3021,12 +3068,12 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
-                                <p class="pv-card__text pv-dexCard__meta">Type: ${typeLabel}</p>
+                                <p class="pv-card__text pv-dexCard__meta"><span class="pv-dexCard__typeValue">${typeLabel}</span></p>
                                 <p class="pv-card__text pv-dexCard__meta">Sealed product</p>
                                 <p class="pv-card__text pv-dexCard__meta">Quantity: ${quantity}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
                                 <details class="pv-dexCard__manage">
-                                    <summary class="pv-dexCard__manageSummary">Manage quantity</summary>
+                                    <summary class="pv-dexCard__manageSummary">Manage Qty</summary>
                                     <div class="pv-dexCard__manageBody">
                                         <div class="pv-conditionQtyRow">
                                             <p class="pv-card__text pv-conditionQtyLabel">Collection Qty</p>
@@ -3079,7 +3126,7 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
-                                <p class="pv-card__text pv-dexCard__meta">${rarity}</p>
+                                <p class="pv-card__text pv-dexCard__meta pv-dexCard__rarity">${rarity}</p>
                                 <p class="pv-card__text pv-dexCard__meta">Copies: ${copyCount}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
                                 <details class="pv-dexCard__manage">
@@ -3269,6 +3316,8 @@
                     const pricedUnits = Number(result?.pricedUnits || 0);
                     if (pricedUnits > 0) {
                         setCollectionLastValueRefreshMs(getActiveCollectionId(), Date.now());
+                        // Re-render so pagination boundaries use the freshly loaded prices.
+                        renderCollectionPage();
                     }
                 })
                 .catch(() => {
