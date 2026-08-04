@@ -369,6 +369,21 @@
         }
     }
 
+    async function readCollectionWithStatus(ref) {
+        if (!ref) return { ok: false, items: [] };
+        try {
+            const snap = await ref.get();
+            const items = [];
+            snap.forEach((doc) => {
+                const data = doc.data();
+                if (data && typeof data === 'object') items.push(data);
+            });
+            return { ok: true, items };
+        } catch {
+            return { ok: false, items: [] };
+        }
+    }
+
     async function loadFavorites(kind) {
         const user = getUser();
         if (!user || !db) return [];
@@ -413,21 +428,26 @@
         // and merge any missing items into Watchlist. This prevents data loss for
         // existing users while the UI and localStorage are renamed.
         const favRef = favoritesCollectionRef(user.uid, kind);
-        const [watchItems, legacyItems] = await Promise.all([
-            readCollection(watchRef),
-            readCollection(favRef),
+        const [watchResult, legacyResult] = await Promise.all([
+            readCollectionWithStatus(watchRef),
+            readCollectionWithStatus(favRef),
         ]);
 
         const byId = new Map();
-        for (const item of watchItems) {
+        for (const item of watchResult.items) {
             const id = String(item?.id || '').trim();
             if (!id) continue;
             byId.set(id, item);
         }
 
+        // Do not cache a failed read as an empty watchlist. Keep valid watchlist
+        // data available, but retry legacy migration on a later page load.
+        if (!watchResult.ok) return [];
+        if (!legacyResult.ok) return Array.from(byId.values());
+
         /** @type {Array<any>} */
         const toMigrate = [];
-        for (const item of legacyItems) {
+        for (const item of legacyResult.items) {
             const id = String(item?.id || '').trim();
             if (!id) continue;
             if (!byId.has(id)) {
