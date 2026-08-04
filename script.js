@@ -557,6 +557,7 @@
   const HOME_MARKET_SNAPSHOT_KEY = 'pv:home:cardMarketSnapshots:v1';
   const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
   const HOME_SPOTLIGHTS_TTL_MS = 60 * 60 * 1000;
+  const HOME_MARKET_SNAPSHOT_TTL_MS = 8 * 60 * 60 * 1000;
   const HOME_LATEST_EXPANSIONS_CACHE_KEY = 'pv:expansions:latestEnglish:v6';
   const HOME_LATEST_EXPANSIONS_VERSION_KEY = 'pv:expansions:latestEnglish:version:v1';
   const HOME_LATEST_EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -912,10 +913,15 @@
     const settled = await Promise.allSettled(
       candidates.map(async (item) => {
         const id = String(item?.id || '').trim();
-        const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-        const data = await fetchJsonWithOptionalAuth(url, { cache: 'no-store' });
-        const card = data?.data || data || item;
-        const market = getBestMarketFromCard(card);
+        const cached = previousMap?.[id];
+        const isFresh = Number.isFinite(Number(cached?.market))
+          && Date.now() - Number(cached?.seenAt || 0) < HOME_MARKET_SNAPSHOT_TTL_MS;
+        const card = isFresh ? item : await (async () => {
+          const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+          const data = await fetchJsonWithOptionalAuth(url, { cache: 'no-store' });
+          return data?.data || data || item;
+        })();
+        const market = isFresh ? Number(cached.market) : getBestMarketFromCard(card);
 
         const prevMarket = Number(previousMap?.[id]?.market);
         const hasPrev = Number.isFinite(prevMarket);
@@ -925,7 +931,7 @@
         if (hasNow) {
           nextMap[id] = {
             market: Number(market),
-            seenAt: Date.now(),
+            seenAt: isFresh ? Number(cached.seenAt) : Date.now(),
             name: String(card?.name || item?.name || ''),
           };
         }
