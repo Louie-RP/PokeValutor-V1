@@ -102,6 +102,8 @@ document.addEventListener('DOMContentLoaded', function () {
         valueDir: 'desc',
     };
     const sealedFavoriteRefreshInFlight = new Set();
+    const pendingWatchlistRemovals = new Set();
+    const watchlistCloudMutationQueues = new Map();
     /** @type {Record<string, number>} */
     const sealedValueById = {};
     let currentSearchQuery = '';
@@ -1320,6 +1322,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function queueWatchlistCloudMutation(id, mutation) {
+        const key = normalizeWatchlistId(id);
+        const previous = watchlistCloudMutationQueues.get(key) || Promise.resolve();
+        const next = previous.catch(() => {}).then(mutation);
+        watchlistCloudMutationQueues.set(key, next);
+        void next.catch(() => {}).finally(() => {
+            if (watchlistCloudMutationQueues.get(key) === next) {
+                watchlistCloudMutationQueues.delete(key);
+            }
+        });
+        return next;
+    }
+
+    function normalizeWatchlistId(rawId) {
+        return String(rawId ?? '').trim();
+    }
+
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
@@ -1361,24 +1380,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderProducts(currentResultsProducts);
                     return;
                 }
-                const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
-
                 Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
                     .then((cloudList) => {
                         if (!Array.isArray(cloudList)) return;
 
-                        favorites = mergeWatchlist(localSnapshot, cloudList);
+                        const localSnapshot = (Array.isArray(favorites) ? favorites.slice() : loadFavorites())
+                            .filter((item) => !pendingWatchlistRemovals.has(normalizeWatchlistId(item?.id)));
+                        const filteredCloudList = cloudList.filter((item) => !pendingWatchlistRemovals.has(normalizeWatchlistId(item?.id)));
+
+                        favorites = mergeWatchlist(localSnapshot, filteredCloudList);
                         saveFavorites(favorites);
 
                         // Best-effort: push any local-only items into the cloud.
                         try {
                             if (window?.PV_AUTH?.saveWatchlistItem) {
-                                const cloudIds = new Set(cloudList.map((x) => String(x?.id || '').trim()).filter(Boolean));
+                                const cloudIds = new Set(filteredCloudList.map((x) => normalizeWatchlistId(x?.id)).filter(Boolean));
                                 const toSync = localSnapshot
                                     .map(normalizeFavoriteProduct)
-                                    .filter((x) => x && x.id && !cloudIds.has(String(x.id)));
+                                    .filter((x) => {
+                                        const normalizedId = normalizeWatchlistId(x?.id);
+                                        return normalizedId && !pendingWatchlistRemovals.has(normalizedId) && !cloudIds.has(normalizedId);
+                                    });
                                 if (toSync.length) {
-                                    void Promise.allSettled(toSync.map((x) => window.PV_AUTH.saveWatchlistItem('sealed', x)));
+                                    void Promise.allSettled(toSync.map((x) => queueWatchlistCloudMutation(x.id, () => window.PV_AUTH.saveWatchlistItem('sealed', x))));
                                 }
                             }
                         } catch {
@@ -1437,19 +1461,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isFavorite(productId) {
-        const id = String(productId || '');
-        return favorites.some((p) => String(p?.id || '') === id);
+        const id = normalizeWatchlistId(productId);
+        return favorites.some((p) => normalizeWatchlistId(p?.id) === id);
     }
 
     function toggleFavorite(product) {
-        const id = safeString(product?.id, '');
+        const id = normalizeWatchlistId(product?.id);
         if (!id) return;
 
         if (isFavorite(id)) {
-            favorites = favorites.filter((p) => String(p?.id || '') !== id);
+            favorites = favorites.filter((p) => normalizeWatchlistId(p?.id) !== id);
             try {
                 if (window?.PV_AUTH?.removeWatchlistItem) {
-                    void window.PV_AUTH.removeWatchlistItem('sealed', id);
+                    pendingWatchlistRemovals.add(normalizeWatchlistId(id));
+                    void queueWatchlistCloudMutation(id, () => window.PV_AUTH.removeWatchlistItem('sealed', id))
+                        .catch(() => {})
+                        .finally(() => pendingWatchlistRemovals.delete(normalizeWatchlistId(id)));
                 }
             } catch {
                 // ignore
@@ -1459,7 +1486,7 @@ document.addEventListener('DOMContentLoaded', function () {
             favorites = [...favorites, favObj];
             try {
                 if (window?.PV_AUTH?.saveWatchlistItem) {
-                    void window.PV_AUTH.saveWatchlistItem('sealed', favObj);
+                    void queueWatchlistCloudMutation(id, () => window.PV_AUTH.saveWatchlistItem('sealed', favObj));
                 }
             } catch {
                 // ignore
@@ -1474,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function clearFavorites() {
         const idsToRemove = favorites
-            .map((product) => safeString(product?.id, ''))
+            .map((product) => normalizeWatchlistId(product?.id))
             .filter(Boolean);
         const removedCount = idsToRemove.length;
 
@@ -1492,7 +1519,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             if (idsToRemove.length && window?.PV_AUTH?.removeWatchlistItem) {
-                const settled = await Promise.allSettled(idsToRemove.map((id) => window.PV_AUTH.removeWatchlistItem('sealed', id)));
+                idsToRemove.forEach((id) => pendingWatchlistRemovals.add(normalizeWatchlistId(id)));
+                const settled = await Promise.allSettled(idsToRemove.map((id) => queueWatchlistCloudMutation(id, () => window.PV_AUTH.removeWatchlistItem('sealed', id))));
+                idsToRemove.forEach((id) => pendingWatchlistRemovals.delete(normalizeWatchlistId(id)));
                 const failedCount = settled.filter((result) => result.status === 'rejected').length;
                 if (failedCount > 0) {
                     const noun = failedCount === 1 ? 'item' : 'items';
