@@ -1454,6 +1454,10 @@
         return `sealed:v2:${safeString(displayId, '').trim()}`;
     }
 
+    function buildCardValueCacheKey(id, selectedVariant, conditionCode) {
+        return `${safeString(id, '')}|${safeString(selectedVariant, '')}|${safeString(conditionCode, '')}`;
+    }
+
     function getInFlightRequest(map, key, factory) {
         const existing = map[key];
         if (existing) return existing;
@@ -1583,7 +1587,7 @@
         for (const entry of conditionEntries) {
             const code = normalizeDexConditionCode(entry?.code);
             if (!code) continue;
-            const cacheKey = `${id}|${selectedVariant}|${code}`;
+            const cacheKey = buildCardValueCacheKey(id, selectedVariant, code);
             const cached = getCachedValue(cacheKey);
             if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) {
                 return false;
@@ -1614,7 +1618,7 @@
         if (!id || !conditionCode) return null;
 
         const selectedVariant = safeString(item?.selectedVariant, '');
-        const cacheKey = `${id}|${selectedVariant}|${conditionCode}`;
+        const cacheKey = buildCardValueCacheKey(id, selectedVariant, conditionCode);
         const cached = getCachedValue(cacheKey);
         if (cached && Number.isFinite(cached.market)) {
             return cached;
@@ -2829,12 +2833,15 @@
     }
 
     function syncCollectionValuesFromCache(items) {
-        for (const item of (Array.isArray(items) ? items : [])) {
+        if (!Array.isArray(items)) return;
+
+        for (const item of items) {
+            const id = safeString(item?.id, '');
+            if (!id) continue;
+
             const entryKey = getCollectionEntryKey(item);
 
             if (isSealedCollectionItem(item)) {
-                const id = safeString(item?.id, '');
-                if (!id) continue;
                 const cached = getCachedValue(buildSealedValueCacheKey(id));
                 if (cached && Number.isFinite(cached.market) && cached.market > 0) {
                     collectionValueById[entryKey] = cached.market;
@@ -2842,8 +2849,6 @@
                 continue;
             }
 
-            const id = safeString(item?.id, '');
-            if (!id) continue;
             const selectedVariant = safeString(item?.selectedVariant, '');
             const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
             const primaryCondition = normalizeDexConditionCode(item?.selectedCondition);
@@ -2851,8 +2856,7 @@
             let primaryValue = null;
 
             for (const entry of conditionEntries) {
-                const cacheKey = `${id}|${selectedVariant}|${entry.code}`;
-                const cached = getCachedValue(cacheKey);
+                const cached = getCachedValue(buildCardValueCacheKey(id, selectedVariant, entry.code));
                 if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) continue;
                 if (primaryCondition && entry.code === primaryCondition) {
                     primaryValue = cached.market;
