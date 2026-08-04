@@ -102,6 +102,40 @@
     const auth = window.firebase.auth();
     const db = window.firebase.firestore ? window.firebase.firestore() : null;
     const functions = window.firebase.functions ? window.firebase.functions() : null;
+    const WATCHLIST_CLOUD_CACHE_PREFIX = 'pv:scrydex:watchlistCloud:v1:';
+    const WATCHLIST_CLOUD_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+
+    function getWatchlistCloudCacheKey(uid, kind) {
+        return `${WATCHLIST_CLOUD_CACHE_PREFIX}${String(uid || '').trim()}:${String(kind || 'card').trim()}`;
+    }
+
+    function readWatchlistCloudCache(uid, kind) {
+        try {
+            const raw = window.localStorage.getItem(getWatchlistCloudCacheKey(uid, kind));
+            const cached = raw ? JSON.parse(raw) : null;
+            if (!cached || !Array.isArray(cached.value) || Date.now() - Number(cached.savedAt || 0) >= WATCHLIST_CLOUD_CACHE_TTL_MS) {
+                return null;
+            }
+            return cached.value;
+        } catch {
+            return null;
+        }
+    }
+
+    function writeWatchlistCloudCache(uid, kind, value) {
+        try {
+            window.localStorage.setItem(getWatchlistCloudCacheKey(uid, kind), JSON.stringify({
+                savedAt: Date.now(),
+                value: Array.isArray(value) ? value : [],
+            }));
+        } catch {
+            // ignore storage errors
+        }
+    }
+
+    function invalidateWatchlistCloudCache(uid, kind) {
+        try { window.localStorage.removeItem(getWatchlistCloudCacheKey(uid, kind)); } catch { /* ignore */ }
+    }
 
     function normalizeLocalFlag(value) {
         const raw = String(value || '').trim().toLowerCase();
@@ -370,6 +404,8 @@
     async function loadWatchlist(kind) {
         const user = getUser();
         if (!user || !db) return [];
+        const cached = readWatchlistCloudCache(user.uid, kind);
+        if (cached) return cached;
         const watchRef = watchlistCollectionRef(user.uid, kind);
         if (!watchRef) return [];
 
@@ -405,12 +441,15 @@
             await Promise.allSettled(toMigrate.map((item) => saveWatchlistItem(kind, item)));
         }
 
-        return Array.from(byId.values());
+        const result = Array.from(byId.values());
+        writeWatchlistCloudCache(user.uid, kind, result);
+        return result;
     }
 
     async function saveWatchlistItem(kind, item) {
         const user = getUser();
         if (!user || !db) return;
+        invalidateWatchlistCloudCache(user.uid, kind);
         const ref = watchlistCollectionRef(user.uid, kind);
         if (!ref) return;
         const id = String(item?.id || '').trim();
@@ -426,6 +465,7 @@
     async function removeWatchlistItem(kind, id) {
         const user = getUser();
         if (!user || !db) return;
+        invalidateWatchlistCloudCache(user.uid, kind);
         const docId = String(id || '').trim();
         if (!docId) return;
         const watchRef = watchlistCollectionRef(user.uid, kind);
