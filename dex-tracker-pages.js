@@ -3073,7 +3073,7 @@
                                 <p class="pv-card__text pv-dexCard__meta">Quantity: ${quantity}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
                                 <details class="pv-dexCard__manage">
-                                    <summary class="pv-dexCard__manageSummary">Manage quantity</summary>
+                                    <summary class="pv-dexCard__manageSummary">Manage Qty</summary>
                                     <div class="pv-dexCard__manageBody">
                                         <div class="pv-conditionQtyRow">
                                             <p class="pv-card__text pv-conditionQtyLabel">Collection Qty</p>
