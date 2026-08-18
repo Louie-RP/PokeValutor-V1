@@ -24,7 +24,7 @@ assert.match(searchMarkup, /pv-trade__bulkActions[\s\S]*pv-trade-apply-percent-b
 assert.match(searchMarkup, /id="pv-trade-remaining"/);
 assert.match(searchMarkup, /pv-trade__goalDivider/);
 assert.match(searchMarkup, /id="pv-trade-toggle"[\s\S]*id="pv-trade-clear"/);
-assert.match(searchMarkup, /styles\.css\?v=20260817-trade-summary-1/);
+assert.match(searchMarkup, /styles\.css\?v=20260818-trade-surface-1/);
 
 const first = {
     id: 'base1-4',
@@ -104,6 +104,7 @@ assert.match(searchSource, /pv-tradeTotals__market/);
 assert.match(searchSource, /pv-tradeTotals__trade/);
 assert.match(searchSource, /pv-tradeTotals__unavailable/);
 assert.match(searchSource, /pv-tradeTotals__separator/);
+assert.match(searchSource, /pv-tradeTotals__separator--beforeTrade/);
 assert.match(searchSource, /tradeRemainingEl\.appendChild/);
 assert.match(searchSource, /renderTradeWorkspace\(tradeTargetInput\.value\)/);
 assert.match(searchSource, /placeTradeBulkForViewport/);
@@ -113,6 +114,8 @@ assert.match(searchSource, /pv-tradeTotals__targetMet/);
 assert.match(searchSource, /syncTradeResultButtons\(\)/);
 assert.match(searchSource, /data-trade-card-id/);
 assert.match(searchSource, /conditionValues/);
+assert.match(searchSource, /tradeApi\.getConditionMarketValues\(prices\)/);
+assert.match(cardSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(searchSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(cardSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(searchSource, /pv-tradeCard__details/);

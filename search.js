@@ -2526,7 +2526,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tradeTotalsEl.append(
             createTextElement('span', 'pv-tradeTotals__separator', ' · '),
             marketSpan,
-            createTextElement('span', 'pv-tradeTotals__separator', ' · '),
+            createTextElement('span', 'pv-tradeTotals__separator pv-tradeTotals__separator--beforeTrade', ' · '),
             tradeSpan
         );
         const target = targetOverride === undefined ? loadTradeTarget() : normalizeTradeTarget(targetOverride);
