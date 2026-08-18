@@ -35,7 +35,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260729-search-buttons-1" />
+    <link rel="stylesheet" href="styles.css?v=20260817-trade-summary-1" />
     <link rel="stylesheet" href="scanner.css?v=20260709-2" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
@@ -180,8 +180,7 @@
             <section id="pv-trade" class="pv-section pv-trade" aria-labelledby="pv-trade-title" hidden>
                 <div class="pv-section__header">
                     <div>
-                        <h2 id="pv-trade-title" class="pv-section__title">Trade <span id="pv-trade-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
-                        <p class="pv-section__text">Trade values use the prices captured when each card was added or last loaded.</p>
+                        <h2 id="pv-trade-title" class="pv-section__title">Trade</h2>
                     </div>
                     <div class="pv-trade__controls">
                         <label for="pv-trade-apply-percent" class="form-label pv-sortLabel">Apply to all</label>
@@ -196,6 +195,17 @@
                         <button id="pv-trade-apply-percent-button" class="pv-button pv-button--secondary btn" type="button">Apply</button>
                         <button id="pv-trade-toggle" class="pv-button pv-button--primary btn" type="button" aria-controls="pv-trade-body" aria-expanded="true">Hide</button>
                         <button id="pv-trade-clear" class="pv-button pv-button--secondary btn" type="button">Clear</button>
+                    </div>
+                </div>
+                <div class="pv-trade__summary">
+                    <span id="pv-trade-totals" class="small text-muted" aria-live="polite"></span>
+                    <div class="pv-trade__target">
+                        <label for="pv-trade-target" class="form-label">Need to reach</label>
+                        <div class="pv-trade__targetInput">
+                            <span aria-hidden="true">$</span>
+                            <input id="pv-trade-target" class="form-control" type="number" min="0" max="10000000" step="0.01" inputmode="decimal" placeholder="0.00" aria-describedby="pv-trade-target-help" />
+                        </div>
+                        <span id="pv-trade-target-help" class="pv-trade__targetHelp" role="img" tabindex="0" aria-label="Optional target amount. Enter a value from zero to ten million dollars." data-tooltip="Optional target amount. Enter a value from $0.00 to $10,000,000.00.">&#9432;</span>
                     </div>
                 </div>
                 <div id="pv-trade-body">
