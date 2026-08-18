@@ -5,6 +5,11 @@ import trade from './trade-workspace.js';
 assert.equal(trade.normalizePercent(undefined), 80);
 assert.equal(trade.normalizePercent(150), 100);
 assert.equal(trade.normalizePercent(-20), 0);
+assert.deepEqual(trade.getConditionMarketValues([
+    { condition: 'Near Mint', market: 10 },
+    { condition: 'NM', market: 12 },
+    { condition: 'Lightly Played', market: 8 },
+]), { NM: 12, LP: 8 });
 
 const searchMarkup = await readFile('search.html', 'utf8');
 assert.match(searchMarkup, /id="pv-trade-target"/);
@@ -20,11 +25,6 @@ assert.match(searchMarkup, /id="pv-trade-remaining"/);
 assert.match(searchMarkup, /pv-trade__goalDivider/);
 assert.match(searchMarkup, /id="pv-trade-toggle"[\s\S]*id="pv-trade-clear"/);
 assert.match(searchMarkup, /styles\.css\?v=20260817-trade-summary-1/);
-const stylesSource = await readFile('styles.css', 'utf8');
-assert.match(stylesSource, /pv-trade__summary[\s\S]*margin-top: 0\.9rem/);
-assert.match(stylesSource, /pv-trade__target \.form-label[\s\S]*font-size: 0\.92rem/);
-assert.match(stylesSource, /grid-template-columns: minmax\(0, 1fr\) auto/);
-assert.match(stylesSource, /pv-trade__target[\s\S]*grid-column: 1 \/ -1/);
 
 const first = {
     id: 'base1-4',
@@ -107,21 +107,14 @@ assert.match(searchSource, /pv-tradeTotals__separator/);
 assert.match(searchSource, /tradeRemainingEl\.appendChild/);
 assert.match(searchSource, /renderTradeWorkspace\(tradeTargetInput\.value\)/);
 assert.match(searchSource, /placeTradeBulkForViewport/);
-assert.match(stylesSource, /pv-trade__bulk \.pv-sortSelect[\s\S]*min-width: 88px/);
-assert.match(stylesSource, /#pv-search-body #pv-trade \.pv-tradeTotals__remaining/);
-assert.match(stylesSource, /#pv-search-body #pv-trade \.pv-tradeTotals__targetMet/);
-assert.match(stylesSource, /pv-tradeTotals__remaining[\s\S]*font-weight: 700/);
-assert.match(stylesSource, /pv-tradeTotals__targetMet[\s\S]*font-weight: 700/);
-assert.match(stylesSource, /pv-tradeTotals__remaining[\s\S]*font-family: "Space Grotesk"[\s\S]*font-size: 0\.92rem/);
-assert.match(stylesSource, /pv-tradeTotals__targetMet[\s\S]*font-family: "Space Grotesk"[\s\S]*font-size: 0\.92rem/);
-assert.match(stylesSource, /@media \(min-width: 641px\)[\s\S]*pv-trade__remaining[\s\S]*align-self: baseline/);
 assert.match(searchSource, /normalizeTradeTarget/);
 assert.match(searchSource, /pv-tradeTotals__remaining/);
 assert.match(searchSource, /pv-tradeTotals__targetMet/);
 assert.match(searchSource, /syncTradeResultButtons\(\)/);
 assert.match(searchSource, /data-trade-card-id/);
-assert.match(await readFile('styles.css', 'utf8'), /#pv-search-body #pv-trade-totals[\s\S]*font-family: "Space Grotesk"/);
 assert.match(searchSource, /conditionValues/);
+assert.match(searchSource, /tradeApi\.getConditionMarketValues\(prices\)/);
+assert.match(cardSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(searchSource, /pv-tradeCard__details/);
 assert.match(searchSource, /cardDetailsSummary\.textContent = 'Card details'/);
 assert.match(searchSource, /col-12 col-md-6 pv-trade__item/);

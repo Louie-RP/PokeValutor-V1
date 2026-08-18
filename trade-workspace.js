@@ -39,6 +39,29 @@
         return values;
     }
 
+    function getConditionMarketValues(prices) {
+        const values = {};
+        if (!Array.isArray(prices)) return values;
+        for (const price of prices) {
+            const rawCondition = safeString(price?.condition, '').toUpperCase();
+            const condition = rawCondition === 'NM' || rawCondition.startsWith('NEAR MINT')
+                ? 'NM'
+                : rawCondition === 'LP' || rawCondition.startsWith('LIGHT PLAY') || rawCondition.startsWith('LIGHTLY PLAY')
+                    ? 'LP'
+                    : rawCondition === 'MP' || rawCondition.startsWith('MODERATE PLAY') || rawCondition.startsWith('MODERATELY PLAY') || rawCondition.startsWith('MID PLAY')
+                        ? 'MP'
+                        : rawCondition === 'HP' || rawCondition.startsWith('HEAVY PLAY') || rawCondition.startsWith('HEAVILY PLAY')
+                            ? 'HP'
+                            : rawCondition === 'DM' || rawCondition.startsWith('DAMAGE')
+                                ? 'DM'
+                                : '';
+            const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price);
+            if (!ALLOWED_CONDITIONS.has(condition) || !Number.isFinite(market)) continue;
+            if (values[condition] == null || market > values[condition]) values[condition] = market;
+        }
+        return values;
+    }
+
     function normalizeTimestamp(value, fallback = Date.now()) {
         const timestamp = Number(value);
         return Number.isFinite(timestamp) && timestamp >= 0 ? timestamp : fallback;
@@ -209,6 +232,7 @@
         DEFAULT_PERCENT,
         MAX_ITEMS,
         normalizePercent,
+        getConditionMarketValues,
         normalizeTradeItem,
         normalizeWorkspace,
         loadTradeWorkspace,

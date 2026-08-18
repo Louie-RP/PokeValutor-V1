@@ -2663,15 +2663,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getTradeConditionValues(prices) {
-        const values = {};
-        if (!Array.isArray(prices)) return values;
-        for (const price of prices) {
-            const condition = normalizeDexConditionCode(price?.condition);
-            const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price);
-            if (!condition || !Number.isFinite(market)) continue;
-            if (values[condition] == null || market > values[condition]) values[condition] = market;
-        }
-        return values;
+        return tradeApi.getConditionMarketValues(prices);
     }
 
     function toggleTradeCard(card, selectedVariant, loadedPrices, button) {

@@ -654,26 +654,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getTradeConditionValues(prices) {
-        const values = {};
-        if (!Array.isArray(prices)) return values;
-        for (const price of prices) {
-            const rawCondition = safeString(price?.condition, '').trim().toUpperCase();
-            const condition = rawCondition === 'NM' || rawCondition.startsWith('NEAR MINT')
-                ? 'NM'
-                : rawCondition === 'LP' || rawCondition.startsWith('LIGHT PLAY')
-                    ? 'LP'
-                    : rawCondition === 'MP' || rawCondition.startsWith('MODERATE PLAY') || rawCondition.startsWith('MID PLAY')
-                        ? 'MP'
-                        : rawCondition === 'HP' || rawCondition.startsWith('HEAVY PLAY')
-                            ? 'HP'
-                            : rawCondition === 'DM' || rawCondition.startsWith('DAMAGE')
-                                ? 'DM'
-                                : '';
-            const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price);
-            if (!['NM', 'LP', 'MP', 'HP', 'DM'].includes(condition) || !Number.isFinite(market)) continue;
-            if (values[condition] == null || market > values[condition]) values[condition] = market;
-        }
-        return values;
+        return tradeApi.getConditionMarketValues(prices);
     }
 
     function syncTradeButton(cardId) {
