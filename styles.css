@@ -7720,7 +7720,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   #pv-search-body #pv-trade .pv-trade__bulk {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 3;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -7729,6 +7729,18 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   #pv-search-body #pv-trade .pv-trade__bulkActions {
     justify-content: flex-end;
+  }
+
+  #pv-search-body #pv-trade .pv-trade__bulkHelp::after {
+    left: 0;
+    right: auto;
+    max-width: min(220px, calc(100vw - 2rem));
+    transform: translateY(0.2rem);
+  }
+
+  #pv-search-body #pv-trade .pv-trade__bulkHelp:hover::after,
+  #pv-search-body #pv-trade .pv-trade__bulkHelp:focus-visible::after {
+    transform: translateY(0);
   }
 
   #pv-search-body #pv-trade .pv-trade__bulkLabel {
@@ -7744,7 +7756,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   #pv-search-body #pv-trade .pv-trade__remaining {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 2;
     display: block;
     margin-top: 0.12rem;
     min-height: 1.1rem;
