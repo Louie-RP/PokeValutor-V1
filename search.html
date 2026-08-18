@@ -177,6 +177,32 @@
                 </section>
             </div>
 
+            <section id="pv-trade" class="pv-section pv-trade" aria-labelledby="pv-trade-title" hidden>
+                <div class="pv-section__header">
+                    <div>
+                        <h2 id="pv-trade-title" class="pv-section__title">Trade <span id="pv-trade-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
+                        <p class="pv-section__text">Trade values use the prices captured when each card was added or last loaded.</p>
+                    </div>
+                    <div class="pv-trade__controls">
+                        <label for="pv-trade-apply-percent" class="form-label pv-sortLabel">Apply to all</label>
+                        <select id="pv-trade-apply-percent" class="form-select pv-sortSelect" aria-label="Trade percentage to apply to all cards">
+                            <option value="100">100%</option>
+                            <option value="90">90%</option>
+                            <option value="80" selected>80%</option>
+                            <option value="70">70%</option>
+                            <option value="60">60%</option>
+                            <option value="50">50%</option>
+                        </select>
+                        <button id="pv-trade-apply-percent-button" class="pv-button pv-button--secondary btn" type="button">Apply</button>
+                        <button id="pv-trade-toggle" class="pv-button pv-button--primary btn" type="button" aria-controls="pv-trade-body" aria-expanded="true">Hide</button>
+                        <button id="pv-trade-clear" class="pv-button pv-button--secondary btn" type="button">Clear</button>
+                    </div>
+                </div>
+                <div id="pv-trade-body">
+                    <div id="pv-trade-grid" class="row g-3" aria-label="Trade cards"></div>
+                </div>
+            </section>
+
             <section id="pv-favorites" class="pv-section pv-searchWatchlist" aria-labelledby="pv-favorites-title">
                 <div class="pv-section__header">
                     <h2 id="pv-favorites-title" class="pv-section__title">Watchlist <span id="pv-favorites-totals" class="small text-muted ms-2" aria-live="polite"></span></h2>
@@ -215,6 +241,8 @@
     <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">&#9650;</button>
 
     <script src="script.js?v=20260721-2" defer></script>
+    <script src="feature-flags.js?v=20260817-1" defer></script>
+    <script src="trade-workspace.js?v=20260817-1" defer></script>
 
     <!-- Firebase CDN (compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
