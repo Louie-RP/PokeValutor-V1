@@ -6,6 +6,18 @@ assert.equal(trade.normalizePercent(undefined), 80);
 assert.equal(trade.normalizePercent(150), 100);
 assert.equal(trade.normalizePercent(-20), 0);
 
+const searchMarkup = await readFile('search.html', 'utf8');
+assert.match(searchMarkup, /id="pv-trade-target"/);
+assert.match(searchMarkup, /max="10000000"/);
+assert.match(searchMarkup, /id="pv-trade-target-help"[^>]*data-tooltip=/);
+assert.match(searchMarkup, /id="pv-trade-target-help"[^>]*>&#9432;<\/span>/);
+assert.match(searchMarkup, /class="pv-trade__summary"[\s\S]*id="pv-trade-totals"/);
+assert.match(searchMarkup, /id="pv-trade-title"[^>]*>Trade<\/h2>[\s\S]*pv-trade-apply-percent/);
+assert.match(searchMarkup, /styles\.css\?v=20260817-trade-summary-1/);
+const stylesSource = await readFile('styles.css', 'utf8');
+assert.match(stylesSource, /pv-trade__summary[\s\S]*margin-top: 0\.9rem/);
+assert.match(stylesSource, /pv-trade__target \.form-label[\s\S]*font-size: 0\.92rem/);
+
 const first = {
     id: 'base1-4',
     name: '<Charizard>',
@@ -83,12 +95,16 @@ assert.match(searchSource, /tradeApi\.calculateTradeTotals\(tradeWorkspace\.item
 assert.match(searchSource, /pv-tradeTotals__market/);
 assert.match(searchSource, /pv-tradeTotals__trade/);
 assert.match(searchSource, /pv-tradeTotals__unavailable/);
+assert.match(searchSource, /normalizeTradeTarget/);
+assert.match(searchSource, /pv-tradeTotals__remaining/);
+assert.match(searchSource, /pv-tradeTotals__targetMet/);
 assert.match(searchSource, /syncTradeResultButtons\(\)/);
 assert.match(searchSource, /data-trade-card-id/);
 assert.match(await readFile('styles.css', 'utf8'), /#pv-search-body #pv-trade-totals[\s\S]*font-family: "Space Grotesk"/);
 assert.match(searchSource, /conditionValues/);
 assert.match(searchSource, /pv-tradeCard__details/);
 assert.match(searchSource, /cardDetailsSummary\.textContent = 'Card details'/);
+assert.match(searchSource, /col-12 col-md-6 pv-trade__item/);
 assert.match(cardSource, /tradeApi\.addOrUpdateTradeItem\(workspace/);
 
 console.log('Trade workspace normalization, persistence, totals, and XSS checks passed.');

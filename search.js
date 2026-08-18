@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tradeBody = document.getElementById('pv-trade-body');
     const tradeGrid = document.getElementById('pv-trade-grid');
     const tradeTotalsEl = document.getElementById('pv-trade-totals');
+    const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
     const tradeToggle = document.getElementById('pv-trade-toggle');
     const tradeClearBtn = document.getElementById('pv-trade-clear');
     const tradeApplyPercent = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-trade-apply-percent'));
@@ -49,6 +50,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const CACHE_PREFIX = 'pv:scrydex:';
     const TRADE_COLLAPSED_KEY = `${CACHE_PREFIX}tradeCollapsed:v1`;
+    const TRADE_TARGET_KEY = `${CACHE_PREFIX}tradeTarget:v1`;
+    const MAX_TRADE_TARGET = 10000000;
     const tradeApi = window.PV_TRADE;
     const tradeEnabled = window?.PV_FEATURES?.tradeWorkspace === true && Boolean(tradeApi);
     let tradeWorkspace = tradeEnabled ? tradeApi.loadTradeWorkspace() : null;
@@ -2462,6 +2465,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
     }
 
+    function normalizeTradeTarget(value) {
+        if (value === null || value === undefined || String(value).trim() === '') return null;
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0 || amount > MAX_TRADE_TARGET) return null;
+        return Math.round(amount * 100) / 100;
+    }
+
+    function loadTradeTarget() {
+        try {
+            return normalizeTradeTarget(localStorage.getItem(TRADE_TARGET_KEY));
+        } catch {
+            return null;
+        }
+    }
+
+    function saveTradeTarget(value) {
+        const target = normalizeTradeTarget(value);
+        try {
+            if (target === null) localStorage.removeItem(TRADE_TARGET_KEY);
+            else localStorage.setItem(TRADE_TARGET_KEY, String(target));
+        } catch {
+            // ignore storage failures; the current input remains usable
+        }
+        return target;
+    }
+
     function renderTradeWorkspace() {
         if (!tradeEnabled || !tradeGrid || !tradeWorkspace) return;
         tradeGrid.replaceChildren();
@@ -2484,6 +2513,18 @@ document.addEventListener('DOMContentLoaded', function () {
             );
         }
         tradeTotalsEl.append(document.createTextNode(' · '), marketSpan, document.createTextNode(' · '), tradeSpan);
+        const target = loadTradeTarget();
+        if (target !== null) {
+            const difference = target - totals.tradeAdjustedTotal;
+            tradeTotalsEl.append(
+                document.createTextNode(' · '),
+                createTextElement(
+                    'span',
+                    difference > 0 ? 'pv-tradeTotals__remaining' : 'pv-tradeTotals__targetMet',
+                    difference > 0 ? `Remaining ${formatTradeMoney(difference)}` : `Target met · ${formatTradeMoney(Math.abs(difference))} over`
+                )
+            );
+        }
 
         if (itemCount === 0) {
             const empty = document.createElement('div');
@@ -2643,6 +2684,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function bindTradeControls() {
         if (!tradeEnabled) return;
         tradeSection.hidden = false;
+        const savedTarget = loadTradeTarget();
+        if (tradeTargetInput && savedTarget !== null) tradeTargetInput.value = savedTarget.toFixed(2);
         renderTradeWorkspace();
         setTradeCollapsed(loadTradeCollapsed());
         tradeToggle?.addEventListener('click', () => setTradeCollapsed(!tradeBody?.hidden));
@@ -2656,6 +2699,15 @@ document.addEventListener('DOMContentLoaded', function () {
         tradeApplyPercentBtn?.addEventListener('click', () => {
             tradeWorkspace = tradeApi.applyTradePercentToAll(tradeWorkspace, tradeApplyPercent?.value);
             saveTradeWorkspace();
+            renderTradeWorkspace();
+        });
+        tradeTargetInput?.addEventListener('input', () => {
+            const target = saveTradeTarget(tradeTargetInput.value);
+            tradeTargetInput.setCustomValidity(
+                tradeTargetInput.value.trim() !== '' && target === null
+                    ? 'Enter an amount from 0.00 to 10,000,000.00.'
+                    : ''
+            );
             renderTradeWorkspace();
         });
         tradeGrid?.addEventListener('change', (event) => {
