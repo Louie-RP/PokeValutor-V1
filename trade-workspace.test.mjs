@@ -10,13 +10,21 @@ const searchMarkup = await readFile('search.html', 'utf8');
 assert.match(searchMarkup, /id="pv-trade-target"/);
 assert.match(searchMarkup, /max="10000000"/);
 assert.match(searchMarkup, /id="pv-trade-target-help"[^>]*data-tooltip=/);
-assert.match(searchMarkup, /id="pv-trade-target-help"[^>]*>&#9432;<\/span>/);
+assert.match(searchMarkup, /id="pv-trade-target-help"[^>]*>i<\/span>/);
 assert.match(searchMarkup, /class="pv-trade__summary"[\s\S]*id="pv-trade-totals"/);
 assert.match(searchMarkup, /id="pv-trade-title"[^>]*>Trade<\/h2>[\s\S]*pv-trade-apply-percent/);
+assert.match(searchMarkup, /pv-trade__bulk[\s\S]*pv-trade-apply-percent-button/);
+assert.match(searchMarkup, /pv-trade__bulkHelp/);
+assert.match(searchMarkup, /pv-trade__bulkActions[\s\S]*pv-trade-apply-percent-button/);
+assert.match(searchMarkup, /id="pv-trade-remaining"/);
+assert.match(searchMarkup, /pv-trade__goalDivider/);
+assert.match(searchMarkup, /id="pv-trade-toggle"[\s\S]*id="pv-trade-clear"/);
 assert.match(searchMarkup, /styles\.css\?v=20260817-trade-summary-1/);
 const stylesSource = await readFile('styles.css', 'utf8');
 assert.match(stylesSource, /pv-trade__summary[\s\S]*margin-top: 0\.9rem/);
 assert.match(stylesSource, /pv-trade__target \.form-label[\s\S]*font-size: 0\.92rem/);
+assert.match(stylesSource, /grid-template-columns: minmax\(0, 1fr\) auto/);
+assert.match(stylesSource, /pv-trade__target[\s\S]*grid-column: 1 \/ -1/);
 
 const first = {
     id: 'base1-4',
@@ -95,6 +103,18 @@ assert.match(searchSource, /tradeApi\.calculateTradeTotals\(tradeWorkspace\.item
 assert.match(searchSource, /pv-tradeTotals__market/);
 assert.match(searchSource, /pv-tradeTotals__trade/);
 assert.match(searchSource, /pv-tradeTotals__unavailable/);
+assert.match(searchSource, /pv-tradeTotals__separator/);
+assert.match(searchSource, /tradeRemainingEl\.appendChild/);
+assert.match(searchSource, /renderTradeWorkspace\(tradeTargetInput\.value\)/);
+assert.match(searchSource, /placeTradeBulkForViewport/);
+assert.match(stylesSource, /pv-trade__bulk \.pv-sortSelect[\s\S]*min-width: 88px/);
+assert.match(stylesSource, /#pv-search-body #pv-trade \.pv-tradeTotals__remaining/);
+assert.match(stylesSource, /#pv-search-body #pv-trade \.pv-tradeTotals__targetMet/);
+assert.match(stylesSource, /pv-tradeTotals__remaining[\s\S]*font-weight: 700/);
+assert.match(stylesSource, /pv-tradeTotals__targetMet[\s\S]*font-weight: 700/);
+assert.match(stylesSource, /pv-tradeTotals__remaining[\s\S]*font-family: "Space Grotesk"[\s\S]*font-size: 0\.92rem/);
+assert.match(stylesSource, /pv-tradeTotals__targetMet[\s\S]*font-family: "Space Grotesk"[\s\S]*font-size: 0\.92rem/);
+assert.match(stylesSource, /@media \(min-width: 641px\)[\s\S]*pv-trade__remaining[\s\S]*align-self: baseline/);
 assert.match(searchSource, /normalizeTradeTarget/);
 assert.match(searchSource, /pv-tradeTotals__remaining/);
 assert.match(searchSource, /pv-tradeTotals__targetMet/);
