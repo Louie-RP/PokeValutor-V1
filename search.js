@@ -2507,6 +2507,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tradeGrid.replaceChildren();
         const totals = tradeApi.calculateTradeTotals(tradeWorkspace.items);
         const itemCount = tradeWorkspace.items.length;
+        tradeGrid.classList.toggle('pv-tradeGrid--carousel', itemCount > 4);
         const countSpan = createTextElement(
             'span',
             'pv-tradeTotals__count',
@@ -2547,7 +2548,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        for (const item of tradeWorkspace.items) {
+        let carouselPage = null;
+        for (const [index, item] of tradeWorkspace.items.entries()) {
+            if (itemCount > 4 && index % 4 === 0) {
+                carouselPage = document.createElement('div');
+                carouselPage.className = 'pv-tradeCarouselPage';
+                tradeGrid.appendChild(carouselPage);
+            }
             const col = document.createElement('div');
             col.className = 'col-12 col-md-6 pv-trade__item';
             col.dataset.tradeId = item.id;
@@ -2616,7 +2623,8 @@ document.addEventListener('DOMContentLoaded', function () {
             body.appendChild(controls);
             card.appendChild(body);
             col.appendChild(card);
-            tradeGrid.appendChild(col);
+            if (itemCount > 4) carouselPage.appendChild(col);
+            else tradeGrid.appendChild(col);
         }
     }
 
