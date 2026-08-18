@@ -3844,6 +3844,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 #pv-search-body #pv-favorites.pv-searchWatchlist {
+  width: 100%;
+  max-width: 1100px;
+  box-sizing: border-box;
   margin-top: 0;
   border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 18px;
@@ -3852,6 +3855,20 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     rgba(2, 6, 23, 0.68);
   padding: clamp(0.85rem, 2vw, 1.1rem);
   animation: pv-search-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 170ms both;
+}
+
+#pv-search-body #pv-trade.pv-trade {
+  width: 100%;
+  max-width: 1100px;
+  box-sizing: border-box;
+  margin-top: 0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.01)),
+    rgba(2, 6, 23, 0.68);
+  padding: clamp(0.85rem, 2vw, 1.1rem);
+  animation: pv-search-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
 }
 
 #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > div,
@@ -7587,12 +7604,21 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 @media (min-width: 641px) {
   #pv-search-body #pv-trade .pv-trade__summary {
     align-items: baseline;
+    justify-content: flex-start;
   }
 
   #pv-search-body #pv-trade .pv-trade__remaining,
-  #pv-search-body #pv-trade .pv-trade__target,
   #pv-search-body #pv-trade .pv-trade__targetInput {
     align-self: baseline;
+  }
+
+  #pv-search-body #pv-trade .pv-trade__remaining {
+    margin-left: 0.9rem;
+  }
+
+  #pv-search-body #pv-trade .pv-trade__target {
+    align-self: baseline;
+    margin-left: auto;
   }
 }
 
@@ -7716,6 +7742,10 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   #pv-search-body #pv-trade .pv-tradeTotals__targetMet {
     display: block;
     margin-top: 0.12rem;
+  }
+
+  #pv-search-body #pv-trade-totals .pv-tradeTotals__trade {
+    margin-top: 0.3rem;
   }
 
   #pv-search-body #pv-trade .pv-trade__bulk {
