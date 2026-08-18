@@ -23,9 +23,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const tradeBody = document.getElementById('pv-trade-body');
     const tradeGrid = document.getElementById('pv-trade-grid');
     const tradeTotalsEl = document.getElementById('pv-trade-totals');
+    const tradeRemainingEl = document.getElementById('pv-trade-remaining');
     const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
     const tradeToggle = document.getElementById('pv-trade-toggle');
     const tradeClearBtn = document.getElementById('pv-trade-clear');
+    const tradeControls = document.querySelector('#pv-trade .pv-trade__controls');
+    const tradeBulk = document.getElementById('pv-trade-bulk');
+    const tradeSummary = document.querySelector('#pv-trade .pv-trade__summary');
     const tradeApplyPercent = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-trade-apply-percent'));
     const tradeApplyPercentBtn = document.getElementById('pv-trade-apply-percent-button');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
@@ -2461,6 +2465,13 @@ document.addEventListener('DOMContentLoaded', function () {
         try { localStorage.setItem(TRADE_COLLAPSED_KEY, isCollapsed ? '1' : '0'); } catch {}
     }
 
+    function placeTradeBulkForViewport() {
+        if (!tradeBulk || !tradeControls || !tradeSummary || typeof window.matchMedia !== 'function') return;
+        const mobile = window.matchMedia('(max-width: 640px)').matches;
+        if (mobile) tradeSummary.insertBefore(tradeBulk, tradeRemainingEl);
+        else tradeControls.insertBefore(tradeBulk, tradeToggle);
+    }
+
     function formatTradeMoney(value) {
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
     }
@@ -2491,7 +2502,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return target;
     }
 
-    function renderTradeWorkspace() {
+    function renderTradeWorkspace(targetOverride) {
         if (!tradeEnabled || !tradeGrid || !tradeWorkspace) return;
         tradeGrid.replaceChildren();
         const totals = tradeApi.calculateTradeTotals(tradeWorkspace.items);
@@ -2512,20 +2523,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 createTextElement('span', 'pv-tradeTotals__unavailable', `${totals.unpricedItemCount} unavailable`)
             );
         }
-        tradeTotalsEl.append(document.createTextNode(' · '), marketSpan, document.createTextNode(' · '), tradeSpan);
-        const target = loadTradeTarget();
-        if (target !== null) {
+        tradeTotalsEl.append(
+            createTextElement('span', 'pv-tradeTotals__separator', ' · '),
+            marketSpan,
+            createTextElement('span', 'pv-tradeTotals__separator', ' · '),
+            tradeSpan
+        );
+        const target = targetOverride === undefined ? loadTradeTarget() : normalizeTradeTarget(targetOverride);
+        if (tradeRemainingEl) tradeRemainingEl.replaceChildren();
+        if (target !== null && tradeRemainingEl) {
             const difference = target - totals.tradeAdjustedTotal;
-            tradeTotalsEl.append(
-                document.createTextNode(' · '),
-                createTextElement(
-                    'span',
-                    difference > 0 ? 'pv-tradeTotals__remaining' : 'pv-tradeTotals__targetMet',
-                    difference > 0 ? `Remaining ${formatTradeMoney(difference)}` : `Target met · ${formatTradeMoney(Math.abs(difference))} over`
-                )
-            );
+            tradeRemainingEl.appendChild(createTextElement(
+                'span',
+                difference > 0 ? 'pv-tradeTotals__remaining' : 'pv-tradeTotals__targetMet',
+                difference > 0 ? `Remaining ${formatTradeMoney(difference)}` : `Target met · ${formatTradeMoney(Math.abs(difference))} over`
+            ));
         }
-
         if (itemCount === 0) {
             const empty = document.createElement('div');
             empty.className = 'col-12';
@@ -2684,6 +2697,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function bindTradeControls() {
         if (!tradeEnabled) return;
         tradeSection.hidden = false;
+        placeTradeBulkForViewport();
+        if (typeof window.matchMedia === 'function') {
+            window.matchMedia('(max-width: 640px)').addEventListener?.('change', placeTradeBulkForViewport);
+        }
         const savedTarget = loadTradeTarget();
         if (tradeTargetInput && savedTarget !== null) tradeTargetInput.value = savedTarget.toFixed(2);
         renderTradeWorkspace();
@@ -2693,7 +2710,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!tradeWorkspace?.items.length || !window.confirm('Clear all Trade cards from this browser?')) return;
             tradeWorkspace = tradeApi.clearTradeWorkspace();
             saveTradeWorkspace();
-            renderTradeWorkspace();
+            renderTradeWorkspace(tradeTargetInput.value);
             syncTradeResultButtons();
         });
         tradeApplyPercentBtn?.addEventListener('click', () => {
