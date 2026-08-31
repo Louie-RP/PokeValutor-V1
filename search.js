@@ -19,6 +19,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesClearBtn = document.getElementById('pv-favorites-clear');
     const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
     const favoritesSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-favorites-sort-select'));
+    const tradeSection = document.getElementById('pv-trade');
+    const tradeBody = document.getElementById('pv-trade-body');
+    const tradeGrid = document.getElementById('pv-trade-grid');
+    const tradeTotalsEl = document.getElementById('pv-trade-totals');
+    const tradeRemainingEl = document.getElementById('pv-trade-remaining');
+    const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
+    const tradeToggle = document.getElementById('pv-trade-toggle');
+    const tradeClearBtn = document.getElementById('pv-trade-clear');
+    const tradeControls = document.querySelector('#pv-trade .pv-trade__controls');
+    const tradeBulk = document.getElementById('pv-trade-bulk');
+    const tradeSummary = document.querySelector('#pv-trade .pv-trade__summary');
+    const tradeApplyPercent = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-trade-apply-percent'));
+    const tradeApplyPercentBtn = document.getElementById('pv-trade-apply-percent-button');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
     const searchSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-sort-select'));
@@ -40,6 +53,12 @@ document.addEventListener('DOMContentLoaded', function () {
     let actionToastHideTransitionTimer = 0;
 
     const CACHE_PREFIX = 'pv:scrydex:';
+    const TRADE_COLLAPSED_KEY = `${CACHE_PREFIX}tradeCollapsed:v1`;
+    const TRADE_TARGET_KEY = `${CACHE_PREFIX}tradeTarget:v1`;
+    const MAX_TRADE_TARGET = 10000000;
+    const tradeApi = window.PV_TRADE;
+    const tradeEnabled = window?.PV_FEATURES?.tradeWorkspace === true && Boolean(tradeApi);
+    let tradeWorkspace = tradeEnabled ? tradeApi.loadTradeWorkspace() : null;
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const CARD_TTL_MS = 24 * 60 * 60 * 1000;
     const EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -2423,6 +2442,318 @@ document.addEventListener('DOMContentLoaded', function () {
         saveFavoritesCollapsed(isCollapsed);
     }
 
+    function loadTradeCollapsed() {
+        try {
+            const raw = localStorage.getItem(TRADE_COLLAPSED_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveTradeWorkspace() {
+        if (!tradeEnabled || !tradeWorkspace) return;
+        tradeWorkspace = tradeApi.saveTradeWorkspace(tradeWorkspace);
+    }
+
+    function setTradeCollapsed(isCollapsed) {
+        if (tradeBody) tradeBody.hidden = !!isCollapsed;
+        if (tradeToggle) {
+            tradeToggle.textContent = isCollapsed ? 'Show' : 'Hide';
+            tradeToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        try { localStorage.setItem(TRADE_COLLAPSED_KEY, isCollapsed ? '1' : '0'); } catch {}
+    }
+
+    function placeTradeBulkForViewport() {
+        if (!tradeBulk || !tradeControls || !tradeSummary || typeof window.matchMedia !== 'function') return;
+        const mobile = window.matchMedia('(max-width: 640px)').matches;
+        if (mobile) tradeSummary.insertBefore(tradeBulk, tradeRemainingEl);
+        else tradeControls.insertBefore(tradeBulk, tradeToggle);
+    }
+
+    function formatTradeMoney(value) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
+    }
+
+    function normalizeTradeTarget(value) {
+        if (value === null || value === undefined || String(value).trim() === '') return null;
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0 || amount > MAX_TRADE_TARGET) return null;
+        return Math.round(amount * 100) / 100;
+    }
+
+    function loadTradeTarget() {
+        try {
+            return normalizeTradeTarget(localStorage.getItem(TRADE_TARGET_KEY));
+        } catch {
+            return null;
+        }
+    }
+
+    function saveTradeTarget(value) {
+        const target = normalizeTradeTarget(value);
+        try {
+            if (target === null) localStorage.removeItem(TRADE_TARGET_KEY);
+            else localStorage.setItem(TRADE_TARGET_KEY, String(target));
+        } catch {
+            // ignore storage failures; the current input remains usable
+        }
+        return target;
+    }
+
+    function renderTradeWorkspace(targetOverride) {
+        if (!tradeEnabled || !tradeGrid || !tradeWorkspace) return;
+        tradeGrid.replaceChildren();
+        const totals = tradeApi.calculateTradeTotals(tradeWorkspace.items);
+        const itemCount = tradeWorkspace.items.length;
+        tradeGrid.classList.toggle('pv-tradeGrid--carousel', itemCount > 4);
+        const countSpan = createTextElement(
+            'span',
+            'pv-tradeTotals__count',
+            totals.unpricedItemCount > 0
+                ? `${totals.pricedItemCount} priced`
+                : `${itemCount} ${itemCount === 1 ? 'card' : 'cards'}`
+        );
+        const marketSpan = createTextElement('span', 'pv-tradeTotals__market', `Market ${formatTradeMoney(totals.rawMarketTotal)}`);
+        const tradeSpan = createTextElement('span', 'pv-tradeTotals__trade', `Trade ${formatTradeMoney(totals.tradeAdjustedTotal)}`);
+        tradeTotalsEl.replaceChildren(countSpan);
+        if (totals.unpricedItemCount > 0) {
+            tradeTotalsEl.append(
+                document.createTextNode(' + '),
+                createTextElement('span', 'pv-tradeTotals__unavailable', `${totals.unpricedItemCount} unavailable`)
+            );
+        }
+        tradeTotalsEl.append(
+            createTextElement('span', 'pv-tradeTotals__separator', ' · '),
+            marketSpan,
+            createTextElement('span', 'pv-tradeTotals__separator pv-tradeTotals__separator--beforeTrade', ' · '),
+            tradeSpan
+        );
+        const target = targetOverride === undefined ? loadTradeTarget() : normalizeTradeTarget(targetOverride);
+        if (tradeRemainingEl) tradeRemainingEl.replaceChildren();
+        if (target !== null && tradeRemainingEl) {
+            const difference = target - totals.tradeAdjustedTotal;
+            tradeRemainingEl.appendChild(createTextElement(
+                'span',
+                difference > 0 ? 'pv-tradeTotals__remaining' : 'pv-tradeTotals__targetMet',
+                difference > 0 ? `Remaining ${formatTradeMoney(difference)}` : `Target met · ${formatTradeMoney(Math.abs(difference))} over`
+            ));
+        }
+        if (itemCount === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'col-12';
+            empty.textContent = 'No cards added to Trade yet. Add cards from Search results or a Card Details page.';
+            tradeGrid.appendChild(empty);
+            return;
+        }
+
+        let carouselPage = null;
+        for (const [index, item] of tradeWorkspace.items.entries()) {
+            if (itemCount > 4 && index % 4 === 0) {
+                carouselPage = document.createElement('div');
+                carouselPage.className = 'pv-tradeCarouselPage';
+                tradeGrid.appendChild(carouselPage);
+            }
+            const col = document.createElement('div');
+            col.className = 'col-12 col-md-6 pv-trade__item';
+            col.dataset.tradeId = item.id;
+            const card = document.createElement('article');
+            card.className = 'pv-card pv-tradeCard h-100';
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'pv-tradeCard__remove';
+            remove.dataset.tradeAction = 'remove';
+            remove.setAttribute('aria-label', `Remove ${item.name} from Trade`);
+            remove.title = `Remove ${item.name} from Trade`;
+            remove.textContent = '×';
+            card.appendChild(remove);
+            if (item.image) {
+                const image = document.createElement('img');
+                image.className = 'pv-card__img pv-tradeCard__image';
+                image.src = item.image;
+                image.alt = `${item.name} card image`;
+                card.appendChild(image);
+            }
+            const body = document.createElement('div');
+            body.className = 'pv-card__body';
+            body.appendChild(createTextElement('h3', 'pv-card__title', item.name));
+            const cardDetails = document.createElement('details');
+            cardDetails.className = 'pv-tradeCard__details';
+            const cardDetailsSummary = document.createElement('summary');
+            cardDetailsSummary.textContent = 'Card details';
+            const cardDetailsBody = document.createElement('div');
+            cardDetailsBody.append(
+                createTextElement('p', 'pv-card__text', `${item.expansion.name || 'Unknown set'}${item.cardNumber ? ` · #${item.cardNumber}` : ''}`),
+                createTextElement('p', 'pv-card__text', `Variant: ${item.selectedVariant || 'Standard'}`)
+            );
+            cardDetails.append(cardDetailsSummary, cardDetailsBody);
+            body.appendChild(cardDetails);
+            const values = document.createElement('div');
+            values.className = 'pv-tradeCard__values';
+            values.appendChild(createTextElement('span', 'pv-tradeCard__market', item.marketValue === null ? 'Market unavailable' : `Market: ${formatTradeMoney(item.marketValue)}`));
+            values.appendChild(createTextElement('span', 'pv-tradeCard__value', item.marketValue === null ? 'Trade unavailable' : `Trade: ${formatTradeMoney(item.marketValue * item.tradePercent / 100)}`));
+            body.appendChild(values);
+
+            const controls = document.createElement('div');
+            controls.className = 'pv-tradeCard__controls';
+            const conditionLabel = createTextElement('label', 'form-label', 'Condition');
+            const conditionSelect = document.createElement('select');
+            conditionSelect.className = 'form-select pv-selectCompact';
+            conditionSelect.dataset.tradeAction = 'condition';
+            conditionSelect.setAttribute('aria-label', `Condition for ${item.name}`);
+            conditionLabel.htmlFor = `pv-trade-condition-${item.id}`;
+            conditionSelect.id = conditionLabel.htmlFor;
+            const availableConditions = tradeApi.getAvailableConditions(item.conditionValues);
+            const conditionOptions = availableConditions.length ? availableConditions : [item.selectedCondition];
+            conditionSelect.replaceChildren(...conditionOptions.map((condition) => createSelectOption(condition, condition, condition === item.selectedCondition)));
+            const conditionField = document.createElement('div');
+            conditionField.className = 'pv-tradeCard__condition';
+            conditionField.append(conditionLabel, conditionSelect);
+            const label = createTextElement('label', 'form-label', 'Trade percentage');
+            const select = document.createElement('select');
+            select.className = 'form-select pv-selectCompact';
+            select.dataset.tradeAction = 'percent';
+            select.setAttribute('aria-label', `Trade percentage for ${item.name}`);
+            select.replaceChildren(...TRADE_PERCENT_CHOICES.map((percent) => createSelectOption(String(percent), `${percent}%`, percent === item.tradePercent)));
+            label.htmlFor = `pv-trade-percent-${item.id}`;
+            select.id = label.htmlFor;
+            const percentField = document.createElement('div');
+            percentField.className = 'pv-tradeCard__percent';
+            percentField.append(label, select);
+            controls.append(conditionField, percentField);
+            body.appendChild(controls);
+            card.appendChild(body);
+            col.appendChild(card);
+            if (itemCount > 4) carouselPage.appendChild(col);
+            else tradeGrid.appendChild(col);
+        }
+    }
+
+    function isInTrade(cardId) {
+        return tradeEnabled && tradeWorkspace?.items.some((item) => item.id === safeString(cardId));
+    }
+
+    function syncTradeResultButtons() {
+        if (!tradeEnabled || !grid) return;
+        const buttons = grid.querySelectorAll('[data-trade-card-id]');
+        buttons.forEach((button) => {
+            const id = button.getAttribute('data-trade-card-id');
+            const inTrade = isInTrade(id);
+            const name = safeString(button.getAttribute('data-trade-card-name'), 'Card');
+            button.textContent = inTrade ? 'In Trade' : 'Add to Trade';
+            button.setAttribute('aria-pressed', inTrade ? 'true' : 'false');
+            button.setAttribute('aria-label', `${inTrade ? 'Remove' : 'Add'} ${name} ${inTrade ? 'from' : 'to'} Trade`);
+        });
+    }
+
+    function buildTradeSnapshot(card, selectedVariant, loadedPrices) {
+        const selectedVariantData = findVariantByName(card?.variants, selectedVariant);
+        const prices = Array.isArray(loadedPrices) && loadedPrices.length > 0
+            ? loadedPrices
+            : (Array.isArray(selectedVariantData?.prices) ? selectedVariantData.prices : []);
+        const conditionValues = getTradeConditionValues(prices);
+        const selectedCondition = DEX_CARD_CONDITIONS.find((condition) => conditionValues[condition]) || 'NM';
+        const marketValue = conditionValues[selectedCondition] ?? null;
+        return {
+            id: safeString(card?.id, ''),
+            name: safeString(card?.name, 'Unknown'),
+            expansion: { id: safeString(card?.expansion?.id, ''), name: getCardSetName(card) },
+            image: sanitizeUrl(pickFrontMediumImage(card?.images)),
+            rarity: safeString(card?.rarity, ''),
+            cardNumber: safeString(card?.printedNumber || card?.number || card?.collectorNumber, ''),
+            selectedVariant: safeString(selectedVariant || getDexDefaultVariantForCard(card), ''),
+            selectedCondition,
+            conditionValues,
+            marketValue,
+            tradePercent: getSavedTradePercentForId(safeString(card?.id, ''), loadLastResults()),
+            priceUpdatedAt: marketValue === null ? 0 : Date.now(),
+            addedAt: Date.now(),
+        };
+    }
+
+    function getTradeConditionValues(prices) {
+        return tradeApi.getConditionMarketValues(prices);
+    }
+
+    function toggleTradeCard(card, selectedVariant, loadedPrices, button) {
+        if (!tradeEnabled) return;
+        const id = safeString(card?.id, '');
+        if (!id) return;
+        const wasInTrade = isInTrade(id);
+        if (wasInTrade) {
+            tradeWorkspace = tradeApi.removeTradeItem(tradeWorkspace, id);
+            button.textContent = 'Add to Trade';
+            button.setAttribute('aria-pressed', 'false');
+        } else {
+            tradeWorkspace = tradeApi.addOrUpdateTradeItem(tradeWorkspace, buildTradeSnapshot(card, selectedVariant, loadedPrices));
+            button.textContent = 'In Trade';
+            button.setAttribute('aria-pressed', 'true');
+        }
+        saveTradeWorkspace();
+        renderTradeWorkspace();
+        syncTradeResultButtons();
+        showActionToast(`${safeString(card?.name, 'Card')} ${wasInTrade ? 'removed from' : 'added to'} Trade.`, wasInTrade ? 'removed' : 'added');
+    }
+
+    function bindTradeControls() {
+        if (!tradeEnabled) return;
+        tradeSection.hidden = false;
+        placeTradeBulkForViewport();
+        if (typeof window.matchMedia === 'function') {
+            window.matchMedia('(max-width: 640px)').addEventListener?.('change', placeTradeBulkForViewport);
+        }
+        const savedTarget = loadTradeTarget();
+        if (tradeTargetInput && savedTarget !== null) tradeTargetInput.value = savedTarget.toFixed(2);
+        renderTradeWorkspace();
+        setTradeCollapsed(loadTradeCollapsed());
+        tradeToggle?.addEventListener('click', () => setTradeCollapsed(!tradeBody?.hidden));
+        tradeClearBtn?.addEventListener('click', () => {
+            if (!tradeWorkspace?.items.length || !window.confirm('Clear all Trade cards from this browser?')) return;
+            tradeWorkspace = tradeApi.clearTradeWorkspace();
+            saveTradeWorkspace();
+            renderTradeWorkspace(tradeTargetInput.value);
+            syncTradeResultButtons();
+        });
+        tradeApplyPercentBtn?.addEventListener('click', () => {
+            tradeWorkspace = tradeApi.applyTradePercentToAll(tradeWorkspace, tradeApplyPercent?.value);
+            saveTradeWorkspace();
+            renderTradeWorkspace();
+        });
+        tradeTargetInput?.addEventListener('input', () => {
+            const target = saveTradeTarget(tradeTargetInput.value);
+            tradeTargetInput.setCustomValidity(
+                tradeTargetInput.value.trim() !== '' && target === null
+                    ? 'Enter an amount from 0.00 to 10,000,000.00.'
+                    : ''
+            );
+            renderTradeWorkspace();
+        });
+        tradeGrid?.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLSelectElement)) return;
+            const itemId = target.closest('[data-trade-id]')?.dataset.tradeId;
+            if (target.dataset.tradeAction === 'condition') {
+                tradeWorkspace = tradeApi.setTradeItemCondition(tradeWorkspace, itemId, target.value);
+            } else if (target.dataset.tradeAction === 'percent') {
+                tradeWorkspace = tradeApi.setTradeItemPercent(tradeWorkspace, itemId, target.value);
+            } else {
+                return;
+            }
+            saveTradeWorkspace();
+            renderTradeWorkspace();
+        });
+        tradeGrid?.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement) || target.dataset.tradeAction !== 'remove') return;
+            const itemId = target.closest('[data-trade-id]')?.dataset.tradeId;
+            tradeWorkspace = tradeApi.removeTradeItem(tradeWorkspace, itemId);
+            saveTradeWorkspace();
+            renderTradeWorkspace();
+            syncTradeResultButtons();
+        });
+    }
+
     function isFavorite(cardId) {
         const id = normalizeWatchlistId(cardId);
         return favorites.some((c) => normalizeWatchlistId(c?.id) === id);
@@ -4728,6 +5059,21 @@ document.addEventListener('DOMContentLoaded', function () {
             shareBtn.append(shareIcon, createTextElement('span', 'pv-card__actionLabel', 'Share'));
             actionsMenu.appendChild(shareBtn);
 
+            let tradeBtn = null;
+            if (!isDexPage && tradeEnabled) {
+                const alreadyInTrade = isInTrade(id);
+                tradeBtn = document.createElement('button');
+                tradeBtn.id = `pv-trade-toggle-${id}`;
+                tradeBtn.className = 'pv-share-btn pv-share-btn--menu';
+                tradeBtn.type = 'button';
+                tradeBtn.dataset.tradeCardId = id;
+                tradeBtn.dataset.tradeCardName = name;
+                tradeBtn.textContent = alreadyInTrade ? 'In Trade' : 'Add to Trade';
+                tradeBtn.setAttribute('aria-pressed', alreadyInTrade ? 'true' : 'false');
+                tradeBtn.setAttribute('aria-label', `${alreadyInTrade ? 'Remove' : 'Add'} ${name} ${alreadyInTrade ? 'from' : 'to'} Trade`);
+                actionsMenu.appendChild(tradeBtn);
+            }
+
             let removeBtn = null;
             if (enableDexTrackingControls) {
                 removeBtn = document.createElement('button');
@@ -4824,6 +5170,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 shareBtn.addEventListener('click', () => {
                     if (actionsMoreEl) actionsMoreEl.open = false;
                     void shareCardLink(card);
+                });
+            }
+
+            if (tradeBtn) {
+                tradeBtn.addEventListener('click', () => {
+                    if (actionsMoreEl) actionsMoreEl.open = false;
+                    toggleTradeCard(card, selectEl?.value || lastLoadedVariantName, lastLoadedPrices, tradeBtn);
                 });
             }
 
@@ -6308,6 +6661,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     bindFavoritesSortControls();
+
+    bindTradeControls();
 
     // Render Favorites immediately (persisted across refresh).
     renderFavorites(loadLastResults() || undefined);

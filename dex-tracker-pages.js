@@ -1068,7 +1068,7 @@
         const changeCents = Math.round(Number(snapshot.changeCents || 0));
         const changePercent = Number(snapshot.changePercent || 0);
         const previousValueCents = Math.round(Number(snapshot.previousValueCents || 0));
-        const hasPrevious = previousValueCents > 0;
+        const hasPrevious = snapshot.hasPreviousSnapshot === true || previousValueCents > 0;
 
         trendEl.hidden = false;
         trendEl.classList.toggle('pv-collectionTotalTrend--up', changeCents > 0);

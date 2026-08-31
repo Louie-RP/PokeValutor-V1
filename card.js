@@ -1,6 +1,8 @@
 /* Card detail page behavior */
 document.addEventListener('DOMContentLoaded', function () {
     const WATCHLIST_KEY = 'pv:scrydex:watchlist:v1';
+    const tradeApi = window.PV_TRADE;
+    const tradeEnabled = window?.PV_FEATURES?.tradeWorkspace === true && Boolean(tradeApi);
     const CARD_TTL_MS = 24 * 60 * 60 * 1000;
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const CACHE_PREFIX = 'pv:scrydex:';
@@ -27,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let pinnedVariantTrigger = null;
     const relatedGridEl = document.getElementById('pv-card-related-grid');
     const watchToggleEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-watch-toggle'));
+    const tradeToggleEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-trade-toggle'));
     const shareBtnEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-share'));
     const shareStatusEl = document.getElementById('pv-card-share-status');
     const imageOpenEl = /** @type {HTMLButtonElement|null} */ (document.getElementById('pv-card-image-open'));
@@ -639,6 +642,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function getTradeVariant(card) {
+        const variants = Array.isArray(card?.variants) ? card.variants : [];
+        let best = null;
+        for (const variant of variants) {
+            const marketValue = getMarketByCondition(variant?.prices, 'NM');
+            if (!Number.isFinite(marketValue)) continue;
+            if (!best || marketValue > best.marketValue) best = { variant, marketValue };
+        }
+        return best || (variants[0] ? { variant: variants[0], marketValue: null } : { variant: null, marketValue: null });
+    }
+
+    function getTradeConditionValues(prices) {
+        return tradeApi.getConditionMarketValues(prices);
+    }
+
+    function syncTradeButton(cardId) {
+        if (!tradeToggleEl || !tradeEnabled) return;
+        tradeToggleEl.hidden = false;
+        const workspace = tradeApi.loadTradeWorkspace();
+        const inTrade = workspace.items.some((item) => item.id === safeString(cardId, ''));
+        tradeToggleEl.textContent = inTrade ? 'Remove from Trade' : 'Add to Trade';
+        tradeToggleEl.setAttribute('aria-pressed', inTrade ? 'true' : 'false');
+    }
+
+    function toggleTrade(card) {
+        if (!tradeEnabled || !card) return;
+        const id = safeString(card?.id, '');
+        if (!id) return;
+        let workspace = tradeApi.loadTradeWorkspace();
+        const inTrade = workspace.items.some((item) => item.id === id);
+        if (inTrade) {
+            workspace = tradeApi.removeTradeItem(workspace, id);
+            setStatus('Removed from Trade.');
+        } else {
+            const selected = getTradeVariant(card);
+            const conditionValues = getTradeConditionValues(selected.variant?.prices);
+            const selectedCondition = ['NM', 'LP', 'MP', 'HP', 'DM'].find((condition) => conditionValues[condition]) || 'NM';
+            workspace = tradeApi.addOrUpdateTradeItem(workspace, {
+                id,
+                name: safeString(card?.name, 'Unknown'),
+                expansion: card?.expansion,
+                image: sanitizeUrl(pickFrontMediumImage(card?.images)),
+                rarity: safeString(card?.rarity, ''),
+                cardNumber: getCardDisplayNumber(card),
+                selectedVariant: safeString(selected.variant?.name, ''),
+                selectedCondition,
+                conditionValues,
+                marketValue: selected.marketValue,
+                priceUpdatedAt: selected.marketValue === null ? 0 : Date.now(),
+                addedAt: Date.now(),
+            });
+            setStatus('Added to Trade.');
+        }
+        tradeApi.saveTradeWorkspace(workspace);
+        syncTradeButton(id);
+    }
+
     function setSeo(card) {
         const name = safeString(card?.name, 'Card');
         const number = getCardDisplayNumber(card);
@@ -1028,6 +1088,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (detailEl) detailEl.hidden = false;
 
         syncWatchButton(card.id);
+        syncTradeButton(card.id);
         setSeo(card);
         renderPricing(card);
         void renderRelated(card);
@@ -1075,6 +1136,13 @@ document.addEventListener('DOMContentLoaded', function () {
         watchToggleEl.addEventListener('click', () => {
             if (!currentCard) return;
             void toggleWatchlist(currentCard);
+        });
+    }
+
+    if (tradeToggleEl) {
+        tradeToggleEl.addEventListener('click', () => {
+            if (!currentCard) return;
+            toggleTrade(currentCard);
         });
     }
 
