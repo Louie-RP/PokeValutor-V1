@@ -1266,47 +1266,16 @@ async function writePriceCacheDocs(db, docsByKey) {
     }
 }
 
-function formatUtcDateYYYYMMDD(date) {
-    const d = date instanceof Date ? date : new Date();
-    if (Number.isNaN(d.getTime())) return '';
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-}
-
-function previousDateKey(baseDateKey, daysBack) {
-    const base = String(baseDateKey || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) return '';
-
-    const delta = Math.max(1, Math.floor(Number(daysBack) || 1));
-    const dt = new Date(`${base}T00:00:00.000Z`);
-    if (Number.isNaN(dt.getTime())) return '';
-    dt.setUTCDate(dt.getUTCDate() - delta);
-    return formatUtcDateYYYYMMDD(dt);
-}
-
 async function getPreviousSnapshot(db, uid, collectionId, snapshotDate) {
     const parent = db.collection('users').doc(uid).collection('dexValueSnapshots');
-    const lookbackDays = 60;
+    const snapshots = await parent.orderBy('snapshotDate', 'desc').get();
+    const currentDate = String(snapshotDate || '');
 
-    const refs = [];
-    for (let i = 1; i <= lookbackDays; i += 1) {
-        const dateKey = previousDateKey(snapshotDate, i);
-        if (!dateKey) continue;
-        refs.push(parent.doc(`${collectionId}_${dateKey}`));
-    }
-
-    if (!refs.length) return null;
-
-    const chunkSize = 300;
-    for (let i = 0; i < refs.length; i += chunkSize) {
-        const chunk = refs.slice(i, i + chunkSize);
-        const snaps = chunk.length ? await db.getAll(...chunk) : [];
-        for (const snap of snaps) {
-            if (!snap.exists) continue;
-            return snap.data();
-        }
+    for (const snap of snapshots.docs) {
+        if (!snap.exists) continue;
+        const data = snap.data() || {};
+        if (normalizeCollectionId(data.collectionId, 'default') !== collectionId) continue;
+        if (String(data.snapshotDate || '') < currentDate) return data;
     }
 
     return null;
@@ -1322,6 +1291,7 @@ function toSnapshotResponse(snapshotRaw, docId) {
         snapshotDate: String(snapshotRaw?.snapshotDate || ''),
         totalValueCents: toNonNegativeInt(snapshotRaw?.totalValueCents),
         previousValueCents: toNonNegativeInt(snapshotRaw?.previousValueCents),
+        hasPreviousSnapshot: snapshotRaw?.hasPreviousSnapshot === true,
         changeCents: Math.round(Number(snapshotRaw?.changeCents || 0)),
         changePercent: Number(snapshotRaw?.changePercent || 0),
         pricedItemCount: toNonNegativeInt(snapshotRaw?.pricedItemCount),
@@ -1487,6 +1457,7 @@ exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context
         snapshotDate,
         totalValueCents: toNonNegativeInt(totalValueCents),
         previousValueCents,
+        hasPreviousSnapshot: Boolean(previous),
         changeCents,
         changePercent,
         pricedItemCount,
