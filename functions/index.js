@@ -1268,17 +1268,14 @@ async function writePriceCacheDocs(db, docsByKey) {
 
 async function getPreviousSnapshot(db, uid, collectionId, snapshotDate) {
     const parent = db.collection('users').doc(uid).collection('dexValueSnapshots');
-    const snapshots = await parent.orderBy('snapshotDate', 'desc').get();
-    const currentDate = String(snapshotDate || '');
+    const snapshots = await parent
+        .where('collectionId', '==', collectionId)
+        .where('snapshotDate', '<', String(snapshotDate || ''))
+        .orderBy('snapshotDate', 'desc')
+        .limit(1)
+        .get();
 
-    for (const snap of snapshots.docs) {
-        if (!snap.exists) continue;
-        const data = snap.data() || {};
-        if (normalizeCollectionId(data.collectionId, 'default') !== collectionId) continue;
-        if (String(data.snapshotDate || '') < currentDate) return data;
-    }
-
-    return null;
+    return snapshots.empty ? null : (snapshots.docs[0].data() || null);
 }
 
 function toSnapshotResponse(snapshotRaw, docId) {
