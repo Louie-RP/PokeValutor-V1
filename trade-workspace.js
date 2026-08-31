@@ -39,6 +39,11 @@
         return values;
     }
 
+    function getAvailableConditions(conditionValues) {
+        const values = normalizeConditionValues(conditionValues);
+        return Array.from(ALLOWED_CONDITIONS).filter((condition) => values[condition] !== undefined);
+    }
+
     function getConditionMarketValues(prices) {
         const values = {};
         if (!Array.isArray(prices)) return values;
@@ -233,6 +238,7 @@
         MAX_ITEMS,
         normalizePercent,
         getConditionMarketValues,
+        getAvailableConditions,
         normalizeTradeItem,
         normalizeWorkspace,
         loadTradeWorkspace,
