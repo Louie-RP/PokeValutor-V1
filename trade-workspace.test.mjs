@@ -10,6 +10,8 @@ assert.deepEqual(trade.getConditionMarketValues([
     { condition: 'NM', market: 12 },
     { condition: 'Lightly Played', market: 8 },
 ]), { NM: 12, LP: 8 });
+assert.deepEqual(trade.getAvailableConditions({ NM: 12, LP: 8 }), ['NM', 'LP']);
+assert.deepEqual(trade.getAvailableConditions({ NM: 0, DM: null }), ['NM']);
 
 const searchMarkup = await readFile('search.html', 'utf8');
 assert.match(searchMarkup, /id="pv-trade-target"/);
@@ -115,6 +117,7 @@ assert.match(searchSource, /syncTradeResultButtons\(\)/);
 assert.match(searchSource, /data-trade-card-id/);
 assert.match(searchSource, /conditionValues/);
 assert.match(searchSource, /tradeApi\.getConditionMarketValues\(prices\)/);
+assert.match(searchSource, /tradeApi\.getAvailableConditions\(item\.conditionValues\)/);
 assert.match(cardSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(searchSource, /tradeGrid\.classList\.toggle\('pv-tradeGrid--carousel', itemCount > 4\)/);
 assert.match(searchSource, /pv-tradeCarouselPage/);

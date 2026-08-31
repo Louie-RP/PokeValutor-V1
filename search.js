@@ -2604,7 +2604,9 @@ document.addEventListener('DOMContentLoaded', function () {
             conditionSelect.setAttribute('aria-label', `Condition for ${item.name}`);
             conditionLabel.htmlFor = `pv-trade-condition-${item.id}`;
             conditionSelect.id = conditionLabel.htmlFor;
-            conditionSelect.replaceChildren(...DEX_CARD_CONDITIONS.map((condition) => createSelectOption(condition, condition, condition === item.selectedCondition)));
+            const availableConditions = tradeApi.getAvailableConditions(item.conditionValues);
+            const conditionOptions = availableConditions.length ? availableConditions : [item.selectedCondition];
+            conditionSelect.replaceChildren(...conditionOptions.map((condition) => createSelectOption(condition, condition, condition === item.selectedCondition)));
             const conditionField = document.createElement('div');
             conditionField.className = 'pv-tradeCard__condition';
             conditionField.append(conditionLabel, conditionSelect);
