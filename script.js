@@ -1028,7 +1028,7 @@
 
   function renderExpansionsList(expansions) {
     if (!expansionsTrack) return;
-    const list = Array.isArray(expansions) ? expansions : [];
+    const list = (Array.isArray(expansions) ? expansions : []).slice(0, 10);
 
     const html = list.map((x) => {
       const id = String(x?.id || '').trim();
@@ -1055,13 +1055,37 @@
     }).join('');
 
     expansionsTrack.innerHTML = html;
+
+    const viewAllItem = document.createElement('li');
+    viewAllItem.className = 'pv-marquee__item';
+    viewAllItem.setAttribute('role', 'listitem');
+    const viewAllLink = document.createElement('a');
+    viewAllLink.className = 'pv-expansionCardLink pv-expansionCardLink--viewAll';
+    viewAllLink.href = 'sets.html';
+    viewAllLink.setAttribute('aria-label', 'View all sets');
+    const viewAllCard = document.createElement('article');
+    viewAllCard.className = 'pv-expansionCard pv-expansionCard--viewAll';
+    const viewAllIcon = document.createElement('div');
+    viewAllIcon.className = 'pv-expansionCard__viewAllIcon';
+    viewAllIcon.setAttribute('aria-hidden', 'true');
+    viewAllIcon.textContent = '+';
+    const viewAllName = document.createElement('p');
+    viewAllName.className = 'pv-expansionCard__name';
+    viewAllName.textContent = 'View All Sets';
+    const viewAllDate = document.createElement('p');
+    viewAllDate.className = 'pv-expansionCard__date';
+    viewAllDate.textContent = 'Browse by series';
+    viewAllCard.append(viewAllIcon, viewAllName, viewAllDate);
+    viewAllLink.append(viewAllCard);
+    viewAllItem.append(viewAllLink);
+    expansionsTrack.append(viewAllItem);
   }
 
   async function loadLatestEnglishExpansions() {
     // Only run on pages that have the marquee.
     if (!expansionsTrack) return;
 
-    const LATEST_EXPANSIONS_COUNT = 20;
+    const LATEST_EXPANSIONS_COUNT = 10;
 
     // Bump this key when filtering/shape changes so old cached results don't linger.
     const CACHE_KEY = HOME_LATEST_EXPANSIONS_CACHE_KEY;
