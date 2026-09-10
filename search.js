@@ -1,6 +1,8 @@
 /* Scrydex-backed Search page behavior */
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-search-form');
+    const searchContent = document.getElementById('pv-search-content');
+    const searchToggle = document.getElementById('pv-search-toggle');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-search-query'));
     const seriesSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-series'));
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
@@ -53,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let actionToastHideTransitionTimer = 0;
 
     const CACHE_PREFIX = 'pv:scrydex:';
+    const SEARCH_COLLAPSED_KEY = `${CACHE_PREFIX}searchCollapsed:v1`;
     const TRADE_COLLAPSED_KEY = `${CACHE_PREFIX}tradeCollapsed:v1`;
     const TRADE_TARGET_KEY = `${CACHE_PREFIX}tradeTarget:v1`;
     const MAX_TRADE_TARGET = 10000000;
@@ -2424,6 +2427,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function loadSearchCollapsed() {
+        try {
+            const raw = localStorage.getItem(SEARCH_COLLAPSED_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function setSearchCollapsed(isCollapsed) {
+        if (searchContent) searchContent.hidden = !!isCollapsed;
+        if (searchToggle) {
+            searchToggle.textContent = isCollapsed ? 'Show' : 'Hide';
+            searchToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        try { localStorage.setItem(SEARCH_COLLAPSED_KEY, isCollapsed ? '1' : '0'); } catch {}
+    }
+
     function saveFavoritesCollapsed(isCollapsed) {
         try {
             localStorage.setItem(WATCHLIST_COLLAPSED_KEY, isCollapsed ? '1' : '0');
@@ -2641,7 +2662,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, variant, variant === item.selectedVariant)));
                 variantField.append(variantLabel, variantSelect);
             }
-            const label = createTextElement('label', 'form-label', 'Trade percentage');
+            const label = createTextElement('label', 'form-label', 'Trade %');
             const select = document.createElement('select');
             select.className = 'form-select pv-selectCompact';
             select.dataset.tradeAction = 'percent';
@@ -6704,6 +6725,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     bindFavoritesSortControls();
+
+    searchToggle?.addEventListener('click', () => setSearchCollapsed(!searchContent?.hidden));
+    setSearchCollapsed(loadSearchCollapsed());
 
     bindTradeControls();
 
