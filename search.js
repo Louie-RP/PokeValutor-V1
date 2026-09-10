@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CARD_CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const DEX_DEFAULT_VARIANT_NAME = 'Standard';
 
-    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
+    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v2`;
     // Single saved-items list is now the Watchlist.
     // Migrate legacy Favorites storage into Watchlist to avoid data loss.
     const WATCHLIST_KEY = `${CACHE_PREFIX}watchlist:v1`;
@@ -4793,6 +4793,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getBestVariantWithPrices(variants) {
         const list = Array.isArray(variants) ? variants : [];
+        let hasPreferredVariant = false;
+
+        for (const preferredName of ['holofoil', 'normal']) {
+            const preferred = list.find((variant) => safeString(variant?.name, '').trim().toLowerCase() === preferredName);
+            if (!preferred) continue;
+            hasPreferredVariant = true;
+            const prices = Array.isArray(preferred?.prices) ? preferred.prices : null;
+            const market = getMarketFromPricesForTotals(prices);
+            if (market != null) return { name: safeString(preferred?.name, '').trim(), prices, market };
+        }
+
+        if (hasPreferredVariant) return null;
+
         let best = null;
 
         for (const v of list) {
@@ -5670,20 +5683,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         selectEl.value = String(variants[0]);
                         void showPricesForSelectedVariant();
                     } else {
-                    // If prices are already present in the card payload, pick the best-valued variant
+                    // If prices are already present in the card payload, prefer a base variant
                     // and show it immediately (useful for top-by-expansion lists).
-                    let bestVariant = '';
-                    let bestMarket = null;
-                    for (const v of variantsFull) {
-                        const vName = String(v?.name || '');
-                        const vPrices = Array.isArray(v?.prices) ? v.prices : null;
-                        const market = getMarketFromPricesForTotals(vPrices);
-                        if (!vName || market == null) continue;
-                        if (bestMarket == null || market > bestMarket) {
-                            bestMarket = market;
-                            bestVariant = vName;
-                        }
-                    }
+                    const bestVariantData = getBestVariantWithPrices(variantsFull);
+                    const bestVariant = safeString(bestVariantData?.name, '');
 
                     if (bestVariant && variants.includes(bestVariant)) {
                         selectEl.value = bestVariant;
@@ -5693,7 +5696,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedPrices = p;
                         const formatted = formatPriceList(p, getSelectedTradePercent());
                         setCardPricesDisplay(pricesEl, formatted);
-                        const market = getMarketFromPricesForTotals(p);
+                        const market = Number(bestVariantData.market);
                         setSearchCardValue(id, market);
                         if (searchSortState.active === 'value') {
                             applySearchSortToGrid();
@@ -6292,7 +6295,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
             // to avoid repeated API credit usage.
-            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en`;
+            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en&variantPreference=v2`;
             const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
             const cards = Array.isArray(data?.data) ? data.data : [];
             renderCards(cards);

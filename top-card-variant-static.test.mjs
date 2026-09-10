@@ -34,5 +34,10 @@ const workerSelector = workerSource.slice(workerStart, workerEnd);
 assert.ok(workerSelector.indexOf("const preferredNames = ['holofoil', 'normal'];") < workerSelector.indexOf('let best = null'));
 assert.match(workerSelector, /if \(market != null\) return market;/);
 assert.match(workerSource, /topByExpansion:v2:/, 'Ranking changes should invalidate old top-card cache entries.');
+assert.match(searchSource, /top-by-expansion\?expansionId=.*variantPreference=v2/);
+assert.match(homeSource, /top-by-expansion\?expansionId=.*variantPreference=v2/);
+assert.match(searchSource, /const bestVariantData = getBestVariantWithPrices\(variantsFull\)/);
+assert.match(searchSource, /if \(hasPreferredVariant\) return null;/);
+assert.match(searchSource, /lastResults:v2/, 'Old saved search selections should not restore stamped variants.');
 
 console.log('Top-card preferred variant ranking checks passed.');

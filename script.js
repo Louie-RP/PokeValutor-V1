@@ -747,15 +747,19 @@
 
   function getBestMarketFromCard(cardLike) {
     const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+    let hasPreferredVariant = false;
     for (const preferredName of ['holofoil', 'normal']) {
       const preferred = variants.find((variant) => String(variant?.name || '').trim().toLowerCase() === preferredName);
       if (!preferred) continue;
+      hasPreferredVariant = true;
       const preferredPrices = Array.isArray(preferred?.prices) ? preferred.prices : [];
       const preferredMarkets = preferredPrices
         .map((price) => Number(price?.market ?? price?.marketPrice ?? price?.market_price))
         .filter((market) => Number.isFinite(market) && market > 0);
       if (preferredMarkets.length) return Math.max(...preferredMarkets);
     }
+
+    if (hasPreferredVariant) return null;
 
     let best = null;
 
@@ -878,7 +882,7 @@
     const base = getWorkerBase();
     const settled = await Promise.allSettled(
       picks.map(async (setInfo) => {
-        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en`;
+        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en&variantPreference=v2`;
         const data = await fetchJsonWithOptionalAuthAndCache(url, HOME_SPOTLIGHTS_TTL_MS);
         const cards = Array.isArray(data?.data) ? data.data.slice(0, 3) : [];
         return { setInfo, cards };
