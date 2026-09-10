@@ -2504,6 +2504,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderTradeWorkspace(targetOverride) {
         if (!tradeEnabled || !tradeGrid || !tradeWorkspace) return;
+        const cachedCards = loadLastResults()?.cards;
+        if (Array.isArray(cachedCards)) {
+            let hydrated = false;
+            const items = tradeWorkspace.items.map((item) => {
+                if (item.variants?.length) return item;
+                const cachedCard = cachedCards.find((card) => safeString(card?.id, '') === item.id);
+                if (!Array.isArray(cachedCard?.variants) || cachedCard.variants.length === 0) return item;
+                hydrated = true;
+                return { ...item, variants: cachedCard.variants };
+            });
+            if (hydrated) {
+                tradeWorkspace = tradeApi.normalizeWorkspace({ ...tradeWorkspace, items: items });
+                saveTradeWorkspace();
+            }
+        }
         tradeGrid.replaceChildren();
         const totals = tradeApi.calculateTradeTotals(tradeWorkspace.items);
         const itemCount = tradeWorkspace.items.length;
@@ -2610,6 +2625,22 @@ document.addEventListener('DOMContentLoaded', function () {
             const conditionField = document.createElement('div');
             conditionField.className = 'pv-tradeCard__condition';
             conditionField.append(conditionLabel, conditionSelect);
+            const variantNames = Array.isArray(item.variants)
+                ? item.variants.map((variant) => safeString(variant?.name, '')).filter(Boolean)
+                : [];
+            const variantField = document.createElement('div');
+            variantField.className = 'pv-tradeCard__variant';
+            if (variantNames.length > 1) {
+                const variantLabel = createTextElement('label', 'form-label', 'Variant');
+                const variantSelect = document.createElement('select');
+                variantSelect.className = 'form-select pv-selectCompact';
+                variantSelect.dataset.tradeAction = 'variant';
+                variantSelect.setAttribute('aria-label', `Variant for ${item.name}`);
+                variantLabel.htmlFor = `pv-trade-variant-${item.id}`;
+                variantSelect.id = variantLabel.htmlFor;
+                variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, variant, variant === item.selectedVariant)));
+                variantField.append(variantLabel, variantSelect);
+            }
             const label = createTextElement('label', 'form-label', 'Trade percentage');
             const select = document.createElement('select');
             select.className = 'form-select pv-selectCompact';
@@ -2621,7 +2652,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const percentField = document.createElement('div');
             percentField.className = 'pv-tradeCard__percent';
             percentField.append(label, select);
-            controls.append(conditionField, percentField);
+            controls.append(conditionField, ...(variantNames.length > 1 ? [variantField] : []), percentField);
             body.appendChild(controls);
             card.appendChild(body);
             col.appendChild(card);
@@ -2652,6 +2683,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const prices = Array.isArray(loadedPrices) && loadedPrices.length > 0
             ? loadedPrices
             : (Array.isArray(selectedVariantData?.prices) ? selectedVariantData.prices : []);
+        const variants = Array.isArray(card?.variants)
+            ? card.variants.map((variant) => (
+                findVariantByName([variant], selectedVariant) && prices.length > 0
+                    ? { ...variant, prices }
+                    : variant
+            ))
+            : [];
         const conditionValues = getTradeConditionValues(prices);
         const selectedCondition = DEX_CARD_CONDITIONS.find((condition) => conditionValues[condition]) || 'NM';
         const marketValue = conditionValues[selectedCondition] ?? null;
@@ -2662,6 +2700,7 @@ document.addEventListener('DOMContentLoaded', function () {
             image: sanitizeUrl(pickFrontMediumImage(card?.images)),
             rarity: safeString(card?.rarity, ''),
             cardNumber: safeString(card?.printedNumber || card?.number || card?.collectorNumber, ''),
+            variants,
             selectedVariant: safeString(selectedVariant || getDexDefaultVariantForCard(card), ''),
             selectedCondition,
             conditionValues,
@@ -2735,6 +2774,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const itemId = target.closest('[data-trade-id]')?.dataset.tradeId;
             if (target.dataset.tradeAction === 'condition') {
                 tradeWorkspace = tradeApi.setTradeItemCondition(tradeWorkspace, itemId, target.value);
+            } else if (target.dataset.tradeAction === 'variant') {
+                tradeWorkspace = tradeApi.setTradeItemVariant(tradeWorkspace, itemId, target.value);
             } else if (target.dataset.tradeAction === 'percent') {
                 tradeWorkspace = tradeApi.setTradeItemPercent(tradeWorkspace, itemId, target.value);
             } else {

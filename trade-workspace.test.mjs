@@ -64,6 +64,22 @@ assert.equal(trade.normalizeTradeItem({
     marketValue: null,
 }).marketValue, 12.5);
 
+const variants = trade.addOrUpdateTradeItem({ items: [] }, {
+    id: 'variant-card',
+    selectedVariant: 'Normal',
+    selectedCondition: 'NM',
+    marketValue: 10,
+    conditionValues: { NM: 10 },
+    variants: [
+        { name: 'Normal', prices: [{ condition: 'NM', market: 10 }] },
+        { name: 'Reverse Holo', prices: [{ condition: 'NM', market: 25 }, { condition: 'LP', market: 18 }] },
+    ],
+}, 2700);
+const switchedVariant = trade.setTradeItemVariant(variants, 'variant-card', 'Reverse Holo', 2800);
+assert.equal(switchedVariant.items[0].selectedVariant, 'Reverse Holo');
+assert.equal(switchedVariant.items[0].marketValue, 25);
+assert.equal(switchedVariant.items[0].conditionValues.LP, 18);
+
 const totals = trade.calculateTradeTotals([
     { marketValue: 100, tradePercent: 50 },
     { marketValue: 10, tradePercent: 100 },
@@ -118,6 +134,9 @@ assert.match(searchSource, /data-trade-card-id/);
 assert.match(searchSource, /conditionValues/);
 assert.match(searchSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(searchSource, /tradeApi\.getAvailableConditions\(item\.conditionValues\)/);
+assert.match(searchSource, /variantSelect\.dataset\.tradeAction = 'variant'/);
+assert.match(searchSource, /tradeApi\.setTradeItemVariant\(tradeWorkspace, itemId, target\.value\)/);
+assert.match(searchSource, /\{ \.\.\.variant, prices \}/);
 assert.match(cardSource, /tradeApi\.getConditionMarketValues\(prices\)/);
 assert.match(searchSource, /tradeGrid\.classList\.toggle\('pv-tradeGrid--carousel', itemCount > 4\)/);
 assert.match(searchSource, /pv-tradeCarouselPage/);

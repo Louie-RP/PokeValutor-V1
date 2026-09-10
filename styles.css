@@ -7592,11 +7592,13 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 #pv-search-body #pv-trade .pv-tradeCard__condition,
+#pv-search-body #pv-trade .pv-tradeCard__variant,
 #pv-search-body #pv-trade .pv-tradeCard__percent {
   margin-top: 0.45rem;
 }
 
 #pv-search-body #pv-trade .pv-tradeCard__condition .form-label,
+#pv-search-body #pv-trade .pv-tradeCard__variant .form-label,
 #pv-search-body #pv-trade .pv-tradeCard__percent .form-label {
   display: block;
   margin-bottom: 0.18rem;
@@ -7605,7 +7607,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 #pv-search-body #pv-trade .pv-tradeCard__controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 0.35rem;
   margin-top: 0.25rem;
