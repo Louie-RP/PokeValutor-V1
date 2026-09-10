@@ -67,6 +67,34 @@
     }
   }
 
+  function ensureHeaderSetsNavLink() {
+    const navLists = Array.from(document.querySelectorAll('.pv-nav__list'));
+
+    for (const navList of navLists) {
+      if (!(navList instanceof HTMLElement)) continue;
+      if (Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .some((link) => isNavLinkForPage(link, 'sets.html'))) continue;
+
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+
+      item.className = 'pv-nav__item';
+      link.className = 'pv-nav__link';
+      link.href = 'sets.html';
+      link.textContent = 'Sets';
+
+      const dexLink = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .find((candidate) => isNavLinkForPage(candidate, 'dex.html'));
+      const dexItem = dexLink?.closest('.pv-nav__item');
+      item.appendChild(link);
+      if (dexItem) {
+        navList.insertBefore(item, dexItem);
+      } else {
+        navList.appendChild(item);
+      }
+    }
+  }
+
   // Mobile nav toggles with ARIA sync (works across pages)
   const navToggles = Array.from(document.querySelectorAll('.pv-navToggle'));
   for (const btn of navToggles) {
@@ -470,6 +498,7 @@
 
   markCurrentNavLinks();
   markPricingNavLinks();
+  ensureHeaderSetsNavLink();
   ensureHeaderDiscordNavLink();
   setupDesktopNavOverflow();
   setupAuthAwarePricingNavVisibility();
