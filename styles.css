@@ -7610,6 +7610,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 .form-select.pv-selectVariant {
   min-width: 144px;
   max-width: min(100%, 188px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .form-select.pv-selectCondition {
