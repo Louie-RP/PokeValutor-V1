@@ -67,6 +67,25 @@
         return values;
     }
 
+    function normalizeVariants(rawVariants) {
+        if (!Array.isArray(rawVariants)) return [];
+        return rawVariants
+            .filter((variant) => variant && typeof variant === 'object')
+            .map((variant) => ({
+                name: safeString(variant.name, '', 160),
+                prices: Array.isArray(variant.prices)
+                    ? variant.prices
+                        .filter((price) => price && typeof price === 'object')
+                        .map((price) => ({
+                            condition: safeString(price.condition, '', 80),
+                            market: normalizeMoney(price.market ?? price.marketPrice ?? price.market_price),
+                        }))
+                        .filter((price) => price.condition && price.market !== null)
+                    : [],
+            }))
+            .filter((variant) => variant.name);
+    }
+
     function normalizeTimestamp(value, fallback = Date.now()) {
         const timestamp = Number(value);
         return Number.isFinite(timestamp) && timestamp >= 0 ? timestamp : fallback;
@@ -105,6 +124,7 @@
             image: normalizeImage(item.image),
             rarity: safeString(item.rarity, '', 120),
             cardNumber: safeString(item.cardNumber ?? item.number, '', 80),
+            variants: normalizeVariants(item.variants),
             selectedVariant: safeString(item.selectedVariant, '', 160),
             selectedCondition: ALLOWED_CONDITIONS.has(selectedCondition) ? selectedCondition : 'NM',
             conditionValues,
@@ -200,6 +220,27 @@
         return current;
     }
 
+    function setTradeItemVariant(workspace, id, variantName, now = Date.now()) {
+        const current = normalizeWorkspace(workspace, now);
+        const target = current.items.find((item) => item.id === safeString(id));
+        const wanted = safeString(variantName, '', 160).toLowerCase();
+        const variant = target?.variants.find((entry) => entry.name.toLowerCase() === wanted);
+        if (target && variant) {
+            const conditionValues = getConditionMarketValues(variant.prices);
+            const selectedCondition = conditionValues[target.selectedCondition] !== undefined
+                ? target.selectedCondition
+                : (getAvailableConditions(conditionValues)[0] || target.selectedCondition);
+            target.selectedVariant = variant.name;
+            target.conditionValues = conditionValues;
+            target.selectedCondition = selectedCondition;
+            target.marketValue = conditionValues[selectedCondition] ?? null;
+            target.priceUpdatedAt = target.marketValue === null ? 0 : now;
+            target.updatedAt = now;
+        }
+        current.updatedAt = now;
+        return current;
+    }
+
     function applyTradePercentToAll(workspace, percent, now = Date.now()) {
         const current = normalizeWorkspace(workspace, now);
         const nextPercent = normalizePercent(percent);
@@ -248,6 +289,7 @@
         clearTradeWorkspace,
         setTradeItemPercent,
         setTradeItemCondition,
+        setTradeItemVariant,
         applyTradePercentToAll,
         calculateTradeTotals,
     };
