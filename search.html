@@ -79,9 +79,15 @@
 
         <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
             <div class="pv-searchPanel">
-                <div id="pv-card-scanner-root" data-target-input="pv-search-query" data-target-form="pv-search-form"></div>
+                <div class="pv-section__header pv-searchPanel__header">
+                    <h2 id="pv-search-title" class="pv-section__title">Search</h2>
+                    <button id="pv-search-toggle" class="pv-button pv-button--primary btn" type="button"
+                        aria-controls="pv-search-content" aria-expanded="true">Hide</button>
+                </div>
+                <div id="pv-search-content">
+                        <div id="pv-card-scanner-root" data-target-input="pv-search-query" data-target-form="pv-search-form"></div>
 
-                <form id="pv-search-form" class="pv-form row g-3" role="search">
+                        <form id="pv-search-form" class="pv-form row g-3" role="search">
                     <div class="pv-form__field pv-searchField--query col-12 col-md-6 col-lg-4">
                         <div class="pv-searchFieldHeader">
                             <label for="pv-search-query" class="form-label">Search</label>
@@ -148,7 +154,7 @@
                         <label for="pv-search-collection-select" class="form-label">Collection</label>
                         <select id="pv-search-collection-select" class="form-select" aria-label="Choose active collection context"></select>
                     </div>
-                </form>
+                        </form>
 
                 <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
                 </div>
@@ -175,6 +181,7 @@
                         <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
                     </div>
                 </section>
+                </div>
             </div>
 
             <section id="pv-trade" class="pv-section pv-trade" aria-labelledby="pv-trade-title" hidden>
@@ -197,11 +204,11 @@
                                     <option value="60">60%</option>
                                     <option value="50">50%</option>
                                 </select>
-                                <button id="pv-trade-apply-percent-button" class="pv-button pv-button--secondary btn" type="button">Apply</button>
+                                <button id="pv-trade-apply-percent-button" class="pv-button pv-button--primary btn" type="button">Apply</button>
                             </div>
                         </div>
                         <button id="pv-trade-toggle" class="pv-button pv-button--primary btn" type="button" aria-controls="pv-trade-body" aria-expanded="true">Hide</button>
-                        <button id="pv-trade-clear" class="pv-button pv-button--secondary btn" type="button">Clear</button>
+                        <button id="pv-trade-clear" class="pv-button pv-button--danger btn" type="button">Clear</button>
                     </div>
                 </div>
                 <div class="pv-trade__summary">
