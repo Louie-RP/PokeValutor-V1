@@ -4838,6 +4838,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getBestMarketFromCardVariants(cardLike) {
         const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+        for (const preferredName of ['holofoil', 'normal']) {
+            const preferred = variants.find((variant) => safeString(variant?.name, '').trim().toLowerCase() === preferredName);
+            if (!preferred) continue;
+            const preferredMarket = getMarketFromPricesForTotals(preferred?.prices);
+            if (preferredMarket != null) return preferredMarket;
+        }
+
         let best = null;
 
         for (const v of variants) {
