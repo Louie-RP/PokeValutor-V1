@@ -4459,8 +4459,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const upper = q.toUpperCase();
         if (/^\d{1,4}$/.test(upper)) return true;
         if (/^\d{1,4}\/\d{1,4}$/.test(upper)) return true;
+        if (/^\d{1,4}[A-Z]$/.test(upper)) return true;
         if (/^[A-Z]{1,5}\d{1,4}$/.test(upper)) return true;
         if (/^(?=.*\d)[A-Z0-9]{2,6}-[A-Z0-9]{1,6}$/.test(upper)) return true;
+        if (/^\d{1,4}[A-Z]\/\d{1,4}$/.test(upper)) return true;
         if (/^[A-Z]{1,5}\d{1,4}\/[A-Z]{1,5}\d{1,4}$/.test(upper)) return true;
         return false;
     }
