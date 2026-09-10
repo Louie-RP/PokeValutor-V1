@@ -2208,6 +2208,26 @@ h1, h2, h3, h4, h5, h6,
   border-color: rgba(255, 203, 5, 0.5);
 }
 
+.pv-expansionCardLink--viewAll .pv-expansionCard {
+  border-color: rgba(255, 203, 5, 0.45);
+  background: linear-gradient(145deg, rgba(255, 203, 5, 0.1), var(--pv-surface-2));
+  grid-template-rows: 112px auto auto;
+}
+
+.pv-expansionCard__viewAllIcon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--pv-primary);
+  border-radius: 50%;
+  color: var(--pv-primary);
+  font-size: 2rem;
+  line-height: 1;
+  justify-self: start;
+  align-self: start;
+}
+
 .pv-expansionCard {
   width: 190px;
   border-radius: 14px;
@@ -2256,6 +2276,80 @@ h1, h2, h3, h4, h5, h6,
   font-size: 0.9rem;
 }
 
+.pv-setsToolbar {
+  max-width: 460px;
+  margin-bottom: 1.2rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pv-setsList {
+  display: grid;
+  gap: 2rem;
+}
+
+.pv-setSeries {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.pv-setSeries__title {
+  margin: 0;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--pv-border);
+  color: #ffffff;
+  font-size: 1.35rem;
+}
+
+.pv-setSeries__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.pv-setCard {
+  min-width: 0;
+}
+
+.pv-setCard .pv-expansionCardLink {
+  height: 100%;
+}
+
+.pv-setCard .pv-expansionCard {
+  width: auto;
+  height: 100%;
+}
+
+.pv-setCard__logo {
+  height: 105px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 203, 5, 0.18);
+  background: rgba(0, 0, 0, 0.2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 0.25rem;
+}
+
+.pv-setCard__logo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.pv-setCard__name {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.pv-setCard__date {
+  margin: 0;
+  color: var(--pv-muted);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 420px) {
   .pv-expansionCard { width: 170px; }
 }
@@ -2267,6 +2361,7 @@ h1, h2, h3, h4, h5, h6,
 
   .pv-marquee__track { gap: 0.7rem; }
   .pv-expansionCard { width: 160px; padding: 0.75rem; }
+  .pv-expansionCardLink--viewAll .pv-expansionCard { grid-template-rows: 104px auto auto; }
   .pv-expansionCard__logo { height: 104px; }
 
   .pv-marquee::before,
@@ -6930,6 +7025,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 @media (min-width: 768px) {
+  .pv-setSeries__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
   .pv-masterSetsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
