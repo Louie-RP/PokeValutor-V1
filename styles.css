@@ -2253,10 +2253,8 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .pv-expansionCard__logo img {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   object-position: center;
   display: block;
@@ -2277,10 +2275,22 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .pv-setsToolbar {
-  max-width: 460px;
+  max-width: 620px;
   margin-bottom: 1.2rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.35rem;
+  align-items: end;
+}
+
+.pv-setsToolbar .form-label {
+  grid-column: 1 / -1;
+}
+
+#pv-sets-collapse-all {
+  min-height: 40px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .pv-setsList {
@@ -2289,22 +2299,42 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .pv-setSeries {
-  display: grid;
-  gap: 0.8rem;
+  border-bottom: 1px solid var(--pv-border);
 }
 
 .pv-setSeries__title {
+  cursor: pointer;
+  list-style: none;
   margin: 0;
-  padding-bottom: 0.45rem;
-  border-bottom: 1px solid var(--pv-border);
-  color: #ffffff;
+  padding: 0 0 0.55rem;
+  color: var(--pv-primary);
   font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.pv-setSeries__title::-webkit-details-marker {
+  display: none;
+}
+
+.pv-setSeries__title::before {
+  content: "+";
+  display: inline-block;
+  width: 1.3rem;
+  margin-right: 0.35rem;
+  color: var(--pv-primary);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.pv-setSeries[open] .pv-setSeries__title::before {
+  content: "−";
 }
 
 .pv-setSeries__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
+  padding: 0.25rem 0 1.2rem;
 }
 
 .pv-setCard {
@@ -2313,11 +2343,17 @@ h1, h2, h3, h4, h5, h6,
 
 .pv-setCard .pv-expansionCardLink {
   height: 100%;
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 203, 5, 0.8);
+  border-radius: 14px;
+  background: var(--pv-surface-2);
 }
 
-.pv-setCard .pv-expansionCard {
-  width: auto;
-  height: 100%;
+.pv-setCard .pv-expansionCardLink:hover,
+.pv-setCard .pv-expansionCardLink:focus-visible {
+  border-color: var(--pv-primary);
 }
 
 .pv-setCard__logo {
@@ -2332,9 +2368,15 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .pv-setCard__logo img {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  object-position: center;
+  display: block;
 }
 
 .pv-setCard__name {
@@ -7037,6 +7079,16 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
   .pv-masterSetDetailGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .pv-setsToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .pv-setsToolbar .form-label {
+    grid-column: auto;
   }
 }
 

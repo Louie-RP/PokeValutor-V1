@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const list = document.getElementById('pv-sets-list');
     const filter = document.getElementById('pv-sets-filter');
+    const collapseAllButton = document.getElementById('pv-sets-collapse-all');
     const status = document.getElementById('pv-sets-status');
     const cacheKey = 'pv:sets:english:v1';
     const cacheTtl = 30 * 24 * 60 * 60 * 1000;
@@ -38,11 +39,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const render = () => {
         const query = text(filter?.value).toLowerCase(); const visible = expansions.filter((entry) => `${entry.name} ${entry.series}`.toLowerCase().includes(query)); list.replaceChildren();
         const groups = new Map(); visible.forEach((entry) => { const key = entry.series || 'Other'; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(entry); });
-        groups.forEach((entries, series) => { const section = document.createElement('section'); section.className = 'pv-setSeries'; const heading = document.createElement('h2'); heading.className = 'pv-setSeries__title'; heading.textContent = series; const grid = document.createElement('div'); grid.className = 'pv-setSeries__grid'; entries.forEach((entry) => grid.append(createCard(entry))); section.append(heading, grid); list.append(section); });
+        groups.forEach((entries, series) => { const section = document.createElement('details'); section.className = 'pv-setSeries'; section.open = true; const heading = document.createElement('summary'); heading.className = 'pv-setSeries__title'; heading.textContent = series; const grid = document.createElement('div'); grid.className = 'pv-setSeries__grid'; entries.forEach((entry) => grid.append(createCard(entry))); section.append(heading, grid); list.append(section); });
         status.textContent = visible.length ? `${visible.length} set${visible.length === 1 ? '' : 's'} found` : 'No sets match your search.';
+        updateCollapseAllButton();
+    };
+    const updateCollapseAllButton = () => {
+        if (!collapseAllButton) return;
+        const groups = Array.from(list.querySelectorAll('.pv-setSeries'));
+        const allCollapsed = groups.length > 0 && groups.every((group) => !group.open);
+        collapseAllButton.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
+        collapseAllButton.setAttribute('aria-label', allCollapsed ? 'Expand all series' : 'Collapse all series');
     };
     const load = async () => {
-        const cached = readCache(); if (cached?.length) { expansions = cached; render(); }
+        const cached = readCache();
+        if (Array.isArray(cached)) {
+            expansions = cached;
+            render();
+            return;
+        }
         try {
             const baseParams = { q: 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket', orderBy: '-release_date', pageSize: '100', select: 'id,name,logo,release_date,is_online_only,series,language,language_code', casing: 'camel' };
             const merged = []; const seen = new Set(); let totalCount = Number.POSITIVE_INFINITY;
@@ -57,5 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
             expansions = merged.map((entry) => ({ id: text(entry.id), name: text(entry.name), series: text(entry.series) || 'Other', logo: text(entry.logo), releaseDate: text(entry.releaseDate || entry.release_date) })); writeCache(expansions); render();
         } catch { if (!expansions.length) status.textContent = 'Sets are temporarily unavailable. Please try again later.'; }
     };
-    filter?.addEventListener('input', render); load();
+    filter?.addEventListener('input', render);
+    collapseAllButton?.addEventListener('click', () => {
+        const groups = Array.from(list.querySelectorAll('.pv-setSeries'));
+        const allCollapsed = groups.length > 0 && groups.every((group) => !group.open);
+        groups.forEach((group) => { group.open = allCollapsed; });
+        updateCollapseAllButton();
+    });
+    list?.addEventListener('toggle', updateCollapseAllButton, true);
+    load();
 });

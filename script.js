@@ -140,7 +140,7 @@
     if (navList.dataset.pvDesktopCondensed === '1') return;
 
     const topLevelLinks = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'));
-    const overflowPaths = ['sealed.html', 'account.html'];
+    const overflowPaths = ['sealed.html', 'sets.html', 'account.html'];
     const overflowItems = [];
 
     for (const path of overflowPaths) {
