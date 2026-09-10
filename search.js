@@ -765,6 +765,25 @@ document.addEventListener('DOMContentLoaded', function () {
         return option;
     }
 
+    function formatVariantDisplayName(value) {
+        const raw = safeString(value, '').trim();
+        if (!raw) return '';
+
+        const withFirstEdition = raw.replace(/^firstEdition(?=[A-Z]|$)/i, '1st Ed. ');
+        const words = withFirstEdition
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+            .replace(/[._-]+/g, ' ')
+            .split(/\s+/)
+            .filter(Boolean);
+
+        return words
+            .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
+            .join(' ')
+            .replace('1st Ed ', '1st Ed. ')
+            .trim();
+    }
+
     function replaceSelectWithStatus(select, label) {
         if (!select) return;
         select.replaceChildren(createSelectOption('', label, true));
@@ -2659,7 +2678,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 variantSelect.setAttribute('aria-label', `Variant for ${item.name}`);
                 variantLabel.htmlFor = `pv-trade-variant-${item.id}`;
                 variantSelect.id = variantLabel.htmlFor;
-                variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, variant, variant === item.selectedVariant)));
+                variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, formatVariantDisplayName(variant), variant === item.selectedVariant)));
+                variantSelect.title = formatVariantDisplayName(item.selectedVariant);
                 variantField.append(variantLabel, variantSelect);
             }
             const label = createTextElement('label', 'form-label', 'Trade %');
@@ -5192,8 +5212,9 @@ document.addEventListener('DOMContentLoaded', function () {
             selectEl.disabled = variants.length === 0;
             selectEl.appendChild(createSelectOption('', variants.length ? 'Select a holo type' : 'No variants', false));
             for (const variant of variants) {
-                selectEl.appendChild(createSelectOption(String(variant), String(variant), false));
+                selectEl.appendChild(createSelectOption(String(variant), formatVariantDisplayName(variant), false));
             }
+            selectEl.title = formatVariantDisplayName(restoredSelection?.holoType || '');
             variantField.append(variantLabel, selectEl);
             body.appendChild(variantField);
 
@@ -5565,6 +5586,7 @@ document.addEventListener('DOMContentLoaded', function () {
             async function showPricesForSelectedVariant() {
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
+                selectEl.title = formatVariantDisplayName(variantName);
                 if (!variantName) {
                     setCardPricesDisplay(pricesEl, variants.length ? 'Select a holo type to load prices.' : '');
                     return;
