@@ -747,6 +747,16 @@
 
   function getBestMarketFromCard(cardLike) {
     const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+    for (const preferredName of ['holofoil', 'normal']) {
+      const preferred = variants.find((variant) => String(variant?.name || '').trim().toLowerCase() === preferredName);
+      if (!preferred) continue;
+      const preferredPrices = Array.isArray(preferred?.prices) ? preferred.prices : [];
+      const preferredMarkets = preferredPrices
+        .map((price) => Number(price?.market ?? price?.marketPrice ?? price?.market_price))
+        .filter((market) => Number.isFinite(market) && market > 0);
+      if (preferredMarkets.length) return Math.max(...preferredMarkets);
+    }
+
     let best = null;
 
     for (const variant of variants) {
