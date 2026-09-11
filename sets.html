@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260909-sets-index-1" />
+    <link rel="stylesheet" href="styles.css?v=20260910-sets-visual-refresh-1" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
 </head>
 <body id="pv-sets-body" class="pv-body">
@@ -43,13 +43,14 @@
         <section class="pv-hero container" aria-labelledby="pv-sets-title">
             <a class="pv-backLink" href="index.html" aria-label="Back to home">&larr; Back to home</a>
             <h1 id="pv-sets-title" class="pv-hero__title">Browse Sets</h1>
-            <p class="pv-hero__subtitle">Explore every English expansion, newest first.</p>
+            <p class="pv-hero__subtitle">Explore the top 10 cards by value in each set.</p>
         </section>
         <section class="pv-section container" aria-labelledby="pv-sets-list-title">
             <div class="pv-section__header"><h2 id="pv-sets-list-title" class="pv-section__title">All Sets</h2></div>
             <div class="pv-setsToolbar" role="search" aria-label="Search sets">
                 <label class="form-label" for="pv-sets-filter">Search sets</label>
                 <input id="pv-sets-filter" class="form-control" type="search" placeholder="Search by set or series" autocomplete="off" />
+                <button id="pv-sets-collapse-all" class="pv-button pv-button--primary btn" type="button">Collapse All</button>
             </div>
             <p id="pv-sets-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading sets...</p>
             <div id="pv-sets-list" class="pv-setsList"></div>
@@ -57,6 +58,14 @@
     </main>
     <footer class="pv-footer" role="contentinfo"><div class="pv-footer__inner"><p class="pv-footer__text">&copy; <span id="pv-year"></span> PokeValutor. All rights reserved.</p><ul class="pv-footer__links" aria-label="Footer links"><li><a href="policies.html#pv-privacyPolicy">Privacy</a></li><li><a href="policies.html#pv-termsOfUse">Terms</a></li><li><a href="policies.html#pv-accessibility">Accessibility</a></li><li><a href="contact.html">Contact</a></li></ul></div></footer>
     <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">&#9650;</button>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+    <script src="firebase-config.js" defer></script>
+    <script src="firebase-config.local.js" defer></script>
+    <script src="firebase.js?v=2026-07-29-sealed-identity-1" defer></script>
+
     <script src="script.js?v=20260909-sets-index-1" defer></script>
     <script src="sets.js?v=20260909-sets-index-1" defer></script>
 </body>

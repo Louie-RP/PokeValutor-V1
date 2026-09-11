@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CARD_CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const DEX_DEFAULT_VARIANT_NAME = 'Standard';
 
-    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
+    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v2`;
     // Single saved-items list is now the Watchlist.
     // Migrate legacy Favorites storage into Watchlist to avoid data loss.
     const WATCHLIST_KEY = `${CACHE_PREFIX}watchlist:v1`;
@@ -763,6 +763,25 @@ document.addEventListener('DOMContentLoaded', function () {
         option.textContent = safeString(label, '');
         option.selected = selected === true;
         return option;
+    }
+
+    function formatVariantDisplayName(value) {
+        const raw = safeString(value, '').trim();
+        if (!raw) return '';
+
+        const withFirstEdition = raw.replace(/^firstEdition(?=[A-Z]|$)/i, '1st Ed. ');
+        const words = withFirstEdition
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+            .replace(/[._-]+/g, ' ')
+            .split(/\s+/)
+            .filter(Boolean);
+
+        return words
+            .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
+            .join(' ')
+            .replace('1st Ed ', '1st Ed. ')
+            .trim();
     }
 
     function replaceSelectWithStatus(select, label) {
@@ -2659,7 +2678,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 variantSelect.setAttribute('aria-label', `Variant for ${item.name}`);
                 variantLabel.htmlFor = `pv-trade-variant-${item.id}`;
                 variantSelect.id = variantLabel.htmlFor;
-                variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, variant, variant === item.selectedVariant)));
+                variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, formatVariantDisplayName(variant), variant === item.selectedVariant)));
+                variantSelect.title = formatVariantDisplayName(item.selectedVariant);
                 variantField.append(variantLabel, variantSelect);
             }
             const label = createTextElement('label', 'form-label', 'Trade %');
@@ -4793,6 +4813,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getBestVariantWithPrices(variants) {
         const list = Array.isArray(variants) ? variants : [];
+        let hasPreferredVariant = false;
+
+        for (const preferredName of ['holofoil', 'normal']) {
+            const preferred = list.find((variant) => safeString(variant?.name, '').trim().toLowerCase() === preferredName);
+            if (!preferred) continue;
+            hasPreferredVariant = true;
+            const prices = Array.isArray(preferred?.prices) ? preferred.prices : null;
+            const market = getMarketFromPricesForTotals(prices);
+            if (market != null) return { name: safeString(preferred?.name, '').trim(), prices, market };
+        }
+
+        if (hasPreferredVariant) return null;
+
         let best = null;
 
         for (const v of list) {
@@ -4838,6 +4871,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getBestMarketFromCardVariants(cardLike) {
         const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+        for (const preferredName of ['holofoil', 'normal']) {
+            const preferred = variants.find((variant) => safeString(variant?.name, '').trim().toLowerCase() === preferredName);
+            if (!preferred) continue;
+            const preferredMarket = getMarketFromPricesForTotals(preferred?.prices);
+            if (preferredMarket != null) return preferredMarket;
+        }
+
         let best = null;
 
         for (const v of variants) {
@@ -5172,8 +5212,9 @@ document.addEventListener('DOMContentLoaded', function () {
             selectEl.disabled = variants.length === 0;
             selectEl.appendChild(createSelectOption('', variants.length ? 'Select a holo type' : 'No variants', false));
             for (const variant of variants) {
-                selectEl.appendChild(createSelectOption(String(variant), String(variant), false));
+                selectEl.appendChild(createSelectOption(String(variant), formatVariantDisplayName(variant), false));
             }
+            selectEl.title = formatVariantDisplayName(restoredSelection?.holoType || '');
             variantField.append(variantLabel, selectEl);
             body.appendChild(variantField);
 
@@ -5545,6 +5586,7 @@ document.addEventListener('DOMContentLoaded', function () {
             async function showPricesForSelectedVariant() {
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
+                selectEl.title = formatVariantDisplayName(variantName);
                 if (!variantName) {
                     setCardPricesDisplay(pricesEl, variants.length ? 'Select a holo type to load prices.' : '');
                     return;
@@ -5663,20 +5705,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         selectEl.value = String(variants[0]);
                         void showPricesForSelectedVariant();
                     } else {
-                    // If prices are already present in the card payload, pick the best-valued variant
+                    // If prices are already present in the card payload, prefer a base variant
                     // and show it immediately (useful for top-by-expansion lists).
-                    let bestVariant = '';
-                    let bestMarket = null;
-                    for (const v of variantsFull) {
-                        const vName = String(v?.name || '');
-                        const vPrices = Array.isArray(v?.prices) ? v.prices : null;
-                        const market = getMarketFromPricesForTotals(vPrices);
-                        if (!vName || market == null) continue;
-                        if (bestMarket == null || market > bestMarket) {
-                            bestMarket = market;
-                            bestVariant = vName;
-                        }
-                    }
+                    const bestVariantData = getBestVariantWithPrices(variantsFull);
+                    const bestVariant = safeString(bestVariantData?.name, '');
 
                     if (bestVariant && variants.includes(bestVariant)) {
                         selectEl.value = bestVariant;
@@ -5686,7 +5718,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedPrices = p;
                         const formatted = formatPriceList(p, getSelectedTradePercent());
                         setCardPricesDisplay(pricesEl, formatted);
-                        const market = getMarketFromPricesForTotals(p);
+                        const market = Number(bestVariantData.market);
                         setSearchCardValue(id, market);
                         if (searchSortState.active === 'value') {
                             applySearchSortToGrid();
@@ -6285,7 +6317,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
             // to avoid repeated API credit usage.
-            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en`;
+            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en&variantPreference=v2`;
             const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
             const cards = Array.isArray(data?.data) ? data.data : [];
             renderCards(cards);

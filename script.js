@@ -67,6 +67,34 @@
     }
   }
 
+  function ensureHeaderSetsNavLink() {
+    const navLists = Array.from(document.querySelectorAll('.pv-nav__list'));
+
+    for (const navList of navLists) {
+      if (!(navList instanceof HTMLElement)) continue;
+      if (Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .some((link) => isNavLinkForPage(link, 'sets.html'))) continue;
+
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+
+      item.className = 'pv-nav__item';
+      link.className = 'pv-nav__link';
+      link.href = 'sets.html';
+      link.textContent = 'Sets';
+
+      const dexLink = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .find((candidate) => isNavLinkForPage(candidate, 'dex.html'));
+      const dexItem = dexLink?.closest('.pv-nav__item');
+      item.appendChild(link);
+      if (dexItem) {
+        navList.insertBefore(item, dexItem);
+      } else {
+        navList.appendChild(item);
+      }
+    }
+  }
+
   // Mobile nav toggles with ARIA sync (works across pages)
   const navToggles = Array.from(document.querySelectorAll('.pv-navToggle'));
   for (const btn of navToggles) {
@@ -140,7 +168,7 @@
     if (navList.dataset.pvDesktopCondensed === '1') return;
 
     const topLevelLinks = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'));
-    const overflowPaths = ['sealed.html', 'account.html'];
+    const overflowPaths = ['sealed.html', 'sets.html', 'account.html'];
     const overflowItems = [];
 
     for (const path of overflowPaths) {
@@ -470,6 +498,7 @@
 
   markCurrentNavLinks();
   markPricingNavLinks();
+  ensureHeaderSetsNavLink();
   ensureHeaderDiscordNavLink();
   setupDesktopNavOverflow();
   setupAuthAwarePricingNavVisibility();
@@ -718,6 +747,20 @@
 
   function getBestMarketFromCard(cardLike) {
     const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+    let hasPreferredVariant = false;
+    for (const preferredName of ['holofoil', 'normal']) {
+      const preferred = variants.find((variant) => String(variant?.name || '').trim().toLowerCase() === preferredName);
+      if (!preferred) continue;
+      hasPreferredVariant = true;
+      const preferredPrices = Array.isArray(preferred?.prices) ? preferred.prices : [];
+      const preferredMarkets = preferredPrices
+        .map((price) => Number(price?.market ?? price?.marketPrice ?? price?.market_price))
+        .filter((market) => Number.isFinite(market) && market > 0);
+      if (preferredMarkets.length) return Math.max(...preferredMarkets);
+    }
+
+    if (hasPreferredVariant) return null;
+
     let best = null;
 
     for (const variant of variants) {
@@ -839,7 +882,7 @@
     const base = getWorkerBase();
     const settled = await Promise.allSettled(
       picks.map(async (setInfo) => {
-        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en`;
+        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en&variantPreference=v2`;
         const data = await fetchJsonWithOptionalAuthAndCache(url, HOME_SPOTLIGHTS_TTL_MS);
         const cards = Array.isArray(data?.data) ? data.data.slice(0, 3) : [];
         return { setInfo, cards };
