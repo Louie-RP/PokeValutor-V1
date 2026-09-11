@@ -1068,7 +1068,7 @@
         const changeCents = Math.round(Number(snapshot.changeCents || 0));
         const changePercent = Number(snapshot.changePercent || 0);
         const previousValueCents = Math.round(Number(snapshot.previousValueCents || 0));
-        const hasPrevious = previousValueCents > 0;
+        const hasPrevious = snapshot.hasPreviousSnapshot === true || previousValueCents > 0;
 
         trendEl.hidden = false;
         trendEl.classList.toggle('pv-collectionTotalTrend--up', changeCents > 0);
@@ -1826,6 +1826,25 @@
     function getSealedMarketQuote(item) {
         const variants = Array.isArray(item?.variants) ? item.variants : [];
         return getBestSealedMarketFromVariants(variants);
+    }
+
+    function getSealedCollectionVariantLabel(item) {
+        const explicitLabel = safeString(item?.variantLabel, '').trim();
+        const variants = Array.isArray(item?.variants) ? item.variants : [];
+        const rawLabel = explicitLabel
+            || safeString(item?.variantName, '').trim()
+            || safeString(variants[0]?.name, '').trim();
+        if (!rawLabel) return '';
+
+        const normalizedLabel = rawLabel
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+        if (normalizedLabel === 'pokemoncenter') return 'Pokemon Center';
+        if (normalizedLabel === 'normal' || normalizedLabel === 'default' || normalizedLabel === 'standard') return '';
+
+        return rawLabel;
     }
 
     function slugifyForUrl(value) {
@@ -3055,6 +3074,7 @@
 
                 if (isSealedCollectionItem(item)) {
                     const typeLabel = buildSearchHighlightHtml(safeString(item?.type, 'Sealed product'), filterQuery);
+                    const variantLabel = escapeHtml(getSealedCollectionVariantLabel(item));
                     const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
                     const quantity = getSealedCollectionQuantity(item);
                     const nameAttr = escapeAttr(cardName);
@@ -3068,6 +3088,7 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
+                                ${variantLabel ? `<p class="pv-card__text pv-dexCard__meta">${variantLabel}</p>` : ''}
                                 <p class="pv-card__text pv-dexCard__meta"><span class="pv-dexCard__typeValue">${typeLabel}</span></p>
                                 <p class="pv-card__text pv-dexCard__meta">Sealed product</p>
                                 <p class="pv-card__text pv-dexCard__meta">Quantity: ${quantity}</p>

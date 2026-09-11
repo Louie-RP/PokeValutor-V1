@@ -28,6 +28,7 @@ const identitySource = extractFunction(dexSource, 'getSealedPricingIdentity');
 const cacheKeySource = extractFunction(dexSource, 'buildSealedValueCacheKey');
 const currentValueSource = extractFunction(dexSource, 'getCurrentSealedValue');
 const normalizeSource = extractFunction(dexSource, 'normalizeSealedCollectionEntry');
+const variantLabelSource = extractFunction(dexSource, 'getSealedCollectionVariantLabel');
 const rendererSource = extractFunction(dexSource, 'refreshCollectionValues');
 
 assert.match(identitySource, /item\?\.baseProductId/);
@@ -47,6 +48,17 @@ assert.ok(
 for (const field of ['baseProductId', 'variantName', 'variantLabel', 'hasMultipleVariants']) {
     assert.match(normalizeSource, new RegExp(`${field}:`), `Dex normalization should preserve ${field}.`);
 }
+assert.match(variantLabelSource, /item\?\.variantLabel/);
+assert.match(variantLabelSource, /item\?\.variantName/);
+assert.match(variantLabelSource, /variants\[0\]\?\.name/);
+assert.match(variantLabelSource, /normalizedLabel === 'pokemoncenter'/);
+assert.match(variantLabelSource, /return 'Pokemon Center'/);
+assert.match(variantLabelSource, /normalizedLabel === 'normal'/);
+assert.match(variantLabelSource, /normalizedLabel === 'default'/);
+assert.match(variantLabelSource, /normalizedLabel === 'standard'/);
+const collectionRendererSource = extractFunction(dexSource, 'renderCollectionPage');
+assert.match(collectionRendererSource, /getSealedCollectionVariantLabel\(item\)/);
+assert.match(collectionRendererSource, /escapeHtml\(getSealedCollectionVariantLabel\(item\)\)/);
 
 const firebaseSource = await readFile(ROOT('firebase.js'), 'utf8');
 const compactSource = extractFunction(firebaseSource, 'compactDexCollectionForCloud');
