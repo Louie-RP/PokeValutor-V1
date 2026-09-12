@@ -86,8 +86,13 @@
       const dexLink = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
         .find((candidate) => isNavLinkForPage(candidate, 'dex.html'));
       const dexItem = dexLink?.closest('.pv-nav__item');
+      const sealedLink = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .find((candidate) => isNavLinkForPage(candidate, 'sealed.html'));
+      const sealedItem = sealedLink?.closest('.pv-nav__item');
       item.appendChild(link);
-      if (dexItem) {
+      if (sealedItem) {
+        navList.insertBefore(item, sealedItem.nextElementSibling);
+      } else if (dexItem) {
         navList.insertBefore(item, dexItem);
       } else {
         navList.appendChild(item);
