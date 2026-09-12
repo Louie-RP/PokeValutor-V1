@@ -4590,7 +4590,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (marketText) {
                 const prefix = conditionKey || 'VALUE';
                 const line = tradeText
-                    ? `${prefix}: ${marketText} @${pct}% ${tradeText}`
+                    ? `${prefix}: ${marketText} @% ${tradeText}`
                     : `${prefix}: ${marketText}`;
                 lines.push({ rank, line });
                 continue;
@@ -4718,7 +4718,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const code = extractConditionCodeFromLabel(prefix);
             const conditionLabel = code || prefix;
             const marketMatch = body.match(/(\$[0-9][0-9,]*(?:\.[0-9]+)?)/);
-            const tradeMatch = body.match(/@([0-9]+(?:\.[0-9]+)?)%\s*(\$[0-9][0-9,]*(?:\.[0-9]+)?)/i);
+            const tradeMatch = body.match(/@(?:[0-9]+(?:\.[0-9]+)?)?%\s*(\$[0-9][0-9,]*(?:\.[0-9]+)?)/i);
 
             if (!marketMatch) {
                 fragment.appendChild(createTextElement('div', 'pv-priceLine pv-priceLine--raw', line));
@@ -4726,8 +4726,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const marketValue = safeString(marketMatch[1], '').trim();
-            const tradePct = tradeMatch ? safeString(tradeMatch[1], '').trim() : '';
-            const tradeValue = tradeMatch ? safeString(tradeMatch[2], '').trim() : '';
+            const tradeValue = tradeMatch ? safeString(tradeMatch[1], '').trim() : '';
 
             const priceLine = document.createElement('div');
             priceLine.className = 'pv-priceLine';
@@ -4744,7 +4743,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const tradeToken = document.createElement('span');
                 tradeToken.className = 'pv-priceToken pv-priceToken--trade';
                 tradeToken.append(
-                    createTextElement('span', 'pv-priceToken__label', `@${tradePct}%`),
+                    createTextElement('span', 'pv-priceToken__label', '@%'),
                     createTextElement('span', 'pv-priceToken__amount', tradeValue)
                 );
                 values.append(document.createTextNode(' '), tradeToken);
@@ -4855,7 +4854,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (Number.isFinite(n)) return n;
         }
 
-        // Current format support: "NM: $12.34 @80% $9.87".
+        // Current format support: "NM: $12.34 @% $9.87"; older @80% values remain readable.
         // Take the first money token from the first non-empty line (market value).
         const firstLine = text
             .split(/\r?\n/)
