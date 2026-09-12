@@ -6818,6 +6818,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // ignore
     }
 
+    if (deepLinkExpansionId) {
+        setSearchCollapsed(false);
+    }
+
     if (isDexPage) {
         setResultsHeading('Search Results');
         setDexResultsContext('Search and add cards to your collection.');
