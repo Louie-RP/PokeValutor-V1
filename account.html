@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-84T6PK2014"></script>
+    <script src="analytics.js?v=20260915-1" defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Sign in to sync watchlists, Dex progress, and cloud features." />
@@ -32,7 +34,7 @@
         }
     </script>
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: http://127.0.0.1:5001 http://localhost:5001 https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+        content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: http://127.0.0.1:5001 http://localhost:5001 https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
@@ -250,9 +252,9 @@
                         <p id="pv-admin-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
 
                         <div class="pv-authDivider" aria-hidden="true"></div>
-                        <p class="pv-section__text pv-authSmall">Force-refresh Home latest sets for all visitors, then clear this browser's copy too.</p>
+                        <p class="pv-section__text pv-authSmall">Force-refresh the newest sets for all visitors, then clear this browser's copies too.</p>
                         <div class="pv-authActions">
-                            <button id="pv-admin-refresh-latest-sets" class="pv-button pv-button--secondary btn" type="button">Force Refresh Home Latest Sets</button>
+                            <button id="pv-admin-refresh-latest-sets" class="pv-button pv-button--secondary btn" type="button">Force Refresh Latest Sets</button>
                         </div>
                         <p id="pv-admin-refresh-latest-sets-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                     </div>
