@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const refreshLatest = async () => {
         if (!shouldRefreshLatest()) return false;
-        markLatestRefresh();
         try {
             const params = new URLSearchParams({
                 q: 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket',
@@ -86,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) return;
             const payload = await response.json();
             mergeLatest(Array.isArray(payload?.data) ? payload.data : []);
+            markLatestRefresh();
             return true;
         } catch { return false; }
     };
