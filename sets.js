@@ -3,8 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const filter = document.getElementById('pv-sets-filter');
     const collapseAllButton = document.getElementById('pv-sets-collapse-all');
     const status = document.getElementById('pv-sets-status');
-    const cacheKey = 'pv:sets:english:v1';
-    const cacheTtl = 30 * 24 * 60 * 60 * 1000;
+    const cacheKey = 'pv:sets:english:v2';
+    const latestRefreshKey = 'pv:sets:english:latest-refresh:v1';
+    const cacheTtl = 365 * 24 * 60 * 60 * 1000;
+    const latestRefreshTtl = 14 * 24 * 60 * 60 * 1000;
+    const latestRefreshPageSize = 30;
     let expansions = [];
 
     const workerBase = () => String(window?.PV_SECRETS?.PV_API_URL || 'https://pokevalutor-v1.lreyperez18.workers.dev').replace(/\/$/, '');
@@ -27,6 +30,22 @@ document.addEventListener('DOMContentLoaded', () => {
         try { const parsed = JSON.parse(localStorage.getItem(cacheKey) || ''); return Date.now() - Number(parsed?.savedAt) < cacheTtl && Array.isArray(parsed?.value) ? parsed.value : null; } catch { return null; }
     };
     const writeCache = (value) => { try { localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), value })); } catch {} };
+    const latestRefreshBucket = () => Math.floor(Date.now() / latestRefreshTtl);
+    const shouldRefreshLatest = () => {
+        try { return Number(localStorage.getItem(latestRefreshKey)) !== latestRefreshBucket(); } catch { return true; }
+    };
+    const markLatestRefresh = () => { try { localStorage.setItem(latestRefreshKey, String(latestRefreshBucket())); } catch {} };
+    const normalizedEntry = (entry) => ({ id: text(entry?.id), name: text(entry?.name), series: text(entry?.series) || 'Other', logo: text(entry?.logo), releaseDate: text(entry?.releaseDate || entry?.release_date) });
+    const mergeLatest = (latest) => {
+        const byId = new Map(expansions.map((entry) => [entry.id, entry]));
+        latest.forEach((entry) => {
+            const normalized = normalizedEntry(entry);
+            if (normalized.id && normalized.name && !excluded(entry)) byId.set(normalized.id, normalized);
+        });
+        expansions = Array.from(byId.values()).sort((left, right) => String(right.releaseDate).localeCompare(String(left.releaseDate)));
+        writeCache(expansions);
+        render();
+    };
     const createCard = (entry) => {
         const item = document.createElement('article'); item.className = 'pv-setCard';
         const link = document.createElement('a'); link.className = 'pv-expansionCardLink'; link.href = `search.html?expansionId=${encodeURIComponent(entry.id)}&expansionName=${encodeURIComponent(entry.name)}`; link.setAttribute('aria-label', `View top cards for ${entry.name}`);
@@ -50,11 +69,32 @@ document.addEventListener('DOMContentLoaded', () => {
         collapseAllButton.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
         collapseAllButton.setAttribute('aria-label', allCollapsed ? 'Expand all series' : 'Collapse all series');
     };
+    const refreshLatest = async () => {
+        if (!shouldRefreshLatest()) return false;
+        markLatestRefresh();
+        try {
+            const params = new URLSearchParams({
+                q: 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket',
+                orderBy: '-release_date',
+                page: '1',
+                pageSize: String(latestRefreshPageSize),
+                select: 'id,name,logo,release_date,is_online_only,series,language,language_code',
+                casing: 'camel',
+                refreshBucket: String(latestRefreshBucket()),
+            });
+            const response = await fetch(`${workerBase()}/expansions/search?${params}`);
+            if (!response.ok) return;
+            const payload = await response.json();
+            mergeLatest(Array.isArray(payload?.data) ? payload.data : []);
+            return true;
+        } catch { return false; }
+    };
     const load = async () => {
         const cached = readCache();
         if (Array.isArray(cached)) {
             expansions = cached;
             render();
+            void refreshLatest();
             return;
         }
         try {
@@ -68,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 items.forEach((entry) => { const id = text(entry?.id); if (id && !seen.has(id) && text(entry?.name) && !excluded(entry)) { seen.add(id); merged.push(entry); } });
                 if (items.length < 100) break;
             }
-            expansions = merged.map((entry) => ({ id: text(entry.id), name: text(entry.name), series: text(entry.series) || 'Other', logo: text(entry.logo), releaseDate: text(entry.releaseDate || entry.release_date) })); writeCache(expansions); render();
+            expansions = merged.map(normalizedEntry); writeCache(expansions); render();
         } catch { if (!expansions.length) status.textContent = 'Sets are temporarily unavailable. Please try again later.'; }
     };
     filter?.addEventListener('input', render);

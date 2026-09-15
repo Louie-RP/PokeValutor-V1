@@ -76,6 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
     const HOME_LATEST_EXPANSIONS_CACHE_PREFIX = 'pv:expansions:latestEnglish:';
+    const SETS_CACHE_KEY = 'pv:sets:english:v2';
+    const SETS_LATEST_REFRESH_KEY = 'pv:sets:english:latest-refresh:v1';
     let localDexPanelVisible = false;
     let localDexBusy = false;
     let dexShareBusy = false;
@@ -188,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
             for (let i = 0; i < localStorage.length; i += 1) {
                 const key = localStorage.key(i);
                 if (!key) continue;
-                if (key.startsWith(HOME_URL_CACHE_PREFIX) || key.startsWith(HOME_LATEST_EXPANSIONS_CACHE_PREFIX)) {
+                if (key.startsWith(HOME_URL_CACHE_PREFIX) || key.startsWith(HOME_LATEST_EXPANSIONS_CACHE_PREFIX) || key === SETS_CACHE_KEY || key === SETS_LATEST_REFRESH_KEY) {
                     remove.push(key);
                 }
             }
@@ -1886,7 +1888,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 await window.PV_AUTH.callFunction('refreshHomeLatestSets', {});
                 const removedCount = clearHomeLatestSetsCacheEntries();
                 const noun = removedCount === 1 ? 'entry' : 'entries';
-                setAdminRefreshLatestSetsStatus(`Done. Forced a global latest-sets refresh and cleared ${removedCount} local cache ${noun}. Home will refetch fresh data on the next load.`);
+                setAdminRefreshLatestSetsStatus(`Done. Forced a global latest-sets refresh and cleared ${removedCount} local cache ${noun}. Home and Sets will refetch fresh data on the next load.`);
             } catch (error) {
                 const message = String(error?.message || 'Could not refresh Home latest sets cache.');
                 setAdminRefreshLatestSetsStatus(message);
