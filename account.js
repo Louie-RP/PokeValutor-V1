@@ -971,6 +971,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     masterSets: (cloudState?.masterSets && typeof cloudState.masterSets === 'object') ? cloudState.masterSets : {},
                     revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
                     updatedAt: Date.now(),
+                    allowEmptyCollection: true,
                 });
                 if (!saveResult?.saved) {
                     throw new Error('Your collection changed on another device. Reload and try deleting the collection again.');
@@ -1192,18 +1193,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function syncDexStateToCloud() {
+    async function syncDexStateToCloud(options) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState || !authApi?.loadDexState) return false;
 
         try {
             const cloudState = await authApi.loadDexState();
+            const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+            const localCollection = readDexCollection();
             const payload = {
-                collection: readDexCollection(),
+                collection: options?.allowEmptyCollection || localCollection.length > 0
+                    ? localCollection
+                    : cloudCollection,
                 masterSets: readDexMasterSets(),
                 revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
                 updatedAt: readDexStateUpdatedAt() || Date.now(),
+                allowEmptyCollection: options?.allowEmptyCollection === true,
             };
             const result = await authApi.saveDexState(payload);
             if (!result?.saved) {
@@ -1707,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 writeDexCollection([]);
                 window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
-                const synced = await syncDexStateToCloud();
+                const synced = await syncDexStateToCloud({ allowEmptyCollection: true });
                 setDexStatus(synced ? 'Dex collection cleared and synced.' : 'Dex collection cleared on this device. Cloud sync unavailable.');
             } finally {
                 setDexButtonsDisabled(false);

@@ -36,6 +36,11 @@ assert.match(identitySource, /displayId\.indexOf\('::'\)/);
 assert.match(identitySource, /item\?\.variantName/);
 assert.match(cacheKeySource, /sealed:v2:/, 'The sealed cache namespace should invalidate stale v1 values.');
 
+const sealedSource = await readFile(ROOT('sealed.js'), 'utf8');
+assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v2'/, 'Sealed search requests should invalidate stale browser cache entries.');
+assert.match(sealedSource, /SEARCH_TTL_MS = 30 \* 60 \* 1000/, 'Sealed search browser cache should refresh newly released products promptly.');
+assert.match(sealedSource, /searchVersion=\$\{SEARCH_CACHE_VERSION\}/, 'Sealed search requests should carry the cache version.');
+
 assert.match(currentValueSource, /fetchSealedFromSearchById\(baseProductId\)/);
 assert.match(currentValueSource, /fetchSealedWithPrices\(baseProductId\)/);
 assert.match(currentValueSource, /buildSealedValueCacheKey\(displayId\)/);

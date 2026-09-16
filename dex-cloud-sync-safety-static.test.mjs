@@ -13,6 +13,11 @@ assert.match(
     'Dex cloud read failures must not be converted into an empty state.',
 );
 assert.match(
+    firebaseSource,
+    /allowEmptyCollection = payload\?\.allowEmptyCollection === true[\s\S]*?collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?!allowEmptyCollection[\s\S]*?requestedUpdatedAt <= currentUpdatedAt[\s\S]*?conflict: true/,
+    'A stale empty device state must not overwrite a populated cloud collection.',
+);
+assert.match(
     sealedSource,
     /\.then\(\(\) => authApi\.loadDexState\(\)\)[\s\S]*?authApi\.saveDexState\(payload\)/,
     'Sealed cloud sync must read the cloud state before saving.',
@@ -36,6 +41,16 @@ assert.match(
     await readFile(root('account.js'), 'utf8'),
     /saved\?\.snapshotSyncFailed[\s\S]*?old shared links may remain available until the snapshot is refreshed\./,
     'Account UI must distinguish saved sharing settings from failed snapshot refresh.',
+);
+assert.match(
+    await readFile(root('account.js'), 'utf8'),
+    /syncDexStateToCloud\(\{ allowEmptyCollection: true \}\)/,
+    'Intentional full collection clears must explicitly opt into an empty cloud collection.',
+);
+assert.match(
+    await readFile(root('account.js'), 'utf8'),
+    /collection: options\?\.allowEmptyCollection \|\| localCollection\.length > 0[\s\S]*?cloudCollection/,
+    'Master-set-only sync must preserve a populated cloud collection when local collection data is empty.',
 );
 
 console.log('Dex cloud sync failure safety checks passed.');
