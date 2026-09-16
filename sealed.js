@@ -1161,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 handleSealedCloudSyncResult(result, submittedUpdatedAt);
             })
             .catch(() => {
-                // ignore
+                setSealedCollectionStatus('Your sealed item was saved locally, but cloud sync failed. Your existing cloud collection was not changed.');
             });
     }
 
