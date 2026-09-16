@@ -611,7 +611,11 @@ document.addEventListener('DOMContentLoaded', function () {
             dexShareState = normalizeDexShareState(saved);
             applyDexShareUiState();
 
-            if (dexShareState.enabled) {
+            if (saved?.snapshotSyncFailed) {
+                setDexShareStatus(dexShareState.enabled
+                    ? 'Sharing was saved, but the shared snapshot could not be refreshed. Try again when your collection is available.'
+                    : 'Sharing was disabled, but old shared links may remain available until the snapshot is refreshed. Try again shortly.');
+            } else if (dexShareState.enabled) {
                 setDexShareStatus('Sharing enabled. Your read-only link is active.');
             } else {
                 setDexShareStatus('Sharing disabled. Anyone with the old link will now see that sharing is off.');

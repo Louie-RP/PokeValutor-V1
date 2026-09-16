@@ -1225,13 +1225,28 @@
 
         cacheDexShareSettings(uid, settings);
 
-        const [dexState, dexCollectionsMeta] = await Promise.all([
-            loadDexState(),
-            loadDexCollectionsMetaFromProfile(false),
-        ]);
-        await syncSharedDexSnapshotForUser(uid, settings, dexState.collection, dexCollectionsMeta);
-
-        return buildDexShareSettingsResult(settings.enabled, settings.token);
+        try {
+            if (settings.enabled) {
+                const [dexState, dexCollectionsMeta] = await Promise.all([
+                    loadDexState(),
+                    loadDexCollectionsMetaFromProfile(false),
+                ]);
+                await syncSharedDexSnapshotForUser(uid, settings, dexState.collection, dexCollectionsMeta);
+            } else {
+                await syncSharedDexSnapshotForUser(uid, settings, [], {});
+            }
+            return {
+                ...buildDexShareSettingsResult(settings.enabled, settings.token),
+                snapshotSyncFailed: false,
+            };
+        } catch {
+            // The profile setting is already saved. Do not report total failure or
+            // fabricate an empty collection when the snapshot refresh cannot read Dex state.
+            return {
+                ...buildDexShareSettingsResult(settings.enabled, settings.token),
+                snapshotSyncFailed: true,
+            };
+        }
     }
 
     async function loadSharedDexCollection(tokenRaw) {
