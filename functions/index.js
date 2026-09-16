@@ -1317,15 +1317,6 @@ exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context
         .collection('dexValueSnapshots')
         .doc(snapshotId);
 
-    const existing = await snapshotRef.get();
-    if (existing.exists) {
-        return {
-            ok: true,
-            snapshot: toSnapshotResponse(existing.data() || {}, existing.id),
-            cached: true,
-        };
-    }
-
     const stateSnap = await db
         .collection('users')
         .doc(uid)
