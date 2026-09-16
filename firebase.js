@@ -1297,8 +1297,10 @@
             const revision = Math.max(0, Math.floor(Number(data?.revision) || 0));
             const updatedAt = Math.max(0, Number(data?.updatedAt) || 0);
             return { collection, masterSets, revision, updatedAt };
-        } catch {
-            return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
+        } catch (error) {
+            // A failed read must not look like an empty collection. Callers may
+            // use the result as the base for a write, which could erase cloud data.
+            throw error;
         }
     }
 
