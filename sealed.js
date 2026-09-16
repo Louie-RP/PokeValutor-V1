@@ -32,7 +32,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const quotaCtaEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-quota-cta'));
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
-    const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
+    const SEARCH_CACHE_VERSION = 'v2';
+    const SEARCH_TTL_MS = 30 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_INTERVAL_MS = 8 * 60 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_LIMIT = 24;
     const SEARCH_PAGE_SIZE = 10;
@@ -1831,7 +1832,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function fetchSealedSearchPage(query, page) {
         const base = getWorkerBase();
-        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}&consumeQuota=1`;
+        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}&searchVersion=${SEARCH_CACHE_VERSION}&consumeQuota=1`;
         return fetchJsonWithCache(url, SEARCH_TTL_MS);
     }
 
