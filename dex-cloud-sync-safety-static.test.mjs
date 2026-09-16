@@ -38,6 +38,11 @@ assert.match(
     'Disabling sharing must not depend on a Dex-state read.',
 );
 assert.match(
+    firebaseSource,
+    /collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?!allowEmptyCollection\) \{/,
+    'Background sync must never clear a non-empty cloud collection, regardless of timestamps.',
+);
+assert.match(
     await readFile(root('account.js'), 'utf8'),
     /saved\?\.snapshotSyncFailed[\s\S]*?old shared links may remain available until the snapshot is refreshed\./,
     'Account UI must distinguish saved sharing settings from failed snapshot refresh.',
