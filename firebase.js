@@ -1328,6 +1328,7 @@
         let collection = Array.isArray(payload?.collection) ? payload.collection : [];
         const masterSets = (payload?.masterSets && typeof payload.masterSets === 'object') ? payload.masterSets : {};
         const allowEmptyCollection = payload?.allowEmptyCollection === true;
+        const intentionalEmptyCollection = payload?.intentionalEmptyCollection === true;
 
         try {
             const role = await loadCurrentRoleFromClaims(false);
@@ -1386,7 +1387,7 @@
                 if (collectionForCloud.length === 0
                     && currentCollection.length > 0
                     && !allowEmptyCollection
-                    && requestedUpdatedAt <= currentUpdatedAt) {
+                    && !(intentionalEmptyCollection && currentCollection.length === 1)) {
                     return {
                         saved: false,
                         conflict: true,

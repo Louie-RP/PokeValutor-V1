@@ -1154,6 +1154,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     masterSets,
                     revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
                     updatedAt: readDexStateUpdatedAt() || Date.now(),
+                    intentionalEmptyCollection: !normalized && nextCollection.length === 0,
                 };
                 return Promise.resolve(authApi.saveDexState(payload))
                     .then((result) => ({ result, submittedUpdatedAt: payload.updatedAt }));
