@@ -13,6 +13,11 @@ assert.match(
     'Dex cloud read failures must not be converted into an empty state.',
 );
 assert.match(
+    firebaseSource,
+    /collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?requestedUpdatedAt <= currentUpdatedAt[\s\S]*?conflict: true/,
+    'A stale empty device state must not overwrite a populated cloud collection.',
+);
+assert.match(
     sealedSource,
     /\.then\(\(\) => authApi\.loadDexState\(\)\)[\s\S]*?authApi\.saveDexState\(payload\)/,
     'Sealed cloud sync must read the cloud state before saving.',

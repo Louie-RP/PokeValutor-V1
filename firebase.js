@@ -1381,6 +1381,22 @@
                     };
                 }
 
+                const currentCollection = Array.isArray(current?.collection) ? current.collection : [];
+                if (collectionForCloud.length === 0
+                    && currentCollection.length > 0
+                    && requestedUpdatedAt <= currentUpdatedAt) {
+                    return {
+                        saved: false,
+                        conflict: true,
+                        revision: currentRevision,
+                        updatedAt: currentUpdatedAt,
+                        collection: currentCollection,
+                        masterSets: (current?.masterSets && typeof current.masterSets === 'object')
+                            ? current.masterSets
+                            : {},
+                    };
+                }
+
                 transaction.set(ref, basePayload, { merge: true });
                 return {
                     saved: true,
