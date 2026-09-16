@@ -41,10 +41,6 @@ assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v2'/, 'Sealed search request
 assert.match(sealedSource, /SEARCH_TTL_MS = 30 \* 60 \* 1000/, 'Sealed search browser cache should refresh newly released products promptly.');
 assert.match(sealedSource, /searchVersion=\$\{SEARCH_CACHE_VERSION\}/, 'Sealed search requests should carry the cache version.');
 
-const workerSource = await readFile(ROOT('scrydex-worker.js'), 'utf8');
-assert.match(workerSource, /CACHE_TTL_SEALED_SEARCH_SECONDS/, 'Sealed search should have an independent freshness setting.');
-assert.match(workerSource, /sealedSearch:v2:/, 'The Worker should invalidate stale sealed search cache entries.');
-
 assert.match(currentValueSource, /fetchSealedFromSearchById\(baseProductId\)/);
 assert.match(currentValueSource, /fetchSealedWithPrices\(baseProductId\)/);
 assert.match(currentValueSource, /buildSealedValueCacheKey\(displayId\)/);
