@@ -1,6 +1,7 @@
 {
   "projects": {
-    "prod": "pokevaluator-v1"
+    "prod": "pokevaluator-v1",
+    "default": "pokevaluator-v1"
   },
   "targets": {},
   "etags": {}
