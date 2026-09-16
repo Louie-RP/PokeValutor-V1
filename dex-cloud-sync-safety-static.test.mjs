@@ -14,7 +14,7 @@ assert.match(
 );
 assert.match(
     firebaseSource,
-    /allowEmptyCollection = payload\?\.allowEmptyCollection === true[\s\S]*?collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?!allowEmptyCollection[\s\S]*?requestedUpdatedAt <= currentUpdatedAt[\s\S]*?conflict: true/,
+    /allowEmptyCollection = payload\?\.allowEmptyCollection === true[\s\S]*?intentionalEmptyCollection = payload\?\.intentionalEmptyCollection === true[\s\S]*?collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?!allowEmptyCollection[\s\S]*?!\(intentionalEmptyCollection && currentCollection\.length === 1\)[\s\S]*?conflict: true/,
     'A stale empty device state must not overwrite a populated cloud collection.',
 );
 assert.match(
@@ -39,8 +39,23 @@ assert.match(
 );
 assert.match(
     firebaseSource,
-    /collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?!allowEmptyCollection\) \{/,
-    'Background sync must never clear a non-empty cloud collection, regardless of timestamps.',
+    /collectionForCloud\.length === 0[\s\S]*?currentCollection\.length > 0[\s\S]*?!allowEmptyCollection[\s\S]*?!\(intentionalEmptyCollection && currentCollection\.length === 1\)\) \{/,
+    'Background sync must never clear a non-empty cloud collection without an explicit deletion signal.',
+);
+assert.doesNotMatch(
+    firebaseSource,
+    /currentCollection\.length > 0[\s\S]{0,180}requestedUpdatedAt <= currentUpdatedAt/,
+    'The empty-collection guard must not rely on timestamps to decide whether clearing is safe.',
+);
+assert.match(
+    await readFile(root('search.js'), 'utf8'),
+    /intentionalEmptyCollection: nextCollection\.length === 0/,
+    'Final card deletion must explicitly opt into an intentional empty collection.',
+);
+assert.match(
+    sealedSource,
+    /intentionalEmptyCollection: !normalized && nextCollection\.length === 0/,
+    'Final sealed-item deletion must explicitly opt into an intentional empty collection.',
 );
 assert.match(
     await readFile(root('account.js'), 'utf8'),

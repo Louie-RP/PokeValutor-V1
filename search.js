@@ -1326,7 +1326,7 @@ document.addEventListener('DOMContentLoaded', function () {
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync), options);
         }
 
         return true;
@@ -1360,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', function () {
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync), options);
         }
 
         return true;
@@ -1481,7 +1481,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return out;
     }
 
-    function queueDexCloudStateSync(immediate) {
+    function queueDexCloudStateSync(immediate, options) {
         if (!enableDexTrackingControls || dexCloudSyncHydrating) return;
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
@@ -1500,6 +1500,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         masterSets: loadDexMasterSets(),
                         revision: readDexCloudRevision(),
                         updatedAt: readDexStateUpdatedAt() || Date.now(),
+                        intentionalEmptyCollection: options?.intentionalEmptyCollection === true,
                     };
                     const result = await authApi.saveDexState(payload);
                     return { result, submittedUpdatedAt: payload.updatedAt };
@@ -1894,7 +1895,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
-            saveDexCollection(nextCollection, { immediateCloudSync: true });
+            saveDexCollection(nextCollection, {
+                immediateCloudSync: true,
+                intentionalEmptyCollection: nextCollection.length === 0,
+            });
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1933,7 +1937,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (removedMasterSet) {
-            saveDexMasterSets(master, { immediateCloudSync: true });
+            saveDexMasterSets(master, {
+                immediateCloudSync: true,
+                intentionalEmptyCollection: loadDexCollection().length === 0,
+            });
         }
 
         return { removedCollection, removedMasterSet, expansionNames };
