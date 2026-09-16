@@ -1385,8 +1385,7 @@
                 const currentCollection = Array.isArray(current?.collection) ? current.collection : [];
                 if (collectionForCloud.length === 0
                     && currentCollection.length > 0
-                    && !allowEmptyCollection
-                    && requestedUpdatedAt <= currentUpdatedAt) {
+                    && !allowEmptyCollection) {
                     return {
                         saved: false,
                         conflict: true,
