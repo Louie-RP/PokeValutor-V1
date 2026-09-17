@@ -17,6 +17,7 @@
     const VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+    const PRICE_REQUEST_TIMEOUT_MS = 12000;
     const COLLECTION_VALUE_LAST_REFRESH_KEY = `${CACHE_PREFIX}collectionValueLastRefresh:v2`;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
@@ -1472,6 +1473,31 @@
         return request;
     }
 
+    async function fetchWithTimeout(url, requestInit) {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        let timeoutId = 0;
+        const request = (async () => {
+            const response = await fetch(
+                url,
+                controller ? { ...requestInit, signal: controller.signal } : requestInit,
+            );
+            const text = await response.text();
+            return { response, text };
+        })();
+        const timeout = new Promise((resolve, reject) => {
+            timeoutId = window.setTimeout(() => {
+                if (controller) controller.abort();
+                reject(new Error('Price request timed out.'));
+            }, PRICE_REQUEST_TIMEOUT_MS);
+        });
+
+        try {
+            return await Promise.race([request, timeout]);
+        } finally {
+            window.clearTimeout(timeoutId);
+        }
+    }
+
     async function fetchCardWithPrices(cardId) {
         const id = safeString(cardId, '');
         if (!id) return null;
@@ -1489,10 +1515,9 @@
 
                 const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
                 const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-                const res = await fetch(url, requestInit);
+                const { response: res, text } = await fetchWithTimeout(url, requestInit);
                 if (!res.ok) return null;
 
-                const text = await res.text();
                 const parsed = safeParseJson(text);
                 if (!parsed || typeof parsed !== 'object') return null;
                 return parsed?.data || parsed;
@@ -1519,10 +1544,9 @@
 
                 const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
                 const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-                const res = await fetch(url, requestInit);
+                const { response: res, text } = await fetchWithTimeout(url, requestInit);
                 if (!res.ok) return null;
 
-                const text = await res.text();
                 const parsed = safeParseJson(text);
                 if (!parsed || typeof parsed !== 'object') return null;
                 return parsed?.data || parsed;
@@ -1550,10 +1574,9 @@
                 const query = `id:${id}`;
                 const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
                 const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-                const res = await fetch(url, requestInit);
+                const { response: res, text } = await fetchWithTimeout(url, requestInit);
                 if (!res.ok) return null;
 
-                const text = await res.text();
                 const parsed = safeParseJson(text);
                 if (!parsed || typeof parsed !== 'object') return null;
 
