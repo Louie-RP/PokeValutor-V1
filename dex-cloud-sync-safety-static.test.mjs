@@ -55,6 +55,11 @@ assert.match(
     'Final card deletion must explicitly opt into an intentional empty collection.',
 );
 assert.match(
+    searchSource,
+    /if \(!user\) \{\s*if \(!readDexOwnerUid\(\)\) return;\s*\/\/ Sign out: wipe local collection/,
+    'Signed-out auth initialization must preserve guest collection data.',
+);
+assert.match(
     sealedSource,
     /intentionalEmptyCollection: !normalized && nextCollection\.length === 0/,
     'Final sealed-item deletion must explicitly opt into an intentional empty collection.',
