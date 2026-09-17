@@ -2021,9 +2021,10 @@
 
     function writeCollection(next, options) {
         const safe = Array.isArray(next) ? next : [];
-        const serialized = JSON.stringify(safe);
+        let serialized = '';
         let persisted = false;
         try {
+            serialized = JSON.stringify(safe);
             const currentRaw = localStorage.getItem(DEX_COLLECTION_KEY);
             if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
             persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, serialized);
@@ -2096,9 +2097,10 @@
 
     function writeMasterSets(next, options) {
         const safe = (next && typeof next === 'object') ? next : {};
-        const serialized = JSON.stringify(safe);
+        let serialized = '';
         let persisted = false;
         try {
+            serialized = JSON.stringify(safe);
             const currentRaw = localStorage.getItem(DEX_MASTER_SETS_KEY);
             if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
             persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, serialized);

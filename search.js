@@ -1310,9 +1310,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveDexCollection(list, options) {
         const safe = Array.isArray(list) ? list : [];
-        const serialized = JSON.stringify(safe);
+        let serialized = '';
         let persisted = false;
         try {
+            serialized = JSON.stringify(safe);
             const currentRaw = localStorage.getItem(DEX_COLLECTION_KEY);
             if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
             persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, serialized);
@@ -1347,9 +1348,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveDexMasterSets(map, options) {
         const safe = (map && typeof map === 'object') ? map : {};
-        const serialized = JSON.stringify(safe);
+        let serialized = '';
         let persisted = false;
         try {
+            serialized = JSON.stringify(safe);
             const currentRaw = localStorage.getItem(DEX_MASTER_SETS_KEY);
             if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
             persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, serialized);
