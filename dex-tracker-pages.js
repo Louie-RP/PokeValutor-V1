@@ -2915,7 +2915,7 @@
         }
     }
 
-    function renderCollectionPage() {
+    function renderCollectionPage(options) {
         const grid = document.getElementById('pv-collection-grid');
         const summary = document.getElementById('pv-collection-summary');
         const totalEl = document.getElementById('pv-collection-total');
@@ -3353,7 +3353,8 @@
         });
 
         if (items.length) {
-            const allowNetworkRefresh = shouldAllowCollectionNetworkRefresh(items);
+            const allowNetworkRefresh = options?.skipNetworkRefresh !== true
+                && shouldAllowCollectionNetworkRefresh(items);
             void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
                 .then((result) => {
                     if (!allowNetworkRefresh) return;
@@ -3361,7 +3362,7 @@
                     if (pricedUnits > 0) {
                         setCollectionLastValueRefreshMs(getActiveCollectionId(), Date.now());
                         // Re-render once after network pricing so pagination uses refreshed values.
-                        renderCollectionPage();
+                        renderCollectionPage({ skipNetworkRefresh: true });
                     }
                 })
                 .catch(() => {
