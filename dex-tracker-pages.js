@@ -3360,6 +3360,8 @@
                     const pricedUnits = Number(result?.pricedUnits || 0);
                     if (pricedUnits > 0) {
                         setCollectionLastValueRefreshMs(getActiveCollectionId(), Date.now());
+                        // Re-render once after network pricing so pagination uses refreshed values.
+                        renderCollectionPage();
                     }
                 })
                 .catch(() => {
