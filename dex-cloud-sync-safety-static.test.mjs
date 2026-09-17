@@ -6,6 +6,8 @@ import { dirname, resolve } from 'node:path';
 const root = (...parts) => resolve(dirname(fileURLToPath(import.meta.url)), ...parts);
 const firebaseSource = await readFile(root('firebase.js'), 'utf8');
 const sealedSource = await readFile(root('sealed.js'), 'utf8');
+const dexSource = await readFile(root('dex-tracker-pages.js'), 'utf8');
+const searchSource = await readFile(root('search.js'), 'utf8');
 
 assert.match(
     firebaseSource,
@@ -48,7 +50,7 @@ assert.doesNotMatch(
     'The empty-collection guard must not rely on timestamps to decide whether clearing is safe.',
 );
 assert.match(
-    await readFile(root('search.js'), 'utf8'),
+    searchSource,
     /intentionalEmptyCollection: nextCollection\.length === 0/,
     'Final card deletion must explicitly opt into an intentional empty collection.',
 );
@@ -71,6 +73,36 @@ assert.match(
     await readFile(root('account.js'), 'utf8'),
     /collection: options\?\.allowEmptyCollection \|\| localCollection\.length > 0[\s\S]*?cloudCollection/,
     'Master-set-only sync must preserve a populated cloud collection when local collection data is empty.',
+);
+assert.match(
+    dexSource,
+    /function writeCollection\(next, options\) \{[\s\S]*?areJsonValuesEqual\(safeParseJson\(currentRaw\), safe\)\) return true;[\s\S]*?markDexStateUpdated\(\)/,
+    'Identical collection hydration must not rebroadcast state or advance its timestamp.',
+);
+assert.match(
+    dexSource,
+    /function writeMasterSets\(next, options\) \{[\s\S]*?areJsonValuesEqual\(safeParseJson\(currentRaw\), safe\)\) return true;[\s\S]*?markDexStateUpdated\(\)/,
+    'Identical master-set hydration must not rebroadcast state or advance its timestamp.',
+);
+assert.match(
+    dexSource,
+    /function writeCollection\(next, options\) \{\s*const safe = [^;]+;\s*let serialized = '';\s*let persisted = false;\s*try \{\s*serialized = JSON\.stringify\(safe\);/,
+    'Dex collection serialization failures must be caught by the storage helper.',
+);
+assert.match(
+    dexSource,
+    /function writeMasterSets\(next, options\) \{\s*const safe = [^;]+;\s*let serialized = '';\s*let persisted = false;\s*try \{\s*serialized = JSON\.stringify\(safe\);/,
+    'Dex master-set serialization failures must be caught by the storage helper.',
+);
+assert.match(
+    searchSource,
+    /function saveDexCollection\(list, options\) \{\s*const safe = [^;]+;\s*let serialized = '';\s*let persisted = false;\s*try \{\s*serialized = JSON\.stringify\(safe\);/,
+    'Search collection serialization failures must be caught by the storage helper.',
+);
+assert.match(
+    searchSource,
+    /function saveDexMasterSets\(map, options\) \{\s*const safe = [^;]+;\s*let serialized = '';\s*let persisted = false;\s*try \{\s*serialized = JSON\.stringify\(safe\);/,
+    'Search master-set serialization failures must be caught by the storage helper.',
 );
 
 console.log('Dex cloud sync failure safety checks passed.');

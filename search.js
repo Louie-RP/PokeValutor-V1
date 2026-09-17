@@ -1309,10 +1309,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveDexCollection(list, options) {
+        const safe = Array.isArray(list) ? list : [];
+        let serialized = '';
         let persisted = false;
         try {
-            const safe = Array.isArray(list) ? list : [];
-            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(safe));
+            serialized = JSON.stringify(safe);
+            const currentRaw = localStorage.getItem(DEX_COLLECTION_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, serialized);
         } catch {
             persisted = false;
         }
@@ -1343,10 +1347,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveDexMasterSets(map, options) {
+        const safe = (map && typeof map === 'object') ? map : {};
+        let serialized = '';
         let persisted = false;
         try {
-            const safe = (map && typeof map === 'object') ? map : {};
-            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            serialized = JSON.stringify(safe);
+            const currentRaw = localStorage.getItem(DEX_MASTER_SETS_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, serialized);
         } catch {
             persisted = false;
         }
@@ -3651,6 +3659,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function safeParseJson(value) {
         try { return JSON.parse(value); } catch { return null; }
+    }
+
+    function areJsonValuesEqual(left, right) {
+        if (Object.is(left, right)) return true;
+        if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+
+        const leftIsArray = Array.isArray(left);
+        if (leftIsArray !== Array.isArray(right)) return false;
+
+        const leftKeys = Object.keys(left);
+        const rightKeys = Object.keys(right);
+        if (leftKeys.length !== rightKeys.length) return false;
+
+        for (const key of leftKeys) {
+            if (!Object.prototype.hasOwnProperty.call(right, key)
+                || !areJsonValuesEqual(left[key], right[key])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function loadJsonFromStorage(key, fallbackValue) {
