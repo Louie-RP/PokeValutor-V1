@@ -2907,6 +2907,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   gap: 0.7rem;
 }
 
+.pv-collectionTotalValueGroup {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .pv-collectionTotalValue {
   font-variant-numeric: tabular-nums;
   font-size: clamp(1.12rem, 2.6vw, 1.42rem);
@@ -2914,6 +2922,43 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   letter-spacing: 0.01em;
   color: #ffeaa2;
   text-shadow: 0 0 18px rgba(255, 203, 5, 0.26), 0 1px 0 rgba(0, 0, 0, 0.28);
+}
+
+.pv-collectionTotalCoverage {
+  color: #fff7dd;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-collectionValueBreakdownBtn {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 234, 162, 0.68);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.32);
+  color: #ffeaa2;
+  font-size: 0.76rem;
+  font-family: Georgia, serif;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pv-collectionValueBreakdownBtn:hover,
+.pv-collectionValueBreakdownBtn:focus-visible {
+  border-color: #ffcb05;
+  background: rgba(255, 203, 5, 0.15);
+}
+
+.pv-collectionValueBreakdownBtn:focus-visible {
+  outline: 2px solid var(--pv-focus);
+  outline-offset: 2px;
 }
 
 .pv-collectionTotalAmount {
@@ -2999,10 +3044,15 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 .pv-collectionTotal--hidden .pv-collectionTotalValue,
+.pv-collectionTotal--hidden .pv-collectionTotalCoverage,
 .pv-collectionTotal--hidden .pv-collectionTotalAmount,
 .pv-collectionTotal--hidden .pv-collectionTotalTrend {
   filter: blur(6px);
   user-select: none;
+}
+
+.pv-collectionTotal--hidden .pv-collectionValueBreakdownBtn {
+  visibility: hidden;
 }
 
 @media (max-width: 768px) {
@@ -3024,6 +3074,10 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   }
 
   .pv-collectionTotalAmount {
+    font-size: 0.86rem;
+  }
+
+  .pv-collectionTotalCoverage {
     font-size: 0.86rem;
   }
 
