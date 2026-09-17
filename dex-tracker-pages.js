@@ -54,6 +54,7 @@
         signature: '',
     };
     let collectionPageSizeMediaBound = false;
+    let collectionValueRefreshGeneration = 0;
     let dexStorageRenderTimer = 0;
     let dexStorageRenderAll = false;
     let dexStorageRenderNeedsNetwork = false;
@@ -1049,6 +1050,25 @@
         applyCollectionTotalsVisibilityUi();
     }
 
+    function renderCollectionValueBreakdownValues() {
+        const cardValueEl = document.getElementById('pv-collection-card-value');
+        const sealedValueEl = document.getElementById('pv-collection-sealed-value');
+        const totalValueEl = document.getElementById('pv-collection-breakdown-total');
+        if (cardValueEl) cardValueEl.textContent = formatUsd(collectionTotalsState.cardValue);
+        if (sealedValueEl) sealedValueEl.textContent = formatUsd(collectionTotalsState.sealedValue);
+        if (totalValueEl) {
+            totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}`;
+        }
+    }
+
+    function resetCollectionValueBreakdownState() {
+        collectionTotalsState.cardValue = 0;
+        collectionTotalsState.sealedValue = 0;
+        collectionTotalsState.totalValue = 0;
+        collectionTotalsState.coverageText = '';
+        renderCollectionValueBreakdownValues();
+    }
+
     function bindCollectionValueBreakdownDialog() {
         const trigger = document.getElementById('pv-collection-value-breakdown');
         const dialog = document.getElementById('pv-collection-value-dialog');
@@ -1060,14 +1080,7 @@
         trigger.addEventListener('click', () => {
             if (areCollectionTotalsHidden()) return;
 
-            const cardValueEl = document.getElementById('pv-collection-card-value');
-            const sealedValueEl = document.getElementById('pv-collection-sealed-value');
-            const totalValueEl = document.getElementById('pv-collection-breakdown-total');
-            if (cardValueEl) cardValueEl.textContent = formatUsd(collectionTotalsState.cardValue);
-            if (sealedValueEl) sealedValueEl.textContent = formatUsd(collectionTotalsState.sealedValue);
-            if (totalValueEl) {
-                totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}`;
-            }
+            renderCollectionValueBreakdownValues();
 
             if (typeof dialog.showModal === 'function') {
                 dialog.showModal();
@@ -1792,17 +1805,16 @@
     async function refreshCollectionValues(items, totalEl, options) {
         if (!totalEl) return;
 
+        const refreshGeneration = ++collectionValueRefreshGeneration;
         const allowNetwork = options?.allowNetwork !== false;
 
         const list = Array.isArray(items) ? items : [];
+        resetCollectionValueBreakdownState();
         for (const key of Object.keys(collectionValueById)) {
             delete collectionValueById[key];
         }
 
         if (!list.length) {
-            collectionTotalsState.cardValue = 0;
-            collectionTotalsState.sealedValue = 0;
-            collectionTotalsState.totalValue = 0;
             setCollectionTotalValueText('Value: $0.00');
             return { total: 0, totalUnits: 0, pricedUnits: 0 };
         }
@@ -1831,6 +1843,7 @@
                 if (valueEl) valueEl.textContent = '...';
 
                 const valueInfo = await getCurrentSealedValue(item, { allowNetwork });
+                if (refreshGeneration !== collectionValueRefreshGeneration) return;
                 const market = Number(valueInfo?.market ?? null);
                 if (!Number.isFinite(market) || market <= 0) {
                     delete collectionValueById[entryKey];
@@ -1872,6 +1885,7 @@
                     ...item,
                     selectedCondition: entry.code,
                 }, { allowNetwork });
+                if (refreshGeneration !== collectionValueRefreshGeneration) return;
                 if (!valueInfo || !Number.isFinite(valueInfo.market)) return;
 
                 cardTotal += valueInfo.market * entry.qty;
@@ -1884,6 +1898,8 @@
                     cardDisplayUnit = valueInfo.market;
                 }
             }));
+
+            if (refreshGeneration !== collectionValueRefreshGeneration) return;
 
             if (cardTotal <= 0) {
                 delete collectionValueById[entryKey];
@@ -1900,11 +1916,16 @@
             }
         }));
 
+        if (refreshGeneration !== collectionValueRefreshGeneration) {
+            return { total, totalUnits, pricedUnits, stale: true };
+        }
+
         const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
-    collectionTotalsState.cardValue = cardValue;
-    collectionTotalsState.sealedValue = sealedValue;
-    collectionTotalsState.totalValue = total;
-    setCollectionTotalValueText(`Value: ${formatUsd(total)}`, coverage);
+        collectionTotalsState.cardValue = cardValue;
+        collectionTotalsState.sealedValue = sealedValue;
+        collectionTotalsState.totalValue = total;
+        setCollectionTotalValueText(`Value: ${formatUsd(total)}`, coverage);
+        renderCollectionValueBreakdownValues();
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
@@ -3173,6 +3194,8 @@
         bindCollectionSortControls();
 
         if (!items.length) {
+            collectionValueRefreshGeneration += 1;
+            resetCollectionValueBreakdownState();
             setCollectionTotalValueText('Value: $0.00');
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items tracked yet. Add cards from Dex search or sealed products from Sealed.</div></div>';
         } else if (!typeFilteredItems.length) {
@@ -3467,6 +3490,7 @@
                 && shouldAllowCollectionNetworkRefresh(items);
             void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
                 .then((result) => {
+                    if (result?.stale) return;
                     if (!allowNetworkRefresh) return;
                     const pricedUnits = Number(result?.pricedUnits || 0);
                     if (pricedUnits > 0) {

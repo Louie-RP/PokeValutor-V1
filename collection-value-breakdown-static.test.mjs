@@ -38,14 +38,40 @@ assert.match(script, /sealedValue \+= itemTotal;/, 'Sealed values should contrib
 assert.match(script, /cardValue \+= cardTotal;/, 'Card values should contribute to the card subtotal.');
 assert.match(
     script,
+    /const refreshGeneration = \+\+collectionValueRefreshGeneration;[\s\S]*?resetCollectionValueBreakdownState\(\);/,
+    'Each refresh should get a new generation and clear the previous breakdown first.',
+);
+assert.match(
+    script,
+    /function resetCollectionValueBreakdownState\(\) \{[\s\S]*?cardValue = 0;[\s\S]*?sealedValue = 0;[\s\S]*?totalValue = 0;[\s\S]*?renderCollectionValueBreakdownValues\(\);/,
+    'Resetting breakdown state should also repaint an open dialog.',
+);
+const refreshGenerationChecks = script.match(/refreshGeneration !== collectionValueRefreshGeneration/g) || [];
+assert.ok(
+    refreshGenerationChecks.length >= 4,
+    'Async sealed, card, item, and final publication paths should reject stale refresh generations.',
+);
+assert.match(
+    script,
+    /if \(refreshGeneration !== collectionValueRefreshGeneration\) \{[\s\S]*?stale: true/,
+    'An out-of-order refresh should return without publishing stale totals.',
+);
+assert.match(
+    script,
+    /if \(!items\.length\) \{\s*collectionValueRefreshGeneration \+= 1;\s*resetCollectionValueBreakdownState\(\);/,
+    'An empty collection render should invalidate pending refreshes and clear the breakdown.',
+);
+assert.match(script, /if \(result\?\.stale\) return;/, 'Stale refreshes should not trigger follow-up renders.');
+assert.match(
+    script,
     /setCollectionTotalValueText\(`Value: \$\{formatUsd\(total\)\}`, coverage\);/,
     'The large value and smaller coverage label should be updated independently.',
 );
 assert.match(script, /breakdownBtn\.disabled = hidden;/, 'Privacy mode should disable the breakdown trigger.');
 
-const binderStart = script.indexOf('function bindCollectionValueBreakdownDialog()');
+const binderStart = script.indexOf('function renderCollectionValueBreakdownValues()');
 const binderEnd = script.indexOf('\n    function setCollectionTotalValueText', binderStart);
-assert.ok(binderStart >= 0 && binderEnd > binderStart, 'The breakdown dialog binder should exist.');
+assert.ok(binderStart >= 0 && binderEnd > binderStart, 'The breakdown renderer and dialog binder should exist.');
 const binder = script.slice(binderStart, binderEnd);
 assert.match(binder, /\.textContent = formatUsd\(/, 'Breakdown values should render through textContent.');
 assert.doesNotMatch(
