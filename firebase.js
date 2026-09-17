@@ -1400,7 +1400,7 @@
                     };
                 }
 
-                transaction.set(ref, basePayload, { merge: true });
+                transaction.set(ref, basePayload);
                 return {
                     saved: true,
                     conflict: false,
