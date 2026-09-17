@@ -42,7 +42,11 @@
     const collectionTotalsState = {
         hidden: false,
         valueText: 'Value: $0.00',
+        coverageText: '',
         amountText: 'Amount: 0 items • 0 card copies',
+        cardValue: 0,
+        sealedValue: 0,
+        totalValue: 0,
     };
     const collectionPaginationState = {
         page: 1,
@@ -971,7 +975,10 @@
         const hidden = areCollectionTotalsHidden();
         const totalEl = document.getElementById('pv-collection-total');
         const valueEl = document.getElementById('pv-collection-total-value');
+        const coverageEl = document.getElementById('pv-collection-total-coverage');
         const amountEl = document.getElementById('pv-collection-total-amount');
+        const breakdownBtn = document.getElementById('pv-collection-value-breakdown');
+        const breakdownDialog = document.getElementById('pv-collection-value-dialog');
         const toggleBtn = document.getElementById('pv-collection-total-toggle');
         const toggleLabelEl = document.getElementById('pv-collection-total-toggle-label');
 
@@ -985,8 +992,20 @@
             totalEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
         }
 
+        if (coverageEl) {
+            coverageEl.textContent = safeString(collectionTotalsState.coverageText, '');
+            coverageEl.hidden = !collectionTotalsState.coverageText;
+        }
+
         if (amountEl) {
             amountEl.textContent = safeString(collectionTotalsState.amountText, 'Amount: 0 items • 0 card copies');
+        }
+
+        if (breakdownBtn instanceof HTMLButtonElement) {
+            breakdownBtn.disabled = hidden;
+        }
+        if (hidden && breakdownDialog instanceof HTMLDialogElement && breakdownDialog.open) {
+            breakdownDialog.close();
         }
 
         if (toggleBtn) {
@@ -1030,8 +1049,45 @@
         applyCollectionTotalsVisibilityUi();
     }
 
-    function setCollectionTotalValueText(text) {
+    function bindCollectionValueBreakdownDialog() {
+        const trigger = document.getElementById('pv-collection-value-breakdown');
+        const dialog = document.getElementById('pv-collection-value-dialog');
+        const closeBtn = dialog?.querySelector('[data-collection-value-close]');
+        if (!(trigger instanceof HTMLButtonElement) || !(dialog instanceof HTMLDialogElement)) return;
+        if (trigger.getAttribute('data-bound') === '1') return;
+
+        trigger.setAttribute('data-bound', '1');
+        trigger.addEventListener('click', () => {
+            if (areCollectionTotalsHidden()) return;
+
+            const cardValueEl = document.getElementById('pv-collection-card-value');
+            const sealedValueEl = document.getElementById('pv-collection-sealed-value');
+            const totalValueEl = document.getElementById('pv-collection-breakdown-total');
+            if (cardValueEl) cardValueEl.textContent = formatUsd(collectionTotalsState.cardValue);
+            if (sealedValueEl) sealedValueEl.textContent = formatUsd(collectionTotalsState.sealedValue);
+            if (totalValueEl) {
+                totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}`;
+            }
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+                return;
+            }
+
+            window.alert(`Card value: ${formatUsd(collectionTotalsState.cardValue)}. Sealed products: ${formatUsd(collectionTotalsState.sealedValue)}. Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}.`);
+        });
+
+        if (closeBtn instanceof HTMLButtonElement) {
+            closeBtn.addEventListener('click', () => dialog.close());
+        }
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) dialog.close();
+        });
+    }
+
+    function setCollectionTotalValueText(text, coverageText = '') {
         collectionTotalsState.valueText = safeString(text, 'Value: $0.00');
+        collectionTotalsState.coverageText = safeString(coverageText, '');
         if (areCollectionTotalsHidden()) {
             applyCollectionTotalsVisibilityUi();
             return;
@@ -1040,8 +1096,15 @@
         const totalValueEl = document.getElementById('pv-collection-total-value');
         if (totalValueEl) {
             totalValueEl.textContent = collectionTotalsState.valueText;
-            return;
         }
+
+        const coverageEl = document.getElementById('pv-collection-total-coverage');
+        if (coverageEl) {
+            coverageEl.textContent = collectionTotalsState.coverageText;
+            coverageEl.hidden = !collectionTotalsState.coverageText;
+        }
+
+        if (totalValueEl) return;
 
         const totalEl = document.getElementById('pv-collection-total');
         if (totalEl) {
@@ -1737,6 +1800,9 @@
         }
 
         if (!list.length) {
+            collectionTotalsState.cardValue = 0;
+            collectionTotalsState.sealedValue = 0;
+            collectionTotalsState.totalValue = 0;
             setCollectionTotalValueText('Value: $0.00');
             return { total: 0, totalUnits: 0, pricedUnits: 0 };
         }
@@ -1746,6 +1812,8 @@
         }
 
         let total = 0;
+        let cardValue = 0;
+        let sealedValue = 0;
         let totalUnits = 0;
         let pricedUnits = 0;
 
@@ -1771,7 +1839,9 @@
                 }
 
                 pricedUnits += quantity;
-                total += market * quantity;
+                const itemTotal = market * quantity;
+                sealedValue += itemTotal;
+                total += itemTotal;
                 collectionValueById[entryKey] = market;
                 if (valueEl) {
                     valueEl.textContent = formatUsd(market);
@@ -1822,6 +1892,7 @@
             }
 
             pricedUnits += cardPricedCopies;
+            cardValue += cardTotal;
             total += cardTotal;
             collectionValueById[entryKey] = Number.isFinite(cardDisplayUnit) ? Number(cardDisplayUnit) : 0;
             if (valueEl) {
@@ -1830,7 +1901,10 @@
         }));
 
         const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
-        setCollectionTotalValueText(`Value: ${formatUsd(total)}${coverage}`);
+    collectionTotalsState.cardValue = cardValue;
+    collectionTotalsState.sealedValue = sealedValue;
+    collectionTotalsState.totalValue = total;
+    setCollectionTotalValueText(`Value: ${formatUsd(total)}`, coverage);
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
@@ -2960,6 +3034,7 @@
         if (!grid || !summary || !totalEl) return;
 
         bindCollectionTotalsVisibilityToggle();
+        bindCollectionValueBreakdownDialog();
 
         const activeCollectionId = getActiveCollectionId();
         const items = readCollection()
