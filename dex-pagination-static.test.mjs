@@ -37,4 +37,20 @@ assert.match(renderer, /lastBtn\.addEventListener\('click', \(\) => goToPage\(to
 assert.match(renderer, /createPageButton\('First', 'first', currentPage <= 1\)/);
 assert.match(renderer, /createPageButton\('Last', 'last', currentPage >= totalPages\)/);
 
+const collectionPageStart = source.indexOf('    function renderCollectionPage(options)');
+const collectionPageEnd = source.indexOf('\n    function renderMasterSetsPage(', collectionPageStart);
+assert.ok(collectionPageStart >= 0 && collectionPageEnd > collectionPageStart, 'Collection page renderer should be present.');
+
+const collectionPageRenderer = source.slice(collectionPageStart, collectionPageEnd);
+assert.match(
+    collectionPageRenderer,
+    /options\?\.skipNetworkRefresh !== true\s*&&\s*shouldAllowCollectionNetworkRefresh\(items\)/,
+    'A cache-only pagination render must not restart network pricing.',
+);
+assert.match(
+    collectionPageRenderer,
+    /setCollectionLastValueRefreshMs\([\s\S]*?renderCollectionPage\(\{ skipNetworkRefresh: true \}\)/,
+    'Refreshed prices should recompute pagination exactly once without another network refresh.',
+);
+
 console.log('Dex pagination static, boundary-navigation, and XSS checks passed.');
