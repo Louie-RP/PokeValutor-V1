@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path';
 const root = (...parts) => resolve(dirname(fileURLToPath(import.meta.url)), ...parts);
 const firebaseSource = await readFile(root('firebase.js'), 'utf8');
 const sealedSource = await readFile(root('sealed.js'), 'utf8');
+const dexSource = await readFile(root('dex-tracker-pages.js'), 'utf8');
 
 assert.match(
     firebaseSource,
@@ -71,6 +72,16 @@ assert.match(
     await readFile(root('account.js'), 'utf8'),
     /collection: options\?\.allowEmptyCollection \|\| localCollection\.length > 0[\s\S]*?cloudCollection/,
     'Master-set-only sync must preserve a populated cloud collection when local collection data is empty.',
+);
+assert.match(
+    dexSource,
+    /function writeCollection\(next, options\) \{[\s\S]*?areJsonValuesEqual\(safeParseJson\(currentRaw\), safe\)\) return true;[\s\S]*?markDexStateUpdated\(\)/,
+    'Identical collection hydration must not rebroadcast state or advance its timestamp.',
+);
+assert.match(
+    dexSource,
+    /function writeMasterSets\(next, options\) \{[\s\S]*?areJsonValuesEqual\(safeParseJson\(currentRaw\), safe\)\) return true;[\s\S]*?markDexStateUpdated\(\)/,
+    'Identical master-set hydration must not rebroadcast state or advance its timestamp.',
 );
 
 console.log('Dex cloud sync failure safety checks passed.');

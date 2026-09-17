@@ -50,6 +50,9 @@
         signature: '',
     };
     let collectionPageSizeMediaBound = false;
+    let dexStorageRenderTimer = 0;
+    let dexStorageRenderAll = false;
+    let dexStorageRenderNeedsNetwork = false;
     /** @type {Record<string, number>} */
     const collectionValueById = {};
     /** @type {Record<string, Promise<any>>} */
@@ -65,6 +68,27 @@
         } catch {
             return null;
         }
+    }
+
+    function areJsonValuesEqual(left, right) {
+        if (Object.is(left, right)) return true;
+        if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+
+        const leftIsArray = Array.isArray(left);
+        if (leftIsArray !== Array.isArray(right)) return false;
+
+        const leftKeys = Object.keys(left);
+        const rightKeys = Object.keys(right);
+        if (leftKeys.length !== rightKeys.length) return false;
+
+        for (const key of leftKeys) {
+            if (!Object.prototype.hasOwnProperty.call(right, key)
+                || !areJsonValuesEqual(left[key], right[key])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function safeString(value, fallback) {
@@ -1717,7 +1741,9 @@
             return { total: 0, totalUnits: 0, pricedUnits: 0 };
         }
 
-        setCollectionTotalValueText('Value: Loading...');
+        if (allowNetwork) {
+            setCollectionTotalValueText('Value: Loading...');
+        }
 
         let total = 0;
         let totalUnits = 0;
@@ -1994,9 +2020,13 @@
     }
 
     function writeCollection(next, options) {
+        const safe = Array.isArray(next) ? next : [];
+        const serialized = JSON.stringify(safe);
         let persisted = false;
         try {
-            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
+            const currentRaw = localStorage.getItem(DEX_COLLECTION_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, serialized);
         } catch {
             persisted = false;
         }
@@ -2065,10 +2095,13 @@
     }
 
     function writeMasterSets(next, options) {
+        const safe = (next && typeof next === 'object') ? next : {};
+        const serialized = JSON.stringify(safe);
         let persisted = false;
         try {
-            const safe = (next && typeof next === 'object') ? next : {};
-            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            const currentRaw = localStorage.getItem(DEX_MASTER_SETS_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, serialized);
         } catch {
             persisted = false;
         }
@@ -3637,10 +3670,53 @@
         }
     }
 
-    function renderActivePage() {
-        renderCollectionPage();
+    function renderActivePage(options) {
+        renderCollectionPage(options);
         renderMasterSetsPage();
         void renderMasterSetDetailPage();
+    }
+
+    function queueDexStorageRender(options) {
+        dexStorageRenderAll = dexStorageRenderAll || options?.renderAll === true;
+        dexStorageRenderNeedsNetwork = dexStorageRenderNeedsNetwork || options?.allowNetwork === true;
+
+        if (dexStorageRenderTimer) {
+            window.clearTimeout(dexStorageRenderTimer);
+        }
+
+        dexStorageRenderTimer = window.setTimeout(() => {
+            const renderAll = dexStorageRenderAll;
+            const allowNetwork = dexStorageRenderNeedsNetwork;
+            dexStorageRenderTimer = 0;
+            dexStorageRenderAll = false;
+            dexStorageRenderNeedsNetwork = false;
+
+            if (renderAll) {
+                renderActivePage({ skipNetworkRefresh: !allowNetwork });
+                return;
+            }
+
+            renderCollectionPage({ skipNetworkRefresh: true });
+        }, 100);
+    }
+
+    function handleDexStorageChange(event) {
+        if (event?.storageArea && event.storageArea !== localStorage) return;
+
+        const key = safeString(event?.key, '');
+        if (key === VALUE_CACHE_KEY) {
+            queueDexStorageRender({ renderAll: false, allowNetwork: false });
+            return;
+        }
+
+        if (!key || key === DEX_COLLECTION_KEY || key === DEX_ACTIVE_COLLECTION_KEY) {
+            queueDexStorageRender({ renderAll: true, allowNetwork: true });
+            return;
+        }
+
+        if (key === DEX_MASTER_SETS_KEY) {
+            queueDexStorageRender({ renderAll: true, allowNetwork: false });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -3683,7 +3759,7 @@
             // ignore
         }
 
-        window.addEventListener('storage', renderActivePage);
+        window.addEventListener('storage', handleDexStorageChange);
         window.addEventListener('pv:dex-state-changed', renderActivePage);
         window.addEventListener('pv:dex-collection-context-changed', () => {
             renderActivePage();
