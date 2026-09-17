@@ -53,4 +53,27 @@ assert.match(
     'Refreshed prices should recompute pagination exactly once without another network refresh.',
 );
 
+const refreshValuesStart = source.indexOf('    async function refreshCollectionValues(');
+const refreshValuesEnd = source.indexOf('\n    function pickFrontMediumImage(', refreshValuesStart);
+const refreshValues = source.slice(refreshValuesStart, refreshValuesEnd);
+assert.match(
+    refreshValues,
+    /if \(allowNetwork\) \{\s*setCollectionTotalValueText\('Value: Loading\.\.\.'\);\s*\}/,
+    'Cache-only cross-tab renders must preserve the settled collection total.',
+);
+
+const storageHandlerStart = source.indexOf('    function handleDexStorageChange(');
+const storageHandlerEnd = source.indexOf('\n    document.addEventListener(\'DOMContentLoaded\'', storageHandlerStart);
+const storageHandler = source.slice(storageHandlerStart, storageHandlerEnd);
+assert.ok(storageHandlerStart >= 0 && storageHandlerEnd > storageHandlerStart, 'Dex storage handler should be present.');
+assert.match(storageHandler, /key === VALUE_CACHE_KEY/);
+assert.match(storageHandler, /renderAll: false, allowNetwork: false/);
+assert.match(storageHandler, /key === DEX_COLLECTION_KEY \|\| key === DEX_ACTIVE_COLLECTION_KEY/);
+assert.match(source, /window\.addEventListener\('storage', handleDexStorageChange\)/);
+assert.doesNotMatch(
+    source,
+    /window\.addEventListener\('storage', renderActivePage\)/,
+    'Unrelated cross-tab storage writes must not trigger full Dex renders.',
+);
+
 console.log('Dex pagination static, boundary-navigation, and XSS checks passed.');
