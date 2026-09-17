@@ -37,7 +37,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260729-pagination-first-last-1" />
+    <link rel="stylesheet" href="styles.css?v=20260917-value-breakdown-1" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -189,7 +189,17 @@
             </div>
             <p id="pv-collection-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">
                 <span class="pv-collectionTotalTop">
-                    <span id="pv-collection-total-value" class="pv-collectionTotalValue">Value: $0.00</span>
+                    <span class="pv-collectionTotalValueGroup">
+                        <span id="pv-collection-total-value" class="pv-collectionTotalValue">Value: $0.00</span>
+                        <span id="pv-collection-total-coverage" class="pv-collectionTotalCoverage" hidden></span>
+                        <button
+                            id="pv-collection-value-breakdown"
+                            class="pv-collectionValueBreakdownBtn"
+                            type="button"
+                            aria-label="View collection value breakdown"
+                            title="View collection value breakdown"
+                        >i</button>
+                    </span>
                     <button
                         id="pv-collection-total-toggle"
                         class="pv-collectionTotalToggle"
@@ -243,6 +253,26 @@
         </section>
     </main>
 
+    <dialog id="pv-collection-value-dialog" class="pv-sharedConditionDialog pv-collectionValueDialog" aria-labelledby="pv-collection-value-dialog-title">
+        <div class="pv-sharedConditionDialog__panel">
+            <h3 id="pv-collection-value-dialog-title" class="pv-sharedConditionDialog__title">Collection value breakdown</h3>
+            <ul class="pv-sharedConditionDialog__list">
+                <li class="pv-sharedConditionDialog__item">
+                    <span class="pv-sharedConditionDialog__itemLabel">Card value</span>
+                    <span id="pv-collection-card-value" class="pv-sharedConditionDialog__itemValue">$0.00</span>
+                </li>
+                <li class="pv-sharedConditionDialog__item">
+                    <span class="pv-sharedConditionDialog__itemLabel">Sealed products</span>
+                    <span id="pv-collection-sealed-value" class="pv-sharedConditionDialog__itemValue">$0.00</span>
+                </li>
+            </ul>
+            <p id="pv-collection-breakdown-total" class="pv-sharedConditionDialog__total">Total value: $0.00</p>
+            <div class="pv-sharedConditionDialog__actions">
+                <button type="button" class="pv-button pv-button--secondary btn" data-collection-value-close>Close</button>
+            </div>
+        </div>
+    </dialog>
+
     <footer id="pv-search-footer" class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
             <p class="pv-footer__text">&copy; <span id="pv-year"></span> PokeValutor. All rights reserved.</p>
@@ -269,7 +299,7 @@
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
 
     <script src="search.js?v=2026-09-17-dex-cross-tab-fix-2" defer></script>
-    <script src="dex-tracker-pages.js?v=2026-09-17-dex-value-fix-7" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-09-17-value-breakdown-1" defer></script>
 </body>
 
 </html>
