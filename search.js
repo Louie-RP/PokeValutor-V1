@@ -2421,6 +2421,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (enableDexTrackingControls && window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) {
+                    if (!readDexOwnerUid()) return;
+
                     // Sign out: wipe local collection so it does not bleed into a different account.
                     try { localStorage.removeItem(DEX_COLLECTION_KEY); } catch {}
                     try { localStorage.removeItem(DEX_MASTER_SETS_KEY); } catch {}
