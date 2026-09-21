@@ -6922,6 +6922,7 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     margin-top: 0.95rem;
     padding: 0;
     border-radius: 0;
+    scroll-margin-top: 4.5rem;
   }
 
   #pv-search-body #pv-search-grid {

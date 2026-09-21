@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
     const status = document.getElementById('pv-search-status');
+    const searchResultsEl = document.getElementById('pv-search-results');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
     const dexResultsContextEl = document.getElementById('pv-dex-results-context');
     const dexSearchPanel = /** @type {HTMLDetailsElement|null} */ (document.getElementById('pv-dex-search-panel'));
@@ -837,6 +838,19 @@ document.addEventListener('DOMContentLoaded', function () {
             col.appendChild(card);
             container.appendChild(col);
         }
+    }
+
+    function revealExpansionLoadingResults() {
+        if (!isSearchPage || !searchResultsEl || !window.matchMedia('(max-width: 767.98px)').matches) return;
+        window.requestAnimationFrame(() => {
+            searchResultsEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+    }
+
+    function waitForSearchLoadingPaint() {
+        return new Promise((resolve) => {
+            window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+        });
     }
 
     function setSetFilterLoadingUi(isLoading) {
@@ -6384,13 +6398,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!preserveExistingResults) {
             setStatus('');
             renderCardSkeletons(grid, RESULT_LIMIT, `Loading top cards for ${name || id}...`);
+            revealExpansionLoadingResults();
         }
 
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
             // to avoid repeated API credit usage.
             const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en&variantPreference=v2`;
-            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const dataPromise = fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const [data] = await Promise.all([
+                dataPromise,
+                preserveExistingResults ? Promise.resolve() : waitForSearchLoadingPaint(),
+            ]);
             const cards = Array.isArray(data?.data) ? data.data : [];
             renderCards(cards);
 
