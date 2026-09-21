@@ -38,7 +38,7 @@ assert.match(cacheKeySource, /sealed:v2:/, 'The sealed cache namespace should in
 
 const sealedSource = await readFile(ROOT('sealed.js'), 'utf8');
 assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v2'/, 'Sealed search requests should invalidate stale browser cache entries.');
-assert.match(sealedSource, /SEARCH_TTL_MS = 30 \* 60 \* 1000/, 'Sealed search browser cache should refresh newly released products promptly.');
+assert.match(sealedSource, /SEARCH_TTL_MS = 12 \* 60 \* 60 \* 1000/, 'Sealed search browser cache should remain valid for 12 hours.');
 assert.match(sealedSource, /searchVersion=\$\{SEARCH_CACHE_VERSION\}/, 'Sealed search requests should carry the cache version.');
 
 assert.match(currentValueSource, /fetchSealedFromSearchById\(baseProductId\)/);
