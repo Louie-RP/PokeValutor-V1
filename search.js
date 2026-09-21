@@ -796,9 +796,34 @@ document.addEventListener('DOMContentLoaded', function () {
         return element;
     }
 
-    function renderCardSkeletons(container, count) {
+    function renderCardSkeletons(container, count, loadingMessage) {
         if (!container) return;
         container.replaceChildren();
+
+        const messageText = safeString(loadingMessage, '').trim();
+        if (messageText) {
+            const messageCol = document.createElement('div');
+            messageCol.className = 'col-12';
+
+            const message = document.createElement('div');
+            message.className = 'pv-searchLoading';
+            message.setAttribute('role', 'status');
+            message.setAttribute('aria-live', 'polite');
+            message.setAttribute('aria-atomic', 'true');
+
+            const spinner = document.createElement('span');
+            spinner.className = 'pv-searchLoading__spinner';
+            spinner.setAttribute('aria-hidden', 'true');
+
+            const label = document.createElement('span');
+            label.className = 'pv-searchLoading__label';
+            label.textContent = messageText;
+
+            message.append(spinner, label);
+            messageCol.appendChild(message);
+            container.appendChild(messageCol);
+        }
+
         for (let i = 0; i < count; i++) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
@@ -6333,23 +6358,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return { cards, hasMore };
     }
 
-    async function searchTopByExpansion(expansionId, expansionName) {
+    function isMatchingExpansionResultSet(restored, expansionId) {
+        const requestedId = String(expansionId || '').trim().toLowerCase();
+        const restoredId = String(restored?.expansionId || '').trim().toLowerCase();
+        return Boolean(requestedId && restored?.mode === 'expansion' && restoredId === requestedId);
+    }
+
+    async function searchTopByExpansion(expansionId, expansionName, options) {
         activateDexSearchMode();
         const id = String(expansionId || '').trim();
         const name = String(expansionName || '').trim();
         if (!id) return;
+
+        const preserveExistingResults = options?.preserveExistingResults === true
+            && currentResultsCards.length > 0;
 
         resetDexSetBrowseState();
 
         const base = getWorkerBase();
         const RESULT_LIMIT = 10;
 
-        setStatus(`Loading top cards for ${name || id}…`);
-
         // Clear inputs so manual searching doesn't feel blocked.
         clearSearchInputs();
 
-        renderCardSkeletons(grid, RESULT_LIMIT);
+        if (!preserveExistingResults) {
+            setStatus('');
+            renderCardSkeletons(grid, RESULT_LIMIT, `Loading top cards for ${name || id}...`);
+        }
 
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
@@ -6378,7 +6413,9 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } catch (e) {
             console.warn('[PokeValutor] expansion top search error', e);
-            renderCards([]);
+            if (!preserveExistingResults) {
+                renderCards([]);
+            }
             if (isQuotaExceededError(e)) {
                 setStatusAndHideIfQuotaError(e);
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
@@ -6859,6 +6896,8 @@ document.addEventListener('DOMContentLoaded', function () {
         setSearchCollapsed(false);
     }
 
+    let restoredMatchingDeepLinkExpansion = false;
+
     if (isDexPage) {
         setResultsHeading('Search Results');
         setDexResultsContext('Search and add cards to your collection.');
@@ -6874,7 +6913,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Restore last results after refresh.
         try {
             const restored = loadLastResults();
-            if (restored && Array.isArray(restored.cards) && restored.cards.length) {
+            const matchesDeepLinkExpansion = isMatchingExpansionResultSet(restored, deepLinkExpansionId);
+            const shouldRestoreResults = !deepLinkExpansionId || matchesDeepLinkExpansion;
+            if (shouldRestoreResults && restored && Array.isArray(restored.cards) && restored.cards.length) {
                 const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
                     ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
                     : restored.cards;
@@ -6900,6 +6941,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 renderCards(restoredCards, restoredView);
                 renderFavorites(restoredView);
+                restoredMatchingDeepLinkExpansion = matchesDeepLinkExpansion;
 
                 if (restored.cards.length > restoredCards.length) {
                     setStatus(`Restored ${restoredCards.length} of ${restored.cards.length} previous results to keep this page responsive.`);
@@ -6919,7 +6961,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (deepLinkCardId) {
             void searchByCardId(deepLinkCardId, deepLinkCardName);
         } else if (deepLinkExpansionId) {
-            void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+            void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName, {
+                preserveExistingResults: restoredMatchingDeepLinkExpansion,
+            });
         }
     }
 
