@@ -2794,6 +2794,39 @@ h1, h2, h3, h4, h5, h6,
 .pv-skeleton { background: linear-gradient(90deg, #0a0a0a 25%, #121212 37%, #0a0a0a 63%); background-size: 400% 100%; animation: pv-shimmer 1.4s ease infinite; border-radius: 8px; }
 @keyframes pv-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
+.pv-searchLoading {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 203, 5, 0.42);
+  border-radius: 8px;
+  background: rgba(255, 203, 5, 0.09);
+  color: #fff3b0;
+  font-weight: 800;
+  text-align: center;
+}
+
+.pv-searchLoading__spinner {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 3px solid rgba(255, 203, 5, 0.3);
+  border-top-color: var(--pv-primary);
+  border-radius: 50%;
+  animation: pv-search-loading-spin 0.8s linear infinite;
+}
+
+@keyframes pv-search-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-searchLoading__spinner { animation: none; }
+}
+
 /* Form */
 .pv-form { max-width: 640px; }
 .pv-form__field { display: grid; gap: 0.5rem; margin-bottom: 1rem; }
