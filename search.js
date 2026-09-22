@@ -225,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {Array<any>} */
     let currentResultsCards = [];
+    let searchResultsLoading = false;
 
     const searchSortState = {
         active: 'value',
@@ -5073,6 +5074,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderCards(cards, restoreState) {
         if (!grid) return;
         const sourceCards = Array.isArray(cards) ? cards : [];
+        if (!sourceCards.length && searchResultsLoading) return;
         currentResultsCards = sourceCards.slice();
         grid.replaceChildren();
 
@@ -6396,6 +6398,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSearchInputs();
 
         if (!preserveExistingResults) {
+            searchResultsLoading = true;
             setStatus('');
             renderCardSkeletons(grid, RESULT_LIMIT, `Loading top cards for ${name || id}...`);
             revealExpansionLoadingResults();
@@ -6411,6 +6414,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 preserveExistingResults ? Promise.resolve() : waitForSearchLoadingPaint(),
             ]);
             const cards = Array.isArray(data?.data) ? data.data : [];
+            searchResultsLoading = false;
             renderCards(cards);
 
             const label = name || id;
@@ -6433,6 +6437,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {
             console.warn('[PokeValutor] expansion top search error', e);
             if (!preserveExistingResults) {
+                searchResultsLoading = false;
                 renderCards([]);
             }
             if (isQuotaExceededError(e)) {

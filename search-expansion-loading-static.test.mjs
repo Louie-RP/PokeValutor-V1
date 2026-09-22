@@ -15,7 +15,7 @@ assert.match(
 );
 assert.match(
     source,
-    /if \(!preserveExistingResults\) \{\s*setStatus\(''\);\s*renderCardSkeletons\(grid, RESULT_LIMIT, `Loading top cards[^`]+`\);\s*revealExpansionLoadingResults\(\);\s*\}/,
+    /if \(!preserveExistingResults\) \{\s*searchResultsLoading = true;\s*setStatus\(''\);\s*renderCardSkeletons\(grid, RESULT_LIMIT, `Loading top cards[^`]+`\);\s*revealExpansionLoadingResults\(\);\s*\}/,
     'A different set should show its loading message in the results grid and clear the small page status.',
 );
 assert.match(
@@ -42,6 +42,16 @@ assert.match(
     source,
     /const dataPromise = fetchJsonWithCache\(url, SEARCH_TTL_MS\);\s*const \[data\] = await Promise\.all\(\[\s*dataPromise,\s*preserveExistingResults \? Promise\.resolve\(\) : waitForSearchLoadingPaint\(\),/,
     'The request should start immediately while a visible loader receives one browser paint.',
+);
+assert.match(
+    source,
+    /const sourceCards = Array\.isArray\(cards\) \? cards : \[\];\s*if \(!sourceCards\.length && searchResultsLoading\) return;/,
+    'Empty result renders must not replace the loader while expansion data is pending.',
+);
+assert.match(
+    source,
+    /const cards = Array\.isArray\(data\?\.data\) \? data\.data : \[\];\s*searchResultsLoading = false;\s*renderCards\(cards\);/,
+    'No-results messaging should only render after the expansion response completes.',
 );
 
 console.log('Expansion loading-state regression checks passed.');
