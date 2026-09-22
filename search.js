@@ -4436,25 +4436,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function isEmptyTopCardsResponse(url, data) {
+        return /\/cards\/top-by-expansion(?:\?|$)/.test(url)
+            && Array.isArray(data?.data)
+            && data.data.length === 0;
+    }
+
     async function fetchJsonWithCache(url, ttlMs) {
         const cacheKey = `${CACHE_PREFIX}url:${url}`;
         const cached = cacheGet(cacheKey);
         if (cached) {
-            // If we previously cached a malformed card+prices response (e.g., missing `variants`),
-            // don't keep serving it forever. This can happen if the upstream API response shape
-            // changes and the Worker has been updated since.
-            const isCardWithPricesUrl = /\/cards\/.+/.test(url)
-                && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
-            if (isCardWithPricesUrl) {
-                const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
-                const variants = cardObj?.variants;
-                if (!Array.isArray(variants)) {
-                    try { localStorage.removeItem(cacheKey); } catch {}
+            if (isEmptyTopCardsResponse(url, cached)) {
+                try { localStorage.removeItem(cacheKey); } catch {}
+            } else {
+                // If we previously cached a malformed card+prices response (e.g., missing `variants`),
+                // don't keep serving it forever. This can happen if the upstream API response shape
+                // changes and the Worker has been updated since.
+                const isCardWithPricesUrl = /\/cards\/.+/.test(url)
+                    && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
+                if (isCardWithPricesUrl) {
+                    const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
+                    const variants = cardObj?.variants;
+                    if (!Array.isArray(variants)) {
+                        try { localStorage.removeItem(cacheKey); } catch {}
+                    } else {
+                        return cached;
+                    }
                 } else {
                     return cached;
                 }
-            } else {
-                return cached;
             }
         }
 
@@ -4504,7 +4514,7 @@ document.addEventListener('DOMContentLoaded', function () {
             err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
-        cacheSet(cacheKey, data, ttlMs);
+        if (!isEmptyTopCardsResponse(url, data)) cacheSet(cacheKey, data, ttlMs);
         return data;
     }
 
