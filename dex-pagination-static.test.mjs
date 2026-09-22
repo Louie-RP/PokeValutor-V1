@@ -1,41 +1,41 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const source = await readFile('dex-tracker-pages.js', 'utf8');
+const [source, utilitySource, dexHtml] = await Promise.all([
+    readFile('dex-tracker-pages.js', 'utf8'),
+    readFile('collection-view-utils.js', 'utf8'),
+    readFile('dex.html', 'utf8'),
+]);
 const start = source.indexOf('    function renderCollectionPagination(');
 const end = source.indexOf('    function bindCollectionSortControls(', start);
 
 assert.ok(start >= 0 && end > start, 'Collection pagination renderer should be present.');
 
 const renderer = source.slice(start, end);
+assert.match(renderer, /collectionView\.renderPagination\(container/);
+assert.match(renderer, /collectionView\.getPagination\(/);
 
 // XSS regression check required by AGENTS.md for this downstream renderer.
 assert.doesNotMatch(
-    renderer,
+    utilitySource,
     /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write)\b/,
     'Collection pagination must build its UI with safe DOM APIs.',
 );
-assert.match(renderer, /document\.createElement\(/);
-assert.match(renderer, /\.textContent\s*=/);
-assert.match(renderer, /\.replaceChildren\(/);
+assert.match(utilitySource, /documentObject\.createElement\(/);
+assert.match(utilitySource, /\.textContent\s*=/);
+assert.match(utilitySource, /\.replaceChildren\(/);
 
-for (const [label, nav] of [
-    ['First', 'first'],
-    ['Previous', 'prev'],
-    ['Next', 'next'],
-    ['Last', 'last'],
-]) {
+for (const label of ['First', 'Previous', 'Next', 'Last']) {
     assert.match(
-        renderer,
-        new RegExp(`createPageButton\\('${label}', '${nav}',`),
+        utilitySource,
+        new RegExp(`createPageButton\\('${label}',`),
         `${label} pagination control should be rendered.`,
     );
 }
 
-assert.match(renderer, /firstBtn\.addEventListener\('click', \(\) => goToPage\(1\)\)/);
-assert.match(renderer, /lastBtn\.addEventListener\('click', \(\) => goToPage\(totalPages\)\)/);
-assert.match(renderer, /createPageButton\('First', 'first', currentPage <= 1\)/);
-assert.match(renderer, /createPageButton\('Last', 'last', currentPage >= totalPages\)/);
+const utilityIndex = dexHtml.indexOf('collection-view-utils.js');
+const dexConsumerIndex = dexHtml.indexOf('dex-tracker-pages.js');
+assert.ok(utilityIndex >= 0 && dexConsumerIndex > utilityIndex, 'Collection view utilities must load before the Dex consumer.');
 
 const collectionPageStart = source.indexOf('    function renderCollectionPage(options)');
 const collectionPageEnd = source.indexOf('\n    function renderMasterSetsPage(', collectionPageStart);

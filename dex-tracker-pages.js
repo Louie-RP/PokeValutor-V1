@@ -22,13 +22,11 @@
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
-    const COLLECTION_PAGE_SIZE_MOBILE = 36;
-    const COLLECTION_PAGE_SIZE_DESKTOP = 60;
     const COLLECTION_PAGE_BREAKPOINT_QUERY = '(max-width: 767.98px)';
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
-    const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
     const storageUtil = window?.PV_STORAGE_UTIL || null;
+    const collectionView = window.PV_COLLECTION_VIEW;
     const sealedPricing = window.PV_SEALED_PRICING;
     const collectionSortState = {
         active: 'value',
@@ -160,8 +158,7 @@
     }
 
     function normalizeCollectionTypeFilter(value) {
-        const next = safeString(value, '').trim().toLowerCase();
-        return COLLECTION_TYPE_FILTER_VALUES.includes(next) ? next : 'all';
+        return collectionView.normalizeTypeFilter(value);
     }
 
     function normalizeSearchText(value) {
@@ -487,9 +484,7 @@
     }
 
     function formatUsd(amount) {
-        const n = Number(amount);
-        if (!Number.isFinite(n)) return '$0.00';
-        return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return collectionView.formatUsd(amount);
     }
 
     const COLLECTION_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
@@ -630,14 +625,9 @@
     }
 
     function getCollectionPageSize() {
-        try {
-            if (window?.matchMedia && window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY).matches) {
-                return COLLECTION_PAGE_SIZE_MOBILE;
-            }
-        } catch {
-            // ignore
-        }
-        return COLLECTION_PAGE_SIZE_DESKTOP;
+        return collectionView.getResponsivePageSize(window, {
+            breakpointQuery: COLLECTION_PAGE_BREAKPOINT_QUERY,
+        });
     }
 
     function sortCollectionMatches(matches) {
@@ -683,58 +673,6 @@
     }
 
     function renderCollectionPagination(container, options) {
-        if (!(container instanceof HTMLElement)) return;
-
-        const totalItems = Math.max(0, Math.floor(Number(options?.totalItems) || 0));
-        const pageSize = Math.max(1, Math.floor(Number(options?.pageSize) || COLLECTION_PAGE_SIZE_DESKTOP));
-        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-        const currentPage = Math.min(Math.max(1, Math.floor(Number(options?.currentPage) || 1)), totalPages);
-
-        if (totalItems <= pageSize) {
-            container.hidden = true;
-            container.replaceChildren();
-            return;
-        }
-
-        const start = ((currentPage - 1) * pageSize) + 1;
-        const end = Math.min(totalItems, currentPage * pageSize);
-
-        container.hidden = false;
-        const inner = document.createElement('div');
-        inner.className = 'pv-collectionPagination__inner';
-
-        const status = document.createElement('p');
-        status.className = 'pv-collectionPagination__status';
-        status.textContent = `Showing ${start}-${end} of ${totalItems}`;
-
-        const controls = document.createElement('div');
-        controls.className = 'pv-collectionPagination__controls';
-        controls.setAttribute('role', 'group');
-        controls.setAttribute('aria-label', 'Collection pages');
-
-        const pageLabel = document.createElement('span');
-        pageLabel.className = 'pv-collectionPagination__pageLabel';
-        pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
-
-        function createPageButton(label, nav, disabled) {
-            const button = document.createElement('button');
-            button.className = 'pv-button pv-button--secondary btn pv-collectionPagination__btn';
-            button.type = 'button';
-            button.dataset.pageNav = nav;
-            button.textContent = label;
-            button.disabled = disabled;
-            return button;
-        }
-
-        const firstBtn = createPageButton('First', 'first', currentPage <= 1);
-        const prevBtn = createPageButton('Previous', 'prev', currentPage <= 1);
-        const nextBtn = createPageButton('Next', 'next', currentPage >= totalPages);
-        const lastBtn = createPageButton('Last', 'last', currentPage >= totalPages);
-
-        controls.append(firstBtn, prevBtn, pageLabel, nextBtn, lastBtn);
-        inner.append(status, controls);
-        container.replaceChildren(inner);
-
         function scrollCollectionToTop() {
             const grid = document.getElementById('pv-collection-grid');
             const firstCard = grid instanceof HTMLElement
@@ -755,18 +693,17 @@
             window.scrollTo({ top, behavior: 'smooth' });
         }
 
-        function goToPage(page) {
-            const targetPage = Math.min(Math.max(1, page), totalPages);
-            if (targetPage === collectionPaginationState.page) return;
-            collectionPaginationState.page = targetPage;
-            renderCollectionPage();
-            scrollCollectionToTop();
-        }
-
-        firstBtn.addEventListener('click', () => goToPage(1));
-        prevBtn.addEventListener('click', () => goToPage(collectionPaginationState.page - 1));
-        nextBtn.addEventListener('click', () => goToPage(collectionPaginationState.page + 1));
-        lastBtn.addEventListener('click', () => goToPage(totalPages));
+        collectionView.renderPagination(container, {
+            ...options,
+            onPageChange(page) {
+                const pagination = collectionView.getPagination(options?.totalItems, options?.pageSize, page);
+                const targetPage = pagination.currentPage;
+                if (targetPage === collectionPaginationState.page) return;
+                collectionPaginationState.page = targetPage;
+                renderCollectionPage();
+                scrollCollectionToTop();
+            },
+        });
     }
 
     function bindCollectionSortControls() {

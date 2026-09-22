@@ -3,12 +3,15 @@
     const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
     const SHARED_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
+    const SHARED_TYPE_FILTER_PREF_KEY = 'pv:sharedCollectionTypeFilter:v1';
     const SHARED_VALUE_CACHE_KEY = 'pv:scrydex:collectionValueCache:v3';
     const SHARED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const SHARED_SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
     const CONDITION_CODE_ORDER = ['NM', 'LP', 'MP', 'HP', 'DM'];
+    const COLLECTION_PAGE_BREAKPOINT_QUERY = '(max-width: 767.98px)';
+    const collectionView = window.PV_COLLECTION_VIEW;
     const sealedPricing = window.PV_SEALED_PRICING;
     const sealedPriceRequestInFlightByBaseId = {};
 
@@ -18,9 +21,7 @@
     }
 
     function formatUsd(amount) {
-        const n = Number(amount);
-        if (!Number.isFinite(n)) return '$0.00';
-        return `$${n.toFixed(2)}`;
+        return collectionView.formatUsd(amount);
     }
 
     function normalizeCollectionItemType(rawType) {
@@ -51,13 +52,29 @@
         return normalizeCollectionItemType(item?.itemType) === 'sealed';
     }
 
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+    function createElement(tagName, className, text) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = String(text);
+        return element;
+    }
+
+    function setEmptyState(container, message) {
+        const column = createElement('div', 'col-12');
+        column.appendChild(createElement('div', 'pv-emptyState', message));
+        container.replaceChildren(column);
+    }
+
+    function getSafeImageUrl(rawUrl) {
+        const value = safeString(rawUrl, '').trim();
+        if (!value) return '';
+
+        try {
+            const url = new URL(value, window.location.href);
+            return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+        } catch {
+            return '';
+        }
     }
 
     function normalizeDexConditionCode(raw) {
@@ -522,15 +539,13 @@
         return SHARE_TOKEN_REGEX.test(token) ? token : '';
     }
 
-    function createCardHtml(item, itemKey) {
-        const name = escapeHtml(item.name);
-        const setName = escapeHtml(item.setName);
-        const rarity = escapeHtml(item.rarity || 'n/a');
-        const numberRaw = safeString(item.number, '').trim();
-        const number = escapeHtml(numberRaw);
+    function createCardElement(item, itemKey) {
+        const name = safeString(item.name, 'Unknown');
+        const setName = safeString(item.setName, 'n/a');
+        const rarity = safeString(item.rarity, 'n/a');
+        const number = safeString(item.number, '').trim();
         const copies = Math.max(0, Math.floor(Number(item.copies || 0)));
         const detailPath = buildCardDetailPath(item.raw);
-        const detailPathAttr = escapeHtml(detailPath);
         const unitValue = getSortUnitValue(item);
         const highestConditionValueText = unitValue != null
             ? formatUsd(unitValue)
@@ -554,50 +569,86 @@
         } else if (fallbackCode) {
             valueHint = `Highest-condition value shown (${fallbackCode}).`;
         }
-        const valueHintAttr = escapeHtml(valueHint);
-        const rarityMetaHtml = number
-            ? `<p class="pv-card__text pv-sharedMetaLine"><span class="pv-sharedRarity">${rarity}</span><span class="pv-sharedMetaDivider" aria-hidden="true">&#8226;</span><span class="pv-sharedCardNo">#${number}</span></p>`
-            : `<p class="pv-card__text pv-sharedMetaLine"><span class="pv-sharedRarity">${rarity}</span></p>`;
         const copiesText = `${copies} ${copies === 1 ? 'copy' : 'copies'}`;
-        const copiesHtml = `<button type="button" class="pv-sharedCopiesBtn" data-shared-item-key="${escapeHtml(itemKey)}" aria-label="View condition breakdown for ${name}">${escapeHtml(copiesText)}</button>`;
-        const imageHtml = item.image
-            ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${name} details"><img class="pv-card__img" src="${escapeHtml(item.image)}" alt="${name} card image" /></a>`
-            : '';
 
-        return `
-            <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-sharedCollectionCol" data-card-id="${escapeHtml(item.id)}" data-card-name="${name}" data-set-name="${setName}" data-card-number="${number}">
-                <article class="pv-card h-100" aria-label="${name}">
-                    ${imageHtml}
-                    <div class="pv-card__body">
-                        <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${name} details">${name}</a></h3>
-                        <p class="pv-card__text pv-sharedSetName">${setName}</p>
-                        ${rarityMetaHtml}
-                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue pv-sharedInfoValue--price">${escapeHtml(highestConditionValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
-                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Copies</span><span class="pv-sharedInfoValue">${copiesHtml}</span></p>
-                    </div>
-                </article>
-            </div>
-        `;
+        const column = createElement('div', 'col-6 col-sm-6 col-md-4 col-lg-3 pv-sharedCollectionCol');
+        column.dataset.cardId = safeString(item.id, '');
+        column.dataset.cardName = name;
+        column.dataset.setName = setName;
+        column.dataset.cardNumber = number;
+
+        const article = createElement('article', 'pv-card h-100');
+        article.setAttribute('aria-label', name);
+        const imageUrl = getSafeImageUrl(item.image);
+        if (imageUrl) {
+            const imageLink = createElement('a', 'pv-card__imgLink');
+            imageLink.href = detailPath;
+            imageLink.setAttribute('aria-label', `View ${name} details`);
+            const image = createElement('img', 'pv-card__img');
+            image.src = imageUrl;
+            image.alt = `${name} card image`;
+            imageLink.appendChild(image);
+            article.appendChild(imageLink);
+        }
+
+        const body = createElement('div', 'pv-card__body');
+        const title = createElement('h3', 'pv-card__title');
+        const titleLink = createElement('a', 'pv-card__titleLink', name);
+        titleLink.href = detailPath;
+        titleLink.setAttribute('aria-label', `View ${name} details`);
+        title.appendChild(titleLink);
+        body.append(title, createElement('p', 'pv-card__text pv-sharedSetName', setName));
+
+        const meta = createElement('p', 'pv-card__text pv-sharedMetaLine');
+        meta.appendChild(createElement('span', 'pv-sharedRarity', rarity));
+        if (number) {
+            const divider = createElement('span', 'pv-sharedMetaDivider', '\u2022');
+            divider.setAttribute('aria-hidden', 'true');
+            meta.append(divider, createElement('span', 'pv-sharedCardNo', `#${number}`));
+        }
+        body.appendChild(meta);
+
+        const valueLine = createElement('p', 'pv-card__text pv-sharedInfoLine');
+        const valueWrap = createElement('span', 'pv-sharedInfoValueWrap');
+        const valueHintButton = createElement('button', 'pv-sharedValueHintBtn', 'i');
+        valueHintButton.type = 'button';
+        valueHintButton.dataset.sharedValueHint = valueHint;
+        valueHintButton.setAttribute('aria-label', valueHint);
+        valueHintButton.title = valueHint;
+        valueWrap.append(createElement('span', 'pv-sharedInfoValue pv-sharedInfoValue--price', highestConditionValueText), valueHintButton);
+        valueLine.append(createElement('span', 'pv-sharedInfoLabel', 'Value'), valueWrap);
+
+        const copiesLine = createElement('p', 'pv-card__text pv-sharedInfoLine');
+        const copiesValue = createElement('span', 'pv-sharedInfoValue');
+        const copiesButton = createElement('button', 'pv-sharedCopiesBtn', copiesText);
+        copiesButton.type = 'button';
+        copiesButton.dataset.sharedItemKey = itemKey;
+        copiesButton.setAttribute('aria-label', `View condition breakdown for ${name}`);
+        copiesValue.appendChild(copiesButton);
+        copiesLine.append(createElement('span', 'pv-sharedInfoLabel', 'Copies'), copiesValue);
+        body.append(valueLine, copiesLine);
+        article.appendChild(body);
+        column.appendChild(article);
+        return column;
     }
 
     function createConditionDialog() {
         const dialog = document.createElement('dialog');
         dialog.className = 'pv-sharedConditionDialog';
-        dialog.innerHTML = `
-            <div class="pv-sharedConditionDialog__panel">
-                <h3 class="pv-sharedConditionDialog__title" id="pv-shared-condition-title">Conditions</h3>
-                <ul class="pv-sharedConditionDialog__list" id="pv-shared-condition-list"></ul>
-                <p class="pv-sharedConditionDialog__total" id="pv-shared-condition-total"></p>
-                <div class="pv-sharedConditionDialog__actions">
-                    <button type="button" class="pv-button pv-button--secondary btn" data-shared-condition-close>Close</button>
-                </div>
-            </div>
-        `;
-
-        const titleEl = dialog.querySelector('#pv-shared-condition-title');
-        const listEl = dialog.querySelector('#pv-shared-condition-list');
-        const totalEl = dialog.querySelector('#pv-shared-condition-total');
-        const closeBtn = dialog.querySelector('[data-shared-condition-close]');
+        const panel = createElement('div', 'pv-sharedConditionDialog__panel');
+        const titleEl = createElement('h3', 'pv-sharedConditionDialog__title', 'Conditions');
+        titleEl.id = 'pv-shared-condition-title';
+        const listEl = createElement('ul', 'pv-sharedConditionDialog__list');
+        listEl.id = 'pv-shared-condition-list';
+        const totalEl = createElement('p', 'pv-sharedConditionDialog__total');
+        totalEl.id = 'pv-shared-condition-total';
+        const actions = createElement('div', 'pv-sharedConditionDialog__actions');
+        const closeBtn = createElement('button', 'pv-button pv-button--secondary btn', 'Close');
+        closeBtn.type = 'button';
+        closeBtn.dataset.sharedConditionClose = '';
+        actions.appendChild(closeBtn);
+        panel.append(titleEl, listEl, totalEl, actions);
+        dialog.appendChild(panel);
 
         if (closeBtn instanceof HTMLButtonElement) {
             closeBtn.addEventListener('click', () => {
@@ -625,7 +676,7 @@
                 if (titleEl) titleEl.textContent = `${cleanName} conditions`;
 
                 if (listEl instanceof HTMLUListElement) {
-                    listEl.innerHTML = '';
+                    listEl.replaceChildren();
 
                     if (!breakdown.lines.length) {
                         const emptyEl = document.createElement('li');
@@ -679,53 +730,80 @@
         };
     }
 
-    function createSealedHtml(item, itemKey) {
-        const name = escapeHtml(item.name);
-        const setName = escapeHtml(item.setName);
+    function createSealedElement(item, itemKey) {
+        const name = safeString(item.name, 'Unknown');
+        const setName = safeString(item.setName, 'n/a');
         const quantity = Math.max(0, Math.floor(Number(item.quantity || item.copies || 0)));
         const unitValueText = item.unitValue != null ? formatUsd(item.unitValue) : '--';
         const valueHint = 'Per sealed product value shown.';
-        const valueHintAttr = escapeHtml(valueHint);
         const quantityText = `${quantity} ${quantity === 1 ? 'unit' : 'units'}`;
-        const quantityHtml = `<button type="button" class="pv-sharedQtyBtn" data-shared-item-key="${escapeHtml(itemKey)}" aria-label="View sealed details for ${name}">${escapeHtml(quantityText)}</button>`;
-        const imageHtml = `
-            <div class="pv-card__imgLink pv-card__imgLink--sealed" aria-hidden="true">
-                ${item.image ? `<img class="pv-card__img pv-card__img--sealed" src="${escapeHtml(item.image)}" alt="${name} sealed product image" />` : ''}
-            </div>
-        `;
 
-        return `
-            <div class="col-6 col-sm-6 col-md-4 col-lg-3 pv-sharedCollectionCol" data-card-id="${escapeHtml(item.id)}" data-card-name="${name}" data-set-name="${setName}" data-card-number="">
-                <article class="pv-card h-100" aria-label="${name}">
-                    ${imageHtml}
-                    <div class="pv-card__body">
-                        <h3 class="pv-card__title pv-card__title--plain">${name}</h3>
-                        <p class="pv-card__text pv-sharedSetName">${setName}</p>
-                        <p class="pv-card__text pv-sharedMetaLine pv-sharedMetaLine--empty" aria-hidden="true">Sealed product</p>
-                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Value</span><span class="pv-sharedInfoValueWrap"><span class="pv-sharedInfoValue pv-sharedInfoValue--price">${escapeHtml(unitValueText)}</span><button type="button" class="pv-sharedValueHintBtn" data-shared-value-hint="${valueHintAttr}" aria-label="${valueHintAttr}" title="${valueHintAttr}">i</button></span></p>
-                        <p class="pv-card__text pv-sharedInfoLine"><span class="pv-sharedInfoLabel">Quantity</span><span class="pv-sharedInfoValue">${quantityHtml}</span></p>
-                    </div>
-                </article>
-            </div>
-        `;
+        const column = createElement('div', 'col-6 col-sm-6 col-md-4 col-lg-3 pv-sharedCollectionCol');
+        column.dataset.cardId = safeString(item.id, '');
+        column.dataset.cardName = name;
+        column.dataset.setName = setName;
+        column.dataset.cardNumber = '';
+
+        const article = createElement('article', 'pv-card h-100');
+        article.setAttribute('aria-label', name);
+        const imageLink = createElement('div', 'pv-card__imgLink pv-card__imgLink--sealed');
+        imageLink.setAttribute('aria-hidden', 'true');
+        const imageUrl = getSafeImageUrl(item.image);
+        if (imageUrl) {
+            const image = createElement('img', 'pv-card__img pv-card__img--sealed');
+            image.src = imageUrl;
+            image.alt = `${name} sealed product image`;
+            imageLink.appendChild(image);
+        }
+
+        const body = createElement('div', 'pv-card__body');
+        body.append(
+            createElement('h3', 'pv-card__title pv-card__title--plain', name),
+            createElement('p', 'pv-card__text pv-sharedSetName', setName)
+        );
+        const meta = createElement('p', 'pv-card__text pv-sharedMetaLine pv-sharedMetaLine--empty', 'Sealed product');
+        meta.setAttribute('aria-hidden', 'true');
+        body.appendChild(meta);
+
+        const valueLine = createElement('p', 'pv-card__text pv-sharedInfoLine');
+        const valueWrap = createElement('span', 'pv-sharedInfoValueWrap');
+        const valueHintButton = createElement('button', 'pv-sharedValueHintBtn', 'i');
+        valueHintButton.type = 'button';
+        valueHintButton.dataset.sharedValueHint = valueHint;
+        valueHintButton.setAttribute('aria-label', valueHint);
+        valueHintButton.title = valueHint;
+        valueWrap.append(createElement('span', 'pv-sharedInfoValue pv-sharedInfoValue--price', unitValueText), valueHintButton);
+        valueLine.append(createElement('span', 'pv-sharedInfoLabel', 'Value'), valueWrap);
+
+        const quantityLine = createElement('p', 'pv-card__text pv-sharedInfoLine');
+        const quantityValue = createElement('span', 'pv-sharedInfoValue');
+        const quantityButton = createElement('button', 'pv-sharedQtyBtn', quantityText);
+        quantityButton.type = 'button';
+        quantityButton.dataset.sharedItemKey = itemKey;
+        quantityButton.setAttribute('aria-label', `View sealed details for ${name}`);
+        quantityValue.appendChild(quantityButton);
+        quantityLine.append(createElement('span', 'pv-sharedInfoLabel', 'Quantity'), quantityValue);
+        body.append(valueLine, quantityLine);
+        article.append(imageLink, body);
+        column.appendChild(article);
+        return column;
     }
 
     function createSealedDetailsDialog() {
         const dialog = document.createElement('dialog');
         dialog.className = 'pv-sharedConditionDialog pv-sharedConditionDialog--sealed';
-        dialog.innerHTML = `
-            <div class="pv-sharedConditionDialog__panel">
-                <h3 class="pv-sharedConditionDialog__title" id="pv-shared-sealed-title">Sealed details</h3>
-                <ul class="pv-sharedConditionDialog__list" id="pv-shared-sealed-list"></ul>
-                <div class="pv-sharedConditionDialog__actions">
-                    <button type="button" class="pv-button pv-button--secondary btn" data-shared-sealed-close>Close</button>
-                </div>
-            </div>
-        `;
-
-        const titleEl = dialog.querySelector('#pv-shared-sealed-title');
-        const listEl = dialog.querySelector('#pv-shared-sealed-list');
-        const closeBtn = dialog.querySelector('[data-shared-sealed-close]');
+        const panel = createElement('div', 'pv-sharedConditionDialog__panel');
+        const titleEl = createElement('h3', 'pv-sharedConditionDialog__title', 'Sealed details');
+        titleEl.id = 'pv-shared-sealed-title';
+        const listEl = createElement('ul', 'pv-sharedConditionDialog__list');
+        listEl.id = 'pv-shared-sealed-list';
+        const actions = createElement('div', 'pv-sharedConditionDialog__actions');
+        const closeBtn = createElement('button', 'pv-button pv-button--secondary btn', 'Close');
+        closeBtn.type = 'button';
+        closeBtn.dataset.sharedSealedClose = '';
+        actions.appendChild(closeBtn);
+        panel.append(titleEl, listEl, actions);
+        dialog.appendChild(panel);
 
         if (closeBtn instanceof HTMLButtonElement) {
             closeBtn.addEventListener('click', () => {
@@ -768,7 +846,7 @@
                 if (titleEl) titleEl.textContent = `${cleanName} details`;
 
                 if (listEl instanceof HTMLUListElement) {
-                    listEl.innerHTML = '';
+                    listEl.replaceChildren();
                     appendRow(listEl, 'Quantity', String(quantity));
                     appendRow(listEl, 'Value each', unitValueText);
                     appendRow(listEl, 'Total value', totalValueText);
@@ -784,9 +862,9 @@
         };
     }
 
-    function createCollectionItemHtml(item, itemKey) {
-        if (isSealedCollectionItem(item)) return createSealedHtml(item, itemKey);
-        return createCardHtml(item, itemKey);
+    function createCollectionItemElement(item, itemKey) {
+        if (isSealedCollectionItem(item)) return createSealedElement(item, itemKey);
+        return createCardElement(item, itemKey);
     }
 
     function applyCollectionFilter(items, queryRaw) {
@@ -820,6 +898,22 @@
         const mode = SHARED_SORT_MODES.includes(modeRaw) ? modeRaw : 'value-desc';
         try {
             localStorage.setItem(SHARED_SORT_PREF_KEY, mode);
+        } catch {
+            // ignore
+        }
+    }
+
+    function loadSharedTypeFilterPreference() {
+        try {
+            return collectionView.normalizeTypeFilter(localStorage.getItem(SHARED_TYPE_FILTER_PREF_KEY));
+        } catch {
+            return 'all';
+        }
+    }
+
+    function saveSharedTypeFilterPreference(value) {
+        try {
+            localStorage.setItem(SHARED_TYPE_FILTER_PREF_KEY, collectionView.normalizeTypeFilter(value));
         } catch {
             // ignore
         }
@@ -1067,8 +1161,10 @@
         const summaryEl = document.getElementById('pv-shared-summary');
         const gridEl = document.getElementById('pv-shared-grid');
         const filterEl = document.getElementById('pv-shared-filter');
+        const typeFilterEl = document.getElementById('pv-shared-type-filter');
         const sortEl = document.getElementById('pv-shared-sort-select');
         const collectionSelectEl = document.getElementById('pv-shared-collection-select');
+        const paginationEl = document.getElementById('pv-shared-pagination');
 
         if (!summaryEl || !gridEl || !totalEl || !valueTotalEl) return;
 
@@ -1077,6 +1173,11 @@
         const renderedItemByKey = new Map();
         let renderAnimationTimer = null;
         let liveRefreshRunId = 0;
+        const paginationState = {
+            page: 1,
+            perPage: 0,
+            signature: '',
+        };
 
         function closeOpenValueHints(exceptEl) {
             const openHints = gridEl.querySelectorAll('.pv-sharedValueHintBtn.is-open');
@@ -1128,7 +1229,7 @@
         if (!shareToken) {
             setText(statusEl, 'Invalid share link.');
             setText(summaryEl, 'This collection is not currently shared.');
-            gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is not currently shared.</div></div>';
+            setEmptyState(gridEl, 'This collection is not currently shared.');
             setText(totalEl, 'Total units: 0');
             setText(valueTotalEl, 'Collection value: $0.00');
             return;
@@ -1137,7 +1238,7 @@
         if (!window?.PV_AUTH?.loadSharedDexCollection) {
             setText(statusEl, 'Sharing service unavailable right now.');
             setText(summaryEl, 'Shared collection data could not be loaded.');
-            gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">Shared collection data could not be loaded right now.</div></div>';
+            setEmptyState(gridEl, 'Shared collection data could not be loaded right now.');
             setText(totalEl, 'Total units: 0');
             setText(valueTotalEl, 'Collection value: $0.00');
             return;
@@ -1160,9 +1261,12 @@
 
         function syncCollectionPicker() {
             if (!(collectionSelectEl instanceof HTMLSelectElement)) return;
-            collectionSelectEl.innerHTML = collectionOptions
-                .map((option) => `<option value="${escapeHtml(option.id)}">${escapeHtml(option.name)}</option>`)
-                .join('');
+            const optionElements = collectionOptions.map((option) => {
+                const optionElement = createElement('option', '', option.name);
+                optionElement.value = option.id;
+                return optionElement;
+            });
+            collectionSelectEl.replaceChildren(...optionElements);
             collectionSelectEl.value = selectedCollectionId;
         }
 
@@ -1184,9 +1288,41 @@
         function render(query, options) {
             const animate = options?.animate === true;
             const selectedItems = getSelectedCollectionItems();
-            const filtered = applyCollectionFilter(selectedItems, query);
+            const selectedType = collectionView.normalizeTypeFilter(
+                typeFilterEl instanceof HTMLSelectElement ? typeFilterEl.value : 'all'
+            );
+            const typeFilteredItems = selectedItems.filter((item) => {
+                if (selectedType === 'sealed') return isSealedCollectionItem(item);
+                if (selectedType === 'card') return !isSealedCollectionItem(item);
+                return true;
+            });
+            const filtered = applyCollectionFilter(typeFilteredItems, query);
             const sortMode = sortEl instanceof HTMLSelectElement ? sortEl.value : 'value-desc';
             const sortedFiltered = sortCollectionItems(filtered, sortMode);
+            const paginationSignature = [
+                selectedCollectionId,
+                selectedType,
+                String(query || '').trim().toLowerCase(),
+            ].join('|');
+            const pageSize = collectionView.getResponsivePageSize(window, {
+                breakpointQuery: COLLECTION_PAGE_BREAKPOINT_QUERY,
+            });
+
+            if (paginationState.signature !== paginationSignature) {
+                paginationState.signature = paginationSignature;
+                paginationState.page = 1;
+            }
+
+            if (paginationState.perPage !== pageSize) {
+                const previousSize = paginationState.perPage || pageSize;
+                const firstVisibleIndex = Math.max(0, (paginationState.page - 1) * previousSize);
+                paginationState.page = Math.floor(firstVisibleIndex / pageSize) + 1;
+                paginationState.perPage = pageSize;
+            }
+
+            const pagination = collectionView.getPagination(sortedFiltered.length, pageSize, paginationState.page);
+            paginationState.page = pagination.currentPage;
+            const visibleItems = sortedFiltered.slice(pagination.startIndex, pagination.endIndex);
 
             const totalUnits = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.totalUnits || item.copies || 0)), 0);
             const filteredUnits = sortedFiltered.reduce((sum, item) => sum + Math.max(0, Number(item.totalUnits || item.copies || 0)), 0);
@@ -1200,11 +1336,24 @@
             setText(totalEl, `Total units: ${totalUnits}`);
             setText(valueTotalEl, `Collection value: ${formatUsd(totalValue)}${coverage}`);
 
+            collectionView.renderPagination(paginationEl, {
+                totalItems: sortedFiltered.length,
+                pageSize,
+                currentPage: paginationState.page,
+                onPageChange(page) {
+                    paginationState.page = page;
+                    render(query, { animate: true });
+                    const target = gridEl.querySelector('.pv-sharedCollectionCol') || gridEl;
+                    const top = Math.max(0, Math.round(target.getBoundingClientRect().top + window.scrollY - 96));
+                    window.scrollTo({ top, behavior: 'smooth' });
+                },
+            });
+
             if (!selectedItems.length) {
                 renderedItemByKey.clear();
                 gridEl.classList.remove('pv-sharedGrid--animating');
                 setText(summaryEl, `${collectionName} has no shared items.`);
-                gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is empty.</div></div>';
+                setEmptyState(gridEl, 'This collection is empty.');
                 return;
             }
 
@@ -1212,24 +1361,23 @@
                 renderedItemByKey.clear();
                 gridEl.classList.remove('pv-sharedGrid--animating');
                 setText(summaryEl, `0 of ${selectedItems.length} ${itemLabel} shown from ${collectionName}.`);
-                gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items match that search.</div></div>';
+                setEmptyState(gridEl, 'No items match the selected filters.');
                 return;
             }
 
-            if (String(query || '').trim()) {
+            if (String(query || '').trim() || selectedType !== 'all') {
                 setText(summaryEl, `${sortedFiltered.length} of ${selectedItems.length} ${itemLabel} shown from ${collectionName}. ${filteredUnits} ${unitLabel} visible.`);
             } else {
                 setText(summaryEl, `${selectedItems.length} ${itemLabel} shared from ${collectionName}. ${totalUnits} ${unitLabel}.`);
             }
 
             renderedItemByKey.clear();
-            gridEl.innerHTML = sortedFiltered
-                .map((item, index) => {
-                    const itemKey = `${selectedCollectionId}:${safeString(item.id, 'item')}:${index}`;
-                    renderedItemByKey.set(itemKey, item);
-                    return createCollectionItemHtml(item, itemKey);
-                })
-                .join('');
+            const gridItems = visibleItems.map((item, index) => {
+                const itemKey = `${selectedCollectionId}:${safeString(item.id, 'item')}:${pagination.startIndex + index}`;
+                renderedItemByKey.set(itemKey, item);
+                return createCollectionItemElement(item, itemKey);
+            });
+            gridEl.replaceChildren(...gridItems);
 
             if (animate) {
                 triggerGridAnimation();
@@ -1375,6 +1523,17 @@
                 });
             }
 
+            if (typeFilterEl instanceof HTMLSelectElement) {
+                typeFilterEl.value = loadSharedTypeFilterPreference();
+                typeFilterEl.addEventListener('change', () => {
+                    typeFilterEl.value = collectionView.normalizeTypeFilter(typeFilterEl.value);
+                    saveSharedTypeFilterPreference(typeFilterEl.value);
+                    paginationState.page = 1;
+                    const filterValue = filterEl instanceof HTMLInputElement ? filterEl.value : '';
+                    render(filterValue, { animate: true });
+                });
+            }
+
             if (collectionSelectEl instanceof HTMLSelectElement) {
                 collectionSelectEl.addEventListener('change', () => {
                     const nextId = normalizeCollectionId(collectionSelectEl.value, selectedCollectionId);
@@ -1394,14 +1553,32 @@
 
             if (filterEl instanceof HTMLInputElement) {
                 filterEl.addEventListener('input', () => {
+                    paginationState.page = 1;
                     render(filterEl.value, { animate: true });
                 });
+            }
+
+            try {
+                if (window?.matchMedia) {
+                    const mediaQuery = window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY);
+                    const handleBreakpointChange = () => render(
+                        filterEl instanceof HTMLInputElement ? filterEl.value : '',
+                        { animate: false }
+                    );
+                    if (typeof mediaQuery.addEventListener === 'function') {
+                        mediaQuery.addEventListener('change', handleBreakpointChange);
+                    } else if (typeof mediaQuery.addListener === 'function') {
+                        mediaQuery.addListener(handleBreakpointChange);
+                    }
+                }
+            } catch {
+                // ignore
             }
         } catch (error) {
             const message = safeString(error?.message, 'This collection is not currently shared.');
             setText(statusEl, message);
             setText(summaryEl, 'This collection is not currently shared.');
-            gridEl.innerHTML = '<div class="col-12"><div class="pv-emptyState">This collection is not currently shared. The owner can re-enable sharing from their account page at any time.</div></div>';
+            setEmptyState(gridEl, 'This collection is not currently shared. The owner can re-enable sharing from their account page at any time.');
             setText(totalEl, 'Total units: 0');
             setText(valueTotalEl, 'Collection value: $0.00');
         }
