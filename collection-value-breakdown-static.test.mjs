@@ -23,7 +23,13 @@ assert.match(
     'The dialog should show card, sealed, and combined values.',
 );
 
-assert.match(styles, /\.pv-collectionTotalValueButton\s*\{[\s\S]*?text-decoration: underline;/);
+const valueButtonStyleStart = styles.indexOf('.pv-collectionTotalValueButton {');
+const valueButtonStyleEnd = styles.indexOf('\n}', valueButtonStyleStart);
+assert.ok(valueButtonStyleStart >= 0 && valueButtonStyleEnd > valueButtonStyleStart);
+const valueButtonStyles = styles.slice(valueButtonStyleStart, valueButtonStyleEnd);
+assert.match(valueButtonStyles, /-webkit-appearance:\s*none;/);
+assert.match(valueButtonStyles, /border-bottom:\s*2px solid rgba\(255, 234, 162, 0\.62\);/);
+assert.match(valueButtonStyles, /text-decoration:\s*none;/);
 assert.match(styles, /\.pv-collectionValueInfoBtn::after\s*\{[\s\S]*?content: attr\(data-collection-value-hint\);/);
 
 assert.match(script, /sealedValue \+= itemTotal;/, 'Sealed values should contribute to the sealed subtotal.');
