@@ -70,6 +70,9 @@ jobs:
             --exclude 'dist/' \
             ./ dist/
 
+          mkdir -p dist/functions/lib
+          cp functions/lib/sealed-pricing-core.js dist/functions/lib/sealed-pricing-core.js
+
           # Generate firebase-config.js from GitHub Secrets (keeps API keys out of git history)
           cat > dist/firebase-config.js <<'EOF'
           // Firebase client config.

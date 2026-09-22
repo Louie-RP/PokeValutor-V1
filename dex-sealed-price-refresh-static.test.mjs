@@ -30,11 +30,12 @@ const currentValueSource = extractFunction(dexSource, 'getCurrentSealedValue');
 const normalizeSource = extractFunction(dexSource, 'normalizeSealedCollectionEntry');
 const variantLabelSource = extractFunction(dexSource, 'getSealedCollectionVariantLabel');
 const rendererSource = extractFunction(dexSource, 'refreshCollectionValues');
+const refreshGateSource = extractFunction(dexSource, 'shouldAllowCollectionNetworkRefresh');
 
-assert.match(identitySource, /item\?\.baseProductId/);
-assert.match(identitySource, /displayId\.indexOf\('::'\)/);
-assert.match(identitySource, /item\?\.variantName/);
-assert.match(cacheKeySource, /sealed:v2:/, 'The sealed cache namespace should invalidate stale v1 values.');
+assert.match(dexSource, /window\.PV_SEALED_PRICING/);
+assert.match(dexSource, /collectionValueCache:v3/);
+assert.match(identitySource, /sealedPricing\.getSealedPricingIdentity\(item\)/);
+assert.match(cacheKeySource, /sealedPricing\.buildSealedValueCacheKey\(\{ displayId \}\)/);
 
 const sealedSource = await readFile(ROOT('sealed.js'), 'utf8');
 assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v2'/, 'Sealed search requests should invalidate stale browser cache entries.');
@@ -70,11 +71,12 @@ assert.match(
 assert.match(currentValueSource, /fetchSealedFromSearchById\(baseProductId\)/);
 assert.match(currentValueSource, /fetchSealedWithPrices\(baseProductId\)/);
 assert.match(currentValueSource, /buildSealedValueCacheKey\(displayId\)/);
-assert.match(currentValueSource, /getTrackedSealedMarketFromVariants\(fetchedVariants, variantName\)/);
+assert.match(currentValueSource, /getMarketFromTrackedSealedVariant\(fetchedVariants, identity\)/);
 assert.ok(
-    currentValueSource.indexOf('if (cached &&') < currentValueSource.indexOf('if (allowNetwork)'),
-    'A valid sealed cache entry must prevent another API request.',
+    currentValueSource.indexOf('if (allowNetwork)') < currentValueSource.indexOf('if (cached &&'),
+    'A cached sealed value must remain a fallback rather than suppressing live revalidation.',
 );
+assert.match(refreshGateSource, /sealedCollectionRefreshStartedByCollectionId/);
 
 for (const field of ['baseProductId', 'variantName', 'variantLabel', 'hasMultipleVariants']) {
     assert.match(normalizeSource, new RegExp(`${field}:`), `Dex normalization should preserve ${field}.`);

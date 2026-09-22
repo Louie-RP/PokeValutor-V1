@@ -3,12 +3,14 @@
     const SHARE_TOKEN_REGEX = /^[A-Za-z0-9_-]{16,128}$/;
     const SHARED_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
     const SHARED_SORT_PREF_KEY = 'pv:sharedCollectionSortMode:v1';
-    const SHARED_VALUE_CACHE_KEY = 'pv:scrydex:collectionValueCache:v1';
+    const SHARED_VALUE_CACHE_KEY = 'pv:scrydex:collectionValueCache:v3';
     const SHARED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const SHARED_SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
     const DEX_DEFAULT_COLLECTION_NAME = 'Default Collection';
     const CONDITION_CODE_ORDER = ['NM', 'LP', 'MP', 'HP', 'DM'];
+    const sealedPricing = window.PV_SEALED_PRICING;
+    const sealedPriceRequestInFlightByBaseId = {};
 
     function safeString(value, fallback) {
         const text = String(value ?? '');
@@ -246,22 +248,7 @@
     }
 
     function getBestSealedMarketFromVariants(variants) {
-        if (!Array.isArray(variants) || !variants.length) return null;
-
-        const markets = [];
-        for (const variant of variants) {
-            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-            for (const price of prices) {
-                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
-                if (Number.isFinite(market) && market > 0) {
-                    markets.push(market);
-                }
-            }
-        }
-
-        if (!markets.length) return null;
-        markets.sort((a, b) => a - b);
-        return markets[0];
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {});
     }
 
     function getFallbackMarket(item) {
@@ -324,7 +311,11 @@
     }
 
     function getSealedValueInfo(rawItem, quantity) {
-        const marketFromVariants = getBestSealedMarketFromVariants(Array.isArray(rawItem?.variants) ? rawItem.variants : []);
+        const identity = sealedPricing.getSealedPricingIdentity(rawItem);
+        const marketFromVariants = sealedPricing.getMarketFromTrackedSealedVariant(
+            Array.isArray(rawItem?.variants) ? rawItem.variants : [],
+            identity,
+        );
         const fallbackMarket = getFallbackMarket(rawItem);
         const unitValue = Number.isFinite(marketFromVariants) ? marketFromVariants : fallbackMarket;
         const hasUnitValue = Number.isFinite(unitValue) && unitValue > 0;
@@ -427,6 +418,10 @@
             itemType,
             collectionId,
             id: safeString(raw?.id, ''),
+            baseProductId: safeString(raw?.baseProductId, ''),
+            variantName: safeString(raw?.variantName, ''),
+            variantLabel: safeString(raw?.variantLabel, ''),
+            hasMultipleVariants: raw?.hasMultipleVariants === true,
             name: safeString(raw?.name, 'Unknown'),
             rarity: safeString(raw?.rarity, ''),
             type: safeString(raw?.type, ''),
@@ -946,6 +941,29 @@
         return rows.find((row) => safeString(row?.id, '').trim() === id) || null;
     }
 
+    function getInFlightRequest(map, key, factory) {
+        const existing = map[key];
+        if (existing) return existing;
+
+        const request = Promise.resolve()
+            .then(factory)
+            .finally(() => {
+                delete map[key];
+            });
+        map[key] = request;
+        return request;
+    }
+
+    async function fetchCurrentSealedProduct(baseProductId) {
+        const id = safeString(baseProductId, '').trim();
+        if (!id) return null;
+
+        return getInFlightRequest(sealedPriceRequestInFlightByBaseId, id, async () => {
+            const fetchedFromSearch = await fetchSealedFromSearchById(id);
+            return fetchedFromSearch || fetchSealedWithPrices(id);
+        });
+    }
+
     async function getCurrentCardValue(item, variantsOverride) {
         const id = safeString(item?.id, '').trim();
         const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
@@ -979,36 +997,33 @@
         return best;
     }
 
-    async function getCurrentSealedValue(item, variantsOverride) {
-        const id = safeString(item?.id, '').trim();
-        if (!id) return null;
+    async function getCurrentSealedValue(item) {
+        const identity = sealedPricing.getSealedPricingIdentity(item);
+        const { baseProductId } = identity;
+        if (!identity.displayId || !baseProductId) return null;
 
-        const cacheKey = `sealed:${id}`;
+        const cacheKey = sealedPricing.buildSealedValueCacheKey(identity);
         const cached = getCachedValue(cacheKey);
-        if (cached && Number.isFinite(cached.market)) {
-            return { market: cached.market };
-        }
+        const fallbackVariants = Array.isArray(item?.raw?.variants)
+            ? item.raw.variants
+            : (Array.isArray(item?.variants) ? item.variants : []);
+        const fallbackMarket = sealedPricing.getMarketFromTrackedSealedVariant(fallbackVariants, identity);
 
-        let sourceVariants = Array.isArray(variantsOverride) ? variantsOverride : [];
-        if (!sourceVariants.length) {
-            const fetchedFromSearch = await fetchSealedFromSearchById(id);
-            const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
+        const fetched = await fetchCurrentSealedProduct(baseProductId);
+        if (fetched) {
             const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
-            const fallbackVariants = Array.isArray(item?.raw?.variants)
-                ? item.raw.variants
-                : (Array.isArray(item?.variants) ? item.variants : []);
-            sourceVariants = fetchedVariants.length ? fetchedVariants : fallbackVariants;
-
-            if (fetchedVariants.length && item?.raw && typeof item.raw === 'object') {
-                item.raw.variants = fetchedVariants;
+            const market = sealedPricing.getMarketFromTrackedSealedVariant(fetchedVariants, identity);
+            if (Number.isFinite(market) && market > 0) {
+                if (item?.raw && typeof item.raw === 'object') item.raw.variants = fetchedVariants;
+                setCachedValue(cacheKey, market, identity.variantName);
+                return { market };
             }
+            return null;
         }
 
-        const market = getBestSealedMarketFromVariants(sourceVariants);
-        if (!Number.isFinite(market) || market <= 0) return null;
-
-        setCachedValue(cacheKey, market, '');
-        return { market };
+        if (cached && Number.isFinite(cached.market)) return { market: cached.market };
+        if (Number.isFinite(fallbackMarket) && fallbackMarket > 0) return { market: fallbackMarket };
+        return null;
     }
 
     function sortCollectionItems(items, modeRaw) {
@@ -1237,18 +1252,7 @@
                         const quantity = Math.max(0, Math.floor(Number(item?.quantity ?? item?.copies ?? 0)));
                         if (quantity <= 0) return;
 
-                        const fetchedSealed = await fetchSealedWithPrices(item?.id);
-                        const fetchedSealedVariants = Array.isArray(fetchedSealed?.variants) ? fetchedSealed.variants : [];
-                        const fallbackSealedVariants = Array.isArray(item?.raw?.variants)
-                            ? item.raw.variants
-                            : (Array.isArray(item?.variants) ? item.variants : []);
-                        const sourceSealedVariants = fetchedSealedVariants.length ? fetchedSealedVariants : fallbackSealedVariants;
-
-                        if (fetchedSealedVariants.length && item?.raw && typeof item.raw === 'object') {
-                            item.raw.variants = fetchedSealedVariants;
-                        }
-
-                        const valueInfo = await getCurrentSealedValue(item, sourceSealedVariants);
+                        const valueInfo = await getCurrentSealedValue(item);
                         const market = Number(valueInfo?.market ?? null);
                         if (!Number.isFinite(market) || market <= 0) return;
 
