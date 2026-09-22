@@ -705,7 +705,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const setName = getCardSetName(card);
         const detailPath = buildCardDetailPath(card);
         const detailUrl = buildAbsoluteUrl(detailPath);
-        const shareImageUrl = buildAbsoluteUrl('PokeValuator.png');
+        const shareImageUrl = buildAbsoluteUrl('PokeValuator_Logo.png');
         const imageUrl = sanitizeUrl(pickFrontMediumImage(card?.images));
 
         const title = number
@@ -724,9 +724,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (metaTwitterDescEl) metaTwitterDescEl.setAttribute('content', desc);
         if (canonicalEl) canonicalEl.setAttribute('href', detailUrl);
 
-        if (metaOgImageEl) metaOgImageEl.setAttribute('content', shareImageUrl);
-        if (metaOgImageAltEl) metaOgImageAltEl.setAttribute('content', 'PokeValutor logo');
-        if (metaTwitterImageEl) metaTwitterImageEl.setAttribute('content', shareImageUrl);
+        if (metaOgImageEl) metaOgImageEl.setAttribute('content', imageUrl || shareImageUrl);
+        if (metaOgImageAltEl) metaOgImageAltEl.setAttribute('content', imageUrl ? `${name} card image` : 'PokeValutor logo');
+        if (metaTwitterImageEl) metaTwitterImageEl.setAttribute('content', imageUrl || shareImageUrl);
 
         if (cardSchemaEl instanceof HTMLScriptElement) {
             const schema = {
