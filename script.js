@@ -819,10 +819,16 @@
   async function fetchJsonWithOptionalAuthAndCache(url, ttlMs) {
     const cacheKey = `${HOME_URL_CACHE_PREFIX}${url}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return cached;
+    const isEmptyTopCardsResponse = (data) => /\/cards\/top-by-expansion(?:\?|$)/.test(url)
+      && Array.isArray(data?.data)
+      && data.data.length === 0;
+    if (cached && !isEmptyTopCardsResponse(cached)) return cached;
+    if (cached) {
+      try { localStorage.removeItem(cacheKey); } catch {}
+    }
 
     const data = await fetchJsonWithOptionalAuth(url);
-    cacheSet(cacheKey, data, ttlMs);
+    if (!isEmptyTopCardsResponse(data)) cacheSet(cacheKey, data, ttlMs);
     return data;
   }
 

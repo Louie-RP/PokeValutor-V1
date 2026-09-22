@@ -38,8 +38,34 @@ assert.match(cacheKeySource, /sealed:v2:/, 'The sealed cache namespace should in
 
 const sealedSource = await readFile(ROOT('sealed.js'), 'utf8');
 assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v2'/, 'Sealed search requests should invalidate stale browser cache entries.');
-assert.match(sealedSource, /SEARCH_TTL_MS = 30 \* 60 \* 1000/, 'Sealed search browser cache should refresh newly released products promptly.');
+assert.match(sealedSource, /SEARCH_TTL_MS = 12 \* 60 \* 60 \* 1000/, 'Sealed search browser cache should remain valid for 12 hours.');
 assert.match(sealedSource, /searchVersion=\$\{SEARCH_CACHE_VERSION\}/, 'Sealed search requests should carry the cache version.');
+const sealedCacheValiditySource = extractFunction(sealedSource, 'isUnpricedSealedSearchResponse');
+assert.match(sealedCacheValiditySource, /products\.length > 0/);
+assert.match(sealedCacheValiditySource, /getMarketQuote\(product\)/, 'Sealed cache validity should use the rendered market-price rule.');
+const sealedFetchCacheSource = extractFunction(sealedSource, 'fetchJsonWithCache');
+assert.match(
+    sealedFetchCacheSource,
+    /cached && !isUnpricedSealedSearchResponse\(cached\)/,
+    'Previously cached all-unpriced sealed searches must be evicted.',
+);
+assert.match(
+    sealedFetchCacheSource,
+    /if \(!isUnpricedSealedSearchResponse\(data\)\) cacheSet\(cacheKey, data, ttlMs\)/,
+    'All-unpriced sealed searches must not be cached for 12 hours.',
+);
+const sealedLoadLastResultsSource = extractFunction(sealedSource, 'loadLastResults');
+assert.match(
+    sealedLoadLastResultsSource,
+    /isUnpricedSealedSearchResponse\(\{ data: parsed\.products \}\)[\s\S]*localStorage\.removeItem\(LAST_RESULTS_KEY\)/,
+    'Legacy all-unpriced sealed results must not restore after reload.',
+);
+const sealedSaveLastResultsSource = extractFunction(sealedSource, 'saveLastResults');
+assert.match(
+    sealedSaveLastResultsSource,
+    /isUnpricedSealedSearchResponse\(\{ data: next\?\.products \}\)[\s\S]*localStorage\.removeItem\(LAST_RESULTS_KEY\)/,
+    'All-unpriced sealed results must not persist through last-results storage.',
+);
 
 assert.match(currentValueSource, /fetchSealedFromSearchById\(baseProductId\)/);
 assert.match(currentValueSource, /fetchSealedWithPrices\(baseProductId\)/);

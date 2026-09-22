@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
     const status = document.getElementById('pv-search-status');
+    const searchResultsEl = document.getElementById('pv-search-results');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
     const dexResultsContextEl = document.getElementById('pv-dex-results-context');
     const dexSearchPanel = /** @type {HTMLDetailsElement|null} */ (document.getElementById('pv-dex-search-panel'));
@@ -224,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {Array<any>} */
     let currentResultsCards = [];
+    let searchResultsLoading = false;
 
     const searchSortState = {
         active: 'value',
@@ -837,6 +839,19 @@ document.addEventListener('DOMContentLoaded', function () {
             col.appendChild(card);
             container.appendChild(col);
         }
+    }
+
+    function revealExpansionLoadingResults() {
+        if (!isSearchPage || !searchResultsEl || !window.matchMedia('(max-width: 767.98px)').matches) return;
+        window.requestAnimationFrame(() => {
+            searchResultsEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+    }
+
+    function waitForSearchLoadingPaint() {
+        return new Promise((resolve) => {
+            window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+        });
     }
 
     function setSetFilterLoadingUi(isLoading) {
@@ -4421,25 +4436,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function isEmptyTopCardsResponse(url, data) {
+        return /\/cards\/top-by-expansion(?:\?|$)/.test(url)
+            && Array.isArray(data?.data)
+            && data.data.length === 0;
+    }
+
     async function fetchJsonWithCache(url, ttlMs) {
         const cacheKey = `${CACHE_PREFIX}url:${url}`;
         const cached = cacheGet(cacheKey);
         if (cached) {
-            // If we previously cached a malformed card+prices response (e.g., missing `variants`),
-            // don't keep serving it forever. This can happen if the upstream API response shape
-            // changes and the Worker has been updated since.
-            const isCardWithPricesUrl = /\/cards\/.+/.test(url)
-                && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
-            if (isCardWithPricesUrl) {
-                const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
-                const variants = cardObj?.variants;
-                if (!Array.isArray(variants)) {
-                    try { localStorage.removeItem(cacheKey); } catch {}
+            if (isEmptyTopCardsResponse(url, cached)) {
+                try { localStorage.removeItem(cacheKey); } catch {}
+            } else {
+                // If we previously cached a malformed card+prices response (e.g., missing `variants`),
+                // don't keep serving it forever. This can happen if the upstream API response shape
+                // changes and the Worker has been updated since.
+                const isCardWithPricesUrl = /\/cards\/.+/.test(url)
+                    && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
+                if (isCardWithPricesUrl) {
+                    const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
+                    const variants = cardObj?.variants;
+                    if (!Array.isArray(variants)) {
+                        try { localStorage.removeItem(cacheKey); } catch {}
+                    } else {
+                        return cached;
+                    }
                 } else {
                     return cached;
                 }
-            } else {
-                return cached;
             }
         }
 
@@ -4489,7 +4514,7 @@ document.addEventListener('DOMContentLoaded', function () {
             err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
-        cacheSet(cacheKey, data, ttlMs);
+        if (!isEmptyTopCardsResponse(url, data)) cacheSet(cacheKey, data, ttlMs);
         return data;
     }
 
@@ -5059,6 +5084,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderCards(cards, restoreState) {
         if (!grid) return;
         const sourceCards = Array.isArray(cards) ? cards : [];
+        if (!sourceCards.length && searchResultsLoading) return;
         currentResultsCards = sourceCards.slice();
         grid.replaceChildren();
 
@@ -6382,16 +6408,23 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSearchInputs();
 
         if (!preserveExistingResults) {
+            searchResultsLoading = true;
             setStatus('');
             renderCardSkeletons(grid, RESULT_LIMIT, `Loading top cards for ${name || id}...`);
+            revealExpansionLoadingResults();
         }
 
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
             // to avoid repeated API credit usage.
             const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en&variantPreference=v2`;
-            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const dataPromise = fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const [data] = await Promise.all([
+                dataPromise,
+                preserveExistingResults ? Promise.resolve() : waitForSearchLoadingPaint(),
+            ]);
             const cards = Array.isArray(data?.data) ? data.data : [];
+            searchResultsLoading = false;
             renderCards(cards);
 
             const label = name || id;
@@ -6414,6 +6447,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {
             console.warn('[PokeValutor] expansion top search error', e);
             if (!preserveExistingResults) {
+                searchResultsLoading = false;
                 renderCards([]);
             }
             if (isQuotaExceededError(e)) {
