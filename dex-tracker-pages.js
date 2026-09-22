@@ -911,13 +911,17 @@
         return Boolean(collectionTotalsState.hidden);
     }
 
+    function getCollectionValueAmountText(valueText) {
+        return safeString(valueText, 'Value: $0.00').replace(/^Value:\s*/i, '');
+    }
+
     function applyCollectionTotalsVisibilityUi() {
         const hidden = areCollectionTotalsHidden();
         const totalEl = document.getElementById('pv-collection-total');
         const valueEl = document.getElementById('pv-collection-total-value');
-        const coverageEl = document.getElementById('pv-collection-total-coverage');
         const amountEl = document.getElementById('pv-collection-total-amount');
-        const breakdownBtn = document.getElementById('pv-collection-value-breakdown');
+        const breakdownBtn = document.getElementById('pv-collection-total-value');
+        const infoBtn = document.getElementById('pv-collection-value-info');
         const breakdownDialog = document.getElementById('pv-collection-value-dialog');
         const toggleBtn = document.getElementById('pv-collection-total-toggle');
         const toggleLabelEl = document.getElementById('pv-collection-total-toggle-label');
@@ -927,15 +931,12 @@
         }
 
         if (valueEl) {
-            valueEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+            valueEl.textContent = getCollectionValueAmountText(collectionTotalsState.valueText);
         } else if (totalEl) {
             totalEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
         }
 
-        if (coverageEl) {
-            coverageEl.textContent = safeString(collectionTotalsState.coverageText, '');
-            coverageEl.hidden = !collectionTotalsState.coverageText;
-        }
+        collectionView.setCoverageTooltip(infoBtn, collectionTotalsState.coverageText);
 
         if (amountEl) {
             amountEl.textContent = safeString(collectionTotalsState.amountText, 'Amount: 0 items • 0 card copies');
@@ -943,6 +944,9 @@
 
         if (breakdownBtn instanceof HTMLButtonElement) {
             breakdownBtn.disabled = hidden;
+        }
+        if (infoBtn instanceof HTMLButtonElement) {
+            infoBtn.disabled = hidden;
         }
         if (hidden && breakdownDialog instanceof HTMLDialogElement && breakdownDialog.open) {
             breakdownDialog.close();
@@ -996,7 +1000,7 @@
         if (cardValueEl) cardValueEl.textContent = formatUsd(collectionTotalsState.cardValue);
         if (sealedValueEl) sealedValueEl.textContent = formatUsd(collectionTotalsState.sealedValue);
         if (totalValueEl) {
-            totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}`;
+            totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}`;
         }
     }
 
@@ -1009,31 +1013,20 @@
     }
 
     function bindCollectionValueBreakdownDialog() {
-        const trigger = document.getElementById('pv-collection-value-breakdown');
+        const trigger = document.getElementById('pv-collection-total-value');
+        const infoTrigger = document.getElementById('pv-collection-value-info');
         const dialog = document.getElementById('pv-collection-value-dialog');
         const closeBtn = dialog?.querySelector('[data-collection-value-close]');
-        if (!(trigger instanceof HTMLButtonElement) || !(dialog instanceof HTMLDialogElement)) return;
-        if (trigger.getAttribute('data-bound') === '1') return;
-
-        trigger.setAttribute('data-bound', '1');
-        trigger.addEventListener('click', () => {
-            if (areCollectionTotalsHidden()) return;
-
-            renderCollectionValueBreakdownValues();
-
-            if (typeof dialog.showModal === 'function') {
-                dialog.showModal();
-                return;
-            }
-
-            window.alert(`Card value: ${formatUsd(collectionTotalsState.cardValue)}. Sealed products: ${formatUsd(collectionTotalsState.sealedValue)}. Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}.`);
-        });
-
-        if (closeBtn instanceof HTMLButtonElement) {
-            closeBtn.addEventListener('click', () => dialog.close());
-        }
-        dialog.addEventListener('click', (event) => {
-            if (event.target === dialog) dialog.close();
+        collectionView.bindValueSummaryInteractions({
+            valueTrigger: trigger,
+            infoTrigger,
+            dialog,
+            closeTrigger: closeBtn,
+            isDisabled: areCollectionTotalsHidden,
+            beforeOpen: renderCollectionValueBreakdownValues,
+            getFallbackText() {
+                return `Card value: ${formatUsd(collectionTotalsState.cardValue)}. Sealed products: ${formatUsd(collectionTotalsState.sealedValue)}. Total value: ${formatUsd(collectionTotalsState.totalValue)}.`;
+            },
         });
     }
 
@@ -1047,14 +1040,11 @@
 
         const totalValueEl = document.getElementById('pv-collection-total-value');
         if (totalValueEl) {
-            totalValueEl.textContent = collectionTotalsState.valueText;
+            totalValueEl.textContent = getCollectionValueAmountText(collectionTotalsState.valueText);
         }
 
-        const coverageEl = document.getElementById('pv-collection-total-coverage');
-        if (coverageEl) {
-            coverageEl.textContent = collectionTotalsState.coverageText;
-            coverageEl.hidden = !collectionTotalsState.coverageText;
-        }
+        const infoBtn = document.getElementById('pv-collection-value-info');
+        collectionView.setCoverageTooltip(infoBtn, collectionTotalsState.coverageText);
 
         if (totalValueEl) return;
 

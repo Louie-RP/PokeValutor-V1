@@ -57,6 +57,66 @@
         };
     }
 
+    function setCoverageTooltip(trigger, coverageTextRaw) {
+        if (!trigger) return;
+
+        const coverageText = String(coverageTextRaw || '').trim().replace(/^\(|\)$/g, '');
+        const message = coverageText
+            ? `Pricing coverage: ${coverageText}.`
+            : 'All collection units are priced.';
+        trigger.dataset.collectionValueHint = message;
+        trigger.setAttribute('aria-label', message);
+    }
+
+    function bindValueSummaryInteractions(options) {
+        const valueTrigger = options?.valueTrigger;
+        const infoTrigger = options?.infoTrigger;
+        const dialog = options?.dialog;
+        const closeTrigger = options?.closeTrigger;
+
+        if (infoTrigger && infoTrigger.getAttribute('data-summary-bound') !== '1') {
+            infoTrigger.setAttribute('data-summary-bound', '1');
+            infoTrigger.addEventListener('click', (event) => {
+                event.stopPropagation();
+                infoTrigger.classList.toggle('is-open');
+            });
+
+            const documentObject = infoTrigger.ownerDocument;
+            documentObject?.addEventListener('click', () => {
+                infoTrigger.classList.remove('is-open');
+            });
+        }
+
+        if (!valueTrigger || !dialog || valueTrigger.getAttribute('data-summary-bound') === '1') return;
+
+        valueTrigger.setAttribute('data-summary-bound', '1');
+        valueTrigger.addEventListener('click', () => {
+            if (typeof options?.isDisabled === 'function' && options.isDisabled()) return;
+            if (typeof options?.beforeOpen === 'function') options.beforeOpen();
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+                return;
+            }
+
+            if (typeof options?.getFallbackText === 'function') {
+                const fallbackText = String(options.getFallbackText() || '').trim();
+                const view = dialog.ownerDocument?.defaultView;
+                if (fallbackText && view?.alert) view.alert(fallbackText);
+            }
+        });
+
+        if (closeTrigger) {
+            closeTrigger.addEventListener('click', () => {
+                if (typeof dialog.close === 'function') dialog.close();
+            });
+        }
+
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog && typeof dialog.close === 'function') dialog.close();
+        });
+    }
+
     function renderPagination(container, options) {
         if (!container || typeof container.replaceChildren !== 'function') return;
 
@@ -116,7 +176,9 @@
         formatUsd,
         getPagination,
         getResponsivePageSize,
+        bindValueSummaryInteractions,
         normalizeTypeFilter,
         renderPagination,
+        setCoverageTooltip,
     };
 }));

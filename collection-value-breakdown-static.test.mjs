@@ -9,13 +9,13 @@ const [html, script, styles] = await Promise.all([
 
 assert.match(
     html,
-    /id="pv-collection-total-coverage" class="pv-collectionTotalCoverage"/,
-    'Priced coverage should render separately from the large collection value.',
+    /id="pv-collection-value-info"[\s\S]*data-collection-value-hint=/,
+    'Priced coverage should be exposed from the info tooltip.',
 );
 assert.match(
     html,
-    /id="pv-collection-value-breakdown"[\s\S]*aria-label="View collection value breakdown"/,
-    'The collection total should expose an accessible breakdown trigger.',
+    /<span class="pv-collectionTotalValue">\s*Value:\s*<button[\s\S]*?id="pv-collection-total-value"[\s\S]*?class="pv-collectionTotalValueButton"[\s\S]*?aria-label="View collection value breakdown"[\s\S]*?>\$0\.00<\/button>/,
+    'Only the collection value amount should be the accessible breakdown trigger.',
 );
 assert.match(
     html,
@@ -23,16 +23,8 @@ assert.match(
     'The dialog should show card, sealed, and combined values.',
 );
 
-assert.match(
-    styles,
-    /\.pv-collectionTotalCoverage\s*\{[\s\S]*?font-size:\s*0\.95rem;/,
-    'Desktop priced coverage should match the amount text size.',
-);
-assert.match(
-    styles,
-    /@media \(max-width: 768px\)[\s\S]*?\.pv-collectionTotalAmount\s*\{[\s\S]*?font-size:\s*0\.86rem;[\s\S]*?\.pv-collectionTotalCoverage\s*\{[\s\S]*?font-size:\s*0\.86rem;/,
-    'Mobile priced coverage should match the amount text size.',
-);
+assert.match(styles, /\.pv-collectionTotalValueButton\s*\{[\s\S]*?text-decoration: underline;/);
+assert.match(styles, /\.pv-collectionValueInfoBtn::after\s*\{[\s\S]*?content: attr\(data-collection-value-hint\);/);
 
 assert.match(script, /sealedValue \+= itemTotal;/, 'Sealed values should contribute to the sealed subtotal.');
 assert.match(script, /cardValue \+= cardTotal;/, 'Card values should contribute to the card subtotal.');
@@ -67,13 +59,25 @@ assert.match(
     /setCollectionTotalValueText\(`Value: \$\{formatUsd\(total\)\}`, coverage\);/,
     'The large value and smaller coverage label should be updated independently.',
 );
-assert.match(script, /breakdownBtn\.disabled = hidden;/, 'Privacy mode should disable the breakdown trigger.');
+assert.match(
+    script,
+    /function getCollectionValueAmountText\(valueText\)[\s\S]*?replace\(\/\^Value:\\s\*\/i, ''\)/,
+    'Dex should strip the plain-text Value label before updating the clickable amount.',
+);
+assert.match(script, /breakdownBtn\.disabled = hidden;/, 'Privacy mode should disable the Value breakdown trigger.');
+assert.match(script, /infoBtn\.disabled = hidden;/, 'Privacy mode should disable the coverage tooltip trigger.');
 
 const binderStart = script.indexOf('function renderCollectionValueBreakdownValues()');
 const binderEnd = script.indexOf('\n    function setCollectionTotalValueText', binderStart);
 assert.ok(binderStart >= 0 && binderEnd > binderStart, 'The breakdown renderer and dialog binder should exist.');
 const binder = script.slice(binderStart, binderEnd);
 assert.match(binder, /\.textContent = formatUsd\(/, 'Breakdown values should render through textContent.');
+assert.match(binder, /bindValueSummaryInteractions\(/, 'Dex should use the shared value-summary interaction helper.');
+assert.doesNotMatch(
+    binder,
+    /Total value:.*coverageText/,
+    'Pricing coverage should live in the info tooltip rather than the breakdown total.',
+);
 assert.doesNotMatch(
     binder,
     /innerHTML|outerHTML|insertAdjacentHTML|document\.write/,

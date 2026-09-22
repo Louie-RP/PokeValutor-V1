@@ -1158,6 +1158,12 @@
         const statusEl = document.getElementById('pv-shared-status');
         const totalEl = document.getElementById('pv-shared-total');
         const valueTotalEl = document.getElementById('pv-shared-value-total');
+        const valueInfoEl = document.getElementById('pv-shared-value-info');
+        const valueDialogEl = document.getElementById('pv-shared-value-dialog');
+        const valueDialogCloseEl = valueDialogEl?.querySelector('[data-shared-value-close]');
+        const cardValueEl = document.getElementById('pv-shared-card-value');
+        const sealedValueEl = document.getElementById('pv-shared-sealed-value');
+        const breakdownTotalEl = document.getElementById('pv-shared-breakdown-total');
         const summaryEl = document.getElementById('pv-shared-summary');
         const gridEl = document.getElementById('pv-shared-grid');
         const filterEl = document.getElementById('pv-shared-filter');
@@ -1173,11 +1179,43 @@
         const renderedItemByKey = new Map();
         let renderAnimationTimer = null;
         let liveRefreshRunId = 0;
+        const sharedTotalsState = {
+            cardValue: 0,
+            sealedValue: 0,
+            totalValue: 0,
+        };
         const paginationState = {
             page: 1,
             perPage: 0,
             signature: '',
         };
+
+        function renderSharedValueBreakdown() {
+            setText(cardValueEl, formatUsd(sharedTotalsState.cardValue));
+            setText(sealedValueEl, formatUsd(sharedTotalsState.sealedValue));
+            setText(breakdownTotalEl, `Total value: ${formatUsd(sharedTotalsState.totalValue)}`);
+        }
+
+        function resetSharedValueSummary() {
+            sharedTotalsState.cardValue = 0;
+            sharedTotalsState.sealedValue = 0;
+            sharedTotalsState.totalValue = 0;
+            setText(totalEl, 'Total units: 0');
+            setText(valueTotalEl, '$0.00');
+            collectionView.setCoverageTooltip(valueInfoEl, '');
+            renderSharedValueBreakdown();
+        }
+
+        collectionView.bindValueSummaryInteractions({
+            valueTrigger: valueTotalEl,
+            infoTrigger: valueInfoEl,
+            dialog: valueDialogEl,
+            closeTrigger: valueDialogCloseEl,
+            beforeOpen: renderSharedValueBreakdown,
+            getFallbackText() {
+                return `Card value: ${formatUsd(sharedTotalsState.cardValue)}. Sealed products: ${formatUsd(sharedTotalsState.sealedValue)}. Total value: ${formatUsd(sharedTotalsState.totalValue)}.`;
+            },
+        });
 
         function closeOpenValueHints(exceptEl) {
             const openHints = gridEl.querySelectorAll('.pv-sharedValueHintBtn.is-open');
@@ -1230,8 +1268,7 @@
             setText(statusEl, 'Invalid share link.');
             setText(summaryEl, 'This collection is not currently shared.');
             setEmptyState(gridEl, 'This collection is not currently shared.');
-            setText(totalEl, 'Total units: 0');
-            setText(valueTotalEl, 'Collection value: $0.00');
+            resetSharedValueSummary();
             return;
         }
 
@@ -1239,8 +1276,7 @@
             setText(statusEl, 'Sharing service unavailable right now.');
             setText(summaryEl, 'Shared collection data could not be loaded.');
             setEmptyState(gridEl, 'Shared collection data could not be loaded right now.');
-            setText(totalEl, 'Total units: 0');
-            setText(valueTotalEl, 'Collection value: $0.00');
+            resetSharedValueSummary();
             return;
         }
 
@@ -1326,15 +1362,26 @@
 
             const totalUnits = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.totalUnits || item.copies || 0)), 0);
             const filteredUnits = sortedFiltered.reduce((sum, item) => sum + Math.max(0, Number(item.totalUnits || item.copies || 0)), 0);
-            const totalValue = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.totalValue || 0)), 0);
+            const cardValue = selectedItems.reduce((sum, item) => {
+                return isSealedCollectionItem(item) ? sum : sum + Math.max(0, Number(item.totalValue || 0));
+            }, 0);
+            const sealedValue = selectedItems.reduce((sum, item) => {
+                return isSealedCollectionItem(item) ? sum + Math.max(0, Number(item.totalValue || 0)) : sum;
+            }, 0);
+            const totalValue = cardValue + sealedValue;
             const pricedUnits = selectedItems.reduce((sum, item) => sum + Math.max(0, Number(item.pricedUnits || 0)), 0);
             const collectionName = getSelectedCollectionName();
             const itemLabel = selectedItems.length === 1 ? 'item' : 'items';
             const unitLabel = totalUnits === 1 ? 'unit' : 'units';
             const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
 
+            sharedTotalsState.cardValue = cardValue;
+            sharedTotalsState.sealedValue = sealedValue;
+            sharedTotalsState.totalValue = totalValue;
             setText(totalEl, `Total units: ${totalUnits}`);
-            setText(valueTotalEl, `Collection value: ${formatUsd(totalValue)}${coverage}`);
+            setText(valueTotalEl, formatUsd(totalValue));
+            collectionView.setCoverageTooltip(valueInfoEl, coverage);
+            renderSharedValueBreakdown();
 
             collectionView.renderPagination(paginationEl, {
                 totalItems: sortedFiltered.length,
@@ -1579,8 +1626,7 @@
             setText(statusEl, message);
             setText(summaryEl, 'This collection is not currently shared.');
             setEmptyState(gridEl, 'This collection is not currently shared. The owner can re-enable sharing from their account page at any time.');
-            setText(totalEl, 'Total units: 0');
-            setText(valueTotalEl, 'Collection value: $0.00');
+            resetSharedValueSummary();
         }
     });
 })();
