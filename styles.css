@@ -6777,6 +6777,18 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     display: none;
   }
 
+  #pv-search-body #pv-search-results.pv-searchResults #pv-search-sort .form-select.pv-sortSelect {
+    height: 34px;
+    min-height: 34px;
+    padding: 0.16rem 1.65rem 0.16rem 0.5rem;
+    font-size: 0.82rem;
+    line-height: 1.1;
+  }
+
+  #pv-search-body #pv-search-results.pv-searchResults .pv-searchLoading {
+    margin-top: 0.625rem;
+  }
+
   #pv-search-body .pv-sortSelect,
   #pv-dex-body .pv-sortSelect,
   #pv-sealed-body .pv-sortSelect {
