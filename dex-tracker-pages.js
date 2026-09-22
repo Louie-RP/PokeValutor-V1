@@ -9,7 +9,7 @@
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
-    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v2`;
+    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v3`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
@@ -29,6 +29,7 @@
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
     const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
     const storageUtil = window?.PV_STORAGE_UTIL || null;
+    const sealedPricing = window.PV_SEALED_PRICING;
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -39,6 +40,7 @@
         inFlightByCollectionId: {},
         errorUntilByCollectionId: {},
     };
+    const sealedCollectionRefreshStartedByCollectionId = new Set();
     const collectionTotalsState = {
         hidden: false,
         valueText: 'Value: $0.00',
@@ -1502,57 +1504,24 @@
     }
 
     function getBestSealedMarketFromVariants(variants) {
-        if (!Array.isArray(variants) || !variants.length) return null;
-
-        /** @type {Array<number>} */
-        const markets = [];
-
-        for (const variant of variants) {
-            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-            for (const price of prices) {
-                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
-                if (Number.isFinite(market) && market > 0) {
-                    markets.push(market);
-                }
-            }
-        }
-
-        if (!markets.length) return null;
-        markets.sort((a, b) => a - b);
-        return markets[0];
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {});
     }
 
     function getSealedPricingIdentity(item) {
-        const displayId = safeString(item?.id, '').trim();
-        const explicitBaseId = safeString(item?.baseProductId, '').trim();
-        const syntheticIdSeparator = displayId.indexOf('::');
-        const baseProductId = explicitBaseId
-            || (syntheticIdSeparator > 0 ? displayId.slice(0, syntheticIdSeparator) : displayId);
-        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
-        const variantName = safeString(item?.variantName, '').trim()
-            || (syntheticIdSeparator > 0 && localVariants.length === 1
-                ? safeString(localVariants[0]?.name, '').trim()
-                : '');
-
-        return { displayId, baseProductId, variantName };
+        return sealedPricing.getSealedPricingIdentity(item);
     }
 
     function getTrackedSealedMarketFromVariants(variants, variantName) {
-        if (!Array.isArray(variants) || !variants.length) return null;
-
-        const wantedVariant = safeString(variantName, '').trim();
-        if (wantedVariant) {
-            const match = findVariantByName(variants, wantedVariant);
-            if (match) return getBestSealedMarketFromVariants([match]);
-        }
-
-        return getBestSealedMarketFromVariants(variants);
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {
+            variantName,
+            variantKey: sealedPricing.normalizeSealedVariantKey(variantName),
+        });
     }
 
     // displayId is item.id: either a raw product ID or a synthetic "baseProductId::variantName"
     // string. Using displayId (not baseProductId) keeps per-variant cache entries separate.
     function buildSealedValueCacheKey(displayId) {
-        return `sealed:v2:${safeString(displayId, '').trim()}`;
+        return sealedPricing.buildSealedValueCacheKey({ displayId });
     }
 
     function buildCardValueCacheKey(id, selectedVariant, conditionCode) {
@@ -1725,6 +1694,9 @@
         if (!list.length) return false;
 
         const collectionId = getActiveCollectionId();
+        const hasSealedItems = list.some((item) => isSealedCollectionItem(item));
+        if (hasSealedItems && !sealedCollectionRefreshStartedByCollectionId.has(collectionId)) return true;
+
         const lastRefreshMs = getCollectionLastValueRefreshMs(collectionId);
         const refreshDue = !lastRefreshMs || (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
 
@@ -1771,15 +1743,12 @@
 
     async function getCurrentSealedValue(item, options) {
         const allowNetwork = options?.allowNetwork !== false;
-        const { displayId, baseProductId, variantName } = getSealedPricingIdentity(item);
+        const identity = getSealedPricingIdentity(item);
+        const { displayId, baseProductId, variantName } = identity;
         if (!displayId || !baseProductId) return null;
 
         const cacheKey = buildSealedValueCacheKey(displayId);
         const cached = getCachedValue(cacheKey);
-        if (cached && Number.isFinite(cached.market)) {
-            return { market: cached.market };
-        }
-
         const localVariants = Array.isArray(item?.variants) ? item.variants : [];
         const localMarket = getTrackedSealedMarketFromVariants(localVariants, variantName);
 
@@ -1788,13 +1757,15 @@
             const fetched = fetchedFromSearch || await fetchSealedWithPrices(baseProductId);
             const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
 
-            const market = getTrackedSealedMarketFromVariants(fetchedVariants, variantName);
+            const market = sealedPricing.getMarketFromTrackedSealedVariant(fetchedVariants, identity);
             if (Number.isFinite(market)) {
                 setCachedValue(cacheKey, market, '');
                 return { market };
             }
+            if (fetched) return null;
         }
 
+        if (cached && Number.isFinite(cached.market)) return { market: cached.market };
         if (Number.isFinite(localMarket)) {
             return { market: localMarket };
         }
@@ -1840,7 +1811,10 @@
             if (isSealedCollectionItem(item)) {
                 const quantity = getSealedCollectionQuantity(item);
                 totalUnits += quantity;
-                if (valueEl) valueEl.textContent = '...';
+                const cachedMarket = Number(collectionValueById[entryKey]);
+                if (valueEl && (!Number.isFinite(cachedMarket) || cachedMarket <= 0)) {
+                    valueEl.textContent = '...';
+                }
 
                 const valueInfo = await getCurrentSealedValue(item, { allowNetwork });
                 if (refreshGeneration !== collectionValueRefreshGeneration) return;
@@ -3488,6 +3462,9 @@
         if (items.length) {
             const allowNetworkRefresh = options?.skipNetworkRefresh !== true
                 && shouldAllowCollectionNetworkRefresh(items);
+            if (allowNetworkRefresh && items.some((item) => isSealedCollectionItem(item))) {
+                sealedCollectionRefreshStartedByCollectionId.add(getActiveCollectionId());
+            }
             void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
                 .then((result) => {
                     if (result?.stale) return;

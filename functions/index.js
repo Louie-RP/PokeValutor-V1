@@ -3,6 +3,7 @@ const functions = require('firebase-functions');
 const Stripe = require('stripe');
 const crypto = require('crypto');
 const { FieldValue } = require('firebase-admin/firestore');
+const sealedPricing = require('./lib/sealed-pricing-core');
 
 admin.initializeApp();
 
@@ -1078,8 +1079,8 @@ function buildPriceKeyForCard(item, condition) {
 }
 
 function buildPriceKeyForSealed(item) {
-    const id = String(item?.id || '').trim().toLowerCase();
-    return `sealed:${id}`;
+    const identity = sealedPricing.getSealedPricingIdentity(item);
+    return sealedPricing.buildSealedValueCacheKey(identity);
 }
 
 async function readPriceCacheMap(db, keys) {
@@ -1148,24 +1149,6 @@ function bestCardMarketForCondition(cardLike, condition) {
         const market = marketForCondition(variant?.prices, condition);
         if (market > best) best = market;
     }
-    return best;
-}
-
-function bestSealedMarket(sealedLike) {
-    const variants = Array.isArray(sealedLike?.variants) ? sealedLike.variants : [];
-    if (!variants.length) return 0;
-
-    let best = 0;
-    for (const variant of variants) {
-        const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-        for (const price of prices) {
-            const market = readMarketValue(price);
-            if (market > 0 && (best <= 0 || market < best)) {
-                best = market;
-            }
-        }
-    }
-
     return best;
 }
 
@@ -1363,23 +1346,29 @@ exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context
             const qty = Math.max(1, Math.floor(Number(item?.quantity ?? item?.sealedQuantity ?? 1) || 1));
             totalUnitCount += qty;
 
+            const identity = sealedPricing.getSealedPricingIdentity(item);
             const key = buildPriceKeyForSealed(item);
             let unitCents = marketCentsFromCacheDoc(priceCache.get(key));
 
             if (unitCents <= 0 && useLiveWorkerPrices) {
-                let live = liveSealedById.get(itemId);
-                if (!live) {
-                    live = await fetchSealedWithPrices(itemId);
-                    liveSealedById.set(itemId, live || null);
+                if (!liveSealedById.has(identity.baseProductId)) {
+                    const fetched = await fetchSealedWithPrices(identity.baseProductId);
+                    liveSealedById.set(identity.baseProductId, fetched || null);
                 }
-                unitCents = toCents(bestSealedMarket(live)) || centsFromMarket(live);
+                const live = liveSealedById.get(identity.baseProductId);
+                const liveVariants = Array.isArray(live?.variants) ? live.variants : [];
+                const liveMarket = sealedPricing.getMarketFromTrackedSealedVariant(liveVariants, identity);
+                unitCents = toCents(liveMarket);
+                if (unitCents <= 0 && !identity.variantKey) unitCents = centsFromMarket(live);
                 if (unitCents > 0) {
                     cacheWrites.set(key, buildCacheDocForSealed(item, unitCents));
                 }
             }
 
             if (unitCents <= 0) {
-                unitCents = centsFromMarket(item);
+                const savedVariants = Array.isArray(item?.variants) ? item.variants : [];
+                const savedMarket = sealedPricing.getMarketFromTrackedSealedVariant(savedVariants, identity);
+                unitCents = toCents(savedMarket) || centsFromMarket(item);
             }
 
             if (unitCents > 0) {
