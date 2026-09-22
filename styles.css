@@ -2965,9 +2965,12 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 .pv-collectionTotalValueButton {
+  -webkit-appearance: none;
   appearance: none;
   border: 0;
-  padding: 0;
+  border-bottom: 2px solid rgba(255, 234, 162, 0.62);
+  border-radius: 0;
+  padding: 0 0 0.04em;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -2976,15 +2979,13 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   text-shadow: inherit;
   cursor: pointer;
   text-align: left;
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 234, 162, 0.62);
-  text-underline-offset: 0.16em;
+  text-decoration: none;
 }
 
 .pv-collectionTotalValueButton:hover,
 .pv-collectionTotalValueButton:focus-visible {
   color: #fff4c7;
-  text-decoration-color: currentColor;
+  border-bottom-color: currentColor;
 }
 
 .pv-collectionTotalValueButton:focus-visible {
