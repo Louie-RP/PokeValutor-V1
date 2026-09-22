@@ -9,7 +9,7 @@
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
-    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v2`;
+    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v3`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
@@ -22,13 +22,12 @@
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
-    const COLLECTION_PAGE_SIZE_MOBILE = 36;
-    const COLLECTION_PAGE_SIZE_DESKTOP = 60;
     const COLLECTION_PAGE_BREAKPOINT_QUERY = '(max-width: 767.98px)';
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
-    const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
     const storageUtil = window?.PV_STORAGE_UTIL || null;
+    const collectionView = window.PV_COLLECTION_VIEW;
+    const sealedPricing = window.PV_SEALED_PRICING;
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -39,6 +38,7 @@
         inFlightByCollectionId: {},
         errorUntilByCollectionId: {},
     };
+    const sealedCollectionRefreshStartedByCollectionId = new Set();
     const collectionTotalsState = {
         hidden: false,
         valueText: 'Value: $0.00',
@@ -158,8 +158,7 @@
     }
 
     function normalizeCollectionTypeFilter(value) {
-        const next = safeString(value, '').trim().toLowerCase();
-        return COLLECTION_TYPE_FILTER_VALUES.includes(next) ? next : 'all';
+        return collectionView.normalizeTypeFilter(value);
     }
 
     function normalizeSearchText(value) {
@@ -485,9 +484,7 @@
     }
 
     function formatUsd(amount) {
-        const n = Number(amount);
-        if (!Number.isFinite(n)) return '$0.00';
-        return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return collectionView.formatUsd(amount);
     }
 
     const COLLECTION_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
@@ -628,14 +625,9 @@
     }
 
     function getCollectionPageSize() {
-        try {
-            if (window?.matchMedia && window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY).matches) {
-                return COLLECTION_PAGE_SIZE_MOBILE;
-            }
-        } catch {
-            // ignore
-        }
-        return COLLECTION_PAGE_SIZE_DESKTOP;
+        return collectionView.getResponsivePageSize(window, {
+            breakpointQuery: COLLECTION_PAGE_BREAKPOINT_QUERY,
+        });
     }
 
     function sortCollectionMatches(matches) {
@@ -681,58 +673,6 @@
     }
 
     function renderCollectionPagination(container, options) {
-        if (!(container instanceof HTMLElement)) return;
-
-        const totalItems = Math.max(0, Math.floor(Number(options?.totalItems) || 0));
-        const pageSize = Math.max(1, Math.floor(Number(options?.pageSize) || COLLECTION_PAGE_SIZE_DESKTOP));
-        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-        const currentPage = Math.min(Math.max(1, Math.floor(Number(options?.currentPage) || 1)), totalPages);
-
-        if (totalItems <= pageSize) {
-            container.hidden = true;
-            container.replaceChildren();
-            return;
-        }
-
-        const start = ((currentPage - 1) * pageSize) + 1;
-        const end = Math.min(totalItems, currentPage * pageSize);
-
-        container.hidden = false;
-        const inner = document.createElement('div');
-        inner.className = 'pv-collectionPagination__inner';
-
-        const status = document.createElement('p');
-        status.className = 'pv-collectionPagination__status';
-        status.textContent = `Showing ${start}-${end} of ${totalItems}`;
-
-        const controls = document.createElement('div');
-        controls.className = 'pv-collectionPagination__controls';
-        controls.setAttribute('role', 'group');
-        controls.setAttribute('aria-label', 'Collection pages');
-
-        const pageLabel = document.createElement('span');
-        pageLabel.className = 'pv-collectionPagination__pageLabel';
-        pageLabel.textContent = `Page ${currentPage} of ${totalPages}`;
-
-        function createPageButton(label, nav, disabled) {
-            const button = document.createElement('button');
-            button.className = 'pv-button pv-button--secondary btn pv-collectionPagination__btn';
-            button.type = 'button';
-            button.dataset.pageNav = nav;
-            button.textContent = label;
-            button.disabled = disabled;
-            return button;
-        }
-
-        const firstBtn = createPageButton('First', 'first', currentPage <= 1);
-        const prevBtn = createPageButton('Previous', 'prev', currentPage <= 1);
-        const nextBtn = createPageButton('Next', 'next', currentPage >= totalPages);
-        const lastBtn = createPageButton('Last', 'last', currentPage >= totalPages);
-
-        controls.append(firstBtn, prevBtn, pageLabel, nextBtn, lastBtn);
-        inner.append(status, controls);
-        container.replaceChildren(inner);
-
         function scrollCollectionToTop() {
             const grid = document.getElementById('pv-collection-grid');
             const firstCard = grid instanceof HTMLElement
@@ -753,18 +693,17 @@
             window.scrollTo({ top, behavior: 'smooth' });
         }
 
-        function goToPage(page) {
-            const targetPage = Math.min(Math.max(1, page), totalPages);
-            if (targetPage === collectionPaginationState.page) return;
-            collectionPaginationState.page = targetPage;
-            renderCollectionPage();
-            scrollCollectionToTop();
-        }
-
-        firstBtn.addEventListener('click', () => goToPage(1));
-        prevBtn.addEventListener('click', () => goToPage(collectionPaginationState.page - 1));
-        nextBtn.addEventListener('click', () => goToPage(collectionPaginationState.page + 1));
-        lastBtn.addEventListener('click', () => goToPage(totalPages));
+        collectionView.renderPagination(container, {
+            ...options,
+            onPageChange(page) {
+                const pagination = collectionView.getPagination(options?.totalItems, options?.pageSize, page);
+                const targetPage = pagination.currentPage;
+                if (targetPage === collectionPaginationState.page) return;
+                collectionPaginationState.page = targetPage;
+                renderCollectionPage();
+                scrollCollectionToTop();
+            },
+        });
     }
 
     function bindCollectionSortControls() {
@@ -972,13 +911,17 @@
         return Boolean(collectionTotalsState.hidden);
     }
 
+    function getCollectionValueAmountText(valueText) {
+        return safeString(valueText, 'Value: $0.00').replace(/^Value:\s*/i, '');
+    }
+
     function applyCollectionTotalsVisibilityUi() {
         const hidden = areCollectionTotalsHidden();
         const totalEl = document.getElementById('pv-collection-total');
         const valueEl = document.getElementById('pv-collection-total-value');
-        const coverageEl = document.getElementById('pv-collection-total-coverage');
         const amountEl = document.getElementById('pv-collection-total-amount');
-        const breakdownBtn = document.getElementById('pv-collection-value-breakdown');
+        const breakdownBtn = document.getElementById('pv-collection-total-value');
+        const infoBtn = document.getElementById('pv-collection-value-info');
         const breakdownDialog = document.getElementById('pv-collection-value-dialog');
         const toggleBtn = document.getElementById('pv-collection-total-toggle');
         const toggleLabelEl = document.getElementById('pv-collection-total-toggle-label');
@@ -988,15 +931,12 @@
         }
 
         if (valueEl) {
-            valueEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+            valueEl.textContent = getCollectionValueAmountText(collectionTotalsState.valueText);
         } else if (totalEl) {
             totalEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
         }
 
-        if (coverageEl) {
-            coverageEl.textContent = safeString(collectionTotalsState.coverageText, '');
-            coverageEl.hidden = !collectionTotalsState.coverageText;
-        }
+        collectionView.setCoverageTooltip(infoBtn, collectionTotalsState.coverageText);
 
         if (amountEl) {
             amountEl.textContent = safeString(collectionTotalsState.amountText, 'Amount: 0 items • 0 card copies');
@@ -1004,6 +944,9 @@
 
         if (breakdownBtn instanceof HTMLButtonElement) {
             breakdownBtn.disabled = hidden;
+        }
+        if (infoBtn instanceof HTMLButtonElement) {
+            infoBtn.disabled = hidden;
         }
         if (hidden && breakdownDialog instanceof HTMLDialogElement && breakdownDialog.open) {
             breakdownDialog.close();
@@ -1057,7 +1000,7 @@
         if (cardValueEl) cardValueEl.textContent = formatUsd(collectionTotalsState.cardValue);
         if (sealedValueEl) sealedValueEl.textContent = formatUsd(collectionTotalsState.sealedValue);
         if (totalValueEl) {
-            totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}`;
+            totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}`;
         }
     }
 
@@ -1070,31 +1013,20 @@
     }
 
     function bindCollectionValueBreakdownDialog() {
-        const trigger = document.getElementById('pv-collection-value-breakdown');
+        const trigger = document.getElementById('pv-collection-total-value');
+        const infoTrigger = document.getElementById('pv-collection-value-info');
         const dialog = document.getElementById('pv-collection-value-dialog');
         const closeBtn = dialog?.querySelector('[data-collection-value-close]');
-        if (!(trigger instanceof HTMLButtonElement) || !(dialog instanceof HTMLDialogElement)) return;
-        if (trigger.getAttribute('data-bound') === '1') return;
-
-        trigger.setAttribute('data-bound', '1');
-        trigger.addEventListener('click', () => {
-            if (areCollectionTotalsHidden()) return;
-
-            renderCollectionValueBreakdownValues();
-
-            if (typeof dialog.showModal === 'function') {
-                dialog.showModal();
-                return;
-            }
-
-            window.alert(`Card value: ${formatUsd(collectionTotalsState.cardValue)}. Sealed products: ${formatUsd(collectionTotalsState.sealedValue)}. Total value: ${formatUsd(collectionTotalsState.totalValue)}${collectionTotalsState.coverageText}.`);
-        });
-
-        if (closeBtn instanceof HTMLButtonElement) {
-            closeBtn.addEventListener('click', () => dialog.close());
-        }
-        dialog.addEventListener('click', (event) => {
-            if (event.target === dialog) dialog.close();
+        collectionView.bindValueSummaryInteractions({
+            valueTrigger: trigger,
+            infoTrigger,
+            dialog,
+            closeTrigger: closeBtn,
+            isDisabled: areCollectionTotalsHidden,
+            beforeOpen: renderCollectionValueBreakdownValues,
+            getFallbackText() {
+                return `Card value: ${formatUsd(collectionTotalsState.cardValue)}. Sealed products: ${formatUsd(collectionTotalsState.sealedValue)}. Total value: ${formatUsd(collectionTotalsState.totalValue)}.`;
+            },
         });
     }
 
@@ -1108,14 +1040,11 @@
 
         const totalValueEl = document.getElementById('pv-collection-total-value');
         if (totalValueEl) {
-            totalValueEl.textContent = collectionTotalsState.valueText;
+            totalValueEl.textContent = getCollectionValueAmountText(collectionTotalsState.valueText);
         }
 
-        const coverageEl = document.getElementById('pv-collection-total-coverage');
-        if (coverageEl) {
-            coverageEl.textContent = collectionTotalsState.coverageText;
-            coverageEl.hidden = !collectionTotalsState.coverageText;
-        }
+        const infoBtn = document.getElementById('pv-collection-value-info');
+        collectionView.setCoverageTooltip(infoBtn, collectionTotalsState.coverageText);
 
         if (totalValueEl) return;
 
@@ -1502,57 +1431,24 @@
     }
 
     function getBestSealedMarketFromVariants(variants) {
-        if (!Array.isArray(variants) || !variants.length) return null;
-
-        /** @type {Array<number>} */
-        const markets = [];
-
-        for (const variant of variants) {
-            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-            for (const price of prices) {
-                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
-                if (Number.isFinite(market) && market > 0) {
-                    markets.push(market);
-                }
-            }
-        }
-
-        if (!markets.length) return null;
-        markets.sort((a, b) => a - b);
-        return markets[0];
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {});
     }
 
     function getSealedPricingIdentity(item) {
-        const displayId = safeString(item?.id, '').trim();
-        const explicitBaseId = safeString(item?.baseProductId, '').trim();
-        const syntheticIdSeparator = displayId.indexOf('::');
-        const baseProductId = explicitBaseId
-            || (syntheticIdSeparator > 0 ? displayId.slice(0, syntheticIdSeparator) : displayId);
-        const localVariants = Array.isArray(item?.variants) ? item.variants : [];
-        const variantName = safeString(item?.variantName, '').trim()
-            || (syntheticIdSeparator > 0 && localVariants.length === 1
-                ? safeString(localVariants[0]?.name, '').trim()
-                : '');
-
-        return { displayId, baseProductId, variantName };
+        return sealedPricing.getSealedPricingIdentity(item);
     }
 
     function getTrackedSealedMarketFromVariants(variants, variantName) {
-        if (!Array.isArray(variants) || !variants.length) return null;
-
-        const wantedVariant = safeString(variantName, '').trim();
-        if (wantedVariant) {
-            const match = findVariantByName(variants, wantedVariant);
-            if (match) return getBestSealedMarketFromVariants([match]);
-        }
-
-        return getBestSealedMarketFromVariants(variants);
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {
+            variantName,
+            variantKey: sealedPricing.normalizeSealedVariantKey(variantName),
+        });
     }
 
     // displayId is item.id: either a raw product ID or a synthetic "baseProductId::variantName"
     // string. Using displayId (not baseProductId) keeps per-variant cache entries separate.
     function buildSealedValueCacheKey(displayId) {
-        return `sealed:v2:${safeString(displayId, '').trim()}`;
+        return sealedPricing.buildSealedValueCacheKey({ displayId });
     }
 
     function buildCardValueCacheKey(id, selectedVariant, conditionCode) {
@@ -1725,6 +1621,9 @@
         if (!list.length) return false;
 
         const collectionId = getActiveCollectionId();
+        const hasSealedItems = list.some((item) => isSealedCollectionItem(item));
+        if (hasSealedItems && !sealedCollectionRefreshStartedByCollectionId.has(collectionId)) return true;
+
         const lastRefreshMs = getCollectionLastValueRefreshMs(collectionId);
         const refreshDue = !lastRefreshMs || (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
 
@@ -1771,15 +1670,12 @@
 
     async function getCurrentSealedValue(item, options) {
         const allowNetwork = options?.allowNetwork !== false;
-        const { displayId, baseProductId, variantName } = getSealedPricingIdentity(item);
+        const identity = getSealedPricingIdentity(item);
+        const { displayId, baseProductId, variantName } = identity;
         if (!displayId || !baseProductId) return null;
 
         const cacheKey = buildSealedValueCacheKey(displayId);
         const cached = getCachedValue(cacheKey);
-        if (cached && Number.isFinite(cached.market)) {
-            return { market: cached.market };
-        }
-
         const localVariants = Array.isArray(item?.variants) ? item.variants : [];
         const localMarket = getTrackedSealedMarketFromVariants(localVariants, variantName);
 
@@ -1788,13 +1684,15 @@
             const fetched = fetchedFromSearch || await fetchSealedWithPrices(baseProductId);
             const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
 
-            const market = getTrackedSealedMarketFromVariants(fetchedVariants, variantName);
+            const market = sealedPricing.getMarketFromTrackedSealedVariant(fetchedVariants, identity);
             if (Number.isFinite(market)) {
                 setCachedValue(cacheKey, market, '');
                 return { market };
             }
+            if (fetched) return null;
         }
 
+        if (cached && Number.isFinite(cached.market)) return { market: cached.market };
         if (Number.isFinite(localMarket)) {
             return { market: localMarket };
         }
@@ -1840,7 +1738,10 @@
             if (isSealedCollectionItem(item)) {
                 const quantity = getSealedCollectionQuantity(item);
                 totalUnits += quantity;
-                if (valueEl) valueEl.textContent = '...';
+                const cachedMarket = Number(collectionValueById[entryKey]);
+                if (valueEl && (!Number.isFinite(cachedMarket) || cachedMarket <= 0)) {
+                    valueEl.textContent = '...';
+                }
 
                 const valueInfo = await getCurrentSealedValue(item, { allowNetwork });
                 if (refreshGeneration !== collectionValueRefreshGeneration) return;
@@ -3488,6 +3389,9 @@
         if (items.length) {
             const allowNetworkRefresh = options?.skipNetworkRefresh !== true
                 && shouldAllowCollectionNetworkRefresh(items);
+            if (allowNetworkRefresh && items.some((item) => isSealedCollectionItem(item))) {
+                sealedCollectionRefreshStartedByCollectionId.add(getActiveCollectionId());
+            }
             void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
                 .then((result) => {
                     if (result?.stale) return;

@@ -37,7 +37,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260921-search-loading-3" />
+    <link rel="stylesheet" href="styles.css?v=20260921-value-summary-2" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -190,14 +190,24 @@
             <p id="pv-collection-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">
                 <span class="pv-collectionTotalTop">
                     <span class="pv-collectionTotalValueGroup">
-                        <span id="pv-collection-total-value" class="pv-collectionTotalValue">Value: $0.00</span>
-                        <span id="pv-collection-total-coverage" class="pv-collectionTotalCoverage" hidden></span>
+                        <span class="pv-collectionTotalValue">
+                            Value:
+                            <button
+                                id="pv-collection-total-value"
+                                class="pv-collectionTotalValueButton"
+                                type="button"
+                                aria-controls="pv-collection-value-dialog"
+                                aria-haspopup="dialog"
+                                aria-label="View collection value breakdown"
+                                title="View collection value breakdown"
+                            >$0.00</button>
+                        </span>
                         <button
-                            id="pv-collection-value-breakdown"
-                            class="pv-collectionValueBreakdownBtn"
+                            id="pv-collection-value-info"
+                            class="pv-collectionValueInfoBtn"
                             type="button"
-                            aria-label="View collection value breakdown"
-                            title="View collection value breakdown"
+                            aria-label="All collection units are priced."
+                            data-collection-value-hint="All collection units are priced."
                         >i</button>
                     </span>
                     <button
@@ -299,7 +309,9 @@
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
 
     <script src="search.js?v=2026-09-21-top-card-cache-1" defer></script>
-    <script src="dex-tracker-pages.js?v=2026-09-17-value-breakdown-1" defer></script>
+    <script src="functions/lib/sealed-pricing-core.js?v=2026-09-21-sealed-pricing-2" defer></script>
+    <script src="collection-view-utils.js?v=2026-09-21-value-summary-1" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-09-21-value-summary-2" defer></script>
 </body>
 
 </html>
