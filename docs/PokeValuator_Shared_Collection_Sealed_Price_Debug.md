@@ -32,7 +32,7 @@ The code contains multiple independent implementations of sealed-product identit
 - `baseProductId`: API identity, such as `me2pt5-s3`
 - `variantName`: the exact tracked variant, such as `PokemonCenter`
 
-It requests the API with `baseProductId`, selects the requested variant, and caches by `displayId` under the `sealed:v2:` namespace.
+It requests the API with `baseProductId`, selects the requested variant, and caches by `displayId` under the `sealed:v3:` namespace.
 
 Relevant functions:
 
@@ -77,7 +77,7 @@ The file should use a small UMD-style wrapper so it works in both environments:
 
 - Cloud Functions: `const sealedPricing = require('./lib/sealed-pricing-core');`
 - Browser: expose `window.PV_SEALED_PRICING`
-- GitHub Pages workflow: explicitly copy this one canonical source file to `dist/sealed-pricing-core.js`, because the workflow currently excludes the entire `functions/` directory
+- GitHub Pages workflow: explicitly copy this one canonical source file to `dist/functions/lib/sealed-pricing-core.js`, because the workflow currently excludes the entire `functions/` directory
 
 Do not maintain a second hand-copied browser version.
 
@@ -144,7 +144,7 @@ This keeps the page fast while avoiding an eight-hour disagreement between Dex a
 
 ### `.github/workflows/deploy-pages.yml`
 
-- After the existing `rsync`, copy `functions/lib/sealed-pricing-core.js` to `dist/sealed-pricing-core.js`.
+- After the existing `rsync`, copy `functions/lib/sealed-pricing-core.js` to `dist/functions/lib/sealed-pricing-core.js`.
 - This preserves one source of truth while making the browser build able to load it.
 
 ### `dex.html` and `shared-collection.html`
