@@ -1559,6 +1559,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const parsed = safeParseJson(raw);
             if (!parsed || typeof parsed !== 'object') return null;
             if (!Array.isArray(parsed.products)) return null;
+            if (isUnpricedSealedSearchResponse({ data: parsed.products })) {
+                localStorage.removeItem(LAST_RESULTS_KEY);
+                return null;
+            }
             return parsed;
         } catch {
             return null;
@@ -1567,6 +1571,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveLastResults(next) {
         try {
+            if (isUnpricedSealedSearchResponse({ data: next?.products })) {
+                localStorage.removeItem(LAST_RESULTS_KEY);
+                return;
+            }
             localStorage.setItem(LAST_RESULTS_KEY, JSON.stringify(next));
         } catch {
             // ignore
@@ -1603,10 +1611,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function isUnpricedSealedSearchResponse(data) {
+        const products = Array.isArray(data?.data) ? data.data : [];
+        return products.length > 0 && !products.some((product) => getMarketQuote(product));
+    }
+
     async function fetchJsonWithCache(url, ttlMs) {
         const cacheKey = `${CACHE_PREFIX}url:${url}`;
         const cached = cacheGet(cacheKey);
-        if (cached) return cached;
+        if (cached && !isUnpricedSealedSearchResponse(cached)) return cached;
+        if (cached) {
+            try { localStorage.removeItem(cacheKey); } catch {}
+        }
 
         let headers;
         try {
@@ -1643,7 +1659,7 @@ document.addEventListener('DOMContentLoaded', function () {
             throw err;
         }
 
-        cacheSet(cacheKey, data, ttlMs);
+        if (!isUnpricedSealedSearchResponse(data)) cacheSet(cacheKey, data, ttlMs);
         return data;
     }
 
