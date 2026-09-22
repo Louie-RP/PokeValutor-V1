@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260921-collection-view-1" />
+    <link rel="stylesheet" href="styles.css?v=20260921-value-summary-2" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
 </head>
 
@@ -64,8 +64,30 @@
             <div class="pv-section__header">
                 <h2 id="pv-shared-collection-title" class="pv-section__title">Collection</h2>
             </div>
-            <p id="pv-shared-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Total units: 0</p>
-            <p id="pv-shared-value-total" class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">Collection value: $0.00</p>
+            <div class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">
+                <span class="pv-collectionTotalValueGroup">
+                    <span class="pv-collectionTotalValue">
+                        Value:
+                        <button
+                            id="pv-shared-value-total"
+                            class="pv-collectionTotalValueButton"
+                            type="button"
+                            aria-controls="pv-shared-value-dialog"
+                            aria-haspopup="dialog"
+                            aria-label="View collection value breakdown"
+                            title="View collection value breakdown"
+                        >$0.00</button>
+                    </span>
+                    <button
+                        id="pv-shared-value-info"
+                        class="pv-collectionValueInfoBtn"
+                        type="button"
+                        aria-label="All collection units are priced."
+                        data-collection-value-hint="All collection units are priced."
+                    >i</button>
+                </span>
+                <span id="pv-shared-total" class="pv-collectionTotalAmount">Total units: 0</span>
+            </div>
             <div id="pv-shared-collection-picker" class="pv-sortRow" role="group" aria-label="Select shared collection">
                 <label for="pv-shared-collection-select" class="form-label pv-sortLabel">Collection</label>
                 <select id="pv-shared-collection-select" class="form-select pv-sortSelect" aria-label="Select shared collection">
@@ -86,8 +108,8 @@
                     </select>
                 </div>
                 <div id="pv-shared-sort" class="pv-collectionFilterControl pv-sharedFilterControl--sort" role="group" aria-label="Sort shared collection">
-                    <label for="pv-shared-sort-select" class="form-label pv-sortLabel">Sort</label>
-                    <select id="pv-shared-sort-select" class="form-select pv-sortSelect" aria-label="Sort shared collection">
+                    <label for="pv-shared-sort-select" class="form-label">Sort</label>
+                    <select id="pv-shared-sort-select" class="form-select" aria-label="Sort shared collection">
                         <option value="value-desc" selected>High-Low</option>
                         <option value="value-asc">Low-High</option>
                         <option value="name-asc">A-Z</option>
@@ -100,6 +122,26 @@
             <nav id="pv-shared-pagination" class="pv-collectionPagination" aria-label="Shared collection pagination" hidden></nav>
         </section>
     </main>
+
+    <dialog id="pv-shared-value-dialog" class="pv-sharedConditionDialog pv-collectionValueDialog" aria-labelledby="pv-shared-value-dialog-title">
+        <div class="pv-sharedConditionDialog__panel">
+            <h3 id="pv-shared-value-dialog-title" class="pv-sharedConditionDialog__title">Collection value breakdown</h3>
+            <ul class="pv-sharedConditionDialog__list">
+                <li class="pv-sharedConditionDialog__item">
+                    <span class="pv-sharedConditionDialog__itemLabel">Card value</span>
+                    <span id="pv-shared-card-value" class="pv-sharedConditionDialog__itemValue">$0.00</span>
+                </li>
+                <li class="pv-sharedConditionDialog__item">
+                    <span class="pv-sharedConditionDialog__itemLabel">Sealed products</span>
+                    <span id="pv-shared-sealed-value" class="pv-sharedConditionDialog__itemValue">$0.00</span>
+                </li>
+            </ul>
+            <p id="pv-shared-breakdown-total" class="pv-sharedConditionDialog__total">Total value: $0.00</p>
+            <div class="pv-sharedConditionDialog__actions">
+                <button type="button" class="pv-button pv-button--secondary btn" data-shared-value-close>Close</button>
+            </div>
+        </div>
+    </dialog>
 
     <footer class="pv-footer" role="contentinfo">
         <div class="pv-footer__inner">
@@ -125,8 +167,8 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
     <script src="functions/lib/sealed-pricing-core.js?v=2026-09-21-sealed-pricing-2" defer></script>
-    <script src="collection-view-utils.js?v=2026-09-21-collection-view-1" defer></script>
-    <script src="shared-collection.js?v=2026-09-21-collection-view-1" defer></script>
+    <script src="collection-view-utils.js?v=2026-09-21-value-summary-1" defer></script>
+    <script src="shared-collection.js?v=2026-09-21-value-summary-2" defer></script>
 </body>
 
 </html>
