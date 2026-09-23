@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const quotaCtaEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-quota-cta'));
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
-    const SEARCH_CACHE_VERSION = 'v2';
+    const SEARCH_CACHE_VERSION = 'v3';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_INTERVAL_MS = 8 * 60 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_LIMIT = 24;
@@ -1818,6 +1818,20 @@ document.addEventListener('DOMContentLoaded', function () {
         return shown >= SEARCH_PAGE_SIZE && shown % SEARCH_PAGE_SIZE === 0;
     }
 
+    function isEnglishSealedProduct(product) {
+        const expansion = product?.expansion && typeof product.expansion === 'object' ? product.expansion : {};
+        const language = safeString(expansion.language ?? product?.language, '').trim().toLowerCase();
+        const languageCode = safeString(expansion.languageCode ?? product?.languageCode, '').trim().toLowerCase();
+        if (!language && !languageCode) return true;
+        return language === 'english' || languageCode === 'en';
+    }
+
+    function filterEnglishSealedPayload(payload) {
+        if (!payload || typeof payload !== 'object' || !Array.isArray(payload.data)) return payload;
+        const data = payload.data.filter(isEnglishSealedProduct);
+        return { ...payload, data };
+    }
+
     function updateLoadMoreButton(visible, loading) {
         if (!loadMoreBtn) return;
         const show = Boolean(visible);
@@ -1850,7 +1864,8 @@ document.addEventListener('DOMContentLoaded', function () {
     async function fetchSealedSearchPage(query, page) {
         const base = getWorkerBase();
         const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}&searchVersion=${SEARCH_CACHE_VERSION}&consumeQuota=1`;
-        return fetchJsonWithCache(url, SEARCH_TTL_MS);
+        const payload = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+        return filterEnglishSealedPayload(payload);
     }
 
     function formatCurrency(value, currency) {

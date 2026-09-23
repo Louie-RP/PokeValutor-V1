@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="1660" viewBox="0 0 390 1660">
+  <defs>
+    <linearGradient id="card1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5b92d2"/><stop offset=".5" stop-color="#293c72"/><stop offset="1" stop-color="#a64f2c"/></linearGradient>
+    <linearGradient id="card2" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b66ad5"/><stop offset=".55" stop-color="#4c286e"/><stop offset="1" stop-color="#1a1021"/></linearGradient>
+    <linearGradient id="card3" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d96858"/><stop offset=".55" stop-color="#6d2326"/><stop offset="1" stop-color="#241217"/></linearGradient>
+    <linearGradient id="goldGlow" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#312a0c"/><stop offset="1" stop-color="#111114"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="16" stdDeviation="20" flood-opacity=".38"/></filter>
+    <clipPath id="screenClip"><rect x="1" y="1" width="388" height="1658" rx="28"/></clipPath>
+    <style>
+      .sans{font-family:Arial,Helvetica,sans-serif}.serif{font-family:Georgia,'Times New Roman',serif}.white{fill:#f7f7f8}.muted{fill:#aaaab4}.yellow{fill:#ffcb05}.bold{font-weight:700}.small{font-size:11px}.tiny{font-size:9px}
+    </style>
+  </defs>
+  <rect x="1" y="1" width="388" height="1658" rx="28" fill="#070708" stroke="#303039" filter="url(#shadow)"/>
+  <g clip-path="url(#screenClip)">
+    <rect x="1" y="1" width="388" height="63" fill="#0a0a0c"/>
+    <line x1="1" y1="64" x2="389" y2="64" stroke="#2b2b34"/>
+    <text x="16" y="40" class="serif yellow bold" font-size="22" font-style="italic">PokéValuator</text>
+    <circle cx="326" cy="32" r="16" fill="#17171b"/><circle cx="326" cy="28" r="5" fill="none" stroke="#f7f7f8"/><path d="M317 41c2-7 16-7 18 0" fill="none" stroke="#f7f7f8" stroke-linecap="round"/>
+    <rect x="350" y="16" width="32" height="32" rx="10" fill="#17171b"/><path d="M359 25h14M359 32h14M359 39h14" stroke="#f7f7f8" stroke-width="2" stroke-linecap="round"/>
+
+    <text x="16" y="108" class="serif white bold" font-size="31">Know what your</text>
+    <text x="16" y="142" class="serif white bold" font-size="31">collection is <tspan class="yellow">worth.</tspan></text>
+    <text x="16" y="170" class="sans muted" font-size="13">Search cards or sealed products and preview the best matches.</text>
+
+    <rect x="15" y="188" width="360" height="121" rx="17" fill="#111114" stroke="#2b2b34"/>
+    <rect x="24" y="197" width="342" height="39" rx="11" fill="#09090b"/>
+    <rect x="27" y="200" width="168" height="33" rx="8" fill="#ffcb05"/>
+    <text x="111" y="221" text-anchor="middle" class="sans bold" font-size="13" fill="#171300">Cards</text>
+    <text x="281" y="221" text-anchor="middle" class="sans muted bold" font-size="13">Sealed</text>
+    <rect x="24" y="244" width="285" height="48" rx="11" fill="#0b0b0e" stroke="#363640"/>
+    <circle cx="42" cy="268" r="7" fill="none" stroke="#aaaab4" stroke-width="2"/><line x1="47" y1="273" x2="52" y2="278" stroke="#aaaab4" stroke-width="2" stroke-linecap="round"/>
+    <text x="60" y="273" class="sans white" font-size="15">Charizard</text>
+    <rect x="316" y="244" width="50" height="48" rx="11" fill="#ffcb05"/>
+    <path d="M333 268h15m-5-5 5 5-5 5" fill="none" stroke="#171300" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="15" y="323" width="360" height="335" rx="16" fill="#111114" stroke="#2b2b34"/>
+    <text x="28" y="351" class="serif white bold" font-size="18">Top Card Matches</text>
+    <text x="28" y="370" class="sans muted small">3 of 24 results for “Charizard”</text>
+    <rect x="306" y="338" width="55" height="20" rx="10" fill="#2e280c"/><text x="333.5" y="352" text-anchor="middle" class="sans bold" font-size="8" fill="#dacc88">SAMPLE</text>
+    <line x1="15" y1="383" x2="375" y2="383" stroke="#2b2b34"/>
+    <rect x="27" y="394" width="42" height="59" rx="6" fill="url(#card1)" stroke="#d4b33e" stroke-width="2"/><text x="48" y="429" text-anchor="middle" class="serif white bold" font-size="13">ex</text>
+    <text x="80" y="414" class="sans white bold" font-size="12">Charizard ex</text><text x="80" y="432" class="sans muted" font-size="10">Scarlet &amp; Violet—151 · 199/165</text>
+    <text x="358" y="416" text-anchor="end" class="sans white bold" font-size="12">$196.25</text><text x="358" y="433" text-anchor="end" class="sans yellow tiny">NM market</text>
+    <line x1="15" y1="465" x2="375" y2="465" stroke="#2b2b34"/>
+    <rect x="27" y="476" width="42" height="59" rx="6" fill="url(#card2)" stroke="#d4b33e" stroke-width="2"/><text x="48" y="511" text-anchor="middle" class="serif white bold" font-size="13">ex</text>
+    <text x="80" y="496" class="sans white bold" font-size="12">Charizard ex</text><text x="80" y="514" class="sans muted" font-size="10">Paldean Fates · 234/091</text>
+    <text x="358" y="498" text-anchor="end" class="sans white bold" font-size="12">$154.80</text><text x="358" y="515" text-anchor="end" class="sans yellow tiny">NM market</text>
+    <line x1="15" y1="547" x2="375" y2="547" stroke="#2b2b34"/>
+    <rect x="27" y="558" width="42" height="59" rx="6" fill="url(#card3)" stroke="#d4b33e" stroke-width="2"/><text x="48" y="593" text-anchor="middle" class="serif white bold" font-size="13">V</text>
+    <text x="80" y="578" class="sans white bold" font-size="12">Charizard V</text><text x="80" y="596" class="sans muted" font-size="10">Brilliant Stars · 154/172</text>
+    <text x="358" y="580" text-anchor="end" class="sans white bold" font-size="12">$162.10</text><text x="358" y="597" text-anchor="end" class="sans yellow tiny">NM market</text>
+    <rect x="25" y="623" width="340" height="43" rx="10" fill="#ffcb05"/><text x="195" y="649" text-anchor="middle" class="sans bold" font-size="12" fill="#171300">View all 24 card results  →</text>
+
+    <text x="16" y="714" class="serif white bold" font-size="21">Top Cards From New Sets</text>
+    <text x="16" y="734" class="sans muted small">The three highest NM values from each new release.</text>
+    <rect x="15" y="752" width="125" height="36" rx="18" fill="#ffcb05"/><text x="77.5" y="774" text-anchor="middle" class="sans bold" font-size="10" fill="#171300">30th Celebration</text>
+    <rect x="146" y="752" width="93" height="36" rx="18" fill="#111114" stroke="#393942"/><text x="192.5" y="774" text-anchor="middle" class="sans muted bold" font-size="10">Pitch Black</text>
+    <rect x="245" y="752" width="102" height="36" rx="18" fill="#111114" stroke="#393942"/><text x="296" y="774" text-anchor="middle" class="sans muted bold" font-size="10">Chaos Rising</text>
+
+    <g transform="translate(15 802)">
+      <rect width="115" height="264" rx="13" fill="#111114" stroke="#2b2b34"/><rect x="7" y="7" width="101" height="148" rx="8" fill="url(#card1)" stroke="#c8a936" stroke-width="2"/><circle cx="21" cy="21" r="12" fill="#ffcb05"/><text x="21" y="25" text-anchor="middle" class="sans bold" font-size="10" fill="#171300">1</text><text x="57.5" y="90" text-anchor="middle" class="serif white bold" font-size="20">30</text><text x="8" y="178" class="sans white bold" font-size="11">Top Card #1</text><text x="8" y="195" class="sans muted tiny">Card 001</text><text x="8" y="220" class="sans white bold" font-size="12">$198.40</text><text x="8" y="238" class="sans yellow tiny">NM market</text>
+    </g>
+    <g transform="translate(137 802)">
+      <rect width="115" height="264" rx="13" fill="#111114" stroke="#2b2b34"/><rect x="7" y="7" width="101" height="148" rx="8" fill="url(#card2)" stroke="#c8a936" stroke-width="2"/><circle cx="21" cy="21" r="12" fill="#ffcb05"/><text x="21" y="25" text-anchor="middle" class="sans bold" font-size="10" fill="#171300">2</text><text x="57.5" y="90" text-anchor="middle" class="serif white bold" font-size="20">30</text><text x="8" y="178" class="sans white bold" font-size="11">Top Card #2</text><text x="8" y="195" class="sans muted tiny">Card 002</text><text x="8" y="220" class="sans white bold" font-size="12">$146.25</text><text x="8" y="238" class="sans yellow tiny">NM market</text>
+    </g>
+    <g transform="translate(259 802)">
+      <rect width="115" height="264" rx="13" fill="#111114" stroke="#2b2b34"/><rect x="7" y="7" width="101" height="148" rx="8" fill="url(#card3)" stroke="#c8a936" stroke-width="2"/><circle cx="21" cy="21" r="12" fill="#ffcb05"/><text x="21" y="25" text-anchor="middle" class="sans bold" font-size="10" fill="#171300">3</text><text x="57.5" y="90" text-anchor="middle" class="serif white bold" font-size="20">30</text><text x="8" y="178" class="sans white bold" font-size="11">Top Card #3</text><text x="8" y="195" class="sans muted tiny">Card 003</text><text x="8" y="220" class="sans white bold" font-size="12">$119.80</text><text x="8" y="238" class="sans yellow tiny">NM market</text>
+    </g>
+
+    <text x="16" y="1122" class="serif white bold" font-size="21">Explore Recent Sets</text>
+    <text x="16" y="1143" class="sans muted small">Tap a set to see its ten most valuable NM cards.</text>
+    <text x="374" y="1123" text-anchor="end" class="sans yellow bold" font-size="11">View all →</text>
+    <g transform="translate(15 1161)"><rect width="138" height="150" rx="15" fill="#111114" stroke="#2b2b34"/><rect x="10" y="10" width="118" height="78" rx="11" fill="#6c5715"/><circle cx="69" cy="49" r="28" fill="#ffdf6a" opacity=".55"/><text x="69" y="57" text-anchor="middle" class="serif white bold" font-size="22">30</text><text x="10" y="112" class="sans white bold" font-size="11">30th Celebration</text><text x="10" y="132" class="sans yellow bold" font-size="10">View top 10 →</text></g>
+    <g transform="translate(162 1161)"><rect width="138" height="150" rx="15" fill="#111114" stroke="#2b2b34"/><rect x="10" y="10" width="118" height="78" rx="11" fill="#452561"/><circle cx="69" cy="49" r="28" fill="#c67cff" opacity=".48"/><text x="69" y="57" text-anchor="middle" class="serif white bold" font-size="22">PB</text><text x="10" y="112" class="sans white bold" font-size="11">Pitch Black</text><text x="10" y="132" class="sans yellow bold" font-size="10">View top 10 →</text></g>
+    <g transform="translate(309 1161)"><rect width="138" height="150" rx="15" fill="#111114" stroke="#2b2b34"/><rect x="10" y="10" width="118" height="78" rx="11" fill="#214d72"/><circle cx="69" cy="49" r="28" fill="#6cc4ff" opacity=".48"/><text x="69" y="57" text-anchor="middle" class="serif white bold" font-size="22">CR</text><text x="10" y="112" class="sans white bold" font-size="11">Chaos Rising</text><text x="10" y="132" class="sans yellow bold" font-size="10">View top 10 →</text></g>
+
+    <rect x="15" y="1350" width="360" height="154" rx="17" fill="url(#goldGlow)" stroke="#5c4d08"/>
+    <text x="31" y="1385" class="serif white bold" font-size="18">Keep your collection in one place.</text>
+    <text x="31" y="1410" class="sans muted" font-size="11">Save cards, track sealed products, and monitor</text><text x="31" y="1427" class="sans muted" font-size="11">your total collection value.</text>
+    <rect x="31" y="1443" width="328" height="44" rx="10" fill="#ffcb05"/><text x="195" y="1470" text-anchor="middle" class="sans bold" font-size="13" fill="#171300">Create Free Account</text>
+
+    <rect x="1" y="1550" width="388" height="110" fill="#09090b"/><line x1="1" y1="1550" x2="389" y2="1550" stroke="#2b2b34"/>
+    <text x="195" y="1590" text-anchor="middle" class="sans muted small">© 2026 PokéValuator</text><text x="195" y="1612" text-anchor="middle" class="sans muted small">Privacy · Terms · Contact · Discord</text>
+  </g>
+</svg>
