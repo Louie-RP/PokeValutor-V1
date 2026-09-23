@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="home-preview.css?v=2026-09-23-set-tile-alignment-1" />
+  <link rel="stylesheet" href="home-preview.css?v=2026-09-23-trending-rail-1" />
 </head>
 <body class="home-preview-body">
   <a class="home-preview-skip" href="#home-preview-main">Skip to content</a>
@@ -143,48 +143,18 @@
       <div class="home-preview-set-rail" data-home-preview-recent-sets tabindex="0" aria-label="Recent sets. Scroll horizontally to browse."></div>
     </section>
 
-    <section class="home-preview-section home-preview-market-movers" aria-labelledby="home-preview-market-movers-title">
+    <section class="home-preview-section home-preview-market-movers" aria-labelledby="home-preview-market-movers-title" data-home-preview-trending>
       <div class="home-preview-section-heading">
-        <h2 id="home-preview-market-movers-title">Market Movers</h2>
+        <div>
+          <p class="home-preview-section-kicker">Watchlist movement</p>
+          <h2 id="home-preview-market-movers-title">Trending Cards</h2>
+          <p class="home-preview-section-subtitle">Movers from your watchlist.</p>
+        </div>
         <a class="home-preview-inline-link home-preview-inline-link--heading" href="search.html">See more <span aria-hidden="true">&#8594;</span></a>
       </div>
 
-      <div class="home-preview-market-movers-list">
-        <a class="home-preview-market-mover" href="search.html?query=Charizard+ex">
-          <span class="home-preview-market-mover-art" aria-hidden="true">PV</span>
-          <span class="home-preview-market-mover-copy">
-            <strong>Charizard ex</strong>
-            <small>Featured card</small>
-          </span>
-          <span class="home-preview-market-mover-value">
-            <strong>$128.40</strong>
-            <span class="home-preview-market-mover-change home-preview-market-mover-change--up">+6.2%</span>
-          </span>
-        </a>
-        <a class="home-preview-market-mover" href="search.html?query=Pikachu+ex">
-          <span class="home-preview-market-mover-art" aria-hidden="true">PV</span>
-          <span class="home-preview-market-mover-copy">
-            <strong>Pikachu ex</strong>
-            <small>Featured card</small>
-          </span>
-          <span class="home-preview-market-mover-value">
-            <strong>$86.10</strong>
-            <span class="home-preview-market-mover-change home-preview-market-mover-change--up">+3.8%</span>
-          </span>
-        </a>
-        <a class="home-preview-market-mover" href="search.html?query=Umbreon+ex">
-          <span class="home-preview-market-mover-art" aria-hidden="true">PV</span>
-          <span class="home-preview-market-mover-copy">
-            <strong>Umbreon ex</strong>
-            <small>Featured card</small>
-          </span>
-          <span class="home-preview-market-mover-value">
-            <strong>$214.75</strong>
-            <span class="home-preview-market-mover-change home-preview-market-mover-change--down">-2.1%</span>
-          </span>
-        </a>
-      </div>
-      <p class="home-preview-market-movers-note">Sample market data shown for layout preview.</p>
+      <div class="home-preview-market-movers-list" data-home-preview-trending-list aria-live="polite" tabindex="0" aria-label="Trending cards carousel. Swipe horizontally to browse."></div>
+      <p class="home-preview-market-movers-note" data-home-preview-trending-note hidden></p>
     </section>
 
     <section class="home-preview-account-cta" aria-labelledby="home-preview-account-title">
@@ -218,6 +188,6 @@
   <script src="firebase-config.js" defer></script>
   <script src="firebase-config.local.js" defer></script>
   <script src="firebase.js?v=2026-09-22-home-preview-auth-1" defer></script>
-  <script src="home-preview.js?v=2026-09-23-results-visibility-1" defer></script>
+  <script src="home-preview.js?v=2026-09-23-trending-watchlist-1" defer></script>
 </body>
 </html>

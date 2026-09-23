@@ -21,6 +21,8 @@
   const setTabsWrapper = document.querySelector('.home-preview-set-tabs-wrap');
   const recentSetsContainer = document.querySelector('[data-home-preview-recent-sets]');
   const recentSetsStatus = document.querySelector('[data-home-preview-recent-status]');
+  const trendingList = document.querySelector('[data-home-preview-trending-list]');
+  const trendingNote = document.querySelector('[data-home-preview-trending-note]');
   const menuButton = document.getElementById('home-preview-menu-button');
   const navigation = document.getElementById('home-preview-nav');
   const imageDialog = document.querySelector('[data-home-preview-image-dialog]');
@@ -31,6 +33,9 @@
   let activeMode = 'cards';
   const liveSearchCache = { cards: null, sealed: null };
   const liveSearchStorageKey = 'pv:home-preview:search-cache:v1';
+  const homeCardWatchlistKey = 'pv:scrydex:watchlist:v1';
+  const homeMarketSnapshotKey = 'pv:home:cardMarketSnapshots:v1';
+  const homeMarketSnapshotTtlMs = 8 * 60 * 60 * 1000;
   let imageDialogReturnFocus = null;
   const authReady = new Promise((resolve) => {
     const authApi = window?.PV_AUTH;
@@ -378,6 +383,183 @@
       const market = getMarket(variant);
       return market != null && (best == null || market > best) ? market : best;
     }, null);
+  }
+
+  function readHomeWatchlist() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(homeCardWatchlistKey) || 'null');
+      return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object' && item.id) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function loadHomeWatchlist() {
+    const byId = new Map();
+    const merge = (items) => {
+      for (const item of Array.isArray(items) ? items : []) {
+        const id = String(item?.id || '').trim();
+        if (id && !byId.has(id)) byId.set(id, item);
+      }
+    };
+
+    merge(readHomeWatchlist());
+    try {
+      await authReady;
+      const user = window?.PV_AUTH?.getUser ? window.PV_AUTH.getUser() : null;
+      if (user && window?.PV_AUTH?.loadWatchlist) {
+        merge(await Promise.resolve(window.PV_AUTH.loadWatchlist('card')));
+      }
+    } catch {
+      // Local watchlist data remains usable when cloud loading is unavailable.
+    }
+
+    return Array.from(byId.values()).slice(0, 6);
+  }
+
+  async function fetchHomeCardRecord(cardId) {
+    const response = await fetchWithAuth(`${liveSearchBase}/cards/${encodeURIComponent(cardId)}?includePrices=1&lang=en&cache=no-store`);
+    if (!response.ok) throw new Error(`Trending card request failed with ${response.status}`);
+    const payload = await response.json();
+    return payload?.data || payload?.card || payload;
+  }
+
+  function getHomeTrendingSetName(card) {
+    return String(card?.expansion?.name || card?.set?.name || card?.expansionName || card?.setName || 'Unknown set').trim();
+  }
+
+  function getHomeTrendingHref(card) {
+    return `search.html?${new URLSearchParams({ cardId: String(card?.id || ''), cardName: String(card?.name || 'Unknown card') }).toString()}`;
+  }
+
+  function setHomeTrendingMessage(message) {
+    if (!trendingList) return;
+    trendingList.replaceChildren();
+    const messageElement = document.createElement('p');
+    messageElement.className = 'home-preview-market-movers-empty';
+    messageElement.textContent = message;
+    trendingList.append(messageElement);
+    if (trendingNote) {
+      trendingNote.textContent = '';
+      trendingNote.hidden = true;
+    }
+  }
+
+  function createHomeTrendingRow(row) {
+    const link = document.createElement('a');
+    link.className = 'home-preview-market-mover';
+    link.href = row.href;
+    link.setAttribute('aria-label', `Open ${row.name}`);
+
+    const art = document.createElement('span');
+    art.className = 'home-preview-market-mover-art';
+    const imageUrl = getSafeImageUrl(getEntityImages(row.card));
+    if (imageUrl) {
+      const image = document.createElement('img');
+      image.src = imageUrl;
+      image.alt = '';
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.addEventListener('error', () => image.remove(), { once: true });
+      art.append(image);
+    } else {
+      art.textContent = String(row.name).split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'CARD';
+    }
+
+    const copy = document.createElement('span');
+    copy.className = 'home-preview-market-mover-copy';
+    const name = document.createElement('strong');
+    name.textContent = row.name;
+    const setName = document.createElement('small');
+    setName.textContent = row.setName;
+    copy.append(name, setName);
+
+    const value = document.createElement('span');
+    value.className = 'home-preview-market-mover-value';
+    const market = document.createElement('strong');
+    market.textContent = Number.isFinite(row.market) ? formatLivePrice(row.market) : 'N/A';
+    const marketLine = document.createElement('small');
+    marketLine.className = 'home-preview-market-mover-market-line';
+    marketLine.textContent = Number.isFinite(row.market)
+      ? `Now${Number.isFinite(row.prevMarket) ? ` · Prev ${formatLivePrice(row.prevMarket)}` : ''}`
+      : 'Market unavailable';
+    const change = document.createElement('span');
+    const hasDelta = Number.isFinite(row.delta);
+    change.className = `home-preview-market-mover-change ${hasDelta && row.delta > 0.009 ? 'home-preview-market-mover-change--up' : hasDelta && row.delta < -0.009 ? 'home-preview-market-mover-change--down' : ''}`;
+    change.textContent = hasDelta
+      ? (row.delta > 0.009 ? `+${formatLivePrice(row.delta)}` : row.delta < -0.009 ? formatLivePrice(row.delta) : 'Flat')
+      : 'New';
+    value.append(market, marketLine, change);
+    link.append(art, copy, value);
+    return link;
+  }
+
+  async function renderHomeTrendingCards() {
+    if (!trendingList) return;
+    setHomeTrendingMessage('Loading watchlist movement...');
+    const candidates = await loadHomeWatchlist();
+    if (!candidates.length) {
+      setHomeTrendingMessage('Add cards to your watchlist to unlock movement tracking.');
+      return;
+    }
+
+    let previousMap = {};
+    try {
+      const parsed = JSON.parse(localStorage.getItem(homeMarketSnapshotKey) || 'null');
+      previousMap = parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      previousMap = {};
+    }
+
+    const nextMap = { ...previousMap };
+    const settled = await Promise.all(candidates.map(async (item) => {
+      const id = String(item?.id || '').trim();
+      const cached = previousMap[id];
+      const isFresh = Number.isFinite(Number(cached?.market))
+        && Date.now() - Number(cached?.seenAt || 0) < homeMarketSnapshotTtlMs;
+      let card = item;
+      if (!isFresh) {
+        try { card = await fetchHomeCardRecord(id); } catch { /* Use the saved watchlist card below. */ }
+      }
+
+      const market = isFresh ? Number(cached.market) : getStrictNmMarket(card);
+      const previousMarket = Number(previousMap[id]?.market);
+      const hasPrevious = Number.isFinite(previousMarket);
+      const hasMarket = Number.isFinite(market);
+      if (hasMarket) {
+        nextMap[id] = {
+          market: Number(market),
+          seenAt: isFresh ? Number(cached.seenAt) : Date.now(),
+          name: String(card?.name || item?.name || ''),
+        };
+      }
+
+      return {
+        card,
+        href: getHomeTrendingHref(card || item),
+        name: String(card?.name || item?.name || 'Unknown card'),
+        setName: getHomeTrendingSetName(card || item),
+        market: hasMarket ? Number(market) : null,
+        prevMarket: hasPrevious ? previousMarket : null,
+        delta: hasPrevious && hasMarket ? Number(market) - previousMarket : null,
+      };
+    }));
+
+    try {
+      const entries = Object.entries(nextMap)
+        .sort((left, right) => Number(right?.[1]?.seenAt || 0) - Number(left?.[1]?.seenAt || 0))
+        .slice(0, 200);
+      localStorage.setItem(homeMarketSnapshotKey, JSON.stringify(Object.fromEntries(entries)));
+    } catch {
+      // Ignore unavailable browser storage.
+    }
+
+    settled.sort((left, right) => Math.abs(Number(right.delta || 0)) - Math.abs(Number(left.delta || 0)));
+    trendingList.replaceChildren(...settled.map(createHomeTrendingRow));
+    if (trendingNote) {
+      trendingNote.textContent = 'Movement is calculated from your saved market snapshots.';
+      trendingNote.hidden = false;
+    }
   }
 
   function createSetImage(set) {
@@ -1071,4 +1253,5 @@
 
   updateSearchPreview('cards');
   void loadLatestSetSpotlights();
+  void renderHomeTrendingCards();
 })();
