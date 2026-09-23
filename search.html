@@ -36,19 +36,22 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action https://formspree.io; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com https://cdn.jsdelivr.net 'wasm-unsafe-eval'; worker-src 'self' blob: https://cdn.jsdelivr.net; child-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' blob:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
     <link rel="stylesheet" href="scanner.css?v=20260709-2" />
+    <link rel="stylesheet" href="search-refresh.css?v=2026-09-23-1" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-search-body" class="pv-body pv-searchPage">
+<body id="pv-search-body" class="pv-body pv-searchPage pv-searchRefresh">
     <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
 
     <header id="pv-search-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-search-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <a id="pv-search-brand" class="pv-brand pv-searchRefresh__brand" href="index.html" aria-label="PokéValuator home">
+                <img src="PokeValuator_Logo.png" alt="" aria-hidden="true" />
+            </a>
             <button id="pv-search-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-search-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -57,7 +60,7 @@
             <nav id="pv-search-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html" aria-current="page">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
@@ -70,7 +73,7 @@
     <main id="pv-search-main" class="pv-main" role="main">
         <section id="pv-search-hero" class="pv-hero container pv-searchHero" aria-labelledby="pv-search-title">
             <p class="pv-searchHero__eyebrow">Cards</p>
-            <h1 id="pv-search-title" class="pv-hero__title">Find cards, compare variants, track your watchlist.</h1>
+            <h1 id="pv-search-title" class="pv-hero__title">Find the card. Know the <em>value.</em></h1>
             <p class="pv-hero__subtitle">Search by name, number, series, or set.</p>
             <div class="pv-searchHero__chips" aria-label="Search highlights">
                 <span class="pv-searchHero__chip">Variant prices</span>
@@ -82,7 +85,11 @@
         <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
             <div class="pv-searchPanel">
                 <div class="pv-section__header pv-searchPanel__header">
-                    <h2 id="pv-search-title" class="pv-section__title">Search</h2>
+                    <div>
+                        <p class="pv-searchPanel__kicker">Card lookup</p>
+                        <h2 id="pv-search-form-title" class="pv-section__title">Search cards</h2>
+                        <p class="pv-searchPanel__intro">Use a card name or number, then narrow the results by series and set when needed.</p>
+                    </div>
                     <button id="pv-search-toggle" class="pv-button pv-button--primary btn" type="button"
                         aria-controls="pv-search-content" aria-expanded="true">Hide</button>
                 </div>
