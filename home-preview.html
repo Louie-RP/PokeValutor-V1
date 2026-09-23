@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="home-preview.css" />
+  <link rel="stylesheet" href="home-preview.css?v=2026-09-23-live-top-sets-3" />
 </head>
 <body class="home-preview-body">
   <a class="home-preview-skip" href="#home-preview-main">Skip to content</a>
@@ -113,7 +113,7 @@
       </div>
     </section>
 
-    <section class="home-preview-section" aria-labelledby="home-preview-new-sets-title">
+    <section class="home-preview-section home-preview-new-sets" aria-labelledby="home-preview-new-sets-title">
       <div class="home-preview-section-heading home-preview-section-heading--stacked">
         <div>
           <p class="home-preview-section-kicker">Fresh market signals</p>
@@ -122,37 +122,11 @@
         </div>
       </div>
 
-      <div class="home-preview-set-tabs" role="tablist" aria-label="Newest sets">
-        <button class="home-preview-set-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="home-preview-set-panel" data-home-preview-set="celebration">30th Celebration</button>
-        <button class="home-preview-set-tab" type="button" role="tab" aria-selected="false" aria-controls="home-preview-set-panel" data-home-preview-set="pitch-black">Pitch Black</button>
-        <button class="home-preview-set-tab" type="button" role="tab" aria-selected="false" aria-controls="home-preview-set-panel" data-home-preview-set="chaos-rising">Chaos Rising</button>
+      <div class="home-preview-set-tabs-wrap">
+        <div class="home-preview-set-tabs" data-home-preview-set-tabs role="tablist" aria-label="Newest sets"></div>
       </div>
-
-      <div class="home-preview-top-grid" id="home-preview-set-panel" role="tabpanel" aria-live="polite">
-        <article class="home-preview-top-card">
-          <div class="home-preview-large-art home-preview-large-art--blue" aria-label="Preview artwork for top card one"><span>30</span><b>1</b></div>
-          <h3 data-home-preview-top-name>Top Card #1</h3>
-          <p data-home-preview-top-number>Card 001</p>
-          <strong data-home-preview-top-price>$198.40</strong>
-          <small>NM market</small>
-        </article>
-        <article class="home-preview-top-card">
-          <div class="home-preview-large-art home-preview-large-art--violet" aria-label="Preview artwork for top card two"><span>30</span><b>2</b></div>
-          <h3>Top Card #2</h3>
-          <p>Card 002</p>
-          <strong>$146.25</strong>
-          <small>NM market</small>
-        </article>
-        <article class="home-preview-top-card">
-          <div class="home-preview-large-art home-preview-large-art--red" aria-label="Preview artwork for top card three"><span>30</span><b>3</b></div>
-          <h3>Top Card #3</h3>
-          <p>Card 003</p>
-          <strong>$119.80</strong>
-          <small>NM market</small>
-        </article>
-      </div>
-
-      <a class="home-preview-inline-link" data-home-preview-view-set href="search.html?expansionId=preview-celebration&amp;expansionName=30th%20Celebration">View set <span aria-hidden="true">&#8594;</span></a>
+      <p class="home-preview-set-status" data-home-preview-set-status role="status">Loading the latest sets...</p>
+      <div class="home-preview-top-grid" data-home-preview-set-panels aria-live="polite"></div>
     </section>
 
     <section class="home-preview-section home-preview-recent" aria-labelledby="home-preview-recent-title">
@@ -165,46 +139,8 @@
         <a class="home-preview-inline-link home-preview-inline-link--heading" href="sets.html">View all <span aria-hidden="true">&#8594;</span></a>
       </div>
 
-      <div class="home-preview-set-rail" tabindex="0" aria-label="Recent sets. Scroll horizontally to browse.">
-        <a class="home-preview-set-tile home-preview-set-tile--gold" href="search.html?expansionId=preview-celebration&amp;expansionName=30th%20Celebration">
-          <span class="home-preview-set-logo">30</span><strong>30th Celebration</strong><small>View top 10 <span aria-hidden="true">&#8594;</span></small>
-        </a>
-        <a class="home-preview-set-tile home-preview-set-tile--violet" href="search.html?expansionId=preview-pitch-black&amp;expansionName=Pitch%20Black">
-          <span class="home-preview-set-logo">PB</span><strong>Pitch Black</strong><small>View top 10 <span aria-hidden="true">&#8594;</span></small>
-        </a>
-        <a class="home-preview-set-tile home-preview-set-tile--blue" href="search.html?expansionId=preview-chaos-rising&amp;expansionName=Chaos%20Rising">
-          <span class="home-preview-set-logo">CR</span><strong>Chaos Rising</strong><small>View top 10 <span aria-hidden="true">&#8594;</span></small>
-        </a>
-      </div>
-    </section>
-
-    <section class="home-preview-section home-preview-market" aria-labelledby="home-preview-market-title">
-      <div class="home-preview-section-heading">
-        <div>
-          <p class="home-preview-section-kicker">A quick market read</p>
-          <h2 id="home-preview-market-title">Market Movers</h2>
-        </div>
-        <a class="home-preview-inline-link home-preview-inline-link--heading" href="search.html">See more <span aria-hidden="true">&#8594;</span></a>
-      </div>
-
-      <div class="home-preview-market-list">
-        <a class="home-preview-market-row" href="search.html?cardId=preview-charizard-ex&amp;cardName=Charizard%20ex">
-          <span class="home-preview-market-art home-preview-card-art--blue" aria-hidden="true">PV</span>
-          <span class="home-preview-result-copy"><strong>Charizard ex</strong><small>Featured card</small></span>
-          <span class="home-preview-market-value"><strong>$128.40</strong><span class="home-preview-change home-preview-change--up">+6.2%</span></span>
-        </a>
-        <a class="home-preview-market-row" href="search.html?cardId=preview-pikachu-ex&amp;cardName=Pikachu%20ex">
-          <span class="home-preview-market-art home-preview-card-art--blue" aria-hidden="true">PV</span>
-          <span class="home-preview-result-copy"><strong>Pikachu ex</strong><small>Featured card</small></span>
-          <span class="home-preview-market-value"><strong>$86.10</strong><span class="home-preview-change home-preview-change--up">+3.8%</span></span>
-        </a>
-        <a class="home-preview-market-row" href="search.html?cardId=preview-umbreon-ex&amp;cardName=Umbreon%20ex">
-          <span class="home-preview-market-art home-preview-card-art--blue" aria-hidden="true">PV</span>
-          <span class="home-preview-result-copy"><strong>Umbreon ex</strong><small>Featured card</small></span>
-          <span class="home-preview-market-value"><strong>$214.75</strong><span class="home-preview-change home-preview-change--down">−2.1%</span></span>
-        </a>
-      </div>
-      <p class="home-preview-market-note">Sample market data shown for layout preview.</p>
+      <p class="home-preview-set-status" data-home-preview-recent-status role="status">Loading the latest sets...</p>
+      <div class="home-preview-set-rail" data-home-preview-recent-sets tabindex="0" aria-label="Recent sets. Scroll horizontally to browse."></div>
     </section>
 
     <section class="home-preview-account-cta" aria-labelledby="home-preview-account-title">
@@ -238,6 +174,6 @@
   <script src="firebase-config.js" defer></script>
   <script src="firebase-config.local.js" defer></script>
   <script src="firebase.js?v=2026-09-22-home-preview-auth-1" defer></script>
-  <script src="home-preview.js?v=2026-09-22-live-search-9" defer></script>
+  <script src="home-preview.js?v=2026-09-23-live-top-sets-3" defer></script>
 </body>
 </html>
