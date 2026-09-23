@@ -7,7 +7,7 @@
   const resultCount = document.querySelector('[data-home-preview-result-count]');
   const resultLink = document.querySelector('[data-home-preview-result-link]');
   const resultKicker = document.querySelector('[data-home-preview-result-kicker]');
-  const resultBadge = document.querySelector('[data-home-preview-result-badge]');
+  const clearButton = document.querySelector('[data-home-preview-clear]');
   const cardsResultPanel = document.querySelector('[data-home-preview-result-panel="cards"]');
   const sealedResultPanel = document.querySelector('[data-home-preview-result-panel="sealed"]');
   const resultPanels = Array.from(document.querySelectorAll('[data-home-preview-result-panel]'));
@@ -24,9 +24,8 @@
   const imageDialogClose = imageDialog?.querySelector('[data-home-preview-image-dialog-close]');
   const imageDialogTitle = imageDialog?.querySelector('[data-home-preview-image-dialog-title]');
   const liveSearchBase = (window.PV_SECRETS?.PV_API_URL || 'https://pokevalutor-v1.lreyperez18.workers.dev').replace(/\/$/, '');
-  let lastLiveCardQuery = '';
-  let lastLiveMode = 'cards';
-  let liveSearchRequestId = 0;
+  let activeMode = 'cards';
+  const liveSearchCache = { cards: null, sealed: null };
   let imageDialogReturnFocus = null;
   const authReady = new Promise((resolve) => {
     const authApi = window?.PV_AUTH;
@@ -139,16 +138,33 @@
 
   function updateSearchPreview(mode) {
     const isSealed = mode === 'sealed';
+    activeMode = isSealed ? 'sealed' : 'cards';
+    const cachedSearch = liveSearchCache[activeMode];
     for (const panel of resultPanels) {
       panel.hidden = panel.dataset.homePreviewResultPanel !== mode;
+    }
+
+    if (cachedSearch) {
+      resultTitle.textContent = cachedSearch.title;
+      resultCount.textContent = cachedSearch.resultCount;
+      resultKicker.textContent = 'Live search';
+      resultLink.textContent = cachedSearch.linkText;
+      resultLink.href = cachedSearch.linkHref;
+      clearButton.hidden = false;
+      input.value = cachedSearch.query;
+      status.textContent = cachedSearch.status;
+      setPreviewState(cachedSearch.state);
+      return;
     }
 
     resultTitle.textContent = isSealed ? 'Sealed Search Results' : 'Card Search Results';
     resultCount.textContent = isSealed ? 'Search for a sealed product above.' : 'Search for a card or number above.';
     resultKicker.textContent = 'Live search';
-    resultBadge.textContent = 'Live';
     resultLink.textContent = isSealed ? 'Open sealed search →' : 'Open card search →';
     resultLink.href = isSealed ? 'sealed.html' : 'search.html';
+    clearButton.hidden = true;
+    input.value = '';
+    setPreviewState('empty');
   }
 
   function formatLivePrice(value) {
@@ -447,121 +463,128 @@
   }
 
   async function runLiveCardSearch(query) {
-    const requestId = ++liveSearchRequestId;
-    lastLiveCardQuery = query;
-    resultKicker.textContent = 'Live search';
-    resultBadge.textContent = 'Live';
-    resultTitle.textContent = 'Top Card Matches';
-    resultCount.textContent = `Searching for “${query}”...`;
-    resultLink.textContent = 'View all card results →';
-    resultLink.href = `search.html?${new URLSearchParams({ query, source: 'home-preview' }).toString()}`;
-    status.textContent = `Searching cards for ${query}...`;
-    setPreviewState('loading');
+    const cacheEntry = {
+      query,
+      state: 'loading',
+      title: 'Top Card Matches',
+      resultCount: `Searching for “${query}”...`,
+      linkText: 'View all card results →',
+      linkHref: `search.html?${new URLSearchParams({ query, source: 'home-preview' }).toString()}`,
+      status: `Searching cards for ${query}...`,
+    };
+    liveSearchCache.cards = cacheEntry;
+    cardsResultPanel.replaceChildren();
+    if (activeMode === 'cards') updateSearchPreview('cards');
 
     try {
       const payload = await fetchLiveCards(query);
-      if (requestId !== liveSearchRequestId) return;
+      if (liveSearchCache.cards !== cacheEntry) return;
 
       const cards = Array.isArray(payload.cards) ? payload.cards.filter((card) => card?.id).slice(0, 3) : [];
       const totalCount = Number(payload.totalCount || cards.length);
       if (!cards.length) {
-        resultCount.textContent = `No card results for “${query}”`;
-        status.textContent = `No cards found for ${query}.`;
-        setPreviewState('empty');
+        cacheEntry.state = 'empty';
+        cacheEntry.resultCount = `No card results for “${query}”`;
+        cacheEntry.status = `No cards found for ${query}.`;
+        if (activeMode === 'cards') updateSearchPreview('cards');
         return;
       }
 
-      cardsResultPanel.replaceChildren();
       const priceTargets = cards.map((card, index) => {
         const rendered = createLiveCardRow(card, index);
         cardsResultPanel.append(rendered.row);
         return { card, ...rendered };
       });
-      resultCount.textContent = `${cards.length} of ${totalCount} results for “${query}”`;
-      status.textContent = `Live card results ready for ${query}.`;
-      setPreviewState('results');
+      cacheEntry.state = 'results';
+      cacheEntry.resultCount = `${cards.length} of ${totalCount} results for “${query}”`;
+      cacheEntry.status = `Live card results ready for ${query}.`;
+      if (activeMode === 'cards') updateSearchPreview('cards');
 
       await Promise.all(priceTargets.map(async ({ card, priceElement, priceLabel }) => {
         try {
           const price = await fetchLiveCardPrice(String(card.id));
-          if (requestId !== liveSearchRequestId) return;
+          if (liveSearchCache.cards !== cacheEntry) return;
           priceElement.textContent = price;
           priceLabel.textContent = price === 'No market price' ? 'Market value' : 'NM market';
         } catch {
-          if (requestId !== liveSearchRequestId) return;
+          if (liveSearchCache.cards !== cacheEntry) return;
           priceElement.textContent = 'Unavailable';
           priceLabel.textContent = 'Market value';
         }
       }));
     } catch (error) {
-      if (requestId !== liveSearchRequestId) return;
+      if (liveSearchCache.cards !== cacheEntry) return;
       console.warn('[PokeValutor] home preview search error', error);
-      resultCount.textContent = 'Live search is unavailable right now.';
-      status.textContent = 'Unable to load live card results. Please try again.';
-      setPreviewState('error');
+      cacheEntry.state = 'error';
+      cacheEntry.resultCount = 'Live search is unavailable right now.';
+      cacheEntry.status = 'Unable to load live card results. Please try again.';
+      if (activeMode === 'cards') updateSearchPreview('cards');
     }
   }
 
   async function runLiveSealedSearch(query) {
-    const requestId = ++liveSearchRequestId;
-    lastLiveCardQuery = query;
-    lastLiveMode = 'sealed';
-    resultKicker.textContent = 'Live search';
-    resultBadge.textContent = 'Live';
-    resultTitle.textContent = 'Sealed Search Results';
-    resultCount.textContent = `Searching for “${query}”...`;
-    resultLink.textContent = 'Open sealed search →';
-    resultLink.href = 'sealed.html';
-    status.textContent = `Searching sealed products for ${query}...`;
-    setPreviewState('loading');
+    const cacheEntry = {
+      query,
+      state: 'loading',
+      title: 'Sealed Search Results',
+      resultCount: `Searching for “${query}”...`,
+      linkText: 'Open sealed search →',
+      linkHref: 'sealed.html',
+      status: `Searching sealed products for ${query}...`,
+    };
+    liveSearchCache.sealed = cacheEntry;
+    sealedResultPanel.replaceChildren();
+    if (activeMode === 'sealed') updateSearchPreview('sealed');
 
     try {
       const searchQuery = `name:"${query.replace(/"/g, '\\"')}"`;
-      const params = new URLSearchParams({ q: searchQuery, page: '1', pageSize: '10', searchVersion: 'v2', consumeQuota: '1', cache: 'no-store' });
+      const params = new URLSearchParams({ q: searchQuery, page: '1', pageSize: '10', searchVersion: 'v3', consumeQuota: '1', cache: 'no-store' });
       const response = await fetchWithAuth(`${liveSearchBase}/sealed/search?${params.toString()}`);
       if (!response.ok) throw new Error(`Sealed search request failed with ${response.status}`);
       const payload = await response.json();
-      if (requestId !== liveSearchRequestId) return;
+      if (liveSearchCache.sealed !== cacheEntry) return;
 
       const products = Array.isArray(payload?.data)
         ? payload.data.filter((product) => product?.id && isEnglishSealedProduct(product)).slice(0, 3)
         : [];
       const totalCount = Number(payload?.totalCount || products.length);
       if (!products.length) {
-        resultCount.textContent = `No sealed results for “${query}”`;
-        status.textContent = `No sealed products found for ${query}.`;
-        setPreviewState('empty');
+        cacheEntry.state = 'empty';
+        cacheEntry.resultCount = `No sealed results for “${query}”`;
+        cacheEntry.status = `No sealed products found for ${query}.`;
+        if (activeMode === 'sealed') updateSearchPreview('sealed');
         return;
       }
 
-      sealedResultPanel.replaceChildren();
       const priceTargets = products.map((product, index) => {
         const rendered = createLiveSealedRow(product, index);
         sealedResultPanel.append(rendered.row);
         return { product, ...rendered };
       });
-      resultCount.textContent = `${products.length} of ${totalCount} sealed results for “${query}”`;
-      status.textContent = `Live sealed results ready for ${query}.`;
-      setPreviewState('results');
+      cacheEntry.state = 'results';
+      cacheEntry.resultCount = `${products.length} of ${totalCount} sealed results for “${query}”`;
+      cacheEntry.status = `Live sealed results ready for ${query}.`;
+      if (activeMode === 'sealed') updateSearchPreview('sealed');
 
       await Promise.all(priceTargets.map(async ({ product, priceElement, priceLabel, productId }) => {
         try {
           const price = await fetchLiveSealedPrice(productId);
-          if (requestId !== liveSearchRequestId) return;
+          if (liveSearchCache.sealed !== cacheEntry) return;
           priceElement.textContent = price;
           priceLabel.textContent = 'Market value';
         } catch {
-          if (requestId !== liveSearchRequestId) return;
+          if (liveSearchCache.sealed !== cacheEntry) return;
           priceElement.textContent = 'Unavailable';
           priceLabel.textContent = 'Market value';
         }
       }));
     } catch (error) {
-      if (requestId !== liveSearchRequestId) return;
+      if (liveSearchCache.sealed !== cacheEntry) return;
       console.warn('[PokeValutor] home preview sealed search error', error);
-      resultCount.textContent = 'Live sealed search is unavailable right now.';
-      status.textContent = 'Unable to load live sealed results. Please try again.';
-      setPreviewState('error');
+      cacheEntry.state = 'error';
+      cacheEntry.resultCount = 'Live sealed search is unavailable right now.';
+      cacheEntry.status = 'Unable to load live sealed results. Please try again.';
+      if (activeMode === 'sealed') updateSearchPreview('sealed');
     }
   }
 
@@ -612,8 +635,6 @@
       input.placeholder = mode === 'sealed' ? 'Search sealed products' : 'Search card name or number';
       input.setAttribute('aria-label', mode === 'sealed' ? 'Search sealed products' : 'Search cards or sealed products');
       updateSearchPreview(mode);
-      setPreviewState('empty');
-      status.textContent = '';
     });
   }
 
@@ -624,12 +645,23 @@
   }
 
   retryButton?.addEventListener('click', function () {
-    if (lastLiveCardQuery) {
-      void (lastLiveMode === 'sealed' ? runLiveSealedSearch(lastLiveCardQuery) : runLiveCardSearch(lastLiveCardQuery));
+    const cachedSearch = liveSearchCache[activeMode];
+    if (cachedSearch?.query) {
+      void (activeMode === 'sealed' ? runLiveSealedSearch(cachedSearch.query) : runLiveCardSearch(cachedSearch.query));
       return;
     }
     setPreviewState('empty');
     status.textContent = 'Enter a search to try again.';
+  });
+
+  clearButton?.addEventListener('click', function () {
+    const mode = activeMode;
+    liveSearchCache[mode] = null;
+    (mode === 'sealed' ? sealedResultPanel : cardsResultPanel).replaceChildren();
+    input.value = '';
+    updateSearchPreview(mode);
+    status.textContent = '';
+    input.focus();
   });
 
   for (const tab of setTabs) {
@@ -645,7 +677,6 @@
     const query = input.value.trim();
 
     if (query) {
-      lastLiveMode = mode;
       void (mode === 'sealed' ? runLiveSealedSearch(query) : runLiveCardSearch(query));
       return;
     }

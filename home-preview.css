@@ -487,6 +487,24 @@ a { color: inherit; }
 
 .home-preview-results .home-preview-section-heading { margin-bottom: 0.9rem; }
 
+.home-preview-clear-button {
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--preview-line);
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--preview-muted);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.home-preview-clear-button:hover,
+.home-preview-clear-button:focus-visible {
+  border-color: #b94b4b;
+  color: #ef8b8b;
+}
+
 .home-preview-state-switch {
   display: flex;
   gap: 0.35rem;
