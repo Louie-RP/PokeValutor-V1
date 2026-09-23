@@ -6916,12 +6916,14 @@ document.addEventListener('DOMContentLoaded', function () {
     let deepLinkExpansionName = '';
     let deepLinkCardId = '';
     let deepLinkCardName = '';
+    let deepLinkQuery = '';
     try {
         const params = new URLSearchParams(window.location.search || '');
         deepLinkExpansionId = params.get('expansionId') || '';
         deepLinkExpansionName = params.get('expansionName') || '';
         deepLinkCardId = params.get('cardId') || '';
         deepLinkCardName = params.get('cardName') || '';
+        deepLinkQuery = params.get('query') || '';
     } catch {
         // ignore
     }
@@ -6940,6 +6942,9 @@ document.addEventListener('DOMContentLoaded', function () {
             void searchByCardId(deepLinkCardId, deepLinkCardName);
         } else if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+        } else if (deepLinkQuery) {
+            if (input) input.value = deepLinkQuery;
+            void searchByName(deepLinkQuery);
         } else {
             clearResultsUI();
         }
@@ -6998,6 +7003,9 @@ document.addEventListener('DOMContentLoaded', function () {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName, {
                 preserveExistingResults: restoredMatchingDeepLinkExpansion,
             });
+        } else if (deepLinkQuery) {
+            if (input) input.value = deepLinkQuery;
+            void searchByName(deepLinkQuery);
         }
     }
 
