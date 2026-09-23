@@ -978,6 +978,70 @@
     return `${fieldName}:${term}`;
   }
 
+  function toLiveWildcardToken(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function buildLiveCardNameCandidates(rawName) {
+    const raw = String(rawName || '').trim();
+    if (!raw) return [];
+    const candidates = [];
+    const seen = new Set();
+    const push = (value) => {
+      const query = String(value || '').trim();
+      if (query && !seen.has(query)) {
+        seen.add(query);
+        candidates.push(query);
+      }
+    };
+
+    push(buildLiveFieldQuery('name', raw));
+    const canonicalName = raw.replace(/\bpoke\b/gi, (match) => match[0] === match[0].toUpperCase() ? 'Poké' : 'poké');
+    if (canonicalName !== raw) push(buildLiveFieldQuery('name', canonicalName));
+
+    const tokens = raw.split(/\s+/).map(toLiveWildcardToken).filter(Boolean);
+    if (tokens.length) {
+      push(tokens.map((token) => `name:${token}*`).join(' '));
+      if (tokens.length === 1 && tokens[0].length >= 4) push(`name:${tokens[0].slice(0, 3)}*`);
+    }
+    return candidates;
+  }
+
+  function singularizeLiveToken(value) {
+    const token = String(value || '').trim().toLowerCase();
+    if (token.length >= 5 && token.endsWith('ies')) return `${token.slice(0, -3)}y`;
+    if (token.length >= 4 && token.endsWith('es')) return token.slice(0, -2);
+    if (token.length >= 4 && token.endsWith('s') && !token.endsWith('ss')) return token.slice(0, -1);
+    return token;
+  }
+
+  function buildLiveSealedNameCandidates(rawName) {
+    const raw = String(rawName || '').trim();
+    if (!raw) return [];
+    const candidates = [];
+    const seen = new Set();
+    const push = (value) => {
+      const query = String(value || '').trim();
+      if (query && !seen.has(query)) {
+        seen.add(query);
+        candidates.push(query);
+      }
+    };
+    const escaped = raw.replace(/"/g, '\\"');
+    push(`name:"${escaped}"`);
+
+    const tokens = raw.split(/\s+/).map(toLiveWildcardToken).filter(Boolean);
+    if (!tokens.length) return candidates;
+    const singularPhrase = tokens.map((token) => singularizeLiveToken(token) || token).join(' ');
+    if (singularPhrase.toLowerCase() !== raw.toLowerCase()) push(`name:"${singularPhrase}"`);
+    const wildcardTokens = tokens.map((token) => {
+      const singular = singularizeLiveToken(token) || token;
+      return singular === token ? `name:${token}*` : `(name:${token}* OR name:${singular}*)`;
+    });
+    push(wildcardTokens.join(' AND '));
+    return candidates;
+  }
+
   function isLiveCardNumberQuery(value) {
     const query = String(value || '').trim().toUpperCase();
     return /^\d{1,4}$/.test(query)
@@ -1027,11 +1091,15 @@
   async function fetchLiveCards(query) {
     const pageSize = 15;
     if (!isLiveCardNumberQuery(query)) {
-      const payload = await fetchLiveCardSearchPage(query, pageSize, true);
-      return {
-        cards: Array.isArray(payload?.data) ? payload.data : [],
-        totalCount: Number(payload?.totalCount || 0),
-      };
+      const candidates = buildLiveCardNameCandidates(query);
+      let lastPayload = null;
+      for (const candidate of candidates) {
+        const payload = await fetchLiveCardSearchPage(candidate, pageSize, true);
+        lastPayload = payload;
+        const cards = Array.isArray(payload?.data) ? payload.data : [];
+        if (cards.length) return { cards, totalCount: Number(payload?.totalCount || cards.length) };
+      }
+      return { cards: [], totalCount: Number(lastPayload?.totalCount || 0) };
     }
 
     const cards = [];
@@ -1167,11 +1235,15 @@
     if (activeMode === 'sealed') updateSearchPreview('sealed');
 
     try {
-      const searchQuery = `name:"${query.replace(/"/g, '\\"')}"`;
-      const params = new URLSearchParams({ q: searchQuery, page: '1', pageSize: '10', searchVersion: 'v3', consumeQuota: '1', cache: 'no-store' });
-      const response = await fetchWithAuth(`${liveSearchBase}/sealed/search?${params.toString()}`);
-      if (!response.ok) throw new Error(`Sealed search request failed with ${response.status}`);
-      const payload = await response.json();
+      const candidates = buildLiveSealedNameCandidates(query);
+      let payload = null;
+      for (const searchQuery of candidates) {
+        const params = new URLSearchParams({ q: searchQuery, page: '1', pageSize: '10', searchVersion: 'v3', consumeQuota: '1', cache: 'no-store' });
+        const response = await fetchWithAuth(`${liveSearchBase}/sealed/search?${params.toString()}`);
+        if (!response.ok) throw new Error(`Sealed search request failed with ${response.status}`);
+        payload = await response.json();
+        if (Array.isArray(payload?.data) && payload.data.some((product) => product?.id && isEnglishSealedProduct(product))) break;
+      }
       if (liveSearchCache.sealed !== cacheEntry) return;
 
       const products = Array.isArray(payload?.data)
