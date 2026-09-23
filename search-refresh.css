@@ -1,0 +1,758 @@
+/* Card Search visual refresh
+   Presentation-only overrides that align search.html with home-preview.html.
+   Existing IDs, JavaScript hooks, search behavior, prices, Trade, and Watchlist remain unchanged. */
+
+#pv-search-body.pv-searchRefresh {
+  --search-bg: #080809;
+  --search-surface: #111114;
+  --search-surface-dark: #0b0b0e;
+  --search-surface-raised: #18181d;
+  --search-text: #f7f7f8;
+  --search-muted: #aaaab4;
+  --search-line: #2d2d37;
+  --search-line-strong: #4a4a56;
+  --search-yellow: #ffcb05;
+  --search-yellow-hover: #ffda3d;
+  --search-yellow-ink: #171300;
+  --search-danger: #ff9c86;
+  --search-heading: "Playfair Display", Georgia, serif;
+  --search-body: "DM Sans", "Space Grotesk", system-ui, sans-serif;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(255, 203, 5, 0.08), transparent 28rem),
+    var(--search-bg);
+  color: var(--search-text);
+  font-family: var(--search-body);
+}
+
+#pv-search-body.pv-searchRefresh .container {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+/* Header */
+#pv-search-body.pv-searchRefresh .pv-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: 4.7rem;
+  border-bottom: 1px solid var(--search-line);
+  background: rgba(8, 8, 9, 0.94);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+#pv-search-body.pv-searchRefresh .pv-header__inner {
+  width: min(100% - 2rem, 72rem);
+  min-height: 4.7rem;
+  margin: 0 auto;
+  padding: 0;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchRefresh__brand {
+  position: relative;
+  display: block;
+  width: 7rem;
+  height: 3.4rem;
+  min-width: 0;
+  overflow: hidden;
+  color: transparent;
+  font-size: 0;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchRefresh__brand img {
+  position: absolute;
+  top: -0.45rem;
+  left: -0.35rem;
+  width: 7.7rem;
+  max-width: none;
+  height: auto;
+}
+
+#pv-search-body.pv-searchRefresh .pv-nav__list {
+  gap: 0.25rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-nav__link {
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: var(--search-muted);
+  font-family: var(--search-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+#pv-search-body.pv-searchRefresh .pv-nav__link:hover,
+#pv-search-body.pv-searchRefresh .pv-nav__link:focus-visible {
+  background: var(--search-surface);
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-nav__link[aria-current="page"] {
+  background: rgba(255, 203, 5, 0.14);
+  color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-navToggle {
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--search-surface-raised);
+}
+
+#pv-search-body.pv-searchRefresh .pv-navToggle:hover {
+  border-color: var(--search-line-strong);
+}
+
+#pv-search-body.pv-searchRefresh .pv-navToggle__bar {
+  background: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-auth-menu__trigger {
+  border-color: transparent;
+  background: var(--search-surface-raised);
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-auth-menu__trigger:hover,
+#pv-search-body.pv-searchRefresh .pv-auth-menu__trigger[aria-expanded="true"] {
+  border-color: var(--search-yellow);
+  color: var(--search-yellow);
+}
+
+/* Page introduction */
+#pv-search-body.pv-searchRefresh .pv-main {
+  min-height: calc(100vh - 5rem);
+  padding-bottom: 0;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero {
+  margin: 0 auto;
+  padding-top: clamp(3rem, 7vw, 5.5rem);
+  padding-bottom: clamp(2rem, 4vw, 3.25rem);
+  text-align: center;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero__eyebrow,
+#pv-search-body.pv-searchRefresh .pv-searchPanel__kicker {
+  margin: 0 0 0.65rem;
+  color: var(--search-yellow);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero .pv-hero__title {
+  max-width: 52rem;
+  margin: 0 auto;
+  color: var(--search-text);
+  font-family: var(--search-heading);
+  font-size: clamp(2.35rem, 6vw, 4.25rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero .pv-hero__title em {
+  color: var(--search-yellow);
+  font-style: normal;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero .pv-hero__subtitle {
+  max-width: 38rem;
+  margin: 1rem auto 0;
+  color: var(--search-muted);
+  font-family: var(--search-body);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero__chips {
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.35rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchHero__chip {
+  min-height: 2rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--search-line);
+  border-radius: 999px;
+  background: rgba(17, 17, 20, 0.8);
+  color: var(--search-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+/* Search workspace */
+#pv-search-body.pv-searchRefresh .pv-searchWorkspace {
+  display: grid;
+  gap: 2rem;
+  margin: 0 auto;
+  padding-top: 0;
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchPanel,
+#pv-search-body.pv-searchRefresh #pv-trade,
+#pv-search-body.pv-searchRefresh #pv-favorites {
+  margin: 0;
+  padding: clamp(1rem, 2.5vw, 1.6rem);
+  border: 1px solid var(--search-line);
+  border-radius: 1.2rem;
+  background: rgba(17, 17, 20, 0.92);
+  box-shadow: none;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchPanel__header,
+#pv-search-body.pv-searchRefresh #pv-trade > .pv-section__header,
+#pv-search-body.pv-searchRefresh #pv-favorites > .pv-section__header {
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchPanel__header .pv-section__title,
+#pv-search-body.pv-searchRefresh #pv-search-results .pv-section__title,
+#pv-search-body.pv-searchRefresh #pv-trade .pv-section__title,
+#pv-search-body.pv-searchRefresh #pv-favorites .pv-section__title {
+  margin: 0;
+  color: var(--search-text);
+  font-family: var(--search-heading);
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchPanel__intro {
+  max-width: 43rem;
+  margin: 0.45rem 0 0;
+  color: var(--search-muted);
+  font-size: 0.88rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-form {
+  --bs-gutter-x: 0.8rem;
+  --bs-gutter-y: 0.9rem;
+  margin-right: calc(-0.5 * var(--bs-gutter-x));
+  margin-left: calc(-0.5 * var(--bs-gutter-x));
+}
+
+#pv-search-body.pv-searchRefresh .form-label {
+  margin-bottom: 0.45rem;
+  color: var(--search-muted);
+  font-family: var(--search-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#pv-search-body.pv-searchRefresh .form-control,
+#pv-search-body.pv-searchRefresh .form-select {
+  min-height: 3.35rem;
+  border: 1px solid #3b3b46;
+  border-radius: 0.8rem;
+  background-color: #0c0c0f;
+  color: var(--search-text);
+  font-family: var(--search-body);
+  box-shadow: none;
+}
+
+#pv-search-body.pv-searchRefresh .form-control::placeholder {
+  color: #797984;
+}
+
+#pv-search-body.pv-searchRefresh .form-control:focus,
+#pv-search-body.pv-searchRefresh .form-select:focus {
+  border-color: var(--search-yellow);
+  outline: 2px solid rgba(255, 203, 5, 0.24);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+#pv-search-body.pv-searchRefresh .form-select:disabled {
+  border-color: #292931;
+  background-color: #0a0a0c;
+  color: #6f6f78;
+  opacity: 1;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchFieldHeader {
+  align-items: center;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchSeriesSetToggle {
+  color: var(--search-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+#pv-search-body.pv-searchRefresh .pv-searchSeriesSetToggle input {
+  accent-color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-button,
+#pv-search-body.pv-searchRefresh .btn {
+  min-height: 2.85rem;
+  border-radius: 0.7rem;
+  font-family: var(--search-body);
+  font-weight: 700;
+  box-shadow: none;
+  text-transform: none;
+}
+
+#pv-search-body.pv-searchRefresh .pv-button--primary,
+#pv-search-body.pv-searchRefresh #pv-search-submit,
+#pv-search-body.pv-searchRefresh #pv-trade-apply-percent-button {
+  border-color: var(--search-yellow);
+  background: var(--search-yellow);
+  color: var(--search-yellow-ink);
+}
+
+#pv-search-body.pv-searchRefresh .pv-button--primary:hover,
+#pv-search-body.pv-searchRefresh #pv-search-submit:hover,
+#pv-search-body.pv-searchRefresh #pv-trade-apply-percent-button:hover {
+  border-color: var(--search-yellow-hover);
+  background: var(--search-yellow-hover);
+  color: var(--search-yellow-ink);
+}
+
+#pv-search-body.pv-searchRefresh .pv-button--secondary,
+#pv-search-body.pv-searchRefresh #pv-search-toggle,
+#pv-search-body.pv-searchRefresh #pv-favorites-toggle {
+  border-color: var(--search-line-strong);
+  background: var(--search-surface-raised);
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-button--secondary:hover,
+#pv-search-body.pv-searchRefresh #pv-search-toggle:hover,
+#pv-search-body.pv-searchRefresh #pv-favorites-toggle:hover {
+  border-color: #666673;
+  background: #202027;
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-button--danger {
+  border-color: #77463c;
+  background: rgba(119, 70, 60, 0.25);
+  color: var(--search-danger);
+}
+
+#pv-search-body.pv-searchRefresh .pv-search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.15rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-search-actions .ms-2 {
+  margin-left: 0 !important;
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilterRow {
+  align-items: center;
+  gap: 0.55rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilter__summary {
+  min-height: 2.7rem;
+  border: 1px solid var(--search-line-strong);
+  border-radius: 999px;
+  background: var(--search-surface-dark);
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilter[open] .pv-conditionFilter__summary {
+  border-color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilter__menu {
+  border-color: var(--search-line);
+  border-radius: 0.8rem;
+  background: var(--search-surface-dark);
+  color: var(--search-text);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilter__option:hover {
+  background: var(--search-surface-raised);
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilter__option input {
+  accent-color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-conditionFilter__tip {
+  border-color: var(--search-line-strong);
+  background: var(--search-surface-dark);
+  color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh #pv-search-status {
+  min-height: 1.4rem;
+  margin-top: 0.9rem;
+  color: var(--search-yellow);
+  font-size: 0.86rem;
+}
+
+/* Results */
+#pv-search-body.pv-searchRefresh #pv-search-results {
+  margin: 1.6rem -0.15rem -0.15rem;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  border: 1px solid var(--search-line);
+  border-radius: 0.95rem;
+  background: var(--search-surface-dark);
+}
+
+#pv-search-body.pv-searchRefresh #pv-search-results > .pv-section__header {
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-sortRow,
+#pv-search-body.pv-searchRefresh #pv-favorites .pv-section__header > div,
+#pv-search-body.pv-searchRefresh .pv-trade__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.55rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-sortSelect {
+  width: auto;
+  min-width: 8.25rem;
+  min-height: 2.65rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-sortLabel {
+  margin: 0;
+}
+
+#pv-search-body.pv-searchRefresh #pv-search-grid,
+#pv-search-body.pv-searchRefresh #pv-favorites-grid,
+#pv-search-body.pv-searchRefresh #pv-trade-grid {
+  --bs-gutter-x: 0.9rem;
+  --bs-gutter-y: 0.9rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-card {
+  overflow: hidden;
+  border: 1px solid var(--search-line);
+  border-radius: 0.9rem;
+  background: var(--search-surface);
+  color: var(--search-text);
+  box-shadow: none;
+}
+
+#pv-search-body.pv-searchRefresh .pv-card:hover {
+  border-color: var(--search-line-strong);
+  transform: translateY(-2px);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__imgLink {
+  background: #050506;
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__img {
+  background: #050506;
+  object-fit: contain;
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__body {
+  padding: 0.9rem;
+  background: var(--search-surface);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__title,
+#pv-search-body.pv-searchRefresh .pv-card__titleLink {
+  color: var(--search-text);
+  font-family: var(--search-body);
+  font-weight: 700;
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__titleLink:hover {
+  color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__text,
+#pv-search-body.pv-searchRefresh .pv-card__setName,
+#pv-search-body.pv-searchRefresh .pv-card__rarity,
+#pv-search-body.pv-searchRefresh .text-muted {
+  color: var(--search-muted) !important;
+}
+
+#pv-search-body.pv-searchRefresh .pv-priceLine {
+  border-color: var(--search-line);
+  background: var(--search-surface-dark);
+}
+
+#pv-search-body.pv-searchRefresh .pv-priceLine__condition {
+  color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-priceToken {
+  border-color: var(--search-line);
+  background: var(--search-surface-raised);
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-priceToken--market {
+  border-color: rgba(255, 203, 5, 0.45);
+}
+
+#pv-search-body.pv-searchRefresh .pv-priceToken__label,
+#pv-search-body.pv-searchRefresh .pv-priceMessage {
+  color: var(--search-muted);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__actions {
+  gap: 0.45rem;
+  padding-top: 0.75rem;
+  border-top-color: var(--search-line);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__actions .btn,
+#pv-search-body.pv-searchRefresh .pv-card__moreBtn {
+  min-height: 2.55rem;
+  border-color: var(--search-line-strong);
+  border-radius: 0.6rem;
+  background: var(--search-surface-raised);
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__actions .btn:hover,
+#pv-search-body.pv-searchRefresh .pv-card__moreBtn:hover {
+  border-color: var(--search-yellow);
+  color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-card__actionsMenu {
+  border-color: var(--search-line);
+  border-radius: 0.75rem;
+  background: var(--search-surface-dark);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+}
+
+#pv-search-body.pv-searchRefresh .pv-loadMoreWrap {
+  margin-top: 1.25rem;
+}
+
+#pv-search-body.pv-searchRefresh #pv-search-load-more {
+  min-width: 11rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-quotaBanner {
+  margin-bottom: 1rem;
+  border: 1px solid #655509;
+  border-radius: 0.8rem;
+  background: rgba(57, 47, 11, 0.48);
+  color: var(--search-text);
+}
+
+/* Trade and Watchlist */
+#pv-search-body.pv-searchRefresh #pv-trade,
+#pv-search-body.pv-searchRefresh #pv-favorites {
+  scroll-margin-top: 6rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-trade__summary {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--search-line);
+  border-radius: 0.85rem;
+  background: var(--search-surface-dark);
+}
+
+#pv-search-body.pv-searchRefresh .pv-trade__remaining,
+#pv-search-body.pv-searchRefresh .pv-tradeTotals__trade,
+#pv-search-body.pv-searchRefresh .pv-tradeTotals__targetMet {
+  color: var(--search-yellow);
+}
+
+#pv-search-body.pv-searchRefresh .pv-trade__goalDivider {
+  border-color: var(--search-line);
+  opacity: 1;
+}
+
+#pv-search-body.pv-searchRefresh .pv-tradeCard__remove {
+  border-color: #77463c;
+  background: rgba(119, 70, 60, 0.35);
+  color: var(--search-danger);
+}
+
+#pv-search-body.pv-searchRefresh #pv-favorites .ms-2 {
+  margin-left: 0 !important;
+}
+
+/* Footer */
+#pv-search-body.pv-searchRefresh .pv-footer {
+  border-top: 1px solid var(--search-line);
+  background: #09090b;
+  color: var(--search-muted);
+}
+
+#pv-search-body.pv-searchRefresh .pv-footer__inner {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+}
+
+#pv-search-body.pv-searchRefresh .pv-footer a {
+  color: var(--search-muted);
+}
+
+#pv-search-body.pv-searchRefresh .pv-footer a:hover {
+  color: var(--search-text);
+}
+
+#pv-search-body.pv-searchRefresh .pv-scroll-top {
+  border-color: var(--search-yellow);
+  background: var(--search-yellow);
+  color: var(--search-yellow-ink);
+}
+
+/* Accessible focus treatment */
+#pv-search-body.pv-searchRefresh a:focus-visible,
+#pv-search-body.pv-searchRefresh button:focus-visible,
+#pv-search-body.pv-searchRefresh input:focus-visible,
+#pv-search-body.pv-searchRefresh select:focus-visible,
+#pv-search-body.pv-searchRefresh summary:focus-visible,
+#pv-search-body.pv-searchRefresh [role="button"]:focus-visible {
+  outline: 3px solid var(--search-yellow);
+  outline-offset: 3px;
+}
+
+@media (min-width: 768px) {
+  #pv-search-body.pv-searchRefresh .pv-header,
+  #pv-search-body.pv-searchRefresh .pv-header__inner {
+    min-height: 5.6rem;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchHero {
+    padding-top: clamp(3.5rem, 6vw, 5rem);
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchPanel {
+    padding: 1.6rem;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchField--query,
+  #pv-search-body.pv-searchRefresh .pv-searchField--series,
+  #pv-search-body.pv-searchRefresh .pv-searchField--set {
+    width: 33.333333%;
+  }
+}
+
+@media (max-width: 767px) {
+  #pv-search-body.pv-searchRefresh .pv-header__inner {
+    width: min(100% - 2rem, 72rem);
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-nav {
+    border-top-color: var(--search-line);
+    background: var(--search-bg);
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-nav__link {
+    min-height: 2.8rem;
+    display: flex;
+    align-items: center;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchHero {
+    padding-top: 2.7rem;
+    padding-bottom: 1.8rem;
+    text-align: left;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchHero__chips {
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchHero__chip {
+    flex: 0 0 auto;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchPanel__header,
+  #pv-search-body.pv-searchRefresh #pv-trade > .pv-section__header,
+  #pv-search-body.pv-searchRefresh #pv-favorites > .pv-section__header,
+  #pv-search-body.pv-searchRefresh #pv-search-results > .pv-section__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #pv-search-body.pv-searchRefresh #pv-search-toggle,
+  #pv-search-body.pv-searchRefresh #pv-trade-toggle,
+  #pv-search-body.pv-searchRefresh #pv-trade-clear {
+    width: 100%;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-search-actions .btn {
+    flex: 1 1 9rem;
+  }
+
+  #pv-search-body.pv-searchRefresh #pv-search-results {
+    margin-top: 1.2rem;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-sortRow,
+  #pv-search-body.pv-searchRefresh #pv-favorites .pv-section__header > div,
+  #pv-search-body.pv-searchRefresh .pv-trade__controls {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-sortRow .form-select,
+  #pv-search-body.pv-searchRefresh #pv-favorites .pv-section__header > div .form-select {
+    flex: 1 1 9rem;
+  }
+
+  #pv-search-body.pv-searchRefresh #pv-favorites .pv-section__header > div .btn {
+    flex: 1 1 7rem;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-trade__bulk,
+  #pv-search-body.pv-searchRefresh .pv-trade__bulkActions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  #pv-search-body.pv-searchRefresh .container,
+  #pv-search-body.pv-searchRefresh .pv-header__inner,
+  #pv-search-body.pv-searchRefresh .pv-footer__inner {
+    width: min(100% - 1.5rem, 72rem);
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchHero .pv-hero__title {
+    font-size: 2.35rem;
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-searchPanel,
+  #pv-search-body.pv-searchRefresh #pv-trade,
+  #pv-search-body.pv-searchRefresh #pv-favorites {
+    padding: 0.9rem;
+    border-radius: 1rem;
+  }
+
+  #pv-search-body.pv-searchRefresh #pv-search-results {
+    padding: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pv-search-body.pv-searchRefresh *,
+  #pv-search-body.pv-searchRefresh *::before,
+  #pv-search-body.pv-searchRefresh *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
