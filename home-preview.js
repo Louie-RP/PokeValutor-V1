@@ -8,6 +8,7 @@
   const resultLink = document.querySelector('[data-home-preview-result-link]');
   const resultKicker = document.querySelector('[data-home-preview-result-kicker]');
   const clearButton = document.querySelector('[data-home-preview-clear]');
+  const resultsSection = document.querySelector('[data-home-preview-results]');
   const cardsResultPanel = document.querySelector('[data-home-preview-result-panel="cards"]');
   const sealedResultPanel = document.querySelector('[data-home-preview-result-panel="sealed"]');
   const resultPanels = Array.from(document.querySelectorAll('[data-home-preview-result-panel]'));
@@ -156,10 +157,15 @@
     }
   });
 
+  function setResultsSectionVisibility(isVisible) {
+    if (resultsSection) resultsSection.hidden = !isVisible;
+  }
+
   function updateSearchPreview(mode, options = {}) {
     const isSealed = mode === 'sealed';
     activeMode = isSealed ? 'sealed' : 'cards';
     const cachedSearch = liveSearchCache[activeMode];
+    setResultsSectionVisibility(cachedSearch?.state === 'loading' || cachedSearch?.state === 'results');
     for (const panel of resultPanels) {
       panel.hidden = panel.dataset.homePreviewResultPanel !== mode;
     }
