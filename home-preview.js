@@ -14,9 +14,12 @@
   const stateButtons = Array.from(document.querySelectorAll('[data-home-preview-state]'));
   const statePanels = Array.from(document.querySelectorAll('[data-home-preview-state-panel]'));
   const retryButton = document.querySelector('[data-home-preview-retry]');
-  const setTabs = Array.from(document.querySelectorAll('[data-home-preview-set]'));
-  const topCards = Array.from(document.querySelectorAll('.home-preview-top-card'));
-  const viewSetLink = document.querySelector('[data-home-preview-view-set]');
+  const setTabsContainer = document.querySelector('[data-home-preview-set-tabs]');
+  const setPanelsContainer = document.querySelector('[data-home-preview-set-panels]');
+  const setStatus = document.querySelector('[data-home-preview-set-status]');
+  const setTabsWrapper = document.querySelector('.home-preview-set-tabs-wrap');
+  const recentSetsContainer = document.querySelector('[data-home-preview-recent-sets]');
+  const recentSetsStatus = document.querySelector('[data-home-preview-recent-status]');
   const menuButton = document.getElementById('home-preview-menu-button');
   const navigation = document.getElementById('home-preview-nav');
   const imageDialog = document.querySelector('[data-home-preview-image-dialog]');
@@ -26,6 +29,7 @@
   const liveSearchBase = (window.PV_SECRETS?.PV_API_URL || 'https://pokevalutor-v1.lreyperez18.workers.dev').replace(/\/$/, '');
   let activeMode = 'cards';
   const liveSearchCache = { cards: null, sealed: null };
+  const liveSearchStorageKey = 'pv:home-preview:search-cache:v1';
   let imageDialogReturnFocus = null;
   const authReady = new Promise((resolve) => {
     const authApi = window?.PV_AUTH;
@@ -49,35 +53,51 @@
     }
   });
 
-  const setPreviewData = {
-    celebration: {
-      name: '30th Celebration',
-      id: 'preview-celebration',
-      cards: [
-        { art: 'blue', mark: '30', name: 'Top Card #1', number: 'Card 001', price: '$198.40' },
-        { art: 'violet', mark: '30', name: 'Top Card #2', number: 'Card 002', price: '$146.25' },
-        { art: 'red', mark: '30', name: 'Top Card #3', number: 'Card 003', price: '$119.80' },
-      ],
-    },
-    'pitch-black': {
-      name: 'Pitch Black',
-      id: 'preview-pitch-black',
-      cards: [
-        { art: 'violet', mark: 'PB', name: 'Umbreon ex', number: 'Card 098', price: '$174.20' },
-        { art: 'blue', mark: 'PB', name: 'Darkrai VSTAR', number: 'Card 071', price: '$132.80' },
-        { art: 'red', mark: 'PB', name: 'Houndoom ex', number: 'Card 044', price: '$109.45' },
-      ],
-    },
-    'chaos-rising': {
-      name: 'Chaos Rising',
-      id: 'preview-chaos-rising',
-      cards: [
-        { art: 'red', mark: 'CR', name: 'Rayquaza ex', number: 'Card 121', price: '$188.90' },
-        { art: 'blue', mark: 'CR', name: 'Mew ex', number: 'Card 089', price: '$128.35' },
-        { art: 'violet', mark: 'CR', name: 'Gardevoir ex', number: 'Card 076', price: '$104.60' },
-      ],
-    },
-  };
+  let latestSetSpotlights = [];
+  let activeSetId = '';
+  function readLiveSearchCache() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(liveSearchStorageKey) || 'null');
+      if (!parsed || typeof parsed !== 'object') return {};
+      return ['cards', 'sealed'].reduce((cache, mode) => {
+        const entry = parsed[mode];
+        if (entry && typeof entry.query === 'string' && ['results', 'empty', 'error'].includes(entry.state)) {
+          const items = mode === 'sealed' ? entry.products : entry.cards;
+          if (entry.state === 'results' && (!Array.isArray(items) || !items.length)) {
+            entry.state = 'empty';
+            entry.resultCount = mode === 'sealed'
+              ? `No sealed results for “${entry.query}”`
+              : `No card results for “${entry.query}”`;
+            entry.status = mode === 'sealed'
+              ? `No sealed products found for ${entry.query}.`
+              : `No cards found for ${entry.query}.`;
+          }
+          if (entry.state === 'empty') {
+            entry.resultCount = mode === 'sealed'
+              ? `No sealed results for “${entry.query}”`
+              : `No card results for “${entry.query}”`;
+            entry.status = mode === 'sealed'
+              ? `No sealed products found for ${entry.query}.`
+              : `No cards found for ${entry.query}.`;
+          }
+          cache[mode] = entry;
+        }
+        return cache;
+      }, {});
+    } catch {
+      return {};
+    }
+  }
+
+  function persistLiveSearchCache() {
+    try {
+      localStorage.setItem(liveSearchStorageKey, JSON.stringify(liveSearchCache));
+    } catch {
+      // Ignore unavailable or full browser storage.
+    }
+  }
+
+  Object.assign(liveSearchCache, readLiveSearchCache());
 
   function setNavigationOpen(isOpen) {
     navigation.hidden = !isOpen;
@@ -136,7 +156,7 @@
     }
   });
 
-  function updateSearchPreview(mode) {
+  function updateSearchPreview(mode, options = {}) {
     const isSealed = mode === 'sealed';
     activeMode = isSealed ? 'sealed' : 'cards';
     const cachedSearch = liveSearchCache[activeMode];
@@ -153,6 +173,7 @@
       clearButton.hidden = false;
       input.value = cachedSearch.query;
       status.textContent = cachedSearch.status;
+      if (!options.preserveResults) renderCachedSearchResults(activeMode, cachedSearch);
       setPreviewState(cachedSearch.state);
       return;
     }
@@ -188,10 +209,10 @@
     return [];
   }
 
-  function getSafeImageUrl(images) {
+  function getSafeImageUrl(images, preferredSize = 'medium') {
     const imageList = normalizeImageList(images);
     const image = imageList.find((candidate) => String(candidate?.type || '').toLowerCase() === 'front') || imageList[0];
-    const rawUrl = image?.medium || image?.large || image?.small || '';
+    const rawUrl = image?.[preferredSize] || image?.medium || image?.large || image?.small || '';
     try {
       const url = new URL(String(rawUrl), window.location.href);
       return url.protocol === 'https:' && url.hostname === 'images.scrydex.com' ? url.href : '';
@@ -242,8 +263,9 @@
       button.setAttribute('aria-label', `${altText} image unavailable`);
     }, { once: true });
     button.append(image);
+    const expandedImageUrl = getSafeImageUrl(images, 'large') || imageUrl;
     button.addEventListener('click', function () {
-      openImageDialog(imageUrl, altText, button);
+      openImageDialog(expandedImageUrl, altText, button);
     });
     return button;
   }
@@ -254,6 +276,348 @@
       ? entity.variants.find((candidate) => getSafeImageUrl(candidate?.images))
       : null;
     return variant?.images || entity?.image || entity?.imageUrl || '';
+  }
+
+  const latestSetCacheKey = 'pv:home-preview:latest-set-spotlights:v1';
+  const latestSetCacheTtlMs = 60 * 60 * 1000;
+
+  function readLatestSetCache() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(latestSetCacheKey) || 'null');
+      if (!parsed || Number(parsed.expiresAt) <= Date.now() || !Array.isArray(parsed.value)) return null;
+      return parsed.value;
+    } catch {
+      return null;
+    }
+  }
+
+  function writeLatestSetCache(value) {
+    try {
+      localStorage.setItem(latestSetCacheKey, JSON.stringify({
+        value,
+        expiresAt: Date.now() + latestSetCacheTtlMs,
+      }));
+    } catch {
+      // Ignore unavailable or full browser storage.
+    }
+  }
+
+  function formatReleaseDate(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return 'New release';
+    const match = raw.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+    const date = match
+      ? new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+      : new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw;
+    return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: '2-digit' }).format(date);
+  }
+
+  function isExcludedLatestSet(expansion) {
+    const id = String(expansion?.id || '').trim().toLowerCase();
+    const name = String(expansion?.name || '').trim().toLowerCase();
+    const series = String(expansion?.series || '').trim().toLowerCase();
+    const language = String(expansion?.language || '').trim().toLowerCase();
+    const languageCode = String(expansion?.languageCode || expansion?.language_code || '').trim().toLowerCase();
+    const onlineOnly = Boolean(expansion?.isOnlineOnly ?? expansion?.is_online_only);
+    return (language && language !== 'english')
+      || (languageCode && languageCode !== 'en')
+      || onlineOnly
+      || id.startsWith('tcgp')
+      || series.includes('pocket')
+      || name.includes('pocket')
+      || series.includes('promo')
+      || name.includes('promo')
+      || id.startsWith('mcd')
+      || name.includes('mcdonald')
+      || series.includes('mcdonald')
+      || ['clv', 'clc', 'clb', 'sve'].includes(id)
+      || name.includes('tcg classic')
+      || series.includes('tcg classic')
+      || name.includes('energies')
+      || series.includes('energies');
+  }
+
+  function normalizeLatestSet(expansion) {
+    if (!expansion || typeof expansion !== 'object' || isExcludedLatestSet(expansion)) return null;
+    const id = String(expansion.id || '').trim();
+    const name = String(expansion.name || '').trim();
+    if (!id || !name) return null;
+    return {
+      id,
+      name,
+      logo: String(expansion.logo || '').trim(),
+      releaseDate: String(expansion.releaseDate || expansion.release_date || '').trim(),
+      cards: [],
+    };
+  }
+
+  function getStrictNmMarket(card) {
+    const variants = Array.isArray(card?.variants) ? card.variants : [];
+    const getMarket = (variant) => {
+      const prices = Array.isArray(variant?.prices) ? variant.prices : [];
+      const values = prices
+        .filter((price) => /^(NM|NEAR MINT)$/i.test(String(price?.condition || '').trim()))
+        .map((price) => Number(price?.market ?? price?.marketPrice ?? price?.market_price))
+        .filter((market) => Number.isFinite(market) && market > 0);
+      return values.length ? Math.max(...values) : null;
+    };
+
+    for (const preferredName of ['holofoil', 'normal']) {
+      const preferred = variants.find((variant) => String(variant?.name || '').trim().toLowerCase() === preferredName);
+      if (preferred) return getMarket(preferred);
+    }
+
+    return variants.reduce((best, variant) => {
+      const market = getMarket(variant);
+      return market != null && (best == null || market > best) ? market : best;
+    }, null);
+  }
+
+  function createSetImage(set) {
+    const imageUrl = getSafeImageUrl(set.logo);
+    if (!imageUrl) return null;
+    const image = document.createElement('img');
+    image.className = 'home-preview-set-panel-logo';
+    image.src = imageUrl;
+    image.alt = `${set.name} logo`;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.addEventListener('error', () => image.remove(), { once: true });
+    return image;
+  }
+
+  function getSetInitials(name) {
+    return String(name || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || 'SET';
+  }
+
+  function createRecentSetTile(set, index) {
+    const link = document.createElement('a');
+    link.className = `home-preview-set-tile home-preview-set-tile--${['gold', 'violet', 'blue'][index % 3]}`;
+    link.href = `search.html?${new URLSearchParams({ expansionId: set.id, expansionName: set.name }).toString()}`;
+
+    const logo = document.createElement('span');
+    logo.className = 'home-preview-set-logo';
+    const logoImage = createSetImage(set);
+    if (logoImage) {
+      logoImage.className = 'home-preview-set-logo-image';
+      logo.append(logoImage);
+    } else {
+      logo.textContent = getSetInitials(set.name);
+    }
+
+    const name = document.createElement('strong');
+    name.textContent = set.name;
+    const action = document.createElement('small');
+    action.textContent = 'View top 10 →';
+    link.append(logo, name, action);
+    return link;
+  }
+
+  function renderRecentSets(sets) {
+    if (!recentSetsContainer) return;
+    recentSetsContainer.replaceChildren();
+    const normalized = Array.isArray(sets) ? sets.slice(0, 3) : [];
+    if (!normalized.length) {
+      if (recentSetsStatus) {
+        recentSetsStatus.hidden = false;
+        recentSetsStatus.textContent = 'Latest sets are unavailable right now.';
+      }
+      return;
+    }
+    if (recentSetsStatus) recentSetsStatus.hidden = true;
+    normalized.forEach((set, index) => recentSetsContainer.append(createRecentSetTile(set, index)));
+  }
+
+  function createTopSetCard(card, setName) {
+    const article = document.createElement('article');
+    article.className = 'home-preview-top-card';
+
+    const cardLink = document.createElement('a');
+    cardLink.className = 'home-preview-top-card-link';
+    const cardName = String(card?.name || 'Unknown card').trim() || 'Unknown card';
+    cardLink.href = `search.html?${new URLSearchParams({ cardId: String(card?.id || ''), cardName }).toString()}`;
+
+    const art = createLiveImageButton(getEntityImages(card), `${cardName} card artwork`);
+    art.classList.add('home-preview-top-card-art');
+
+    const name = document.createElement('h4');
+    name.textContent = cardName;
+    const number = String(card?.printedNumber || card?.number || '').trim();
+    const rarity = String(card?.rarity || '').trim();
+    const metadata = document.createElement('p');
+    metadata.textContent = [setName, number || 'Number unavailable', rarity].filter(Boolean).join(' · ');
+    const price = document.createElement('strong');
+    price.textContent = formatLivePrice(getStrictNmMarket(card));
+    const priceLabel = document.createElement('small');
+    priceLabel.textContent = 'NM market';
+
+    cardLink.append(name, metadata, price, priceLabel);
+    article.append(art, cardLink);
+    return article;
+  }
+
+  function updateSetTabsOverflowCue() {
+    if (!setTabsWrapper || !setTabsContainer) return;
+    setTabsWrapper.classList.toggle('is-overflowing', setTabsContainer.scrollWidth > setTabsContainer.clientWidth + 1);
+  }
+
+  function renderLatestSetSpotlights(sets) {
+    const normalized = Array.isArray(sets) ? sets.slice(0, 3) : [];
+    latestSetSpotlights = normalized;
+    renderRecentSets(normalized);
+    if (!setTabsContainer || !setPanelsContainer) return;
+
+    setTabsContainer.replaceChildren();
+    setPanelsContainer.replaceChildren();
+    if (!normalized.length) {
+      activeSetId = '';
+      if (setStatus) {
+        setStatus.hidden = false;
+        setStatus.textContent = 'Latest set cards are unavailable right now.';
+      }
+      return;
+    }
+
+    activeSetId = normalized.some((set) => set.id === activeSetId) ? activeSetId : normalized[0].id;
+    if (setStatus) setStatus.hidden = true;
+
+    normalized.forEach((set, index) => {
+      const panelId = `home-preview-set-panel-${index + 1}`;
+      const tab = document.createElement('button');
+      tab.className = 'home-preview-set-tab';
+      tab.type = 'button';
+      tab.role = 'tab';
+      tab.setAttribute('aria-controls', panelId);
+      tab.dataset.homePreviewSetId = set.id;
+      tab.textContent = set.name;
+      tab.addEventListener('click', () => {
+        activeSetId = set.id;
+        updateLatestSetVisibility();
+      });
+      setTabsContainer.append(tab);
+
+      const panel = document.createElement('section');
+      panel.className = 'home-preview-set-panel';
+      panel.id = panelId;
+      panel.dataset.homePreviewSetId = set.id;
+      panel.setAttribute('aria-labelledby', `${panelId}-title`);
+
+      const heading = document.createElement('div');
+      heading.className = 'home-preview-set-panel-heading';
+      const title = document.createElement('h3');
+      title.id = `${panelId}-title`;
+      title.textContent = set.name;
+      const date = document.createElement('small');
+      date.textContent = formatReleaseDate(set.releaseDate);
+      heading.append(title, date);
+      const setLogo = createSetImage(set);
+      if (setLogo) heading.prepend(setLogo);
+
+      const viewSet = document.createElement('a');
+      viewSet.className = 'home-preview-inline-link';
+      viewSet.href = `search.html?${new URLSearchParams({ expansionId: set.id, expansionName: set.name }).toString()}`;
+      viewSet.textContent = 'View set →';
+      heading.append(viewSet);
+
+      const cardGrid = document.createElement('div');
+      cardGrid.className = 'home-preview-top-card-grid';
+      for (const card of Array.isArray(set.cards) ? set.cards.slice(0, 3) : []) {
+        cardGrid.append(createTopSetCard(card, set.name));
+      }
+      if (!cardGrid.childElementCount) {
+        const unavailable = document.createElement('p');
+        unavailable.className = 'home-preview-set-panel-empty';
+        unavailable.textContent = 'Top cards are unavailable right now.';
+        cardGrid.append(unavailable);
+      }
+
+      panel.append(heading, cardGrid);
+      setPanelsContainer.append(panel);
+    });
+
+    updateLatestSetVisibility();
+    updateSetTabsOverflowCue();
+  }
+
+  function updateLatestSetVisibility() {
+    for (const tab of setTabsContainer?.querySelectorAll('[data-home-preview-set-id]') || []) {
+      const isActive = tab.dataset.homePreviewSetId === activeSetId;
+      tab.classList.toggle('is-active', isActive);
+      tab.setAttribute('aria-selected', String(isActive));
+    }
+    for (const panel of setPanelsContainer?.querySelectorAll('[data-home-preview-set-id]') || []) {
+      panel.classList.toggle('is-active', panel.dataset.homePreviewSetId === activeSetId);
+    }
+  }
+
+  window.addEventListener('resize', updateSetTabsOverflowCue);
+
+  async function loadLatestSetSpotlights() {
+    const cached = readLatestSetCache();
+    if (cached?.length) renderLatestSetSpotlights(cached);
+    if (setStatus && cached?.length) setStatus.textContent = 'Refreshing latest sets...';
+
+    try {
+      const base = liveSearchBase;
+      let latestVersion = '';
+      try {
+        const versionResponse = await fetchWithAuth(`${base}/expansions/latest-version`, { cache: 'no-store' });
+        if (versionResponse.ok) latestVersion = String((await versionResponse.json())?.version || '').trim();
+      } catch {
+        // The expansion search remains usable if the refresh marker is unavailable.
+      }
+
+      const params = new URLSearchParams({
+        q: 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket',
+        orderBy: '-release_date',
+        page: '1',
+        pageSize: '30',
+        select: 'id,name,logo,release_date,is_online_only,series,language,language_code',
+        casing: 'camel',
+      });
+      if (latestVersion) params.set('latestVersion', latestVersion);
+      const expansionResponse = await fetchWithAuth(`${base}/expansions/search?${params.toString()}`, { cache: 'no-store' });
+      if (!expansionResponse.ok) throw new Error(`Latest set request failed with ${expansionResponse.status}`);
+      const expansionPayload = await expansionResponse.json();
+      const sets = (Array.isArray(expansionPayload?.data) ? expansionPayload.data : [])
+        .map(normalizeLatestSet)
+        .filter(Boolean)
+        .slice(0, 3);
+
+      const settled = await Promise.allSettled(sets.map(async (set) => {
+        const topParams = new URLSearchParams({
+          expansionId: set.id,
+          limit: '10',
+          lang: 'en',
+          variantPreference: 'v2',
+          cache: 'no-store',
+        });
+        const response = await fetchWithAuth(`${base}/cards/top-by-expansion?${topParams.toString()}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Top cards request failed with ${response.status}`);
+        const payload = await response.json();
+        const cards = (Array.isArray(payload?.data) ? payload.data : [])
+          .filter((card) => card?.id && getStrictNmMarket(card) != null)
+          .slice(0, 3);
+        return { ...set, cards };
+      }));
+
+      const resolved = settled.map((result, index) => result.status === 'fulfilled'
+        ? result.value
+        : { ...sets[index], cards: [] });
+      writeLatestSetCache(resolved);
+      renderLatestSetSpotlights(resolved);
+    } catch (error) {
+      console.warn('[PokeValutor] latest set spotlight error', error);
+      if (!cached?.length) renderLatestSetSpotlights([]);
+      if (setStatus && cached?.length) setStatus.hidden = true;
+    }
   }
 
   function isEnglishSealedProduct(product) {
@@ -326,6 +690,26 @@
 
     row.append(art, detailsLink, price);
     return { row, priceElement, priceLabel, productId: id };
+  }
+
+  function renderCachedSearchResults(mode, cacheEntry) {
+    const panel = mode === 'sealed' ? sealedResultPanel : cardsResultPanel;
+    panel.replaceChildren();
+    if (cacheEntry.state !== 'results') return;
+
+    const items = mode === 'sealed' ? cacheEntry.products : cacheEntry.cards;
+    if (!Array.isArray(items)) return;
+    items.forEach((item, index) => {
+      const rendered = mode === 'sealed'
+        ? createLiveSealedRow(item, index)
+        : createLiveCardRow(item, index);
+      const savedPrice = cacheEntry.prices?.[String(mode === 'sealed' ? item?.id : item?.id)];
+      if (savedPrice && typeof savedPrice.value === 'string') {
+        rendered.priceElement.textContent = savedPrice.value;
+        rendered.priceLabel.textContent = typeof savedPrice.label === 'string' ? savedPrice.label : rendered.priceLabel.textContent;
+      }
+      panel.append(rendered.row);
+    });
   }
 
   async function fetchLiveCardPrice(cardId) {
@@ -473,6 +857,7 @@
       status: `Searching cards for ${query}...`,
     };
     liveSearchCache.cards = cacheEntry;
+    persistLiveSearchCache();
     cardsResultPanel.replaceChildren();
     if (activeMode === 'cards') updateSearchPreview('cards');
 
@@ -482,10 +867,14 @@
 
       const cards = Array.isArray(payload.cards) ? payload.cards.filter((card) => card?.id).slice(0, 3) : [];
       const totalCount = Number(payload.totalCount || cards.length);
+      cacheEntry.cards = cards;
+      cacheEntry.totalCount = totalCount;
+      cacheEntry.prices = {};
       if (!cards.length) {
         cacheEntry.state = 'empty';
         cacheEntry.resultCount = `No card results for “${query}”`;
         cacheEntry.status = `No cards found for ${query}.`;
+        persistLiveSearchCache();
         if (activeMode === 'cards') updateSearchPreview('cards');
         return;
       }
@@ -498,7 +887,8 @@
       cacheEntry.state = 'results';
       cacheEntry.resultCount = `${cards.length} of ${totalCount} results for “${query}”`;
       cacheEntry.status = `Live card results ready for ${query}.`;
-      if (activeMode === 'cards') updateSearchPreview('cards');
+      persistLiveSearchCache();
+      if (activeMode === 'cards') updateSearchPreview('cards', { preserveResults: true });
 
       await Promise.all(priceTargets.map(async ({ card, priceElement, priceLabel }) => {
         try {
@@ -506,10 +896,14 @@
           if (liveSearchCache.cards !== cacheEntry) return;
           priceElement.textContent = price;
           priceLabel.textContent = price === 'No market price' ? 'Market value' : 'NM market';
+          cacheEntry.prices[String(card.id)] = { value: price, label: priceLabel.textContent };
+          persistLiveSearchCache();
         } catch {
           if (liveSearchCache.cards !== cacheEntry) return;
           priceElement.textContent = 'Unavailable';
           priceLabel.textContent = 'Market value';
+          cacheEntry.prices[String(card.id)] = { value: 'Unavailable', label: 'Market value' };
+          persistLiveSearchCache();
         }
       }));
     } catch (error) {
@@ -518,6 +912,7 @@
       cacheEntry.state = 'error';
       cacheEntry.resultCount = 'Live search is unavailable right now.';
       cacheEntry.status = 'Unable to load live card results. Please try again.';
+      persistLiveSearchCache();
       if (activeMode === 'cards') updateSearchPreview('cards');
     }
   }
@@ -533,6 +928,7 @@
       status: `Searching sealed products for ${query}...`,
     };
     liveSearchCache.sealed = cacheEntry;
+    persistLiveSearchCache();
     sealedResultPanel.replaceChildren();
     if (activeMode === 'sealed') updateSearchPreview('sealed');
 
@@ -548,10 +944,14 @@
         ? payload.data.filter((product) => product?.id && isEnglishSealedProduct(product)).slice(0, 3)
         : [];
       const totalCount = Number(payload?.totalCount || products.length);
+      cacheEntry.products = products;
+      cacheEntry.totalCount = totalCount;
+      cacheEntry.prices = {};
       if (!products.length) {
         cacheEntry.state = 'empty';
         cacheEntry.resultCount = `No sealed results for “${query}”`;
         cacheEntry.status = `No sealed products found for ${query}.`;
+        persistLiveSearchCache();
         if (activeMode === 'sealed') updateSearchPreview('sealed');
         return;
       }
@@ -564,7 +964,8 @@
       cacheEntry.state = 'results';
       cacheEntry.resultCount = `${products.length} of ${totalCount} sealed results for “${query}”`;
       cacheEntry.status = `Live sealed results ready for ${query}.`;
-      if (activeMode === 'sealed') updateSearchPreview('sealed');
+      persistLiveSearchCache();
+      if (activeMode === 'sealed') updateSearchPreview('sealed', { preserveResults: true });
 
       await Promise.all(priceTargets.map(async ({ product, priceElement, priceLabel, productId }) => {
         try {
@@ -572,10 +973,14 @@
           if (liveSearchCache.sealed !== cacheEntry) return;
           priceElement.textContent = price;
           priceLabel.textContent = 'Market value';
+          cacheEntry.prices[String(productId)] = { value: price, label: 'Market value' };
+          persistLiveSearchCache();
         } catch {
           if (liveSearchCache.sealed !== cacheEntry) return;
           priceElement.textContent = 'Unavailable';
           priceLabel.textContent = 'Market value';
+          cacheEntry.prices[String(productId)] = { value: 'Unavailable', label: 'Market value' };
+          persistLiveSearchCache();
         }
       }));
     } catch (error) {
@@ -584,6 +989,7 @@
       cacheEntry.state = 'error';
       cacheEntry.resultCount = 'Live sealed search is unavailable right now.';
       cacheEntry.status = 'Unable to load live sealed results. Please try again.';
+      persistLiveSearchCache();
       if (activeMode === 'sealed') updateSearchPreview('sealed');
     }
   }
@@ -597,29 +1003,6 @@
       const isActive = button.dataset.homePreviewState === state;
       button.classList.toggle('is-active', isActive);
       button.setAttribute('aria-pressed', String(isActive));
-    }
-  }
-
-  function updateSetPreview(setKey) {
-    const set = setPreviewData[setKey] || setPreviewData.celebration;
-    for (const tab of setTabs) {
-      const isActive = tab.dataset.homePreviewSet === setKey;
-      tab.classList.toggle('is-active', isActive);
-      tab.setAttribute('aria-selected', String(isActive));
-    }
-
-    set.cards.forEach(function (card, index) {
-      const cardElement = topCards[index];
-      const art = cardElement.querySelector('.home-preview-large-art');
-      art.className = `home-preview-large-art home-preview-large-art--${card.art}`;
-      art.querySelector('span').textContent = card.mark;
-      cardElement.querySelector('h3').textContent = card.name;
-      cardElement.querySelector('p').textContent = card.number;
-      cardElement.querySelector('strong').textContent = card.price;
-    });
-
-    if (viewSetLink) {
-      viewSetLink.href = `search.html?expansionId=${encodeURIComponent(set.id)}&expansionName=${encodeURIComponent(set.name)}`;
     }
   }
 
@@ -657,18 +1040,13 @@
   clearButton?.addEventListener('click', function () {
     const mode = activeMode;
     liveSearchCache[mode] = null;
+    persistLiveSearchCache();
     (mode === 'sealed' ? sealedResultPanel : cardsResultPanel).replaceChildren();
     input.value = '';
     updateSearchPreview(mode);
     status.textContent = '';
     input.focus();
   });
-
-  for (const tab of setTabs) {
-    tab.addEventListener('click', function () {
-      updateSetPreview(tab.dataset.homePreviewSet || 'celebration');
-    });
-  }
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
@@ -686,6 +1064,5 @@
   });
 
   updateSearchPreview('cards');
-  setPreviewState('empty');
-  updateSetPreview('celebration');
+  void loadLatestSetSpotlights();
 })();
