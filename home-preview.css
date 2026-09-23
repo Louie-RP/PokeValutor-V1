@@ -1160,28 +1160,36 @@ a { color: inherit; }
 
 .home-preview-set-logo {
   display: grid;
-  min-height: 5rem;
+  height: clamp(7rem, 16vw, 9rem);
+  min-height: 0;
   place-items: center;
   border-radius: 0.75rem;
+  background: #000;
   color: rgba(255, 255, 255, 0.92);
   font-family: var(--preview-heading);
   font-size: 2rem;
   font-weight: 800;
 }
 
-.home-preview-set-tile--gold .home-preview-set-logo { background: #6c5715; }
-.home-preview-set-tile--violet .home-preview-set-logo { background: #452561; }
-.home-preview-set-tile--blue .home-preview-set-logo { background: #214d72; }
+.home-preview-set-tile--gold .home-preview-set-logo,
+.home-preview-set-tile--violet .home-preview-set-logo,
+.home-preview-set-tile--blue .home-preview-set-logo { background: #000; }
 
 .home-preview-set-logo-image {
   width: 100%;
   height: 100%;
-  min-height: 5rem;
+  min-height: 0;
   border-radius: 0.75rem;
   object-fit: contain;
 }
 
-.home-preview-set-tile strong { font-size: 0.88rem; }
+.home-preview-set-tile strong {
+  display: flex;
+  min-height: 2.8rem;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
 .home-preview-set-tile small { color: var(--preview-yellow); font-size: 0.76rem; font-weight: 700; }
 
 .home-preview-account-cta {
