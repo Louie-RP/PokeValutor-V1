@@ -1366,10 +1366,6 @@ a { color: inherit; }
     gap: clamp(1rem, 2vw, 1.5rem);
   }
 
-  .home-preview-new-sets {
-    width: min(100% - 2rem, 88rem);
-  }
-
   .home-preview-account-cta {
     grid-template-columns: 1fr auto;
     align-items: center;
