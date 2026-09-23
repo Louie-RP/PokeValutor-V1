@@ -21,8 +21,10 @@
   const setTabsWrapper = document.querySelector('.home-preview-set-tabs-wrap');
   const recentSetsContainer = document.querySelector('[data-home-preview-recent-sets]');
   const recentSetsStatus = document.querySelector('[data-home-preview-recent-status]');
+  const trendingSection = document.querySelector('[data-home-preview-trending]');
   const trendingList = document.querySelector('[data-home-preview-trending-list]');
   const trendingNote = document.querySelector('[data-home-preview-trending-note]');
+  const accountCta = document.querySelector('#home-preview-main > section.home-preview-account-cta');
   const menuButton = document.getElementById('home-preview-menu-button');
   const navigation = document.getElementById('home-preview-nav');
   const imageDialog = document.querySelector('[data-home-preview-image-dialog]');
@@ -41,12 +43,14 @@
   const authReady = new Promise((resolve) => {
     const authApi = window?.PV_AUTH;
     if (!authApi?.onAuthStateChanged) {
+      if (accountCta) accountCta.hidden = false;
       resolve(null);
       return;
     }
 
     let settled = false;
     const settle = (user) => {
+      if (accountCta) accountCta.hidden = Boolean(user);
       if (settled) return;
       settled = true;
       resolve(user || null);
@@ -522,12 +526,14 @@
 
   async function renderHomeTrendingCards() {
     if (!trendingList) return;
+    if (trendingSection) trendingSection.hidden = true;
     setHomeTrendingMessage('Loading watchlist movement...');
     const candidates = await loadHomeWatchlist();
     if (!candidates.length) {
       setHomeTrendingMessage('Add cards to your watchlist to unlock movement tracking.');
       return;
     }
+    if (trendingSection) trendingSection.hidden = false;
 
     const previousMap = readHomeCacheMap(homeMarketSnapshotKey);
     const cardCache = readHomeCacheMap(homeCardCacheKey);
@@ -648,7 +654,7 @@
   function renderRecentSets(sets) {
     if (!recentSetsContainer) return;
     recentSetsContainer.replaceChildren();
-    const normalized = Array.isArray(sets) ? sets.slice(0, 3) : [];
+    const normalized = Array.isArray(sets) ? sets.slice(0, 10) : [];
     if (!normalized.length) {
       if (recentSetsStatus) {
         recentSetsStatus.hidden = false;
@@ -694,14 +700,15 @@
   }
 
   function renderLatestSetSpotlights(sets) {
-    const normalized = Array.isArray(sets) ? sets.slice(0, 3) : [];
-    latestSetSpotlights = normalized;
+    const normalized = Array.isArray(sets) ? sets.slice(0, 10) : [];
+    const spotlightSets = normalized.slice(0, 3);
+    latestSetSpotlights = spotlightSets;
     renderRecentSets(normalized);
     if (!setTabsContainer || !setPanelsContainer) return;
 
     setTabsContainer.replaceChildren();
     setPanelsContainer.replaceChildren();
-    if (!normalized.length) {
+    if (!spotlightSets.length) {
       activeSetId = '';
       if (setStatus) {
         setStatus.hidden = false;
@@ -710,10 +717,10 @@
       return;
     }
 
-    activeSetId = normalized.some((set) => set.id === activeSetId) ? activeSetId : normalized[0].id;
+    activeSetId = spotlightSets.some((set) => set.id === activeSetId) ? activeSetId : spotlightSets[0].id;
     if (setStatus) setStatus.hidden = true;
 
-    normalized.forEach((set, index) => {
+    spotlightSets.forEach((set, index) => {
       const panelId = `home-preview-set-panel-${index + 1}`;
       const tab = document.createElement('button');
       tab.className = 'home-preview-set-tab';
@@ -814,9 +821,10 @@
       const sets = (Array.isArray(expansionPayload?.data) ? expansionPayload.data : [])
         .map(normalizeLatestSet)
         .filter(Boolean)
-        .slice(0, 3);
+        .slice(0, 10);
 
-      const settled = await Promise.allSettled(sets.map(async (set) => {
+      const spotlightSets = sets.slice(0, 3);
+      const settled = await Promise.allSettled(spotlightSets.map(async (set) => {
         const topParams = new URLSearchParams({
           expansionId: set.id,
           limit: '10',
@@ -833,9 +841,10 @@
         return { ...set, cards };
       }));
 
-      const resolved = settled.map((result, index) => result.status === 'fulfilled'
+      const resolvedSpotlights = settled.map((result, index) => result.status === 'fulfilled'
         ? result.value
-        : { ...sets[index], cards: [] });
+        : { ...spotlightSets[index], cards: [] });
+      const resolved = sets.map((set) => resolvedSpotlights.find((spotlight) => spotlight.id === set.id) || set);
       writeLatestSetCache(resolved);
       renderLatestSetSpotlights(resolved);
     } catch (error) {
