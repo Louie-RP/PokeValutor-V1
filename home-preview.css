@@ -792,6 +792,11 @@ a { color: inherit; }
   color: #ff6577;
 }
 
+.home-preview-market-mover-change--flat {
+  background: rgba(255, 203, 5, 0.14);
+  color: #ffda4d;
+}
+
 .home-preview-market-movers-note {
   margin: 0.9rem 0 0;
   padding-inline: 0.2rem;
