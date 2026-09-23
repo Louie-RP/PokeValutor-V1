@@ -254,6 +254,11 @@ a { color: inherit; }
   color: var(--preview-text);
 }
 
+.home-preview-nav a[aria-current="page"] {
+  background: rgba(255, 203, 5, 0.14);
+  color: var(--preview-yellow);
+}
+
 .home-preview-hero {
   width: min(100% - 2rem, 72rem);
   margin: 0 auto;
