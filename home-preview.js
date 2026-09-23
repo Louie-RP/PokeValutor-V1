@@ -40,6 +40,8 @@
   const homeMarketSnapshotKey = 'pv:home:cardMarketSnapshots:v1';
   const homeCardCacheTtlMs = 8 * 60 * 60 * 1000;
   let imageDialogReturnFocus = null;
+  let authUserKey = null;
+  let trendingRenderToken = 0;
   const authReady = new Promise((resolve) => {
     const authApi = window?.PV_AUTH;
     if (!authApi?.onAuthStateChanged) {
@@ -50,10 +52,17 @@
 
     let settled = false;
     const settle = (user) => {
+      const normalizedUser = user || null;
+      const nextUserKey = String(normalizedUser?.uid || '');
+      const authChanged = authUserKey !== nextUserKey;
+      authUserKey = nextUserKey;
       if (accountCta) accountCta.hidden = Boolean(user);
-      if (settled) return;
+      if (settled) {
+        if (authChanged) void renderHomeTrendingCards();
+        return;
+      }
       settled = true;
-      resolve(user || null);
+      resolve(normalizedUser);
     };
 
     try {
@@ -526,9 +535,11 @@
 
   async function renderHomeTrendingCards() {
     if (!trendingList) return;
+    const renderToken = ++trendingRenderToken;
     if (trendingSection) trendingSection.hidden = true;
     setHomeTrendingMessage('Loading watchlist movement...');
     const candidates = await loadHomeWatchlist();
+    if (renderToken !== trendingRenderToken) return;
     if (!candidates.length) {
       setHomeTrendingMessage('Add cards to your watchlist to unlock movement tracking.');
       return;
@@ -593,6 +604,8 @@
         delta: hasPreviousMarket && hasCurrentMarket ? currentMarket - previousMarket : null,
       };
     }));
+
+    if (renderToken !== trendingRenderToken) return;
 
     writeHomeCacheMap(homeCardCacheKey, nextCardCache);
     writeHomeCacheMap(homeMarketSnapshotKey, nextMap);
