@@ -34,8 +34,9 @@
   const liveSearchCache = { cards: null, sealed: null };
   const liveSearchStorageKey = 'pv:home-preview:search-cache:v1';
   const homeCardWatchlistKey = 'pv:scrydex:watchlist:v1';
+  const homeCardCacheKey = 'pv:home:cardRecords:v1';
   const homeMarketSnapshotKey = 'pv:home:cardMarketSnapshots:v1';
-  const homeMarketSnapshotTtlMs = 8 * 60 * 60 * 1000;
+  const homeCardCacheTtlMs = 8 * 60 * 60 * 1000;
   let imageDialogReturnFocus = null;
   const authReady = new Promise((resolve) => {
     const authApi = window?.PV_AUTH;
@@ -394,6 +395,26 @@
     }
   }
 
+  function readHomeCacheMap(key) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function writeHomeCacheMap(key, value) {
+    try {
+      const entries = Object.entries(value)
+        .sort((left, right) => Number(right?.[1]?.cachedAt || right?.[1]?.seenAt || 0) - Number(left?.[1]?.cachedAt || left?.[1]?.seenAt || 0))
+        .slice(0, 200);
+      localStorage.setItem(key, JSON.stringify(Object.fromEntries(entries)));
+    } catch {
+      // Ignore unavailable or full browser storage.
+    }
+  }
+
   async function loadHomeWatchlist() {
     const byId = new Map();
     const merge = (items) => {
@@ -485,7 +506,12 @@
       : 'Market unavailable';
     const change = document.createElement('span');
     const hasDelta = Number.isFinite(row.delta);
-    change.className = `home-preview-market-mover-change ${hasDelta && row.delta > 0.009 ? 'home-preview-market-mover-change--up' : hasDelta && row.delta < -0.009 ? 'home-preview-market-mover-change--down' : ''}`;
+    const changeClass = hasDelta && row.delta > 0.009
+      ? 'home-preview-market-mover-change--up'
+      : hasDelta && row.delta < -0.009
+        ? 'home-preview-market-mover-change--down'
+        : 'home-preview-market-mover-change--flat';
+    change.className = `home-preview-market-mover-change ${changeClass}`;
     change.textContent = hasDelta
       ? (row.delta > 0.009 ? `+${formatLivePrice(row.delta)}` : row.delta < -0.009 ? formatLivePrice(row.delta) : 'Flat')
       : 'New';
@@ -503,56 +529,67 @@
       return;
     }
 
-    let previousMap = {};
-    try {
-      const parsed = JSON.parse(localStorage.getItem(homeMarketSnapshotKey) || 'null');
-      previousMap = parsed && typeof parsed === 'object' ? parsed : {};
-    } catch {
-      previousMap = {};
-    }
+    const previousMap = readHomeCacheMap(homeMarketSnapshotKey);
+    const cardCache = readHomeCacheMap(homeCardCacheKey);
+    const nextCardCache = { ...cardCache };
 
     const nextMap = { ...previousMap };
     const settled = await Promise.all(candidates.map(async (item) => {
       const id = String(item?.id || '').trim();
-      const cached = previousMap[id];
-      const isFresh = Number.isFinite(Number(cached?.market))
-        && Date.now() - Number(cached?.seenAt || 0) < homeMarketSnapshotTtlMs;
-      let card = item;
-      if (!isFresh) {
-        try { card = await fetchHomeCardRecord(id); } catch { /* Use the saved watchlist card below. */ }
+      const snapshot = previousMap[id] && typeof previousMap[id] === 'object' ? previousMap[id] : {};
+      const cachedCard = cardCache[id];
+      const hasFreshCard = cachedCard?.card
+        && Date.now() - Number(cachedCard.cachedAt || 0) < homeCardCacheTtlMs;
+      let card = hasFreshCard ? cachedCard.card : item;
+      let refreshed = !hasFreshCard;
+
+      if (!hasFreshCard && getStrictNmMarket(card) == null) {
+        try {
+          card = await fetchHomeCardRecord(id);
+        } catch {
+          card = item;
+        }
       }
 
-      const market = isFresh ? Number(cached.market) : getStrictNmMarket(card);
-      const previousMarket = Number(previousMap[id]?.market);
-      const hasPrevious = Number.isFinite(previousMarket);
+      const market = getStrictNmMarket(card);
       const hasMarket = Number.isFinite(market);
-      if (hasMarket) {
+      const storedMarket = Number(snapshot.market);
+      const hasStoredMarket = Number.isFinite(storedMarket);
+
+      if (!hasFreshCard && card && typeof card === 'object') {
+        nextCardCache[id] = { card, cachedAt: Date.now() };
+      }
+
+      if (hasMarket && (refreshed || !hasStoredMarket)) {
         nextMap[id] = {
           market: Number(market),
-          seenAt: isFresh ? Number(cached.seenAt) : Date.now(),
+          previousMarket: hasStoredMarket ? storedMarket : null,
+          seenAt: Date.now(),
           name: String(card?.name || item?.name || ''),
         };
+      } else if (hasStoredMarket) {
+        refreshed = false;
       }
+
+      const currentSnapshot = nextMap[id] || snapshot;
+      const currentMarket = Number(currentSnapshot.market);
+      const previousMarket = Number(currentSnapshot.previousMarket);
+      const hasCurrentMarket = Number.isFinite(currentMarket);
+      const hasPreviousMarket = Number.isFinite(previousMarket);
 
       return {
         card,
         href: getHomeTrendingHref(card || item),
         name: String(card?.name || item?.name || 'Unknown card'),
         setName: getHomeTrendingSetName(card || item),
-        market: hasMarket ? Number(market) : null,
-        prevMarket: hasPrevious ? previousMarket : null,
-        delta: hasPrevious && hasMarket ? Number(market) - previousMarket : null,
+        market: hasCurrentMarket ? currentMarket : null,
+        prevMarket: hasPreviousMarket ? previousMarket : null,
+        delta: hasPreviousMarket && hasCurrentMarket ? currentMarket - previousMarket : null,
       };
     }));
 
-    try {
-      const entries = Object.entries(nextMap)
-        .sort((left, right) => Number(right?.[1]?.seenAt || 0) - Number(left?.[1]?.seenAt || 0))
-        .slice(0, 200);
-      localStorage.setItem(homeMarketSnapshotKey, JSON.stringify(Object.fromEntries(entries)));
-    } catch {
-      // Ignore unavailable browser storage.
-    }
+    writeHomeCacheMap(homeCardCacheKey, nextCardCache);
+    writeHomeCacheMap(homeMarketSnapshotKey, nextMap);
 
     settled.sort((left, right) => Math.abs(Number(right.delta || 0)) - Math.abs(Number(left.delta || 0)));
     trendingList.replaceChildren(...settled.map(createHomeTrendingRow));
