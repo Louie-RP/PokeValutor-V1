@@ -35,6 +35,7 @@
   let activeMode = 'cards';
   const liveSearchCache = { cards: null, sealed: null };
   const liveSearchStorageKey = 'pv:home-preview:search-cache:v1';
+  const liveSearchCacheTtlMs = 60 * 60 * 1000;
   const homeCardWatchlistKey = 'pv:scrydex:watchlist:v1';
   const homeCardCacheKey = 'pv:home:cardRecords:v1';
   const homeMarketSnapshotKey = 'pv:home:cardMarketSnapshots:v1';
@@ -79,6 +80,8 @@
     try {
       const parsed = JSON.parse(localStorage.getItem(liveSearchStorageKey) || 'null');
       if (!parsed || typeof parsed !== 'object') return {};
+      const savedAt = Number(parsed.savedAt);
+      if (!Number.isFinite(savedAt) || Date.now() - savedAt >= liveSearchCacheTtlMs) return {};
       return ['cards', 'sealed'].reduce((cache, mode) => {
         const entry = parsed[mode];
         if (entry && typeof entry.query === 'string' && ['results', 'empty', 'error'].includes(entry.state)) {
@@ -111,7 +114,11 @@
 
   function persistLiveSearchCache() {
     try {
-      localStorage.setItem(liveSearchStorageKey, JSON.stringify(liveSearchCache));
+      localStorage.setItem(liveSearchStorageKey, JSON.stringify({
+        savedAt: Date.now(),
+        cards: liveSearchCache.cards,
+        sealed: liveSearchCache.sealed,
+      }));
     } catch {
       // Ignore unavailable or full browser storage.
     }
@@ -304,27 +311,55 @@
   }
 
   const latestSetCacheKey = 'pv:home-preview:latest-set-spotlights:v1';
-  const latestSetCacheTtlMs = 60 * 60 * 1000;
+  const latestSetListCacheKey = 'pv:home-preview:latest-sets:v1';
+  const latestSetCacheTtlMs = 12 * 60 * 60 * 1000;
+  const latestSetListCacheTtlMs = 30 * 24 * 60 * 60 * 1000;
+  const latestSetListRevalidateAfterMs = 14 * 24 * 60 * 60 * 1000;
 
-  function readLatestSetCache() {
+  function readLatestCache(key, options = {}) {
+    const allowExpired = Boolean(options.allowExpired);
     try {
-      const parsed = JSON.parse(localStorage.getItem(latestSetCacheKey) || 'null');
-      if (!parsed || Number(parsed.expiresAt) <= Date.now() || !Array.isArray(parsed.value)) return null;
-      return parsed.value;
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      if (!parsed || !Array.isArray(parsed.value)) return null;
+      if (!allowExpired && (!Number.isFinite(Number(parsed.expiresAt)) || Number(parsed.expiresAt) <= Date.now())) return null;
+      return {
+        value: parsed.value,
+        version: String(parsed.version || '').trim(),
+        expiresAt: Number(parsed.expiresAt),
+        savedAt: Number(parsed.savedAt),
+      };
     } catch {
       return null;
     }
   }
 
-  function writeLatestSetCache(value) {
+  function readLatestSetCache(options = {}) {
+    return readLatestCache(latestSetCacheKey, options);
+  }
+
+  function readLatestSetListCache(options = {}) {
+    return readLatestCache(latestSetListCacheKey, options);
+  }
+
+  function writeLatestCache(key, value, version, ttlMs) {
     try {
-      localStorage.setItem(latestSetCacheKey, JSON.stringify({
+      localStorage.setItem(key, JSON.stringify({
         value,
-        expiresAt: Date.now() + latestSetCacheTtlMs,
+        version: String(version || '').trim(),
+        expiresAt: Date.now() + ttlMs,
+        savedAt: Date.now(),
       }));
     } catch {
       // Ignore unavailable or full browser storage.
     }
+  }
+
+  function writeLatestSetCache(value, version) {
+    writeLatestCache(latestSetCacheKey, value, version, latestSetCacheTtlMs);
+  }
+
+  function writeLatestSetListCache(value, version) {
+    writeLatestCache(latestSetListCacheKey, value, version, latestSetListCacheTtlMs);
   }
 
   function formatReleaseDate(value) {
@@ -452,7 +487,7 @@
   }
 
   async function fetchHomeCardRecord(cardId) {
-    const response = await fetchWithAuth(`${liveSearchBase}/cards/${encodeURIComponent(cardId)}?includePrices=1&lang=en&cache=no-store`);
+    const response = await fetchWithAuth(`${liveSearchBase}/cards/${encodeURIComponent(cardId)}?includePrices=1&lang=en`);
     if (!response.ok) throw new Error(`Trending card request failed with ${response.status}`);
     const payload = await response.json();
     return payload?.data || payload?.card || payload;
@@ -590,9 +625,10 @@
 
       const currentSnapshot = nextMap[id] || snapshot;
       const currentMarket = Number(currentSnapshot.market);
-      const previousMarket = Number(currentSnapshot.previousMarket);
+      const rawPreviousMarket = currentSnapshot.previousMarket;
+      const previousMarket = Number(rawPreviousMarket);
       const hasCurrentMarket = Number.isFinite(currentMarket);
-      const hasPreviousMarket = Number.isFinite(previousMarket);
+      const hasPreviousMarket = rawPreviousMarket != null && Number.isFinite(previousMarket);
 
       return {
         card,
@@ -805,9 +841,14 @@
   window.addEventListener('resize', updateSetTabsOverflowCue);
 
   async function loadLatestSetSpotlights() {
-    const cached = readLatestSetCache();
-    if (cached?.length) renderLatestSetSpotlights(cached);
-    if (setStatus && cached?.length) setStatus.textContent = 'Refreshing latest sets...';
+    const cachedSpotlightEntry = readLatestSetCache();
+    const staleSpotlightEntry = cachedSpotlightEntry || readLatestSetCache({ allowExpired: true });
+    const cachedListEntry = readLatestSetListCache();
+    const staleListEntry = cachedListEntry || readLatestSetListCache({ allowExpired: true });
+    const cachedSpotlights = cachedSpotlightEntry?.value || null;
+    const cachedSets = cachedListEntry?.value || null;
+    if (cachedSpotlights?.length) renderLatestSetSpotlights(cachedSpotlights);
+    else if (cachedSets?.length) renderLatestSetSpotlights(cachedSets);
 
     try {
       const base = liveSearchBase;
@@ -819,22 +860,44 @@
         // The expansion search remains usable if the refresh marker is unavailable.
       }
 
-      const params = new URLSearchParams({
-        q: 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket',
-        orderBy: '-release_date',
-        page: '1',
-        pageSize: '30',
-        select: 'id,name,logo,release_date,is_online_only,series,language,language_code',
-        casing: 'camel',
-      });
-      if (latestVersion) params.set('latestVersion', latestVersion);
-      const expansionResponse = await fetchWithAuth(`${base}/expansions/search?${params.toString()}`, { cache: 'no-store' });
-      if (!expansionResponse.ok) throw new Error(`Latest set request failed with ${expansionResponse.status}`);
-      const expansionPayload = await expansionResponse.json();
-      const sets = (Array.isArray(expansionPayload?.data) ? expansionPayload.data : [])
-        .map(normalizeLatestSet)
-        .filter(Boolean)
-        .slice(0, 10);
+      const listVersionMatches = cachedSets?.length
+        && (!latestVersion || cachedListEntry?.version === latestVersion);
+      const listAge = Number.isFinite(cachedListEntry?.savedAt)
+        ? Date.now() - cachedListEntry.savedAt
+        : Number.POSITIVE_INFINITY;
+      const shouldRefreshSets = !listVersionMatches || listAge >= latestSetListRevalidateAfterMs;
+      let sets = cachedSets;
+
+      if (shouldRefreshSets) {
+        if (setStatus && (cachedSpotlights?.length || cachedSets?.length)) {
+          setStatus.hidden = false;
+          setStatus.textContent = 'Refreshing latest sets...';
+        }
+
+        const params = new URLSearchParams({
+          q: 'language:english -is_online_only:true -id:tcgp* -series:promo -name:promo -series:pocket -name:pocket',
+          orderBy: '-release_date',
+          page: '1',
+          pageSize: '30',
+          select: 'id,name,logo,release_date,is_online_only,series,language,language_code',
+          casing: 'camel',
+        });
+        if (latestVersion) params.set('latestVersion', latestVersion);
+        const expansionResponse = await fetchWithAuth(`${base}/expansions/search?${params.toString()}`, { cache: 'no-store' });
+        if (!expansionResponse.ok) throw new Error(`Latest set request failed with ${expansionResponse.status}`);
+        const expansionPayload = await expansionResponse.json();
+        sets = (Array.isArray(expansionPayload?.data) ? expansionPayload.data : [])
+          .map(normalizeLatestSet)
+          .filter(Boolean)
+          .slice(0, 10);
+        writeLatestSetListCache(sets, latestVersion);
+      }
+
+      if (!Array.isArray(sets) || !sets.length) throw new Error('Latest set response was empty');
+
+      const spotlightVersionMatches = cachedSpotlights?.length
+        && (!latestVersion || cachedSpotlightEntry?.version === latestVersion);
+      if (!shouldRefreshSets && spotlightVersionMatches) return;
 
       const spotlightSets = sets.slice(0, 3);
       const settled = await Promise.allSettled(spotlightSets.map(async (set) => {
@@ -843,7 +906,6 @@
           limit: '10',
           lang: 'en',
           variantPreference: 'v2',
-          cache: 'no-store',
         });
         const response = await fetchWithAuth(`${base}/cards/top-by-expansion?${topParams.toString()}`, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Top cards request failed with ${response.status}`);
@@ -858,12 +920,14 @@
         ? result.value
         : { ...spotlightSets[index], cards: [] });
       const resolved = sets.map((set) => resolvedSpotlights.find((spotlight) => spotlight.id === set.id) || set);
-      writeLatestSetCache(resolved);
+      writeLatestSetCache(resolved, latestVersion);
       renderLatestSetSpotlights(resolved);
     } catch (error) {
       console.warn('[PokeValutor] latest set spotlight error', error);
-      if (!cached?.length) renderLatestSetSpotlights([]);
-      if (setStatus && cached?.length) setStatus.hidden = true;
+      if (!cachedSpotlights?.length && staleSpotlightEntry?.value?.length) renderLatestSetSpotlights(staleSpotlightEntry.value);
+      else if (!cachedSpotlights?.length && staleListEntry?.value?.length) renderLatestSetSpotlights(staleListEntry.value);
+      else if (!cachedSpotlights?.length && !cachedSets?.length) renderLatestSetSpotlights([]);
+      if (setStatus && (cachedSpotlights?.length || cachedSets?.length)) setStatus.hidden = true;
     }
   }
 
@@ -960,7 +1024,7 @@
   }
 
   async function fetchLiveCardPrice(cardId) {
-    const response = await fetchWithAuth(`${liveSearchBase}/cards/${encodeURIComponent(cardId)}?includePrices=1&lang=en&cache=no-store`);
+    const response = await fetchWithAuth(`${liveSearchBase}/cards/${encodeURIComponent(cardId)}?includePrices=1&lang=en`);
     if (!response.ok) throw new Error(`Price request failed with ${response.status}`);
     const payload = await response.json();
     const card = payload?.data || payload?.card || payload;
@@ -972,7 +1036,7 @@
   }
 
   async function fetchLiveSealedPrice(productId) {
-    const response = await fetchWithAuth(`${liveSearchBase}/sealed/${encodeURIComponent(productId)}?includePrices=1&cache=no-store`);
+    const response = await fetchWithAuth(`${liveSearchBase}/sealed/${encodeURIComponent(productId)}?includePrices=1`);
     if (!response.ok) throw new Error(`Sealed price request failed with ${response.status}`);
     const payload = await response.json();
     const product = payload?.data || payload?.product || payload;
@@ -1094,7 +1158,6 @@
       pageSize: String(pageSize),
       lang: 'en',
       consumeQuota: consumeQuota ? '1' : '0',
-      cache: 'no-store',
     });
     const response = await fetchWithAuth(`${liveSearchBase}/cards/search?${params.toString()}`);
     if (!response.ok) throw new Error(`Card search request failed with ${response.status}`);
@@ -1251,7 +1314,7 @@
       const candidates = buildLiveSealedNameCandidates(query);
       let payload = null;
       for (const searchQuery of candidates) {
-        const params = new URLSearchParams({ q: searchQuery, page: '1', pageSize: '10', searchVersion: 'v3', consumeQuota: '1', cache: 'no-store' });
+        const params = new URLSearchParams({ q: searchQuery, page: '1', pageSize: '10', searchVersion: 'v3', consumeQuota: '1' });
         const response = await fetchWithAuth(`${liveSearchBase}/sealed/search?${params.toString()}`);
         if (!response.ok) throw new Error(`Sealed search request failed with ${response.status}`);
         payload = await response.json();
