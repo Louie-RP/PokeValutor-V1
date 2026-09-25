@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#080809" />
+  <title>PokéValutor Home Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="home-preview.css?v=2026-09-23-active-nav-1" />
+</head>
+<body class="home-preview-body">
+  <a class="home-preview-skip" href="#home-preview-main">Skip to content</a>
+
+  <header class="home-preview-header">
+    <a class="home-preview-brand" href="#home-preview-main" aria-label="PokéValuator home">
+      <span class="home-preview-brand-visual" aria-hidden="true"><img src="PokeValuator_Logo.png" alt="" /></span>
+    </a>
+    <div class="home-preview-header-actions" aria-label="Account and navigation">
+      <a class="home-preview-icon-button" href="account.html" aria-label="Account" title="Account">
+        <span class="home-preview-account-icon" aria-hidden="true"></span>
+      </a>
+      <button id="home-preview-menu-button" class="home-preview-icon-button" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="home-preview-nav" title="Open navigation">
+        <span class="home-preview-menu-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+      </button>
+    </div>
+    <nav id="home-preview-nav" class="home-preview-nav" aria-label="Primary navigation" hidden>
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="search.html">Cards</a>
+      <a href="dex.html">My Dex</a>
+      <a href="sealed.html">Sealed</a>
+      <a href="sets.html">Sets</a>
+      <a href="account.html">Account</a>
+    </nav>
+  </header>
+
+  <main id="home-preview-main">
+    <section class="home-preview-hero" aria-labelledby="home-preview-title">
+      <div class="home-preview-hero-copy">
+        <p class="home-preview-eyebrow">Pokémon market, made clear</p>
+        <h1 id="home-preview-title">Know what your collection is <em>worth.</em></h1>
+        <p class="home-preview-intro">Search cards or sealed products and get to the value that matters.</p>
+      </div>
+
+      <form class="home-preview-search" id="home-preview-search-form">
+        <div class="home-preview-mode-switch" role="group" aria-label="Search type">
+          <button class="home-preview-mode-button is-active" type="button" data-home-preview-mode="cards" aria-pressed="true">Cards</button>
+          <button class="home-preview-mode-button" type="button" data-home-preview-mode="sealed" aria-pressed="false">Sealed</button>
+        </div>
+        <div class="home-preview-search-row">
+          <label class="home-preview-sr-only" for="home-preview-query">Search cards or sealed products</label>
+          <span class="home-preview-search-icon" aria-hidden="true"></span>
+          <input id="home-preview-query" name="query" type="search" placeholder="Search card name or number" autocomplete="off" />
+          <button class="home-preview-submit" type="submit" aria-label="Search">
+            <span aria-hidden="true">&#8594;</span>
+          </button>
+        </div>
+        <p class="home-preview-search-status" id="home-preview-search-status" aria-live="polite"></p>
+      </form>
+      <nav class="home-preview-quick-actions" aria-label="Quick actions">
+        <a class="home-preview-quick-action" href="search.html">
+          <span class="home-preview-quick-icon home-preview-quick-icon--search" aria-hidden="true"></span>
+          <strong>Search</strong>
+        </a>
+        <a class="home-preview-quick-action" href="dex.html">
+          <span class="home-preview-quick-icon home-preview-quick-icon--dex" aria-hidden="true"></span>
+          <strong>My Dex</strong>
+        </a>
+        <a class="home-preview-quick-action" href="sets.html">
+          <span class="home-preview-quick-icon home-preview-quick-icon--sets" aria-hidden="true"></span>
+          <strong>Sets</strong>
+        </a>
+      </nav>
+    </section>
+
+    <section class="home-preview-section home-preview-results" aria-labelledby="home-preview-results-title" data-home-preview-results hidden>
+      <div class="home-preview-section-heading">
+        <div>
+          <p class="home-preview-section-kicker" data-home-preview-result-kicker>Live search</p>
+          <h2 id="home-preview-results-title">Search Results</h2>
+          <p class="home-preview-section-subtitle" data-home-preview-result-count>Search for a card or sealed product above.</p>
+        </div>
+        <button class="home-preview-clear-button" type="button" data-home-preview-clear hidden>Clear</button>
+      </div>
+
+      <div class="home-preview-state-panel" data-home-preview-state-panel="results" hidden>
+        <div class="home-preview-result-list" data-home-preview-result-panel="cards">
+        </div>
+
+      <div class="home-preview-result-list" data-home-preview-result-panel="sealed" hidden>
+        </div>
+
+        <a class="home-preview-wide-button" data-home-preview-result-link href="search.html">Open full search <span aria-hidden="true">&#8594;</span></a>
+      </div>
+
+      <div class="home-preview-state-panel home-preview-state-panel--centered" data-home-preview-state-panel="loading" role="status" hidden>
+        <div class="home-preview-skeleton-list" aria-hidden="true"><span></span><span></span><span></span></div>
+        <p>Finding the best matches...</p>
+      </div>
+
+      <div class="home-preview-state-panel home-preview-state-panel--centered" data-home-preview-state-panel="empty" role="status" hidden>
+        <span class="home-preview-state-icon" aria-hidden="true">?</span>
+        <h3>No matches yet</h3>
+        <p>Try a different name or number.</p>
+      </div>
+
+      <div class="home-preview-state-panel home-preview-state-panel--centered" data-home-preview-state-panel="error" role="alert" hidden>
+        <span class="home-preview-state-icon home-preview-state-icon--error" aria-hidden="true">!</span>
+        <h3>Preview unavailable</h3>
+        <p>We could not load the search preview right now.</p>
+        <div class="home-preview-state-actions"><button class="home-preview-retry" type="button" data-home-preview-retry>Retry</button></div>
+      </div>
+    </section>
+
+    <section class="home-preview-section home-preview-new-sets" aria-labelledby="home-preview-new-sets-title">
+      <div class="home-preview-section-heading home-preview-section-heading--stacked">
+        <div>
+          <p class="home-preview-section-kicker">Fresh market signals</p>
+          <h2 id="home-preview-new-sets-title">Top Cards From New Sets</h2>
+          <p class="home-preview-section-subtitle">The three highest NM values from each new release.</p>
+        </div>
+      </div>
+
+      <div class="home-preview-set-tabs-wrap">
+        <div class="home-preview-set-tabs" data-home-preview-set-tabs role="tablist" aria-label="Newest sets"></div>
+      </div>
+      <p class="home-preview-set-status" data-home-preview-set-status role="status">Loading the latest sets...</p>
+      <div class="home-preview-top-grid" data-home-preview-set-panels aria-live="polite"></div>
+    </section>
+
+    <section class="home-preview-section home-preview-recent" aria-labelledby="home-preview-recent-title">
+      <div class="home-preview-section-heading">
+        <div>
+          <p class="home-preview-section-kicker">Browse the catalog</p>
+          <h2 id="home-preview-recent-title">Explore New Sets</h2>
+          <p class="home-preview-section-subtitle">Tap a set to see its ten most valuable cards.</p>
+        </div>
+        <a class="home-preview-inline-link home-preview-inline-link--heading" href="sets.html">View all <span aria-hidden="true">&#8594;</span></a>
+      </div>
+
+      <p class="home-preview-set-status" data-home-preview-recent-status role="status">Loading the latest sets...</p>
+      <div class="home-preview-set-rail" data-home-preview-recent-sets tabindex="0" aria-label="Recent sets. Scroll horizontally to browse."></div>
+    </section>
+
+    <section class="home-preview-section home-preview-market-movers" aria-labelledby="home-preview-market-movers-title" data-home-preview-trending hidden>
+      <div class="home-preview-section-heading">
+        <div>
+          <p class="home-preview-section-kicker">Watchlist movement</p>
+          <h2 id="home-preview-market-movers-title">Trending Cards</h2>
+          <p class="home-preview-section-subtitle">Movers from your watchlist.</p>
+        </div>
+        <a class="home-preview-inline-link home-preview-inline-link--heading" href="search.html">See more <span aria-hidden="true">&#8594;</span></a>
+      </div>
+
+      <div class="home-preview-market-movers-list" data-home-preview-trending-list aria-live="polite" tabindex="0" aria-label="Trending cards carousel. Swipe horizontally to browse."></div>
+      <p class="home-preview-market-movers-note" data-home-preview-trending-note hidden></p>
+    </section>
+
+    <section class="home-preview-account-cta" aria-labelledby="home-preview-account-title" hidden>
+      <div>
+        <p class="home-preview-section-kicker">Keep your numbers close</p>
+        <h2 id="home-preview-account-title">Keep your collection in one place.</h2>
+        <p>Save cards, track sealed products, and monitor your total collection value.</p>
+      </div>
+      <a class="home-preview-wide-button" href="account.html">Create free account <span aria-hidden="true">&#8594;</span></a>
+    </section>
+  </main>
+
+  <div class="home-preview-image-dialog" data-home-preview-image-dialog hidden>
+    <div class="home-preview-image-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="home-preview-image-dialog-title">
+      <div class="home-preview-image-dialog-heading">
+        <p id="home-preview-image-dialog-title" data-home-preview-image-dialog-title>Expanded image</p>
+        <button class="home-preview-image-dialog-close" type="button" data-home-preview-image-dialog-close aria-label="Close expanded image" title="Close expanded image">&times;</button>
+      </div>
+      <img class="home-preview-image-dialog-image" data-home-preview-image-dialog-image alt="" />
+    </div>
+  </div>
+
+  <footer class="home-preview-footer">
+    <p>&copy; 2026 PokéValuator</p>
+    <nav aria-label="Footer links"><a href="policies.html#pv-privacyPolicy">Privacy</a><a href="policies.html#pv-termsOfUse">Terms</a><a href="contact.html">Contact</a><a href="https://discord.gg/MnNy5K7zp">Discord</a></nav>
+  </footer>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+  <script src="firebase-config.js" defer></script>
+  <script src="firebase-config.local.js" defer></script>
+  <script src="firebase.js?v=2026-09-22-home-preview-auth-1" defer></script>
+  <script src="home-preview.js?v=2026-09-24-cache-policy-1" defer></script>
+  <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
+</body>
+</html>
