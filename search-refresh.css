@@ -17,7 +17,6 @@
   --search-danger: #ff9c86;
   --search-heading: "Playfair Display", Georgia, serif;
   --search-body: "DM Sans", "Space Grotesk", system-ui, sans-serif;
-  min-width: 320px;
   background:
     radial-gradient(circle at 88% 4%, rgba(255, 203, 5, 0.08), transparent 28rem),
     var(--search-bg);
