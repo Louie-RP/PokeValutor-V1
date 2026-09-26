@@ -36,18 +36,21 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
+    <link rel="stylesheet" href="sealed-refresh.css?v=2026-09-26-1" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-sealed-body" class="pv-body pv-sealedPage">
+<body id="pv-sealed-body" class="pv-body pv-sealedPage pv-sealedRefresh">
     <a class="pv-skiplink" href="#pv-sealed-main">Skip to content</a>
 
     <header id="pv-sealed-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-sealed-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <a id="pv-sealed-brand" class="pv-brand pv-sealedRefresh__brand" href="index.html" aria-label="PokéValuator home">
+                <img src="PokeValuator_Logo.png" alt="" aria-hidden="true" />
+            </a>
             <button id="pv-sealed-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-sealed-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -55,10 +58,10 @@
             </button>
             <nav id="pv-sealed-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="home-preview.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html" aria-current="page">Sealed</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
                 </ul>
@@ -69,7 +72,7 @@
     <main id="pv-sealed-main" class="pv-main" role="main">
         <section id="pv-sealed-hero" class="pv-hero container pv-sealedHero" aria-labelledby="pv-sealed-title">
             <p class="pv-sealedHero__eyebrow">Sealed</p>
-            <h1 id="pv-sealed-title" class="pv-hero__title">Search sealed products and track watchlist value.</h1>
+            <h1 id="pv-sealed-title" class="pv-hero__title">Sealed Product Search</h1>
             <p class="pv-hero__subtitle">Find boxes, packs, and collections by name.</p>
             <div class="pv-sealedHero__chips" aria-label="Sealed search highlights">
                 <span class="pv-sealedHero__chip">Market prices</span>
