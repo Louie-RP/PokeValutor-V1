@@ -39,7 +39,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
     <link rel="stylesheet" href="scanner.css?v=20260709-2" />
-    <link rel="stylesheet" href="search-refresh.css?v=2026-09-23-1" />
+    <link rel="stylesheet" href="search-refresh.css?v=2026-09-25-17" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -72,14 +72,17 @@
 
     <main id="pv-search-main" class="pv-main" role="main">
         <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
+            <nav id="pv-search-jump-nav" class="pv-searchJumpNav" aria-label="Jump to search sections">
+                <a href="#pv-search-section">Search</a>
+                <a id="pv-search-jump-trade" href="#pv-trade" hidden>Trade</a>
+                <a href="#pv-favorites">Watchlist</a>
+            </nav>
             <div class="pv-searchPanel">
                 <div class="pv-section__header pv-searchPanel__header">
                     <div>
-                        <p class="pv-searchPanel__kicker">Card lookup</p>
                         <h2 id="pv-search-form-title" class="pv-section__title">Search cards</h2>
-                        <p class="pv-searchPanel__intro">Use a card name or number, then narrow the results by series and set when needed.</p>
                     </div>
-                    <button id="pv-search-toggle" class="pv-button pv-button--primary btn" type="button"
+                    <button id="pv-search-toggle" class="pv-button pv-button--secondary btn" type="button"
                         aria-controls="pv-search-content" aria-expanded="true">Hide</button>
                 </div>
                 <div id="pv-search-content">
@@ -112,14 +115,14 @@
                     </div>
                     <div class="col-12 pv-search-actions">
                         <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                        <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                        <button id="pv-clear-results" class="pv-button pv-button--danger btn ms-2" type="button">Clear</button>
                     </div>
                     <div class="pv-form__field pv-searchField--condition col-12">
+                        <span class="form-label" id="pv-condition-label">Condition</span>
                         <div class="pv-conditionFilterRow">
                             <details id="pv-condition-filter" class="pv-conditionFilter">
                                 <summary id="pv-condition-toggle" class="pv-conditionFilter__summary" aria-label="Condition price filter">
                                     <span class="pv-conditionFilter__summaryMain">
-                                        <span>Condition:</span>
                                         <span id="pv-condition-summary">NM</span>
                                     </span>
                                 </summary>
@@ -205,7 +208,7 @@
                                 <button id="pv-trade-apply-percent-button" class="pv-button pv-button--primary btn" type="button">Apply</button>
                             </div>
                         </div>
-                        <button id="pv-trade-toggle" class="pv-button pv-button--primary btn" type="button" aria-controls="pv-trade-body" aria-expanded="true">Hide</button>
+                        <button id="pv-trade-toggle" class="pv-button pv-button--secondary btn" type="button" aria-controls="pv-trade-body" aria-expanded="true">Hide</button>
                         <button id="pv-trade-clear" class="pv-button pv-button--danger btn" type="button">Clear</button>
                     </div>
                 </div>
@@ -242,7 +245,7 @@
                         </select>
                         <button id="pv-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
                             aria-controls="pv-favorites-body" aria-expanded="true">Hide</button>
-                        <button id="pv-favorites-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
+                        <button id="pv-favorites-clear" class="pv-button pv-button--danger btn ms-2" type="button">Clear</button>
                     </div>
                 </div>
                 <div id="pv-favorites-body">
@@ -282,7 +285,7 @@
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
     <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
 
-    <script src="search.js?v=2026-09-22-query-deeplink-1" defer></script>
+    <script src="search.js?v=2026-09-25-jump-nav-1" defer></script>
     <script src="scanner.js?v=20260712-37" defer></script>
 </body>
 

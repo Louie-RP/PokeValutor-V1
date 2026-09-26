@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
     const tradeToggle = document.getElementById('pv-trade-toggle');
     const tradeClearBtn = document.getElementById('pv-trade-clear');
+    const tradeJumpLink = document.getElementById('pv-search-jump-trade');
     const tradeControls = document.querySelector('#pv-trade .pv-trade__controls');
     const tradeBulk = document.getElementById('pv-trade-bulk');
     const tradeSummary = document.querySelector('#pv-trade .pv-trade__summary');
@@ -2813,6 +2814,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return tradeApi.getConditionMarketValues(prices);
     }
 
+    function syncSearchJumpNav() {
+        if (!tradeJumpLink) return;
+        tradeJumpLink.hidden = !tradeSection || tradeSection.hidden;
+    }
+
     function toggleTradeCard(card, selectedVariant, loadedPrices, button) {
         if (!tradeEnabled) return;
         const id = safeString(card?.id, '');
@@ -2836,6 +2842,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function bindTradeControls() {
         if (!tradeEnabled) return;
         tradeSection.hidden = false;
+        syncSearchJumpNav();
         placeTradeBulkForViewport();
         if (typeof window.matchMedia === 'function') {
             window.matchMedia('(max-width: 640px)').addEventListener?.('change', placeTradeBulkForViewport);
