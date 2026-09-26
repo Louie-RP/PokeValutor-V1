@@ -1114,6 +1114,10 @@
     padding-left: 0.78rem;
   }
 
+  #pv-search-body.pv-searchRefresh #pv-search-status {
+    margin-top: 1.35rem;
+  }
+
   #pv-search-body.pv-searchRefresh #pv-search-results {
     margin-top: 1.2rem;
   }
