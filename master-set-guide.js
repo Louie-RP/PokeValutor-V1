@@ -33,6 +33,7 @@
         grid: document.getElementById('pv-guide-grid'),
         first: document.getElementById('pv-guide-first'),
         previous: document.getElementById('pv-guide-previous'),
+        pagerLabel: document.getElementById('pv-guide-pager-label'),
         next: document.getElementById('pv-guide-next'),
         last: document.getElementById('pv-guide-last'),
         dialog: document.getElementById('pv-guide-card-dialog'),
@@ -52,6 +53,7 @@
         ownedVariantsByCardId: new Map(),
         filteredSlots: [],
         page: 1,
+        dialogImageRequestId: 0,
     };
 
     function safeString(value) {
@@ -139,6 +141,23 @@
                 input.checked = enabled.has(normalizeVariant(input.value));
             });
         }
+        updateVariantDisclosureState();
+    }
+
+    function updateVariantDisclosureState() {
+        document.querySelectorAll('[data-guide-variant-disclosure]').forEach((disclosure) => {
+            const inputs = Array.from(disclosure.querySelectorAll('[data-guide-variant]'))
+                .filter((input) => input instanceof HTMLInputElement);
+            const checkedCount = inputs.filter((input) => input.checked).length;
+            const state = checkedCount === 0
+                ? 'empty'
+                : checkedCount === inputs.length
+                    ? 'selected'
+                    : 'partial';
+            disclosure.dataset.variantState = state;
+            const stateElement = disclosure.querySelector('[data-guide-variant-state]');
+            if (stateElement) stateElement.textContent = state === 'selected' ? '✓' : state === 'partial' ? '−' : '';
+        });
     }
 
     function getOwnedVariantIndex() {
@@ -233,14 +252,19 @@
 
     function openCardDialog(slot, card) {
         if (!(elements.dialog instanceof HTMLDialogElement)) return;
+        const requestId = ++state.dialogImageRequestId;
         const cardName = safeString(card?.name) || 'Unknown Card';
-        const imageUrl = slot?.images?.large
-            || slot?.images?.medium
+        const imageAlt = `${cardName} ${safeString(slot?.label)} card image`;
+        const largeImageUrl = slot?.images?.large
+            || card?.images?.large;
+        const previewImageUrl = slot?.images?.medium
             || slot?.images?.small
-            || card?.images?.large
             || card?.images?.medium
-            || card?.images?.small;
-        setImage(elements.dialogImage, imageUrl, `${cardName} ${safeString(slot?.label)} card image`);
+            || card?.images?.small
+            || largeImageUrl;
+        const safeLargeImageUrl = getSafeImageUrl(largeImageUrl);
+        const safePreviewImageUrl = getSafeImageUrl(previewImageUrl);
+        setImage(elements.dialogImage, safePreviewImageUrl || safeLargeImageUrl, imageAlt);
         elements.dialogVariant.textContent = safeString(slot?.label) || safeString(slot?.variant);
         elements.dialogTitle.textContent = cardName;
         elements.dialogNumber.textContent = safeString(card?.printedNumber || card?.number)
@@ -249,6 +273,15 @@
         elements.dialogRarity.textContent = safeString(card?.rarity) || 'Rarity unavailable';
         elements.dialogOwned.textContent = isSlotOwned(slot) ? 'Owned in Default Collection' : 'Missing from Default Collection';
         if (!elements.dialog.open) elements.dialog.showModal();
+
+        if (safeLargeImageUrl && safeLargeImageUrl !== safePreviewImageUrl) {
+            const preload = document.createElement('img');
+            preload.decoding = 'async';
+            preload.onload = () => {
+                if (requestId === state.dialogImageRequestId) setImage(elements.dialogImage, safeLargeImageUrl, imageAlt);
+            };
+            preload.src = safeLargeImageUrl;
+        }
     }
 
     function createSlot(slot) {
@@ -304,10 +337,13 @@
 
         const ownedCount = state.filteredSlots.filter(isSlotOwned).length;
         if (elements.summary) {
-            elements.summary.textContent = `${state.filteredSlots.length} slots • ${ownedCount} owned • Page ${state.page} of ${totalPages}`;
+            elements.summary.textContent = `${state.filteredSlots.length} slots • ${ownedCount} owned`;
+        }
+        if (elements.pagerLabel) {
+            elements.pagerLabel.textContent = `Page ${state.page} of ${totalPages}`;
         }
         if (elements.status) {
-            elements.status.textContent = `${state.manifest.stats?.binderSlots || state.manifest.slots.length} total binder slots loaded. Pricing is not included.`;
+            elements.status.textContent = `${state.manifest.stats?.binderSlots || state.manifest.slots.length} total binder slots loaded.`;
         }
 
         [elements.first, elements.previous].forEach((button) => {
@@ -320,6 +356,7 @@
 
     function handleFilterChange() {
         state.page = 1;
+        updateVariantDisclosureState();
         savePreferences();
         render();
     }
@@ -393,12 +430,7 @@
         state.ownedVariantsByCardId = getOwnedVariantIndex();
         const setName = safeString(manifest?.expansion?.name) || expansionName || expansionId;
         if (elements.title) elements.title.textContent = `${setName} Binder Guide`;
-        if (elements.subtitle) {
-            const series = safeString(manifest?.expansion?.series);
-            elements.subtitle.textContent = series
-                ? `${series} • Organize every supported card variant.`
-                : 'Organize every supported card variant.';
-        }
+        if (elements.subtitle) elements.subtitle.textContent = '';
         document.title = `${setName} Binder Guide | PokeValutor`;
         render();
     }
