@@ -212,7 +212,7 @@
   position: relative;
   width: 100%;
   min-width: 0;
-  min-height: 100%;
+  min-height: 0;
   padding: clamp(0.3rem, 1vw, 0.55rem);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 10px;
@@ -394,6 +394,10 @@
 }
 
 @media (min-width: 900px) {
+  .pv-guideSlot__imageWrap {
+    max-height: clamp(220px, 30vh, 340px);
+  }
+
   .pv-guideVariantPills {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
