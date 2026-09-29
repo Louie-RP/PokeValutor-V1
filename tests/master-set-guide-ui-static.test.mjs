@@ -23,11 +23,11 @@ test('external image URLs are validated before assignment', () => {
 test('uses medium images for binder thumbnails and large images for card dialogs', () => {
     assert.match(
         source,
-        /slot\?\.images\?\.medium \|\| slot\?\.images\?\.large \|\| slot\?\.images\?\.small\s+\|\| card\?\.images\?\.medium \|\| card\?\.images\?\.large \|\| card\?\.images\?\.small/,
+        /slot\?\.images\?\.medium\s*\|\|\s*slot\?\.images\?\.large\s*\|\|\s*slot\?\.images\?\.small\s*\|\|\s*card\?\.images\?\.medium\s*\|\|\s*card\?\.images\?\.large\s*\|\|\s*card\?\.images\?\.small/,
     );
     assert.match(
         source,
-        /slot\?\.images\?\.large \|\| slot\?\.images\?\.medium \|\| slot\?\.images\?\.small\s+\|\| card\?\.images\?\.large \|\| card\?\.images\?\.medium \|\| card\?\.images\?\.small/,
+        /slot\?\.images\?\.large\s*\|\|\s*slot\?\.images\?\.medium\s*\|\|\s*slot\?\.images\?\.small\s*\|\|\s*card\?\.images\?\.large\s*\|\|\s*card\?\.images\?\.medium\s*\|\|\s*card\?\.images\?\.small/,
     );
 
     assert.match(source, /image\.loading = 'lazy'/);
