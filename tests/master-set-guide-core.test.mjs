@@ -58,12 +58,15 @@ function createCard() {
                     medium: 'https://images.scrydex.com/pokemon/me2pt5-7pb/medium',
                 }],
             },
+            { name: 'rocketReverseHolofoil', images: [] },
+            { name: 'loveBallReverseHolofoil', images: [] },
+            { name: 'friendBallReverseHolofoil', images: [] },
             { name: 'unexpectedStampedVariant', images: [] },
         ],
     };
 }
 
-test('builds only the six approved variant types and strips price resources', () => {
+test('builds only the nine approved variant types and strips price resources', () => {
     const { manifest } = buildMasterSetGuideManifest([createCard()], {
         expansionId: 'me2pt5',
         generatedAt: '2026-09-29T00:00:00.000Z',
@@ -74,11 +77,18 @@ test('builds only the six approved variant types and strips price resources', ()
         'normal',
         'energyReverseHolofoil',
         'pokeBallReverseHolofoil',
+        'rocketReverseHolofoil',
+        'loveBallReverseHolofoil',
+        'friendBallReverseHolofoil',
         'cosmosHolofoil',
     ]);
     assert.equal(manifest.source.includesPricing, false);
     assert.equal(manifest.source.includesPopulationReports, false);
     assert.doesNotMatch(JSON.stringify(manifest), /"prices"|"pop_reports"|"marketplaces"/);
+    for (const variant of ['rocketReverseHolofoil', 'loveBallReverseHolofoil', 'friendBallReverseHolofoil']) {
+        assert.equal(manifest.slots.find((slot) => slot.variant === variant)?.imageSource, 'base');
+        assert.ok(!manifest.generationWarnings.some((warning) => warning.includes(variant)));
+    }
     assert.ok(manifest.generationWarnings.some((warning) => warning.includes('unexpectedStampedVariant')));
 });
 

@@ -31,6 +31,9 @@ test('only the intended master-set variants are accepted by the UI', () => {
         'reverseHolofoil',
         'energyReverseHolofoil',
         'pokeBallReverseHolofoil',
+        'rocketReverseHolofoil',
+        'loveBallReverseHolofoil',
+        'friendBallReverseHolofoil',
         'cosmosHolofoil',
         'holofoil',
     ]) {

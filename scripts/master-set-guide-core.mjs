@@ -5,6 +5,9 @@ export const MASTER_SET_VARIANTS = Object.freeze([
     'reverseHolofoil',
     'energyReverseHolofoil',
     'pokeBallReverseHolofoil',
+    'rocketReverseHolofoil',
+    'loveBallReverseHolofoil',
+    'friendBallReverseHolofoil',
     'cosmosHolofoil',
     'holofoil',
 ]);
@@ -14,6 +17,9 @@ export const MASTER_SET_VARIANT_LABELS = Object.freeze({
     reverseHolofoil: 'Reverse Holofoil',
     energyReverseHolofoil: 'Energy Reverse Holofoil',
     pokeBallReverseHolofoil: 'Poké Ball Reverse Holofoil',
+    rocketReverseHolofoil: 'Rocket Reverse Holofoil',
+    loveBallReverseHolofoil: 'Love Ball Reverse Holofoil',
+    friendBallReverseHolofoil: 'Friend Ball Reverse Holofoil',
     cosmosHolofoil: 'Cosmos Holofoil',
     holofoil: 'Holofoil',
 });
