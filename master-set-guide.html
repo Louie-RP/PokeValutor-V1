@@ -91,18 +91,41 @@
             </div>
 
             <fieldset class="pv-guideVariants">
-                <legend>Include variants</legend>
-                <label><input type="checkbox" value="normal" data-guide-variant checked /> Normal</label>
-                <label><input type="checkbox" value="reverseHolofoil" data-guide-variant checked /> Reverse Holofoil</label>
-                <label><input type="checkbox" value="energyReverseHolofoil" data-guide-variant checked /> Energy Reverse Holofoil</label>
-                <label><input type="checkbox" value="pokeBallReverseHolofoil" data-guide-variant checked /> Poké Ball Reverse Holofoil</label>
-                <label><input type="checkbox" value="rocketReverseHolofoil" data-guide-variant checked /> Rocket Reverse Holofoil</label>
-                <label><input type="checkbox" value="quickBallReverseHolofoil" data-guide-variant checked /> Quick Ball Reverse Holofoil</label>
-                <label><input type="checkbox" value="duskBallReverseHolofoil" data-guide-variant checked /> Dusk Ball Reverse Holofoil</label>
-                <label><input type="checkbox" value="loveBallReverseHolofoil" data-guide-variant checked /> Love Ball Reverse Holofoil</label>
-                <label><input type="checkbox" value="friendBallReverseHolofoil" data-guide-variant checked /> Friend Ball Reverse Holofoil</label>
-                <label><input type="checkbox" value="cosmosHolofoil" data-guide-variant checked /> Cosmos Holofoil</label>
-                <label><input type="checkbox" value="holofoil" data-guide-variant checked /> Holofoil</label>
+                <legend>Include cards</legend>
+                <div class="pv-guideVariantPills">
+                    <label class="pv-guideVariantPill">
+                        <input type="checkbox" value="normal" data-guide-variant checked />
+                        <span class="pv-guideVariantPill__check" aria-hidden="true">✓</span>
+                        <span>Normal</span>
+                    </label>
+                    <details class="pv-guideVariantDisclosure" data-guide-variant-disclosure>
+                        <summary class="pv-guideVariantPill">
+                            <span class="pv-guideVariantPill__check" data-guide-variant-state aria-hidden="true">✓</span>
+                            <span>Reverse Holofoil</span>
+                            <span class="pv-guideVariantPill__chevron" aria-hidden="true"></span>
+                        </summary>
+                        <div class="pv-guideVariantDisclosure__panel">
+                            <label><input type="checkbox" value="reverseHolofoil" data-guide-variant checked /> Reverse Holofoil</label>
+                            <label><input type="checkbox" value="energyReverseHolofoil" data-guide-variant checked /> Energy Reverse Holofoil</label>
+                            <label><input type="checkbox" value="pokeBallReverseHolofoil" data-guide-variant checked /> Poké Ball Reverse Holofoil</label>
+                            <label><input type="checkbox" value="rocketReverseHolofoil" data-guide-variant checked /> Rocket Reverse Holofoil</label>
+                            <label><input type="checkbox" value="quickBallReverseHolofoil" data-guide-variant checked /> Quick Ball Reverse Holofoil</label>
+                            <label><input type="checkbox" value="duskBallReverseHolofoil" data-guide-variant checked /> Dusk Ball Reverse Holofoil</label>
+                            <label><input type="checkbox" value="loveBallReverseHolofoil" data-guide-variant checked /> Love Ball Reverse Holofoil</label>
+                            <label><input type="checkbox" value="friendBallReverseHolofoil" data-guide-variant checked /> Friend Ball Reverse Holofoil</label>
+                        </div>
+                    </details>
+                    <label class="pv-guideVariantPill">
+                        <input type="checkbox" value="cosmosHolofoil" data-guide-variant checked />
+                        <span class="pv-guideVariantPill__check" aria-hidden="true">✓</span>
+                        <span>Cosmos Holofoil</span>
+                    </label>
+                    <label class="pv-guideVariantPill">
+                        <input type="checkbox" value="holofoil" data-guide-variant checked />
+                        <span class="pv-guideVariantPill__check" aria-hidden="true">✓</span>
+                        <span>Holofoil</span>
+                    </label>
+                </div>
             </fieldset>
 
             <p id="pv-guide-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading guide data...</p>
@@ -117,6 +140,7 @@
                 <div class="pv-guidePager" aria-label="Binder page navigation">
                     <button id="pv-guide-first" class="pv-button pv-button--secondary btn" type="button">First</button>
                     <button id="pv-guide-previous" class="pv-button pv-button--secondary btn" type="button">Previous</button>
+                    <span id="pv-guide-pager-label" class="pv-guidePager__page" aria-live="polite">Page 0 of 0</span>
                     <button id="pv-guide-next" class="pv-button pv-button--secondary btn" type="button">Next</button>
                     <button id="pv-guide-last" class="pv-button pv-button--secondary btn" type="button">Last</button>
                 </div>
