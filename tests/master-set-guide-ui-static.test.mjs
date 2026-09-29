@@ -43,7 +43,8 @@ test('keeps lazy async image loading and contained-image styling hooks', async (
     assert.match(css, /object-fit:\s*contain/);
     assert.match(css, /\.pv-guideSlot\s*\{[\s\S]*display:\s*flex/);
     assert.match(css, /\.pv-guideSlot\s*\{[\s\S]*flex-direction:\s*column/);
-    assert.match(css, /\.pv-guideSlot__imageWrap\s*\{[\s\S]*flex:\s*0 0 auto/);
+    assert.match(css, /\.pv-guideSlot__imageWrap\s*\{[\s\S]*aspect-ratio:\s*2\.5\s*\/\s*3\.5/);
+    assert.match(css, /@media \(min-width: 900px\)[\s\S]*\.pv-guideSlot__imageWrap\s*\{[\s\S]*max-height:\s*clamp\(220px,\s*30vh,\s*340px\)/);
 });
 
 test('the guide never loads pricing code or asks the manifest for pricing', () => {
