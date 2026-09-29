@@ -6,6 +6,8 @@ export const MASTER_SET_VARIANTS = Object.freeze([
     'energyReverseHolofoil',
     'pokeBallReverseHolofoil',
     'rocketReverseHolofoil',
+    'quickBallReverseHolofoil',
+    'duskBallReverseHolofoil',
     'loveBallReverseHolofoil',
     'friendBallReverseHolofoil',
     'cosmosHolofoil',
@@ -18,6 +20,8 @@ export const MASTER_SET_VARIANT_LABELS = Object.freeze({
     energyReverseHolofoil: 'Energy Reverse Holofoil',
     pokeBallReverseHolofoil: 'Poké Ball Reverse Holofoil',
     rocketReverseHolofoil: 'Rocket Reverse Holofoil',
+    quickBallReverseHolofoil: 'Quick Ball Reverse Holofoil',
+    duskBallReverseHolofoil: 'Dusk Ball Reverse Holofoil',
     loveBallReverseHolofoil: 'Love Ball Reverse Holofoil',
     friendBallReverseHolofoil: 'Friend Ball Reverse Holofoil',
     cosmosHolofoil: 'Cosmos Holofoil',
@@ -44,12 +48,14 @@ function clonePublicImage(imageLike) {
     if (!imageLike || typeof imageLike !== 'object') return null;
 
     const small = safeString(imageLike.small);
-    const medium = safeString(imageLike.medium) || small;
-    if (!small && !medium) return null;
+    const medium = safeString(imageLike.medium);
+    const large = safeString(imageLike.large);
+    if (!small && !medium && !large) return null;
 
     return {
-        small: small || medium,
-        medium: medium || small,
+        small: small || medium || large,
+        medium: medium || large || small,
+        large: large || medium || small,
     };
 }
 
@@ -71,6 +77,15 @@ export function resolveVariantImage(card, variant, overrides = {}) {
     const slotId = `${cardId}:${variantName}`;
     const override = readImageOverride(overrides, slotId);
     if (override) return { images: override, source: 'override' };
+
+    // Scrydex variant renders for gold Hyper Rare cards can wash out the
+    // etched artwork. The base card image matches the clean card scan used by
+    // the normal card page while preserving variant images for other rarities.
+    const rarity = safeString(card?.rarity).toLowerCase();
+    if (variantName === 'holofoil' && rarity.endsWith('hyper rare')) {
+        const goldCardBaseImage = getFrontImage(card?.images);
+        if (goldCardBaseImage) return { images: goldCardBaseImage, source: 'baseGoldRarity' };
+    }
 
     const variantImage = getFrontImage(variant?.images);
     if (variantImage) return { images: variantImage, source: 'variant' };

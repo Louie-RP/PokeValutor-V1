@@ -21,10 +21,12 @@ Supported variants:
 3. `energyReverseHolofoil`
 4. `pokeBallReverseHolofoil`
 5. `rocketReverseHolofoil`
-6. `loveBallReverseHolofoil`
-7. `friendBallReverseHolofoil`
-8. `cosmosHolofoil`
-9. `holofoil`
+6. `quickBallReverseHolofoil`
+7. `duskBallReverseHolofoil`
+8. `loveBallReverseHolofoil`
+9. `friendBallReverseHolofoil`
+10. `cosmosHolofoil`
+11. `holofoil`
 
 The guide must:
 
@@ -216,9 +218,12 @@ Example from the supplied Ascended Heroes response:
 | `energyReverseHolofoil` | use the variant `-erh` image |
 | `pokeBallReverseHolofoil` | use the variant `-pb` image |
 | `rocketReverseHolofoil` | use its variant image when supplied; otherwise use the base image |
+| `quickBallReverseHolofoil` | use its variant image when supplied; otherwise use the base image |
+| `duskBallReverseHolofoil` | use its variant image when supplied; otherwise use the base image |
 | `loveBallReverseHolofoil` | use its variant image when supplied; otherwise use the base image |
 | `friendBallReverseHolofoil` | use its variant image when supplied; otherwise use the base image |
 | `cosmosHolofoil` with an empty image array | use the base card image and keep the Cosmos label visible |
+| `holofoil` on a rarity ending in `Hyper Rare` | use the base card image because Scrydex's gold-card variant render can wash out the etched artwork |
 
 Never manufacture a URL by guessing a Scrydex suffix. A guessed image can show the wrong treatment or break later.
 
@@ -235,7 +240,8 @@ data/master-set-guides/overrides/me2pt5.json
   "variantImageOverrides": {
     "me2pt5-7:cosmosHolofoil": {
       "small": "https://verified.example/tangela-cosmos-small",
-      "medium": "https://verified.example/tangela-cosmos-medium"
+      "medium": "https://verified.example/tangela-cosmos-medium",
+      "large": "https://verified.example/tangela-cosmos-large"
     }
   },
   "excludedSlots": []
@@ -243,6 +249,11 @@ data/master-set-guides/overrides/me2pt5.json
 ```
 
 After changing an override, rerun the generator so the published manifest contains the reviewed result.
+
+The generator automatically uses the clean base card image for a `holofoil`
+slot when the card rarity ends in `Hyper Rare` (including `Mega Hyper Rare`).
+This covers current and future gold cards without maintaining a list of card
+IDs. Other rarities continue to prefer their variant-specific images.
 
 The initial implementation supports:
 
@@ -353,7 +364,7 @@ Get-ChildItem -File -Recurse -Filter *.test.mjs | ForEach-Object { node --test $
 
 ### Variant correctness
 
-- [ ] All nine approved variant types appear when present in Scrydex.
+- [ ] All eleven approved variant types appear when present in Scrydex.
 - [ ] Normal uses its variant image when available.
 - [ ] Holofoil uses its variant image when available.
 - [ ] Energy Reverse Holofoil uses its variant image when available.
@@ -419,12 +430,12 @@ The page will show “not generated yet” until `data/master-set-guides/me2pt5.
 
 Use this exact scope when asking Copilot to continue the implementation:
 
-> Work only within the Master Set Binder Guide feature described in `docs/MASTER_SET_BINDER_GUIDE_IMPLEMENTATION_SPEC.md`. Preserve existing Dex, Firebase, pricing, search, and master-set behavior. Do not add Firestore or Redis storage for guide catalogs. Do not request prices or population reports. Use only the nine approved variant identifiers. Preserve variant-specific images with reviewed fallback behavior. Treat JSON, URLs, query parameters, and local storage as untrusted. Build UI nodes with safe DOM APIs and keep all existing and new tests passing. If a requirement is unclear or requires a new API call per card, stop and explain the tradeoff before changing the architecture.
+> Work only within the Master Set Binder Guide feature described in `docs/MASTER_SET_BINDER_GUIDE_IMPLEMENTATION_SPEC.md`. Preserve existing Dex, Firebase, pricing, search, and master-set behavior. Do not add Firestore or Redis storage for guide catalogs. Do not request prices or population reports. Use only the eleven approved variant identifiers. Preserve variant-specific images with reviewed fallback behavior. Treat JSON, URLs, query parameters, and local storage as untrusted. Build UI nodes with safe DOM APIs and keep all existing and new tests passing. If a requirement is unclear or requires a new API call per card, stop and explain the tradeoff before changing the architecture.
 
 ## 18. Rollout plan
 
 1. Generate Ascended Heroes only.
-2. Review generator warnings and the nine variant counts.
+2. Review generator warnings and the eleven variant counts.
 3. Compare a sample of each variant with Scrydex and a trusted checklist.
 4. Add only verified image overrides.
 5. Test mobile and desktop binder sizes.

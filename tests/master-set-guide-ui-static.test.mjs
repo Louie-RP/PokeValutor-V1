@@ -19,6 +19,11 @@ test('external image URLs are validated before assignment', () => {
     assert.match(source, /image\.src = safeUrl/);
 });
 
+test('the grid prefers medium images and the dialog prefers large images', () => {
+    assert.match(source, /const imageUrl = slot\?\.images\?\.large[\s\S]*openCardDialog/);
+    assert.match(source, /const imageUrl = slot\?\.images\?\.medium[\s\S]*createSlot/);
+});
+
 test('the guide never loads pricing code or asks the manifest for pricing', () => {
     assert.doesNotMatch(html, /price-history|pricing\.js|search\.js/);
     assert.doesNotMatch(source, /include=prices|pop_reports|\/prices/);
@@ -32,6 +37,8 @@ test('only the intended master-set variants are accepted by the UI', () => {
         'energyReverseHolofoil',
         'pokeBallReverseHolofoil',
         'rocketReverseHolofoil',
+        'quickBallReverseHolofoil',
+        'duskBallReverseHolofoil',
         'loveBallReverseHolofoil',
         'friendBallReverseHolofoil',
         'cosmosHolofoil',
