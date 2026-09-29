@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-29T21:15:31.708Z",
+  "generatedAt": "2026-09-29T22:01:42.547Z",
   "source": {
     "provider": "Scrydex",
     "includesPricing": false,
@@ -11585,11 +11585,11 @@
       "variant": "holofoil",
       "label": "Holofoil",
       "images": {
-        "small": "https://images.scrydex.com/pokemon/me2pt5-294h/small",
-        "medium": "https://images.scrydex.com/pokemon/me2pt5-294h/medium",
-        "large": "https://images.scrydex.com/pokemon/me2pt5-294h/large"
+        "small": "https://images.scrydex.com/pokemon/me2pt5-294/small",
+        "medium": "https://images.scrydex.com/pokemon/me2pt5-294/medium",
+        "large": "https://images.scrydex.com/pokemon/me2pt5-294/large"
       },
-      "imageSource": "variant"
+      "imageSource": "baseGoldRarity"
     },
     {
       "slotId": "me2pt5-295:holofoil",
@@ -11597,11 +11597,11 @@
       "variant": "holofoil",
       "label": "Holofoil",
       "images": {
-        "small": "https://images.scrydex.com/pokemon/me2pt5-295h/small",
-        "medium": "https://images.scrydex.com/pokemon/me2pt5-295h/medium",
-        "large": "https://images.scrydex.com/pokemon/me2pt5-295h/large"
+        "small": "https://images.scrydex.com/pokemon/me2pt5-295/small",
+        "medium": "https://images.scrydex.com/pokemon/me2pt5-295/medium",
+        "large": "https://images.scrydex.com/pokemon/me2pt5-295/large"
       },
-      "imageSource": "variant"
+      "imageSource": "baseGoldRarity"
     }
   ],
   "stats": {
@@ -11620,7 +11620,7 @@
       "cosmosHolofoil": 7,
       "holofoil": 142
     },
-    "variantImages": 613,
+    "variantImages": 611,
     "baseImageFallbacks": 7,
     "overrideImages": 0,
     "missingImages": 0
