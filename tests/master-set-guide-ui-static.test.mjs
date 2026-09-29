@@ -20,6 +20,7 @@ test('external image URLs are validated before assignment', () => {
     assert.match(source, /image\.src = safeUrl/);
 });
 
+<<<<<<< HEAD
 test('uses medium images for binder thumbnails and large images for card dialogs', () => {
     assert.match(
         source,
@@ -35,6 +36,11 @@ test('keeps lazy async image loading and contained-image styling hooks', async (
     assert.match(source, /image\.loading = 'lazy'/);
     assert.match(source, /image\.decoding = 'async'/);
     assert.match(css, /object-fit:\s*contain/);
+=======
+test('the grid prefers medium images and the dialog prefers large images', () => {
+    assert.match(source, /const imageUrl = slot\?\.images\?\.large[\s\S]*openCardDialog/);
+    assert.match(source, /const imageUrl = slot\?\.images\?\.medium[\s\S]*createSlot/);
+>>>>>>> 04338dd901de0badef95db87874d087048c7de6d
 });
 
 test('the guide never loads pricing code or asks the manifest for pricing', () => {
@@ -50,6 +56,8 @@ test('only the intended master-set variants are accepted by the UI', () => {
         'energyReverseHolofoil',
         'pokeBallReverseHolofoil',
         'rocketReverseHolofoil',
+        'quickBallReverseHolofoil',
+        'duskBallReverseHolofoil',
         'loveBallReverseHolofoil',
         'friendBallReverseHolofoil',
         'cosmosHolofoil',

@@ -78,6 +78,15 @@ export function resolveVariantImage(card, variant, overrides = {}) {
     const override = readImageOverride(overrides, slotId);
     if (override) return { images: override, source: 'override' };
 
+    // Scrydex variant renders for gold Hyper Rare cards can wash out the
+    // etched artwork. The base card image matches the clean card scan used by
+    // the normal card page while preserving variant images for other rarities.
+    const rarity = safeString(card?.rarity).toLowerCase();
+    if (variantName === 'holofoil' && rarity.endsWith('hyper rare')) {
+        const goldCardBaseImage = getFrontImage(card?.images);
+        if (goldCardBaseImage) return { images: goldCardBaseImage, source: 'baseGoldRarity' };
+    }
+
     const variantImage = getFrontImage(variant?.images);
     if (variantImage) return { images: variantImage, source: 'variant' };
 
