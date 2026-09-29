@@ -7,7 +7,8 @@ Add an optional `<expansion-id>.json` file only when Scrydex needs a reviewed co
   "variantImageOverrides": {
     "me2pt5-7:cosmosHolofoil": {
       "small": "https://verified.example/image/small",
-      "medium": "https://verified.example/image/medium"
+      "medium": "https://verified.example/image/medium",
+      "large": "https://verified.example/image/large"
     }
   },
   "excludedSlots": [
