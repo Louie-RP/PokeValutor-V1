@@ -59,5 +59,7 @@ test('only the intended master-set variants are accepted by the UI', () => {
     ]) {
         assert.match(source, new RegExp(`['"]${variant}['"]`));
         assert.match(html, new RegExp(`value=['"]${variant}['"]`));
+        const controls = html.match(new RegExp(`value=['"]${variant}['"]`, 'g')) || [];
+        assert.equal(controls.length, 1, `${variant} must appear exactly once in the guide controls`);
     }
 });
