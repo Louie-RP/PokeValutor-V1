@@ -1,0 +1,255 @@
+#pv-master-set-guide-body {
+  --pv-guide-pocket-gap: clamp(0.35rem, 1.5vw, 0.85rem);
+}
+
+.pv-guideEyebrow,
+.pv-guideDialog__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--pv-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pv-guideControls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+}
+
+.pv-guideControlGroup {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pv-guideVariants {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0.85rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.pv-guideVariants legend {
+  padding: 0 0.3rem;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.pv-guideVariants label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--pv-muted);
+}
+
+.pv-guideVariants input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--pv-primary);
+}
+
+.pv-guideBinderHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.pv-guidePager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.pv-guidePager .pv-button {
+  min-height: 40px;
+}
+
+.pv-guideGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--pv-guide-pocket-gap);
+  padding: clamp(0.5rem, 2vw, 1rem);
+  border: 1px solid rgba(255, 203, 5, 0.35);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(9, 40, 30, 0.96), rgba(3, 18, 14, 0.98));
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.18);
+}
+
+.pv-guideGrid[data-columns="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pv-guideSlot {
+  position: relative;
+  min-width: 0;
+  padding: clamp(0.3rem, 1vw, 0.55rem);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pv-guideSlot:hover,
+.pv-guideSlot:focus-visible {
+  border-color: var(--pv-primary);
+  transform: translateY(-1px);
+}
+
+.pv-guideSlot:focus-visible {
+  outline: 3px solid var(--pv-focus);
+  outline-offset: 2px;
+}
+
+.pv-guideSlot__imageWrap {
+  position: relative;
+  aspect-ratio: 2.5 / 3.5;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #111827;
+}
+
+.pv-guideSlot__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pv-guideSlot__placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 0.4rem;
+  color: var(--pv-muted);
+  text-align: center;
+}
+
+.pv-guideSlot__owned {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.94);
+  color: #04140e;
+  font-size: clamp(0.58rem, 1.5vw, 0.72rem);
+  font-weight: 800;
+}
+
+.pv-guideSlot__name {
+  display: block;
+  margin-top: 0.4rem;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: clamp(0.66rem, 2vw, 0.86rem);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-guideSlot__variant {
+  display: block;
+  margin-top: 0.12rem;
+  overflow: hidden;
+  color: var(--pv-muted);
+  font-size: clamp(0.58rem, 1.7vw, 0.74rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-guideEmpty {
+  grid-column: 1 / -1;
+  padding: 2rem 1rem;
+  color: var(--pv-muted);
+  text-align: center;
+}
+
+.pv-guideDialog {
+  width: min(92vw, 760px);
+  max-height: 90vh;
+  padding: 1rem;
+  border: 1px solid var(--pv-border);
+  border-radius: 16px;
+  background: var(--pv-surface-2);
+  color: #ffffff;
+}
+
+.pv-guideDialog::backdrop {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.pv-guideDialog__close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.65rem;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.pv-guideDialog__image {
+  display: block;
+  width: min(100%, 360px);
+  max-height: 65vh;
+  margin: 0 auto 1rem;
+  object-fit: contain;
+}
+
+.pv-guideDialog__content h2 {
+  margin: 0 0 0.55rem;
+}
+
+.pv-guideDialog__content p:not(.pv-guideDialog__eyebrow) {
+  margin: 0.25rem 0;
+  color: var(--pv-muted);
+}
+
+@media (min-width: 600px) {
+  .pv-guideControls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pv-guideVariants {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pv-guideBinderHeader {
+    flex-direction: row;
+    align-items: end;
+    justify-content: space-between;
+  }
+
+  .pv-guidePager {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .pv-guideDialog[open] {
+    display: grid;
+    grid-template-columns: minmax(220px, 360px) 1fr;
+    gap: 1.2rem;
+    align-items: center;
+  }
+
+  .pv-guideDialog__image {
+    margin: 0;
+  }
+}
+
+@media (min-width: 900px) {
+  .pv-guideVariants {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
