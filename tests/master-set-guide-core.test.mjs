@@ -93,7 +93,6 @@ test('builds only the eleven approved variant types and strips price resources',
     assert.equal(manifest.source.includesPricing, false);
     assert.equal(manifest.source.includesPopulationReports, false);
     assert.doesNotMatch(JSON.stringify(manifest), /"prices"|"pop_reports"|"marketplaces"/);
-<<<<<<< HEAD
     assert.deepEqual(manifest.cards[0].images, {
         small: 'https://images.scrydex.com/pokemon/me2pt5-7/small',
         medium: 'https://images.scrydex.com/pokemon/me2pt5-7/medium',
@@ -104,8 +103,6 @@ test('builds only the eleven approved variant types and strips price resources',
         medium: 'https://images.scrydex.com/pokemon/me2pt5-7n/medium',
         large: 'https://images.scrydex.com/pokemon/me2pt5-7n/large',
     });
-    for (const variant of ['rocketReverseHolofoil', 'loveBallReverseHolofoil', 'friendBallReverseHolofoil']) {
-=======
     for (const variant of [
         'rocketReverseHolofoil',
         'quickBallReverseHolofoil',
@@ -113,7 +110,6 @@ test('builds only the eleven approved variant types and strips price resources',
         'loveBallReverseHolofoil',
         'friendBallReverseHolofoil',
     ]) {
->>>>>>> 04338dd901de0badef95db87874d087048c7de6d
         assert.equal(manifest.slots.find((slot) => slot.variant === variant)?.imageSource, 'base');
         assert.ok(!manifest.generationWarnings.some((warning) => warning.includes(variant)));
     }
