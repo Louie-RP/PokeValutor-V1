@@ -7,17 +7,19 @@
         '4x3': { columns: 4, pageSize: 12 },
         '4x4': { columns: 4, pageSize: 16 },
     });
-    const ALLOWED_VARIANTS = Object.freeze([
-        'normal',
-        'reverseHolofoil',
-        'energyReverseHolofoil',
-        'pokeBallReverseHolofoil',
-        'rocketReverseHolofoil',
-        'loveBallReverseHolofoil',
-        'friendBallReverseHolofoil',
-        'cosmosHolofoil',
-        'holofoil',
-    ]);
+const ALLOWED_VARIANTS = Object.freeze([
+    'normal',
+    'reverseHolofoil',
+    'energyReverseHolofoil',
+    'pokeBallReverseHolofoil',
+    'rocketReverseHolofoil',
+    'quickBallReverseHolofoil',
+    'duskBallReverseHolofoil',
+    'loveBallReverseHolofoil',
+    'friendBallReverseHolofoil',
+    'cosmosHolofoil',
+    'holofoil',
+]);
 
     const elements = {
         title: document.getElementById('pv-guide-title'),
@@ -232,7 +234,8 @@
     function openCardDialog(slot, card) {
         if (!(elements.dialog instanceof HTMLDialogElement)) return;
         const cardName = safeString(card?.name) || 'Unknown Card';
-        const imageUrl = slot?.images?.medium || slot?.images?.small || card?.images?.medium || card?.images?.small;
+        const imageUrl = slot?.images?.large || slot?.images?.medium || slot?.images?.small
+            || card?.images?.large || card?.images?.medium || card?.images?.small;
         setImage(elements.dialogImage, imageUrl, `${cardName} ${safeString(slot?.label)} card image`);
         elements.dialogVariant.textContent = safeString(slot?.label) || safeString(slot?.variant);
         elements.dialogTitle.textContent = cardName;
@@ -259,7 +262,8 @@
         image.className = 'pv-guideSlot__image';
         image.loading = 'lazy';
         image.decoding = 'async';
-        const imageUrl = slot?.images?.small || slot?.images?.medium || card?.images?.small || card?.images?.medium;
+        const imageUrl = slot?.images?.medium || slot?.images?.large || slot?.images?.small
+            || card?.images?.medium || card?.images?.large || card?.images?.small;
         if (setImage(image, imageUrl, `${cardName} ${safeString(slot?.label)} card image`)) {
             imageWrap.append(image);
         } else {

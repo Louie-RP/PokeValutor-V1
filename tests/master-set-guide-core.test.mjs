@@ -20,6 +20,7 @@ function createCard() {
             type: 'front',
             small: 'https://images.scrydex.com/pokemon/me2pt5-7/small',
             medium: 'https://images.scrydex.com/pokemon/me2pt5-7/medium',
+            large: 'https://images.scrydex.com/pokemon/me2pt5-7/large',
         }],
         expansion: {
             id: 'me2pt5',
@@ -37,6 +38,7 @@ function createCard() {
                     type: 'front',
                     small: 'https://images.scrydex.com/pokemon/me2pt5-7n/small',
                     medium: 'https://images.scrydex.com/pokemon/me2pt5-7n/medium',
+                    large: 'https://images.scrydex.com/pokemon/me2pt5-7n/large',
                 }],
                 prices: [{ market: 0.12 }],
                 pop_reports: [{ company: 'PSA' }],
@@ -48,6 +50,7 @@ function createCard() {
                     type: 'front',
                     small: 'https://images.scrydex.com/pokemon/me2pt5-7erh/small',
                     medium: 'https://images.scrydex.com/pokemon/me2pt5-7erh/medium',
+                    large: 'https://images.scrydex.com/pokemon/me2pt5-7erh/large',
                 }],
             },
             {
@@ -56,6 +59,7 @@ function createCard() {
                     type: 'front',
                     small: 'https://images.scrydex.com/pokemon/me2pt5-7pb/small',
                     medium: 'https://images.scrydex.com/pokemon/me2pt5-7pb/medium',
+                    large: 'https://images.scrydex.com/pokemon/me2pt5-7pb/large',
                 }],
             },
             { name: 'rocketReverseHolofoil', images: [] },
@@ -85,6 +89,16 @@ test('builds only the nine approved variant types and strips price resources', (
     assert.equal(manifest.source.includesPricing, false);
     assert.equal(manifest.source.includesPopulationReports, false);
     assert.doesNotMatch(JSON.stringify(manifest), /"prices"|"pop_reports"|"marketplaces"/);
+    assert.deepEqual(manifest.cards[0].images, {
+        small: 'https://images.scrydex.com/pokemon/me2pt5-7/small',
+        medium: 'https://images.scrydex.com/pokemon/me2pt5-7/medium',
+        large: 'https://images.scrydex.com/pokemon/me2pt5-7/large',
+    });
+    assert.deepEqual(manifest.slots.find((slot) => slot.variant === 'normal')?.images, {
+        small: 'https://images.scrydex.com/pokemon/me2pt5-7n/small',
+        medium: 'https://images.scrydex.com/pokemon/me2pt5-7n/medium',
+        large: 'https://images.scrydex.com/pokemon/me2pt5-7n/large',
+    });
     for (const variant of ['rocketReverseHolofoil', 'loveBallReverseHolofoil', 'friendBallReverseHolofoil']) {
         assert.equal(manifest.slots.find((slot) => slot.variant === variant)?.imageSource, 'base');
         assert.ok(!manifest.generationWarnings.some((warning) => warning.includes(variant)));
@@ -101,6 +115,29 @@ test('prefers variant images and falls back to the base card image', () => {
     assert.equal(normal.images.medium, 'https://images.scrydex.com/pokemon/me2pt5-7n/medium');
     assert.equal(cosmos.source, 'base');
     assert.equal(cosmos.images.medium, 'https://images.scrydex.com/pokemon/me2pt5-7/medium');
+});
+
+test('preserves available sizes and safely fills missing image sizes', () => {
+    const card = createCard();
+    card.images = [{ type: 'front', large: 'https://images.example/large-only' }];
+    card.variants = [{ name: 'normal', images: [] }];
+
+    const resolved = resolveVariantImage(card, card.variants[0]);
+
+    assert.equal(resolved.source, 'base');
+    assert.deepEqual(resolved.images, {
+        small: 'https://images.example/large-only',
+        medium: 'https://images.example/large-only',
+        large: 'https://images.example/large-only',
+    });
+
+    card.images = [{ type: 'front', small: 'https://images.example/small-only' }];
+    const smallOnly = resolveVariantImage(card, card.variants[0]);
+    assert.deepEqual(smallOnly.images, {
+        small: 'https://images.example/small-only',
+        medium: 'https://images.example/small-only',
+        large: 'https://images.example/small-only',
+    });
 });
 
 test('a reviewed image override takes priority over Scrydex and base images', () => {

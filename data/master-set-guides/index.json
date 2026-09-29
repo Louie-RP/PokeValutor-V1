@@ -1,4 +1,15 @@
 {
   "schemaVersion": 1,
-  "guides": []
+  "guides": [
+    {
+      "expansionId": "me2pt5",
+      "name": "Ascended Heroes",
+      "series": "Mega Evolution",
+      "releaseDate": "2026/01/30",
+      "path": "data/master-set-guides/me2pt5.json",
+      "cardRecords": 295,
+      "binderSlots": 620,
+      "generatedAt": "2026-09-29T21:15:31.708Z"
+    }
+  ]
 }
