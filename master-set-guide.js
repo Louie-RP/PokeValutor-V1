@@ -12,6 +12,9 @@
         'reverseHolofoil',
         'energyReverseHolofoil',
         'pokeBallReverseHolofoil',
+        'rocketReverseHolofoil',
+        'loveBallReverseHolofoil',
+        'friendBallReverseHolofoil',
         'cosmosHolofoil',
         'holofoil',
     ]);
