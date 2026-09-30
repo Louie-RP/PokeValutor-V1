@@ -1,0 +1,4198 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-30T05:16:30.834Z",
+  "source": {
+    "provider": "Scrydex",
+    "includesPricing": false,
+    "includesPopulationReports": false,
+    "catalogUrl": "https://scrydex.com/pokemon/expansions/chaos-rising/me4?show_all_variants=true&show_expansion_variants_only=false",
+    "retrievalMethod": "public-card-page-embedded-json"
+  },
+  "expansion": {
+    "id": "me4",
+    "name": "Chaos Rising",
+    "series": "Mega Evolution",
+    "code": "CRI",
+    "total": 122,
+    "printedTotal": 86,
+    "releaseDate": "2026/05/22",
+    "logo": "https://images.scrydex.com/pokemon/me4-logo/logo",
+    "symbol": "https://images.scrydex.com/pokemon/me4-symbol/symbol"
+  },
+  "variantOrder": [
+    "normal",
+    "reverseHolofoil",
+    "energyReverseHolofoil",
+    "pokeBallReverseHolofoil",
+    "rocketReverseHolofoil",
+    "quickBallReverseHolofoil",
+    "duskBallReverseHolofoil",
+    "loveBallReverseHolofoil",
+    "friendBallReverseHolofoil",
+    "cosmosHolofoil",
+    "holofoil"
+  ],
+  "cards": [
+    {
+      "id": "me4-1",
+      "name": "Weedle",
+      "number": "1",
+      "printedNumber": "001/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 1,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-1/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-1/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-1/large"
+      }
+    },
+    {
+      "id": "me4-2",
+      "name": "Kakuna",
+      "number": "2",
+      "printedNumber": "002/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 2,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-2/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-2/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-2/large"
+      }
+    },
+    {
+      "id": "me4-3",
+      "name": "Beedrill ex",
+      "number": "3",
+      "printedNumber": "003/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 3,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-3/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-3/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-3/large"
+      }
+    },
+    {
+      "id": "me4-4",
+      "name": "Carnivine",
+      "number": "4",
+      "printedNumber": "004/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 4,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-4/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-4/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-4/large"
+      }
+    },
+    {
+      "id": "me4-5",
+      "name": "Chespin",
+      "number": "5",
+      "printedNumber": "005/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 5,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-5/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-5/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-5/large"
+      }
+    },
+    {
+      "id": "me4-6",
+      "name": "Quilladin",
+      "number": "6",
+      "printedNumber": "006/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 6,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-6/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-6/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-6/large"
+      }
+    },
+    {
+      "id": "me4-7",
+      "name": "Chesnaught",
+      "number": "7",
+      "printedNumber": "007/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 7,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-7/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-7/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-7/large"
+      }
+    },
+    {
+      "id": "me4-8",
+      "name": "Vulpix",
+      "number": "8",
+      "printedNumber": "008/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 8,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-8/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-8/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-8/large"
+      }
+    },
+    {
+      "id": "me4-9",
+      "name": "Ninetales",
+      "number": "9",
+      "printedNumber": "009/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 9,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-9/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-9/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-9/large"
+      }
+    },
+    {
+      "id": "me4-10",
+      "name": "Ho-Oh",
+      "number": "10",
+      "printedNumber": "010/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 10,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-10/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-10/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-10/large"
+      }
+    },
+    {
+      "id": "me4-11",
+      "name": "Fennekin",
+      "number": "11",
+      "printedNumber": "011/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 11,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-11/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-11/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-11/large"
+      }
+    },
+    {
+      "id": "me4-12",
+      "name": "Braixen",
+      "number": "12",
+      "printedNumber": "012/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 12,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-12/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-12/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-12/large"
+      }
+    },
+    {
+      "id": "me4-13",
+      "name": "Delphox",
+      "number": "13",
+      "printedNumber": "013/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 13,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-13/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-13/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-13/large"
+      }
+    },
+    {
+      "id": "me4-14",
+      "name": "Litleo",
+      "number": "14",
+      "printedNumber": "014/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 14,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-14/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-14/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-14/large"
+      }
+    },
+    {
+      "id": "me4-15",
+      "name": "Mega Pyroar ex",
+      "number": "15",
+      "printedNumber": "015/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 15,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-15/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-15/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-15/large"
+      }
+    },
+    {
+      "id": "me4-16",
+      "name": "Remoraid",
+      "number": "16",
+      "printedNumber": "016/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 16,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-16/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-16/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-16/large"
+      }
+    },
+    {
+      "id": "me4-17",
+      "name": "Octillery",
+      "number": "17",
+      "printedNumber": "017/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 17,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-17/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-17/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-17/large"
+      }
+    },
+    {
+      "id": "me4-18",
+      "name": "Delibird",
+      "number": "18",
+      "printedNumber": "018/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 18,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-18/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-18/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-18/large"
+      }
+    },
+    {
+      "id": "me4-19",
+      "name": "Keldeo",
+      "number": "19",
+      "printedNumber": "019/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 19,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-19/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-19/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-19/large"
+      }
+    },
+    {
+      "id": "me4-20",
+      "name": "Froakie",
+      "number": "20",
+      "printedNumber": "020/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 20,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-20/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-20/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-20/large"
+      }
+    },
+    {
+      "id": "me4-21",
+      "name": "Frogadier",
+      "number": "21",
+      "printedNumber": "021/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 21,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-21/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-21/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-21/large"
+      }
+    },
+    {
+      "id": "me4-22",
+      "name": "Mega Greninja ex",
+      "number": "22",
+      "printedNumber": "022/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 22,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-22/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-22/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-22/large"
+      }
+    },
+    {
+      "id": "me4-23",
+      "name": "Bergmite",
+      "number": "23",
+      "printedNumber": "023/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 23,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-23/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-23/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-23/large"
+      }
+    },
+    {
+      "id": "me4-24",
+      "name": "Avalugg",
+      "number": "24",
+      "printedNumber": "024/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 24,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-24/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-24/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-24/large"
+      }
+    },
+    {
+      "id": "me4-25",
+      "name": "Wimpod",
+      "number": "25",
+      "printedNumber": "025/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 25,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-25/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-25/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-25/large"
+      }
+    },
+    {
+      "id": "me4-26",
+      "name": "Golisopod",
+      "number": "26",
+      "printedNumber": "026/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 26,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-26/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-26/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-26/large"
+      }
+    },
+    {
+      "id": "me4-27",
+      "name": "Mareep",
+      "number": "27",
+      "printedNumber": "027/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 27,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-27/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-27/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-27/large"
+      }
+    },
+    {
+      "id": "me4-28",
+      "name": "Flaaffy",
+      "number": "28",
+      "printedNumber": "028/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 28,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-28/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-28/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-28/large"
+      }
+    },
+    {
+      "id": "me4-29",
+      "name": "Ampharos",
+      "number": "29",
+      "printedNumber": "029/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 29,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-29/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-29/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-29/large"
+      }
+    },
+    {
+      "id": "me4-30",
+      "name": "Emolga",
+      "number": "30",
+      "printedNumber": "030/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 30,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-30/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-30/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-30/large"
+      }
+    },
+    {
+      "id": "me4-31",
+      "name": "Deoxys",
+      "number": "31",
+      "printedNumber": "031/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 31,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-31/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-31/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-31/large"
+      }
+    },
+    {
+      "id": "me4-32",
+      "name": "Deoxys",
+      "number": "32",
+      "printedNumber": "032/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 32,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-32/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-32/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-32/large"
+      }
+    },
+    {
+      "id": "me4-33",
+      "name": "Deoxys",
+      "number": "33",
+      "printedNumber": "033/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 33,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-33/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-33/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-33/large"
+      }
+    },
+    {
+      "id": "me4-34",
+      "name": "Deoxys",
+      "number": "34",
+      "printedNumber": "034/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 34,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-34/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-34/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-34/large"
+      }
+    },
+    {
+      "id": "me4-35",
+      "name": "Mega Floette ex",
+      "number": "35",
+      "printedNumber": "035/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 35,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-35/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-35/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-35/large"
+      }
+    },
+    {
+      "id": "me4-36",
+      "name": "Espurr",
+      "number": "36",
+      "printedNumber": "036/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 36,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-36/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-36/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-36/large"
+      }
+    },
+    {
+      "id": "me4-37",
+      "name": "Meowstic",
+      "number": "37",
+      "printedNumber": "037/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 37,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-37/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-37/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-37/large"
+      }
+    },
+    {
+      "id": "me4-38",
+      "name": "Phantump",
+      "number": "38",
+      "printedNumber": "038/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 38,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-38/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-38/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-38/large"
+      }
+    },
+    {
+      "id": "me4-39",
+      "name": "Trevenant",
+      "number": "39",
+      "printedNumber": "039/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 39,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-39/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-39/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-39/large"
+      }
+    },
+    {
+      "id": "me4-40",
+      "name": "Pumpkaboo",
+      "number": "40",
+      "printedNumber": "040/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 40,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-40/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-40/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-40/large"
+      }
+    },
+    {
+      "id": "me4-41",
+      "name": "Gourgeist ex",
+      "number": "41",
+      "printedNumber": "041/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 41,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-41/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-41/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-41/large"
+      }
+    },
+    {
+      "id": "me4-42",
+      "name": "Xerneas",
+      "number": "42",
+      "printedNumber": "042/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 42,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-42/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-42/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-42/large"
+      }
+    },
+    {
+      "id": "me4-43",
+      "name": "Sudowoodo",
+      "number": "43",
+      "printedNumber": "043/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 43,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-43/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-43/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-43/large"
+      }
+    },
+    {
+      "id": "me4-44",
+      "name": "Phanpy",
+      "number": "44",
+      "printedNumber": "044/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 44,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-44/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-44/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-44/large"
+      }
+    },
+    {
+      "id": "me4-45",
+      "name": "Donphan",
+      "number": "45",
+      "printedNumber": "045/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 45,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-45/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-45/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-45/large"
+      }
+    },
+    {
+      "id": "me4-46",
+      "name": "Baltoy",
+      "number": "46",
+      "printedNumber": "046/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 46,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-46/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-46/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-46/large"
+      }
+    },
+    {
+      "id": "me4-47",
+      "name": "Claydol",
+      "number": "47",
+      "printedNumber": "047/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 47,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-47/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-47/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-47/large"
+      }
+    },
+    {
+      "id": "me4-48",
+      "name": "Mega Gallade ex",
+      "number": "48",
+      "printedNumber": "048/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 48,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-48/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-48/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-48/large"
+      }
+    },
+    {
+      "id": "me4-49",
+      "name": "Zubat",
+      "number": "49",
+      "printedNumber": "049/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 49,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-49/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-49/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-49/large"
+      }
+    },
+    {
+      "id": "me4-50",
+      "name": "Golbat",
+      "number": "50",
+      "printedNumber": "050/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 50,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-50/large"
+      }
+    },
+    {
+      "id": "me4-51",
+      "name": "Crobat",
+      "number": "51",
+      "printedNumber": "051/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 51,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-51/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-51/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-51/large"
+      }
+    },
+    {
+      "id": "me4-52",
+      "name": "Qwilfish",
+      "number": "52",
+      "printedNumber": "052/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 52,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-52/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-52/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-52/large"
+      }
+    },
+    {
+      "id": "me4-53",
+      "name": "Stunky",
+      "number": "53",
+      "printedNumber": "053/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 53,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-53/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-53/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-53/large"
+      }
+    },
+    {
+      "id": "me4-54",
+      "name": "Skuntank",
+      "number": "54",
+      "printedNumber": "054/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 54,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-54/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-54/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-54/large"
+      }
+    },
+    {
+      "id": "me4-55",
+      "name": "Krookodile ex",
+      "number": "55",
+      "printedNumber": "055/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 55,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-55/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-55/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-55/large"
+      }
+    },
+    {
+      "id": "me4-56",
+      "name": "Trubbish",
+      "number": "56",
+      "printedNumber": "056/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 56,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-56/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-56/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-56/large"
+      }
+    },
+    {
+      "id": "me4-57",
+      "name": "Garbodor",
+      "number": "57",
+      "printedNumber": "057/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 57,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-57/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-57/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-57/large"
+      }
+    },
+    {
+      "id": "me4-58",
+      "name": "Skrelp",
+      "number": "58",
+      "printedNumber": "058/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 58,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-58/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-58/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-58/large"
+      }
+    },
+    {
+      "id": "me4-59",
+      "name": "Beldum",
+      "number": "59",
+      "printedNumber": "059/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 59,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-59/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-59/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-59/large"
+      }
+    },
+    {
+      "id": "me4-60",
+      "name": "Metang",
+      "number": "60",
+      "printedNumber": "060/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 60,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-60/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-60/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-60/large"
+      }
+    },
+    {
+      "id": "me4-61",
+      "name": "Metagross",
+      "number": "61",
+      "printedNumber": "061/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 61,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-61/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-61/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-61/large"
+      }
+    },
+    {
+      "id": "me4-62",
+      "name": "Ferroseed",
+      "number": "62",
+      "printedNumber": "062/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 62,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-62/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-62/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-62/large"
+      }
+    },
+    {
+      "id": "me4-63",
+      "name": "Ferrothorn",
+      "number": "63",
+      "printedNumber": "063/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 63,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-63/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-63/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-63/large"
+      }
+    },
+    {
+      "id": "me4-64",
+      "name": "Cobalion ex",
+      "number": "64",
+      "printedNumber": "064/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 64,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-64/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-64/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-64/large"
+      }
+    },
+    {
+      "id": "me4-65",
+      "name": "Mega Dragalge ex",
+      "number": "65",
+      "printedNumber": "065/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 65,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-65/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-65/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-65/large"
+      }
+    },
+    {
+      "id": "me4-66",
+      "name": "Goomy",
+      "number": "66",
+      "printedNumber": "066/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 66,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-66/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-66/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-66/large"
+      }
+    },
+    {
+      "id": "me4-67",
+      "name": "Sliggoo",
+      "number": "67",
+      "printedNumber": "067/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 67,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-67/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-67/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-67/large"
+      }
+    },
+    {
+      "id": "me4-68",
+      "name": "Goodra",
+      "number": "68",
+      "printedNumber": "068/086",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 68,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-68/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-68/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-68/large"
+      }
+    },
+    {
+      "id": "me4-69",
+      "name": "Tauros",
+      "number": "69",
+      "printedNumber": "069/086",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 69,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-69/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-69/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-69/large"
+      }
+    },
+    {
+      "id": "me4-70",
+      "name": "Patrat",
+      "number": "70",
+      "printedNumber": "070/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 70,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-70/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-70/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-70/large"
+      }
+    },
+    {
+      "id": "me4-71",
+      "name": "Watchog",
+      "number": "71",
+      "printedNumber": "071/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 71,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-71/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-71/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-71/large"
+      }
+    },
+    {
+      "id": "me4-72",
+      "name": "Minccino",
+      "number": "72",
+      "printedNumber": "072/086",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 72,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-72/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-72/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-72/large"
+      }
+    },
+    {
+      "id": "me4-73",
+      "name": "Cinccino ex",
+      "number": "73",
+      "printedNumber": "073/086",
+      "rarity": "Double Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 73,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-73/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-73/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-73/large"
+      }
+    },
+    {
+      "id": "me4-74",
+      "name": "Adversity Policy",
+      "number": "74",
+      "printedNumber": "074/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 74,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-74/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-74/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-74/large"
+      }
+    },
+    {
+      "id": "me4-75",
+      "name": "Ange Floette",
+      "number": "75",
+      "printedNumber": "075/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 75,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-75/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-75/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-75/large"
+      }
+    },
+    {
+      "id": "me4-76",
+      "name": "AZ's Tranquility",
+      "number": "76",
+      "printedNumber": "076/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 76,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-76/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-76/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-76/large"
+      }
+    },
+    {
+      "id": "me4-77",
+      "name": "Emma",
+      "number": "77",
+      "printedNumber": "077/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 77,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-77/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-77/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-77/large"
+      }
+    },
+    {
+      "id": "me4-78",
+      "name": "Great Haul Net",
+      "number": "78",
+      "printedNumber": "078/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 78,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-78/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-78/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-78/large"
+      }
+    },
+    {
+      "id": "me4-79",
+      "name": "Philippe",
+      "number": "79",
+      "printedNumber": "079/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 79,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-79/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-79/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-79/large"
+      }
+    },
+    {
+      "id": "me4-80",
+      "name": "Prism Tower",
+      "number": "80",
+      "printedNumber": "080/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 80,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-80/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-80/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-80/large"
+      }
+    },
+    {
+      "id": "me4-81",
+      "name": "Roxie's Performance",
+      "number": "81",
+      "printedNumber": "081/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 81,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-81/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-81/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-81/large"
+      }
+    },
+    {
+      "id": "me4-82",
+      "name": "Special Red Card",
+      "number": "82",
+      "printedNumber": "082/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 82,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-82/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-82/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-82/large"
+      }
+    },
+    {
+      "id": "me4-83",
+      "name": "Transformation Tome",
+      "number": "83",
+      "printedNumber": "083/086",
+      "rarity": "Uncommon",
+      "supertype": "Trainer",
+      "sortOrder": 83,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-83/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-83/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-83/large"
+      }
+    },
+    {
+      "id": "me4-84",
+      "name": "Bubbly Water Energy",
+      "number": "84",
+      "printedNumber": "084/086",
+      "rarity": "Rare",
+      "supertype": "Energy",
+      "sortOrder": 84,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-84/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-84/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-84/large"
+      }
+    },
+    {
+      "id": "me4-85",
+      "name": "Magnetic Metal Energy",
+      "number": "85",
+      "printedNumber": "085/086",
+      "rarity": "Rare",
+      "supertype": "Energy",
+      "sortOrder": 85,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-85/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-85/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-85/large"
+      }
+    },
+    {
+      "id": "me4-86",
+      "name": "Nitro Fire Energy",
+      "number": "86",
+      "printedNumber": "086/086",
+      "rarity": "Rare",
+      "supertype": "Energy",
+      "sortOrder": 86,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-86/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-86/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-86/large"
+      }
+    },
+    {
+      "id": "me4-87",
+      "name": "Chespin",
+      "number": "87",
+      "printedNumber": "087/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 87,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-87/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-87/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-87/large"
+      }
+    },
+    {
+      "id": "me4-88",
+      "name": "Froakie",
+      "number": "88",
+      "printedNumber": "088/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 88,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-88/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-88/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-88/large"
+      }
+    },
+    {
+      "id": "me4-89",
+      "name": "Frogadier",
+      "number": "89",
+      "printedNumber": "089/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 89,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-89/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-89/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-89/large"
+      }
+    },
+    {
+      "id": "me4-90",
+      "name": "Ampharos",
+      "number": "90",
+      "printedNumber": "090/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 90,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-90/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-90/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-90/large"
+      }
+    },
+    {
+      "id": "me4-91",
+      "name": "Xerneas",
+      "number": "91",
+      "printedNumber": "091/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 91,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-91/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-91/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-91/large"
+      }
+    },
+    {
+      "id": "me4-92",
+      "name": "Claydol",
+      "number": "92",
+      "printedNumber": "092/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 92,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-92/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-92/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-92/large"
+      }
+    },
+    {
+      "id": "me4-93",
+      "name": "Crobat",
+      "number": "93",
+      "printedNumber": "093/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 93,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-93/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-93/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-93/large"
+      }
+    },
+    {
+      "id": "me4-94",
+      "name": "Metang",
+      "number": "94",
+      "printedNumber": "094/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 94,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-94/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-94/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-94/large"
+      }
+    },
+    {
+      "id": "me4-95",
+      "name": "Sliggoo",
+      "number": "95",
+      "printedNumber": "095/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 95,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-95/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-95/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-95/large"
+      }
+    },
+    {
+      "id": "me4-96",
+      "name": "Tauros",
+      "number": "96",
+      "printedNumber": "096/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 96,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-96/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-96/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-96/large"
+      }
+    },
+    {
+      "id": "me4-97",
+      "name": "Watchog",
+      "number": "97",
+      "printedNumber": "097/086",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 97,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-97/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-97/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-97/large"
+      }
+    },
+    {
+      "id": "me4-98",
+      "name": "Beedrill ex",
+      "number": "98",
+      "printedNumber": "098/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 98,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-98/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-98/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-98/large"
+      }
+    },
+    {
+      "id": "me4-99",
+      "name": "Mega Pyroar ex",
+      "number": "99",
+      "printedNumber": "099/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 99,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-99/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-99/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-99/large"
+      }
+    },
+    {
+      "id": "me4-100",
+      "name": "Mega Greninja ex",
+      "number": "100",
+      "printedNumber": "100/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 100,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-100/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-100/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-100/large"
+      }
+    },
+    {
+      "id": "me4-101",
+      "name": "Mega Floette ex",
+      "number": "101",
+      "printedNumber": "101/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 101,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-101/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-101/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-101/large"
+      }
+    },
+    {
+      "id": "me4-102",
+      "name": "Gourgeist ex",
+      "number": "102",
+      "printedNumber": "102/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 102,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-102/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-102/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-102/large"
+      }
+    },
+    {
+      "id": "me4-103",
+      "name": "Cobalion ex",
+      "number": "103",
+      "printedNumber": "103/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 103,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-103/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-103/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-103/large"
+      }
+    },
+    {
+      "id": "me4-104",
+      "name": "Mega Dragalge ex",
+      "number": "104",
+      "printedNumber": "104/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 104,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-104/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-104/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-104/large"
+      }
+    },
+    {
+      "id": "me4-105",
+      "name": "Cinccino ex",
+      "number": "105",
+      "printedNumber": "105/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 105,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-105/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-105/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-105/large"
+      }
+    },
+    {
+      "id": "me4-106",
+      "name": "AZ's Tranquility",
+      "number": "106",
+      "printedNumber": "106/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 106,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-106/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-106/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-106/large"
+      }
+    },
+    {
+      "id": "me4-107",
+      "name": "Emma",
+      "number": "107",
+      "printedNumber": "107/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 107,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-107/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-107/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-107/large"
+      }
+    },
+    {
+      "id": "me4-108",
+      "name": "Energy Retrieval",
+      "number": "108",
+      "printedNumber": "108/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 108,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-108/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-108/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-108/large"
+      }
+    },
+    {
+      "id": "me4-109",
+      "name": "Jumbo Ice Cream",
+      "number": "109",
+      "printedNumber": "109/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 109,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-109/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-109/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-109/large"
+      }
+    },
+    {
+      "id": "me4-110",
+      "name": "Philippe",
+      "number": "110",
+      "printedNumber": "110/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 110,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-110/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-110/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-110/large"
+      }
+    },
+    {
+      "id": "me4-111",
+      "name": "Prism Tower",
+      "number": "111",
+      "printedNumber": "111/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 111,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-111/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-111/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-111/large"
+      }
+    },
+    {
+      "id": "me4-112",
+      "name": "Roxie's Performance",
+      "number": "112",
+      "printedNumber": "112/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 112,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-112/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-112/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-112/large"
+      }
+    },
+    {
+      "id": "me4-113",
+      "name": "Special Red Card",
+      "number": "113",
+      "printedNumber": "113/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 113,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-113/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-113/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-113/large"
+      }
+    },
+    {
+      "id": "me4-114",
+      "name": "Surfing Beach",
+      "number": "114",
+      "printedNumber": "114/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 114,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-114/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-114/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-114/large"
+      }
+    },
+    {
+      "id": "me4-115",
+      "name": "Tool Scrapper",
+      "number": "115",
+      "printedNumber": "115/086",
+      "rarity": "Ultra Rare",
+      "supertype": "Trainer",
+      "sortOrder": 115,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-115/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-115/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-115/large"
+      }
+    },
+    {
+      "id": "me4-116",
+      "name": "Mega Greninja ex",
+      "number": "116",
+      "printedNumber": "116/086",
+      "rarity": "Special Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 116,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-116/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-116/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-116/large"
+      }
+    },
+    {
+      "id": "me4-117",
+      "name": "Mega Floette ex",
+      "number": "117",
+      "printedNumber": "117/086",
+      "rarity": "Special Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 117,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-117/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-117/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-117/large"
+      }
+    },
+    {
+      "id": "me4-118",
+      "name": "Mega Dragalge ex",
+      "number": "118",
+      "printedNumber": "118/086",
+      "rarity": "Special Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 118,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-118/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-118/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-118/large"
+      }
+    },
+    {
+      "id": "me4-119",
+      "name": "Cinccino ex",
+      "number": "119",
+      "printedNumber": "119/086",
+      "rarity": "Special Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 119,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-119/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-119/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-119/large"
+      }
+    },
+    {
+      "id": "me4-120",
+      "name": "AZ's Tranquility",
+      "number": "120",
+      "printedNumber": "120/086",
+      "rarity": "Special Illustration Rare",
+      "supertype": "Trainer",
+      "sortOrder": 120,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-120/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-120/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-120/large"
+      }
+    },
+    {
+      "id": "me4-121",
+      "name": "Roxie's Performance",
+      "number": "121",
+      "printedNumber": "121/086",
+      "rarity": "Special Illustration Rare",
+      "supertype": "Trainer",
+      "sortOrder": 121,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-121/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-121/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-121/large"
+      }
+    },
+    {
+      "id": "me4-122",
+      "name": "Mega Greninja ex",
+      "number": "122",
+      "printedNumber": "122/086",
+      "rarity": "Mega Hyper Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 122,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-122/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-122/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-122/large"
+      }
+    }
+  ],
+  "slots": [
+    {
+      "slotId": "me4-1:normal",
+      "cardId": "me4-1",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-1/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-1/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-1/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-1:reverseHolofoil",
+      "cardId": "me4-1",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-1/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-1/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-1/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-2:normal",
+      "cardId": "me4-2",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-2/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-2/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-2/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-2:reverseHolofoil",
+      "cardId": "me4-2",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-2/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-2/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-2/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-3:holofoil",
+      "cardId": "me4-3",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-3/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-3/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-3/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-4:normal",
+      "cardId": "me4-4",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-4/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-4/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-4/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-4:reverseHolofoil",
+      "cardId": "me4-4",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-4/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-4/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-4/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-5:normal",
+      "cardId": "me4-5",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-5/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-5/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-5/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-5:reverseHolofoil",
+      "cardId": "me4-5",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-5/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-5/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-5/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-6:normal",
+      "cardId": "me4-6",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-6/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-6/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-6/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-6:reverseHolofoil",
+      "cardId": "me4-6",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-6/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-6/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-6/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-7:reverseHolofoil",
+      "cardId": "me4-7",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-7/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-7/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-7/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-7:holofoil",
+      "cardId": "me4-7",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-7/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-7/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-7/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-8:normal",
+      "cardId": "me4-8",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-8/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-8/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-8/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-8:reverseHolofoil",
+      "cardId": "me4-8",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-8/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-8/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-8/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-9:normal",
+      "cardId": "me4-9",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-9/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-9/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-9/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-9:reverseHolofoil",
+      "cardId": "me4-9",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-9/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-9/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-9/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-10:reverseHolofoil",
+      "cardId": "me4-10",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-10/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-10/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-10/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-10:holofoil",
+      "cardId": "me4-10",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-10/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-10/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-10/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-11:normal",
+      "cardId": "me4-11",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-11/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-11/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-11/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-11:reverseHolofoil",
+      "cardId": "me4-11",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-11/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-11/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-11/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-12:normal",
+      "cardId": "me4-12",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-12/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-12/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-12/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-12:reverseHolofoil",
+      "cardId": "me4-12",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-12/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-12/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-12/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-13:normal",
+      "cardId": "me4-13",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-13/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-13/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-13/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-13:reverseHolofoil",
+      "cardId": "me4-13",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-13/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-13/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-13/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-13:holofoil",
+      "cardId": "me4-13",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-13/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-13/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-13/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-14:normal",
+      "cardId": "me4-14",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-14/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-14/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-14/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-14:reverseHolofoil",
+      "cardId": "me4-14",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-14/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-14/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-14/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-15:holofoil",
+      "cardId": "me4-15",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-15/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-15/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-15/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-16:normal",
+      "cardId": "me4-16",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-16/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-16/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-16/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-16:reverseHolofoil",
+      "cardId": "me4-16",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-16/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-16/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-16/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-17:normal",
+      "cardId": "me4-17",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-17/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-17/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-17/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-17:reverseHolofoil",
+      "cardId": "me4-17",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-17/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-17/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-17/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-18:normal",
+      "cardId": "me4-18",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-18/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-18/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-18/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-18:reverseHolofoil",
+      "cardId": "me4-18",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-18/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-18/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-18/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-19:reverseHolofoil",
+      "cardId": "me4-19",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-19/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-19/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-19/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-19:holofoil",
+      "cardId": "me4-19",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-19/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-19/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-19/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-20:normal",
+      "cardId": "me4-20",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-20/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-20/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-20/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-20:reverseHolofoil",
+      "cardId": "me4-20",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-20/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-20/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-20/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-21:normal",
+      "cardId": "me4-21",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-21/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-21/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-21/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-21:reverseHolofoil",
+      "cardId": "me4-21",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-21/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-21/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-21/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-22:holofoil",
+      "cardId": "me4-22",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-22/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-22/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-22/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-23:normal",
+      "cardId": "me4-23",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-23/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-23/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-23/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-23:reverseHolofoil",
+      "cardId": "me4-23",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-23/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-23/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-23/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-24:normal",
+      "cardId": "me4-24",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-24/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-24/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-24/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-24:reverseHolofoil",
+      "cardId": "me4-24",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-24/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-24/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-24/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-25:normal",
+      "cardId": "me4-25",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-25/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-25/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-25/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-25:reverseHolofoil",
+      "cardId": "me4-25",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-25/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-25/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-25/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-26:normal",
+      "cardId": "me4-26",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-26/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-26/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-26/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-26:reverseHolofoil",
+      "cardId": "me4-26",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-26/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-26/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-26/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-27:normal",
+      "cardId": "me4-27",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-27/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-27/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-27/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-27:reverseHolofoil",
+      "cardId": "me4-27",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-27/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-27/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-27/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-28:normal",
+      "cardId": "me4-28",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-28/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-28/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-28/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-28:reverseHolofoil",
+      "cardId": "me4-28",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-28/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-28/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-28/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-29:normal",
+      "cardId": "me4-29",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-29/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-29/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-29/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-29:reverseHolofoil",
+      "cardId": "me4-29",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-29/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-29/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-29/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-29:holofoil",
+      "cardId": "me4-29",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-29/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-29/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-29/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-30:normal",
+      "cardId": "me4-30",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-30/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-30/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-30/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-30:reverseHolofoil",
+      "cardId": "me4-30",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-30/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-30/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-30/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-31:normal",
+      "cardId": "me4-31",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-31/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-31/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-31/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-31:reverseHolofoil",
+      "cardId": "me4-31",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-31/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-31/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-31/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-32:normal",
+      "cardId": "me4-32",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-32/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-32/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-32/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-32:reverseHolofoil",
+      "cardId": "me4-32",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-32/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-32/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-32/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-33:normal",
+      "cardId": "me4-33",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-33/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-33/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-33/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-33:reverseHolofoil",
+      "cardId": "me4-33",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-33/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-33/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-33/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-34:normal",
+      "cardId": "me4-34",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-34/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-34/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-34/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-34:reverseHolofoil",
+      "cardId": "me4-34",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-34/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-34/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-34/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-35:holofoil",
+      "cardId": "me4-35",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-35/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-35/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-35/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-36:normal",
+      "cardId": "me4-36",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-36/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-36/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-36/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-36:reverseHolofoil",
+      "cardId": "me4-36",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-36/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-36/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-36/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-37:normal",
+      "cardId": "me4-37",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-37/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-37/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-37/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-37:reverseHolofoil",
+      "cardId": "me4-37",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-37/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-37/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-37/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-38:normal",
+      "cardId": "me4-38",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-38/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-38/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-38/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-38:reverseHolofoil",
+      "cardId": "me4-38",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-38/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-38/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-38/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-39:reverseHolofoil",
+      "cardId": "me4-39",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-39/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-39/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-39/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-39:holofoil",
+      "cardId": "me4-39",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-39/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-39/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-39/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-40:normal",
+      "cardId": "me4-40",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-40/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-40/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-40/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-40:reverseHolofoil",
+      "cardId": "me4-40",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-40/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-40/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-40/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-41:holofoil",
+      "cardId": "me4-41",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-41/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-41/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-41/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-42:reverseHolofoil",
+      "cardId": "me4-42",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-42/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-42/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-42/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-42:holofoil",
+      "cardId": "me4-42",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-42/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-42/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-42/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-43:normal",
+      "cardId": "me4-43",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-43/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-43/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-43/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-43:reverseHolofoil",
+      "cardId": "me4-43",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-43/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-43/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-43/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-44:normal",
+      "cardId": "me4-44",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-44/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-44/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-44/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-44:reverseHolofoil",
+      "cardId": "me4-44",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-44/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-44/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-44/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-45:normal",
+      "cardId": "me4-45",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-45/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-45/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-45/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-45:reverseHolofoil",
+      "cardId": "me4-45",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-45/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-45/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-45/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-46:normal",
+      "cardId": "me4-46",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-46/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-46/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-46/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-46:reverseHolofoil",
+      "cardId": "me4-46",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-46/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-46/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-46/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-47:normal",
+      "cardId": "me4-47",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-47/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-47/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-47/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-47:reverseHolofoil",
+      "cardId": "me4-47",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-47/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-47/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-47/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-48:holofoil",
+      "cardId": "me4-48",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-48/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-48/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-48/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-49:normal",
+      "cardId": "me4-49",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-49/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-49/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-49/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-49:reverseHolofoil",
+      "cardId": "me4-49",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-49/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-49/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-49/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-50:normal",
+      "cardId": "me4-50",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-50/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-50:reverseHolofoil",
+      "cardId": "me4-50",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-50/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-51:normal",
+      "cardId": "me4-51",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-51/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-51/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-51/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-51:reverseHolofoil",
+      "cardId": "me4-51",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-51/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-51/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-51/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-51:holofoil",
+      "cardId": "me4-51",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-51/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-51/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-51/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-52:normal",
+      "cardId": "me4-52",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-52/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-52/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-52/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-52:reverseHolofoil",
+      "cardId": "me4-52",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-52/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-52/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-52/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-53:normal",
+      "cardId": "me4-53",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-53/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-53/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-53/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-53:reverseHolofoil",
+      "cardId": "me4-53",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-53/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-53/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-53/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-54:normal",
+      "cardId": "me4-54",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-54/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-54/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-54/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-54:reverseHolofoil",
+      "cardId": "me4-54",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-54/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-54/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-54/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-55:holofoil",
+      "cardId": "me4-55",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-55/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-55/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-55/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-56:normal",
+      "cardId": "me4-56",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-56/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-56/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-56/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-56:reverseHolofoil",
+      "cardId": "me4-56",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-56/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-56/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-56/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-57:normal",
+      "cardId": "me4-57",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-57/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-57/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-57/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-57:reverseHolofoil",
+      "cardId": "me4-57",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-57/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-57/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-57/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-58:normal",
+      "cardId": "me4-58",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-58/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-58/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-58/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-58:reverseHolofoil",
+      "cardId": "me4-58",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-58/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-58/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-58/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-59:normal",
+      "cardId": "me4-59",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-59/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-59/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-59/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-59:reverseHolofoil",
+      "cardId": "me4-59",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-59/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-59/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-59/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-60:normal",
+      "cardId": "me4-60",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-60/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-60/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-60/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-60:reverseHolofoil",
+      "cardId": "me4-60",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-60/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-60/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-60/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-61:normal",
+      "cardId": "me4-61",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-61/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-61/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-61/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-61:reverseHolofoil",
+      "cardId": "me4-61",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-61/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-61/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-61/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-62:normal",
+      "cardId": "me4-62",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-62/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-62/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-62/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-62:reverseHolofoil",
+      "cardId": "me4-62",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-62/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-62/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-62/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-63:normal",
+      "cardId": "me4-63",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-63/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-63/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-63/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-63:reverseHolofoil",
+      "cardId": "me4-63",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-63/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-63/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-63/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-64:holofoil",
+      "cardId": "me4-64",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-64/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-64/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-64/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-65:holofoil",
+      "cardId": "me4-65",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-65/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-65/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-65/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-66:normal",
+      "cardId": "me4-66",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-66/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-66/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-66/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-66:reverseHolofoil",
+      "cardId": "me4-66",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-66/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-66/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-66/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-67:normal",
+      "cardId": "me4-67",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-67/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-67/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-67/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-67:reverseHolofoil",
+      "cardId": "me4-67",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-67/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-67/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-67/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-68:normal",
+      "cardId": "me4-68",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-68/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-68/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-68/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-68:reverseHolofoil",
+      "cardId": "me4-68",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-68/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-68/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-68/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-68:holofoil",
+      "cardId": "me4-68",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-68/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-68/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-68/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-69:normal",
+      "cardId": "me4-69",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-69/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-69/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-69/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-69:reverseHolofoil",
+      "cardId": "me4-69",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-69/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-69/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-69/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-70:normal",
+      "cardId": "me4-70",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-70/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-70/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-70/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-70:reverseHolofoil",
+      "cardId": "me4-70",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-70/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-70/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-70/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-71:normal",
+      "cardId": "me4-71",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-71/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-71/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-71/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-71:reverseHolofoil",
+      "cardId": "me4-71",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-71/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-71/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-71/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-72:normal",
+      "cardId": "me4-72",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-72/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-72/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-72/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-72:reverseHolofoil",
+      "cardId": "me4-72",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-72/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-72/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-72/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-73:holofoil",
+      "cardId": "me4-73",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-73/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-73/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-73/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-74:normal",
+      "cardId": "me4-74",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-74/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-74/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-74/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-74:reverseHolofoil",
+      "cardId": "me4-74",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-74/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-74/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-74/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-75:normal",
+      "cardId": "me4-75",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-75/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-75/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-75/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-75:reverseHolofoil",
+      "cardId": "me4-75",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-75/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-75/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-75/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-76:normal",
+      "cardId": "me4-76",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-76/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-76/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-76/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-76:reverseHolofoil",
+      "cardId": "me4-76",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-76/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-76/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-76/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-77:normal",
+      "cardId": "me4-77",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-77/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-77/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-77/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-77:reverseHolofoil",
+      "cardId": "me4-77",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-77/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-77/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-77/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-78:normal",
+      "cardId": "me4-78",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-78/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-78/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-78/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-78:reverseHolofoil",
+      "cardId": "me4-78",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-78/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-78/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-78/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-79:normal",
+      "cardId": "me4-79",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-79/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-79/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-79/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-79:reverseHolofoil",
+      "cardId": "me4-79",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-79/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-79/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-79/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-80:normal",
+      "cardId": "me4-80",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-80/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-80/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-80/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-80:reverseHolofoil",
+      "cardId": "me4-80",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-80/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-80/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-80/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-81:normal",
+      "cardId": "me4-81",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-81/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-81/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-81/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-81:reverseHolofoil",
+      "cardId": "me4-81",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-81/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-81/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-81/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-82:normal",
+      "cardId": "me4-82",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-82/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-82/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-82/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-82:reverseHolofoil",
+      "cardId": "me4-82",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-82/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-82/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-82/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-83:normal",
+      "cardId": "me4-83",
+      "variant": "normal",
+      "label": "Normal",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-83/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-83/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-83/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-83:reverseHolofoil",
+      "cardId": "me4-83",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-83/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-83/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-83/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-84:reverseHolofoil",
+      "cardId": "me4-84",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-84/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-84/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-84/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-84:holofoil",
+      "cardId": "me4-84",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-84/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-84/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-84/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-85:reverseHolofoil",
+      "cardId": "me4-85",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-85/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-85/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-85/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-85:holofoil",
+      "cardId": "me4-85",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-85/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-85/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-85/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-86:reverseHolofoil",
+      "cardId": "me4-86",
+      "variant": "reverseHolofoil",
+      "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-86/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-86/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-86/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-86:holofoil",
+      "cardId": "me4-86",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-86/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-86/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-86/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-87:holofoil",
+      "cardId": "me4-87",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-87/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-87/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-87/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-88:holofoil",
+      "cardId": "me4-88",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-88/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-88/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-88/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-89:holofoil",
+      "cardId": "me4-89",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-89/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-89/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-89/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-90:holofoil",
+      "cardId": "me4-90",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-90/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-90/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-90/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-91:holofoil",
+      "cardId": "me4-91",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-91/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-91/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-91/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-92:holofoil",
+      "cardId": "me4-92",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-92/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-92/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-92/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-93:holofoil",
+      "cardId": "me4-93",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-93/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-93/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-93/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-94:holofoil",
+      "cardId": "me4-94",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-94/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-94/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-94/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-95:holofoil",
+      "cardId": "me4-95",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-95/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-95/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-95/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-96:holofoil",
+      "cardId": "me4-96",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-96/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-96/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-96/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-97:holofoil",
+      "cardId": "me4-97",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-97/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-97/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-97/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-98:holofoil",
+      "cardId": "me4-98",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-98/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-98/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-98/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-99:holofoil",
+      "cardId": "me4-99",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-99/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-99/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-99/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-100:holofoil",
+      "cardId": "me4-100",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-100/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-100/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-100/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-101:holofoil",
+      "cardId": "me4-101",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-101/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-101/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-101/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-102:holofoil",
+      "cardId": "me4-102",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-102/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-102/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-102/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-103:holofoil",
+      "cardId": "me4-103",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-103/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-103/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-103/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-104:holofoil",
+      "cardId": "me4-104",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-104/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-104/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-104/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-105:holofoil",
+      "cardId": "me4-105",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-105/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-105/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-105/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-106:holofoil",
+      "cardId": "me4-106",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-106/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-106/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-106/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-107:holofoil",
+      "cardId": "me4-107",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-107/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-107/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-107/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-108:holofoil",
+      "cardId": "me4-108",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-108/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-108/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-108/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-109:holofoil",
+      "cardId": "me4-109",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-109/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-109/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-109/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-110:holofoil",
+      "cardId": "me4-110",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-110/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-110/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-110/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-111:holofoil",
+      "cardId": "me4-111",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-111/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-111/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-111/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-112:holofoil",
+      "cardId": "me4-112",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-112/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-112/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-112/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-113:holofoil",
+      "cardId": "me4-113",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-113/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-113/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-113/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-114:holofoil",
+      "cardId": "me4-114",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-114/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-114/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-114/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-115:holofoil",
+      "cardId": "me4-115",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-115/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-115/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-115/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-116:holofoil",
+      "cardId": "me4-116",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-116/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-116/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-116/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-117:holofoil",
+      "cardId": "me4-117",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-117/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-117/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-117/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-118:holofoil",
+      "cardId": "me4-118",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-118/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-118/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-118/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-119:holofoil",
+      "cardId": "me4-119",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-119/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-119/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-119/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-120:holofoil",
+      "cardId": "me4-120",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-120/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-120/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-120/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-121:holofoil",
+      "cardId": "me4-121",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-121/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-121/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-121/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me4-122:holofoil",
+      "cardId": "me4-122",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me4-122/small",
+        "medium": "https://images.scrydex.com/pokemon/me4-122/medium",
+        "large": "https://images.scrydex.com/pokemon/me4-122/large"
+      },
+      "imageSource": "baseGoldRarity"
+    }
+  ],
+  "stats": {
+    "cardRecords": 122,
+    "binderSlots": 202,
+    "countsByVariant": {
+      "normal": 68,
+      "reverseHolofoil": 76,
+      "energyReverseHolofoil": 0,
+      "pokeBallReverseHolofoil": 0,
+      "rocketReverseHolofoil": 0,
+      "quickBallReverseHolofoil": 0,
+      "duskBallReverseHolofoil": 0,
+      "loveBallReverseHolofoil": 0,
+      "friendBallReverseHolofoil": 0,
+      "cosmosHolofoil": 0,
+      "holofoil": 58
+    },
+    "variantImages": 0,
+    "baseImageFallbacks": 201,
+    "overrideImages": 0,
+    "missingImages": 0
+  },
+  "generationWarnings": [
+    "Skipped unknown variant ebGamesStamp on me4-10.",
+    "Skipped unknown variant gamestopStamp on me4-10.",
+    "Skipped unknown variant expansionStamp on me4-13.",
+    "Skipped unknown variant expansionStamp on me4-19."
+  ]
+}

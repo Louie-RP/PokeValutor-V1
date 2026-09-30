@@ -24,6 +24,39 @@
       "generatedAt": "2026-09-30T04:07:43.649Z"
     },
     {
+      "expansionId": "me5",
+      "name": "Pitch Black",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me5-logo/logo",
+      "releaseDate": "2026/07/17",
+      "path": "data/master-set-guides/me5.json",
+      "cardRecords": 120,
+      "binderSlots": 199,
+      "generatedAt": "2026-09-30T05:16:30.834Z"
+    },
+    {
+      "expansionId": "me4",
+      "name": "Chaos Rising",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me4-logo/logo",
+      "releaseDate": "2026/05/22",
+      "path": "data/master-set-guides/me4.json",
+      "cardRecords": 122,
+      "binderSlots": 202,
+      "generatedAt": "2026-09-30T05:16:30.834Z"
+    },
+    {
+      "expansionId": "me3",
+      "name": "Perfect Order",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me3-logo/logo",
+      "releaseDate": "2026/03/27",
+      "path": "data/master-set-guides/me3.json",
+      "cardRecords": 124,
+      "binderSlots": 203,
+      "generatedAt": "2026-09-30T05:16:30.834Z"
+    },
+    {
       "expansionId": "me2pt5",
       "name": "Ascended Heroes",
       "series": "Mega Evolution",
@@ -33,6 +66,28 @@
       "cardRecords": 295,
       "binderSlots": 620,
       "generatedAt": "2026-09-29T22:01:42.547Z"
+    },
+    {
+      "expansionId": "me2",
+      "name": "Phantasmal Flames",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me2-logo/logo",
+      "releaseDate": "2025/11/14",
+      "path": "data/master-set-guides/me2.json",
+      "cardRecords": 130,
+      "binderSlots": 220,
+      "generatedAt": "2026-09-30T05:16:30.834Z"
+    },
+    {
+      "expansionId": "me1",
+      "name": "Mega Evolution",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me1-logo/logo",
+      "releaseDate": "2025/09/26",
+      "path": "data/master-set-guides/me1.json",
+      "cardRecords": 188,
+      "binderSlots": 318,
+      "generatedAt": "2026-09-30T05:16:30.834Z"
     }
   ]
 }
