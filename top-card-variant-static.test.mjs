@@ -33,7 +33,7 @@ assert.ok(workerEnd > workerStart, 'Worker ranking helper should have a complete
 const workerSelector = workerSource.slice(workerStart, workerEnd);
 assert.ok(workerSelector.indexOf("const preferredNames = ['holofoil', 'normal'];") < workerSelector.indexOf('let best = null'));
 assert.match(workerSelector, /if \(market != null\) return market;/);
-assert.match(workerSource, /topByExpansion:v3:/, 'Top-card cache changes should invalidate old entries.');
+assert.match(workerSource, /topByExpansion:v4:/, 'Top-card cache changes should invalidate old entries.');
 assert.match(searchSource, /top-by-expansion\?expansionId=.*variantPreference=v2/);
 assert.match(homeSource, /top-by-expansion\?expansionId=.*variantPreference=v2/);
 assert.match(
