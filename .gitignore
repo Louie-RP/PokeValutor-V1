@@ -30,6 +30,8 @@ serviceAccountKey.json
 /tests/*
 !/tests/
 !/tests/master-set-guide-ui-static.test.mjs
+!/tests/master-set-guide-export-model.test.mjs
+!/tests/master-set-guide-pdf.test.mjs
 
 # Node
 node_modules/
