@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-30T05:16:30.834Z",
+  "generatedAt": "2026-09-30T06:24:06.905Z",
   "source": {
     "provider": "Scrydex",
     "includesPricing": false,
@@ -22,15 +22,16 @@
   "variantOrder": [
     "normal",
     "reverseHolofoil",
-    "energyReverseHolofoil",
-    "pokeBallReverseHolofoil",
-    "rocketReverseHolofoil",
-    "quickBallReverseHolofoil",
-    "duskBallReverseHolofoil",
-    "loveBallReverseHolofoil",
-    "friendBallReverseHolofoil",
     "cosmosHolofoil",
-    "holofoil"
+    "holofoil",
+    "ebGamesStamp",
+    "gamestopStamp",
+    "expansionStamp",
+    "playPokemonStamp",
+    "playPokemonStampHolofoil",
+    "playPokemonStampReverseHolofoil",
+    "pumpkinPikachuStamp",
+    "regionalChampionshipsStamp"
   ],
   "cards": [
     {
@@ -2728,6 +2729,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-3:playPokemonStampHolofoil",
+      "cardId": "me1-3",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-3/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-3/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-3/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-4:normal",
       "cardId": "me1-4",
       "variant": "normal",
@@ -3184,6 +3197,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-22:playPokemonStampHolofoil",
+      "cardId": "me1-22",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-22/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-22/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-22/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-23:normal",
       "cardId": "me1-23",
       "variant": "normal",
@@ -3320,6 +3345,18 @@
       "cardId": "me1-28",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-28/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-28/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-28/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-28:playPokemonStamp",
+      "cardId": "me1-28",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-28/small",
         "medium": "https://images.scrydex.com/pokemon/me1-28/medium",
@@ -3512,6 +3549,18 @@
       "cardId": "me1-36",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-36/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-36/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-36/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-36:playPokemonStampHolofoil",
+      "cardId": "me1-36",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-36/small",
         "medium": "https://images.scrydex.com/pokemon/me1-36/medium",
@@ -3856,6 +3905,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-50:playPokemonStampHolofoil",
+      "cardId": "me1-50",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-50/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-51:normal",
       "cardId": "me1-51",
       "variant": "normal",
@@ -4108,6 +4169,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-60:playPokemonStampHolofoil",
+      "cardId": "me1-60",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-60/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-60/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-60/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-61:normal",
       "cardId": "me1-61",
       "variant": "normal",
@@ -4208,6 +4281,18 @@
       "cardId": "me1-64",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-64/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-64/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-64/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-64:expansionStamp",
+      "cardId": "me1-64",
+      "variant": "expansionStamp",
+      "label": "Expansion Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-64/small",
         "medium": "https://images.scrydex.com/pokemon/me1-64/medium",
@@ -4444,6 +4529,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-73:playPokemonStamp",
+      "cardId": "me1-73",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-73/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-73/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-73/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-74:reverseHolofoil",
       "cardId": "me1-74",
       "variant": "reverseHolofoil",
@@ -4468,6 +4565,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-74:playPokemonStamp",
+      "cardId": "me1-74",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-74/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-74/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-74/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-75:normal",
       "cardId": "me1-75",
       "variant": "normal",
@@ -4484,6 +4593,18 @@
       "cardId": "me1-75",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-75/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-75/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-75/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-75:playPokemonStamp",
+      "cardId": "me1-75",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-75/small",
         "medium": "https://images.scrydex.com/pokemon/me1-75/medium",
@@ -4532,6 +4653,18 @@
       "cardId": "me1-77",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-77/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-77/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-77/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-77:playPokemonStampHolofoil",
+      "cardId": "me1-77",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-77/small",
         "medium": "https://images.scrydex.com/pokemon/me1-77/medium",
@@ -4744,6 +4877,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-86:playPokemonStampHolofoil",
+      "cardId": "me1-86",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-86/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-86/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-86/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-87:normal",
       "cardId": "me1-87",
       "variant": "normal",
@@ -4768,6 +4913,30 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-87:playPokemonStampReverseHolofoil",
+      "cardId": "me1-87",
+      "variant": "playPokemonStampReverseHolofoil",
+      "label": "Play! Pokémon Stamp Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-87/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-87/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-87/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-87:pumpkinPikachuStamp",
+      "cardId": "me1-87",
+      "variant": "pumpkinPikachuStamp",
+      "label": "Pumpkin Pikachu Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-87tt/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-87tt/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-87tt/large"
+      },
+      "imageSource": "variant"
+    },
+    {
       "slotId": "me1-88:reverseHolofoil",
       "cardId": "me1-88",
       "variant": "reverseHolofoil",
@@ -4784,6 +4953,42 @@
       "cardId": "me1-88",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-88/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-88/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-88/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-88:ebGamesStamp",
+      "cardId": "me1-88",
+      "variant": "ebGamesStamp",
+      "label": "EB Games Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-88/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-88/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-88/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-88:gamestopStamp",
+      "cardId": "me1-88",
+      "variant": "gamestopStamp",
+      "label": "GameStop Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-88/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-88/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-88/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-88:expansionStamp",
+      "cardId": "me1-88",
+      "variant": "expansionStamp",
+      "label": "Expansion Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-88/small",
         "medium": "https://images.scrydex.com/pokemon/me1-88/medium",
@@ -4924,6 +5129,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-94:playPokemonStampHolofoil",
+      "cardId": "me1-94",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-94/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-94/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-94/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-95:reverseHolofoil",
       "cardId": "me1-95",
       "variant": "reverseHolofoil",
@@ -5056,6 +5273,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-100:playPokemonStampHolofoil",
+      "cardId": "me1-100",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-100/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-100/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-100/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-101:normal",
       "cardId": "me1-101",
       "variant": "normal",
@@ -5072,6 +5301,18 @@
       "cardId": "me1-101",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-101/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-101/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-101/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-101:playPokemonStampHolofoil",
+      "cardId": "me1-101",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-101/small",
         "medium": "https://images.scrydex.com/pokemon/me1-101/medium",
@@ -5132,6 +5373,18 @@
       "cardId": "me1-104",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-104/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-104/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-104/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-104:playPokemonStampHolofoil",
+      "cardId": "me1-104",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-104/small",
         "medium": "https://images.scrydex.com/pokemon/me1-104/medium",
@@ -5380,6 +5633,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-114:playPokemonStampHolofoil",
+      "cardId": "me1-114",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-114/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-114/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-114/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-115:normal",
       "cardId": "me1-115",
       "variant": "normal",
@@ -5428,6 +5693,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-116:playPokemonStamp",
+      "cardId": "me1-116",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-116/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-116/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-116/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-117:normal",
       "cardId": "me1-117",
       "variant": "normal",
@@ -5444,6 +5721,18 @@
       "cardId": "me1-117",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-117/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-117/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-117/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-117:playPokemonStamp",
+      "cardId": "me1-117",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-117/small",
         "medium": "https://images.scrydex.com/pokemon/me1-117/medium",
@@ -5476,6 +5765,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-118:playPokemonStamp",
+      "cardId": "me1-118",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-118/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-118/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-118/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-119:normal",
       "cardId": "me1-119",
       "variant": "normal",
@@ -5492,6 +5793,30 @@
       "cardId": "me1-119",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-119/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-119/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-119/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-119:playPokemonStamp",
+      "cardId": "me1-119",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-119/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-119/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-119/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-119:regionalChampionshipsStamp",
+      "cardId": "me1-119",
+      "variant": "regionalChampionshipsStamp",
+      "label": "Regional Championships Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-119/small",
         "medium": "https://images.scrydex.com/pokemon/me1-119/medium",
@@ -5548,6 +5873,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-121:playPokemonStamp",
+      "cardId": "me1-121",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-121/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-121/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-121/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-122:normal",
       "cardId": "me1-122",
       "variant": "normal",
@@ -5564,6 +5901,18 @@
       "cardId": "me1-122",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-122/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-122/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-122/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-122:playPokemonStamp",
+      "cardId": "me1-122",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-122/small",
         "medium": "https://images.scrydex.com/pokemon/me1-122/medium",
@@ -5612,6 +5961,18 @@
       "cardId": "me1-124",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-124/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-124/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-124/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-124:playPokemonStamp",
+      "cardId": "me1-124",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-124/small",
         "medium": "https://images.scrydex.com/pokemon/me1-124/medium",
@@ -5692,6 +6053,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-127:playPokemonStamp",
+      "cardId": "me1-127",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-127/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-127/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-127/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-128:normal",
       "cardId": "me1-128",
       "variant": "normal",
@@ -5716,6 +6089,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-128:playPokemonStamp",
+      "cardId": "me1-128",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-128/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-128/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-128/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-129:normal",
       "cardId": "me1-129",
       "variant": "normal",
@@ -5732,6 +6117,18 @@
       "cardId": "me1-129",
       "variant": "reverseHolofoil",
       "label": "Reverse Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-129/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-129/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-129/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-129:playPokemonStamp",
+      "cardId": "me1-129",
+      "variant": "playPokemonStamp",
+      "label": "Play! Pokémon Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-129/small",
         "medium": "https://images.scrydex.com/pokemon/me1-129/medium",
@@ -5812,10 +6209,34 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me1-132:playPokemonStampHolofoil",
+      "cardId": "me1-132",
+      "variant": "playPokemonStampHolofoil",
+      "label": "Play! Pokémon Stamp Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-132/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-132/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-132/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me1-133:holofoil",
       "cardId": "me1-133",
       "variant": "holofoil",
       "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me1-133/small",
+        "medium": "https://images.scrydex.com/pokemon/me1-133/medium",
+        "large": "https://images.scrydex.com/pokemon/me1-133/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me1-133:expansionStamp",
+      "cardId": "me1-133",
+      "variant": "expansionStamp",
+      "label": "Expansion Stamp",
       "images": {
         "small": "https://images.scrydex.com/pokemon/me1-133/small",
         "medium": "https://images.scrydex.com/pokemon/me1-133/medium",
@@ -6486,7 +6907,7 @@
   ],
   "stats": {
     "cardRecords": 188,
-    "binderSlots": 318,
+    "binderSlots": 353,
     "countsByVariant": {
       "normal": 113,
       "reverseHolofoil": 122,
@@ -6498,48 +6919,21 @@
       "loveBallReverseHolofoil": 0,
       "friendBallReverseHolofoil": 0,
       "cosmosHolofoil": 5,
-      "holofoil": 78
+      "holofoil": 78,
+      "whatsYourFavoriteStamp": 0,
+      "ebGamesStamp": 1,
+      "gamestopStamp": 1,
+      "expansionStamp": 3,
+      "playPokemonStamp": 14,
+      "playPokemonStampHolofoil": 13,
+      "playPokemonStampReverseHolofoil": 1,
+      "pumpkinPikachuStamp": 1,
+      "regionalChampionshipsStamp": 1
     },
-    "variantImages": 0,
-    "baseImageFallbacks": 316,
+    "variantImages": 1,
+    "baseImageFallbacks": 350,
     "overrideImages": 0,
     "missingImages": 0
   },
-  "generationWarnings": [
-    "Skipped unknown variant playPokemonStampHolofoil on me1-3.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-22.",
-    "Skipped unknown variant playPokemonStamp on me1-28.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-36.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-50.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-60.",
-    "Skipped unknown variant expansionStamp on me1-64.",
-    "Skipped unknown variant playPokemonStamp on me1-73.",
-    "Skipped unknown variant playPokemonStamp on me1-74.",
-    "Skipped unknown variant playPokemonStamp on me1-75.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-77.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-86.",
-    "Skipped unknown variant playPokemonStampReverseHolofoil on me1-87.",
-    "Skipped unknown variant pumpkinPikachuStamp on me1-87.",
-    "Skipped unknown variant ebGamesStamp on me1-88.",
-    "Skipped unknown variant expansionStamp on me1-88.",
-    "Skipped unknown variant gamestopStamp on me1-88.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-94.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-100.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-101.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-104.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-114.",
-    "Skipped unknown variant playPokemonStamp on me1-116.",
-    "Skipped unknown variant playPokemonStamp on me1-117.",
-    "Skipped unknown variant playPokemonStamp on me1-118.",
-    "Skipped unknown variant playPokemonStamp on me1-119.",
-    "Skipped unknown variant regionalChampionshipsStamp on me1-119.",
-    "Skipped unknown variant playPokemonStamp on me1-121.",
-    "Skipped unknown variant playPokemonStamp on me1-122.",
-    "Skipped unknown variant playPokemonStamp on me1-124.",
-    "Skipped unknown variant playPokemonStamp on me1-127.",
-    "Skipped unknown variant playPokemonStamp on me1-128.",
-    "Skipped unknown variant playPokemonStamp on me1-129.",
-    "Skipped unknown variant playPokemonStampHolofoil on me1-132.",
-    "Skipped unknown variant expansionStamp on me1-133."
-  ]
+  "generationWarnings": []
 }

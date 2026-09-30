@@ -1,5 +1,5 @@
-import { buildGuideOwnershipIndex } from './master-set-guide-model.mjs';
-import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf-3';
+import { buildGuideOwnershipIndex, isGuideVariant, getGuideVariantOptions, getGuideVariantSelection } from './master-set-guide-model.mjs?v=2026-09-30-variants-1';
+import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-variants-1';
 
 (function () {
     const COLLECTION_KEY = 'pv:scrydex:collection:v1';
@@ -9,25 +9,12 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         '4x3': { columns: 4, pageSize: 12 },
         '4x4': { columns: 4, pageSize: 16 },
     });
-    const ALLOWED_VARIANTS = Object.freeze([
-        'normal',
-        'reverseHolofoil',
-        'energyReverseHolofoil',
-        'pokeBallReverseHolofoil',
-        'rocketReverseHolofoil',
-        'quickBallReverseHolofoil',
-        'duskBallReverseHolofoil',
-        'loveBallReverseHolofoil',
-        'friendBallReverseHolofoil',
-        'cosmosHolofoil',
-        'holofoil',
-    ]);
-
     const elements = {
         title: document.getElementById('pv-guide-title'),
         subtitle: document.getElementById('pv-guide-subtitle'),
         backLink: document.getElementById('pv-guide-back-link'),
         layout: document.getElementById('pv-guide-layout'),
+        variants: document.getElementById('pv-guide-variants'),
         search: document.getElementById('pv-guide-search'),
         ownedFilter: document.getElementById('pv-guide-owned-filter'),
         status: document.getElementById('pv-guide-status'),
@@ -53,8 +40,7 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         builderControls: document.getElementById('pv-guide-builder-controls'),
         builderView: document.getElementById('pv-guide-builder-view'),
     };
-    const variantInputs = Array.from(document.querySelectorAll('[data-guide-variant]'))
-        .filter((input) => input instanceof HTMLInputElement);
+    let variantInputs = [];
     const state = {
         manifest: null,
         cardsById: new Map(),
@@ -133,7 +119,13 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         try {
             const enabledVariants = variantInputs.filter((input) => input.checked).map((input) => input.value);
             const layout = LAYOUTS[elements.layout?.value] ? elements.layout.value : '3x3';
-            localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ layout, enabledVariants }));
+            const previous = readPreferences();
+            const selections = previous.variantSelections && typeof previous.variantSelections === 'object'
+                && !Array.isArray(previous.variantSelections) ? previous.variantSelections : {};
+            const variantSelections = { ...selections, [state.manifest.expansion.id]: {
+                availableVariants: variantInputs.map(input => input.value), enabledVariants,
+            } };
+            localStorage.setItem(PREFERENCES_KEY, JSON.stringify({ layout, variantSelections }));
         } catch {
             // Preferences are optional; the guide remains usable if storage is unavailable.
         }
@@ -144,13 +136,67 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         if (elements.layout instanceof HTMLSelectElement && LAYOUTS[preferences.layout]) {
             elements.layout.value = preferences.layout;
         }
-        if (Array.isArray(preferences.enabledVariants)) {
-            const enabled = new Set(preferences.enabledVariants.map(normalizeVariant));
-            variantInputs.forEach((input) => {
-                input.checked = enabled.has(normalizeVariant(input.value));
-            });
-        }
+        const enabled = new Set(getGuideVariantSelection(state.manifest, preferences));
+        variantInputs.forEach(input => { input.checked = enabled.has(input.value); });
         updateVariantDisclosureState();
+    }
+
+    function renderVariantControls() {
+        if (!(elements.variants instanceof HTMLElement)) return;
+        variantInputs = [];
+        const nodes = [];
+        const reverse = [];
+        const stamps = [];
+        for (const option of getGuideVariantOptions(state.manifest)) {
+            const label = document.createElement('label');
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.value = option.value;
+            input.checked = true;
+            input.setAttribute('data-guide-variant', '');
+            input.addEventListener('change', handleFilterChange);
+            variantInputs.push(input);
+            const isStamp = /stamp/i.test(option.value);
+            const isReverse = /reverseholofoil$/i.test(option.value) && !isStamp;
+            label.append(input);
+            if (!isStamp && !isReverse) {
+                label.className = 'pv-guideVariantPill';
+                const check = createTextElement('span', 'pv-guideVariantPill__check', '✓');
+                check.setAttribute('aria-hidden', 'true');
+                label.append(check);
+            }
+            label.append(createTextElement('span', '', option.label));
+            (isStamp ? stamps : isReverse ? reverse : nodes).push(label);
+        }
+        function disclosure(title, labels) {
+            const details = document.createElement('details');
+            details.className = 'pv-guideVariantDisclosure';
+            details.setAttribute('data-guide-variant-disclosure', '');
+            const summary = document.createElement('summary');
+            summary.className = 'pv-guideVariantPill';
+            const check = createTextElement('span', 'pv-guideVariantPill__check', '✓');
+            check.setAttribute('data-guide-variant-state', '');
+            check.setAttribute('aria-hidden', 'true');
+            const chevron = createTextElement('span', 'pv-guideVariantPill__chevron', '');
+            chevron.setAttribute('aria-hidden', 'true');
+            summary.append(check, createTextElement('span', '', title), chevron);
+            const panel = document.createElement('div');
+            panel.className = 'pv-guideVariantDisclosure__panel';
+            panel.append(...labels);
+            details.append(summary, panel);
+            return details;
+        }
+        if (reverse.length === 1) {
+            reverse[0].className = 'pv-guideVariantPill';
+            const check = createTextElement('span', 'pv-guideVariantPill__check', '✓');
+            check.setAttribute('aria-hidden', 'true');
+            reverse[0].insertBefore(check, reverse[0].children[1]);
+            nodes.splice(Math.min(1, nodes.length), 0, reverse[0]);
+        } else if (reverse.length) {
+            nodes.splice(Math.min(1, nodes.length), 0, disclosure('Reverse Holofoil', reverse));
+        }
+        if (stamps.length) nodes.push(disclosure('Stamps and promos', stamps));
+        elements.variants.replaceChildren(...nodes);
     }
 
     function updateVariantDisclosureState() {
@@ -512,7 +558,6 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         elements.layout?.addEventListener('change', handleFilterChange);
         elements.search?.addEventListener('input', handleFilterChange);
         elements.ownedFilter?.addEventListener('change', handleFilterChange);
-        variantInputs.forEach((input) => input.addEventListener('change', handleFilterChange));
         elements.first?.addEventListener('click', () => {
             state.page = 1;
             render();
@@ -551,11 +596,10 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         if (Number(manifest.schemaVersion) !== 1) return false;
         if (safeString(manifest?.expansion?.id) !== requestedExpansionId) return false;
         if (!Array.isArray(manifest.cards) || !Array.isArray(manifest.slots)) return false;
-        return manifest.slots.every((slot) => ALLOWED_VARIANTS.includes(safeString(slot?.variant)));
+        return manifest.slots.every((slot) => isGuideVariant(slot?.variant));
     }
 
     async function loadGuide() {
-        applyPreferences();
         bindControls();
 
         const params = new URLSearchParams(window.location.search);
@@ -579,6 +623,8 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         if (!validateManifest(manifest, expansionId)) throw new Error('The binder guide data is invalid or unsupported.');
 
         state.manifest = manifest;
+        renderVariantControls();
+        applyPreferences();
         state.cardsById = new Map(manifest.cards.map((card) => [safeString(card?.id), card]));
         state.ownedVariantsByCardId = getOwnedVariantIndex();
         const setName = safeString(manifest?.expansion?.name) || expansionName || expansionId;

@@ -14,7 +14,7 @@ Pricing: explicitly out of scope
 
 Add a mobile-first binder-planning page under Master Sets that displays every supported card and collectible variant in binder order.
 
-Supported variants:
+Preferred display order for standard variants (all valid catalog variants are supported):
 
 1. `normal`
 2. `reverseHolofoil`
@@ -27,6 +27,15 @@ Supported variants:
 9. `friendBallReverseHolofoil`
 10. `cosmosHolofoil`
 11. `holofoil`
+
+Retailer, event, and promotional stamps are also supported, including GameStop,
+EB Games, expansion stamps, Play! Pokémon stamps (regular, holofoil, and reverse
+holofoil), Pumpkin Pikachu, Regional Championships, and What's Your Favorite.
+The preferred list is not an allowlist. Valid new catalog variant identifiers
+receive readable labels and are included automatically. Both guide and export
+filters derive their options from the selected manifest's slots; unavailable
+variants and empty filter groups are not displayed. Variant selections are saved
+per set, and newly added variants default to included.
 
 The guide must:
 
@@ -83,7 +92,7 @@ The generator request must not include `include=prices` or `include=pop_reports`
 
 | File | Responsibility |
 |---|---|
-| `scripts/master-set-guide-core.mjs` | Variant allowlist, transformation, image resolution, manifest validation |
+| `scripts/master-set-guide-core.mjs` | Catalog variant validation, transformation, image resolution, manifest validation |
 | `scripts/generate-master-set-guide.mjs` | Scrydex pagination, environment credentials, atomic JSON writes, guide index update |
 | `data/master-set-guides/index.json` | Allowlist of published guides; controls whether the Plan Binder link appears |
 | `data/master-set-guides/overrides/README.md` | Reviewed exception format |
@@ -358,13 +367,13 @@ Get-ChildItem -File -Recurse -Filter *.test.mjs | ForEach-Object { node --test $
 - [ ] Pitch Black takes approximately two requests.
 - [ ] No card-detail request is issued per card.
 - [ ] Output contains no pricing, trends, population reports, or marketplace links.
-- [ ] Unknown Scrydex variants produce warnings instead of silently becoming slots.
+- [ ] New valid Scrydex variants are included; invalid identifiers produce warnings.
 - [ ] Duplicate variants do not create duplicate slots.
 - [ ] `index.json` is updated after a successful write.
 
 ### Variant correctness
 
-- [ ] All eleven approved variant types appear when present in Scrydex.
+- [ ] Every catalog variant, including retailer and event stamps, appears when present in Scrydex.
 - [ ] Normal uses its variant image when available.
 - [ ] Holofoil uses its variant image when available.
 - [ ] Energy Reverse Holofoil uses its variant image when available.
@@ -430,12 +439,12 @@ The page will show “not generated yet” until `data/master-set-guides/me2pt5.
 
 Use this exact scope when asking Copilot to continue the implementation:
 
-> Work only within the Master Set Binder Guide feature described in `docs/MASTER_SET_BINDER_GUIDE_IMPLEMENTATION_SPEC.md`. Preserve existing Dex, Firebase, pricing, search, and master-set behavior. Do not add Firestore or Redis storage for guide catalogs. Do not request prices or population reports. Use only the eleven approved variant identifiers. Preserve variant-specific images with reviewed fallback behavior. Treat JSON, URLs, query parameters, and local storage as untrusted. Build UI nodes with safe DOM APIs and keep all existing and new tests passing. If a requirement is unclear or requires a new API call per card, stop and explain the tradeoff before changing the architecture.
+> Work only within the Master Set Binder Guide feature described in `docs/MASTER_SET_BINDER_GUIDE_IMPLEMENTATION_SPEC.md`. Preserve existing Dex, Firebase, pricing, search, and master-set behavior. Do not add Firestore or Redis storage for guide catalogs. Do not request prices or population reports. Include every valid catalog variant identifier, including retailer/event stamps, and display only variants present in the selected set. Preserve variant-specific images with reviewed fallback behavior. Treat JSON, URLs, query parameters, and local storage as untrusted. Build UI nodes with safe DOM APIs and keep all existing and new tests passing. If a requirement is unclear or requires a new API call per card, stop and explain the tradeoff before changing the architecture.
 
 ## 18. Rollout plan
 
 1. Generate Ascended Heroes only.
-2. Review generator warnings and the eleven variant counts.
+2. Review generator warnings and all catalog variant counts.
 3. Compare a sample of each variant with Scrydex and a trusted checklist.
 4. Add only verified image overrides.
 5. Test mobile and desktop binder sizes.

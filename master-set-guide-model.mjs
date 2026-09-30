@@ -1,14 +1,13 @@
+import { isGuideVariant, getGuideVariantOptions } from './master-set-guide-variants.mjs?v=2026-09-30-variants-1';
+export { isGuideVariant, getGuideVariantOptions };
+
+export { GUIDE_VARIANTS } from './master-set-guide-variants.mjs?v=2026-09-30-variants-1';
+
 export const BINDER_LAYOUTS = Object.freeze({
     '3x3': Object.freeze({ columns: 3, rows: 3, pageSize: 9 }),
     '4x3': Object.freeze({ columns: 4, rows: 3, pageSize: 12 }),
     '4x4': Object.freeze({ columns: 4, rows: 4, pageSize: 16 }),
 });
-
-export const GUIDE_VARIANTS = Object.freeze([
-    'normal', 'reverseHolofoil', 'energyReverseHolofoil', 'pokeBallReverseHolofoil',
-    'rocketReverseHolofoil', 'quickBallReverseHolofoil', 'duskBallReverseHolofoil',
-    'loveBallReverseHolofoil', 'friendBallReverseHolofoil', 'cosmosHolofoil', 'holofoil',
-]);
 
 export const PAPER_PRESETS = Object.freeze({
     letter9: Object.freeze({ width: 612, height: 792, columns: 3, rows: 3, capacity: 9 }),
@@ -33,6 +32,18 @@ export function normalizeGuideSearch(value) {
 
 function isRecord(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function getGuideVariantSelection(manifest, preferences = {}) {
+    const options = getGuideVariantOptions(manifest);
+    const saved = isRecord(preferences?.variantSelections) ? preferences.variantSelections[manifest?.expansion?.id] : null;
+    if (!isRecord(saved) || !Array.isArray(saved.availableVariants) || !Array.isArray(saved.enabledVariants)) {
+        return options.map(option => option.value);
+    }
+    const known = new Set(saved.availableVariants.filter(isGuideVariant));
+    const enabled = new Set(saved.enabledVariants.filter(isGuideVariant));
+    // New catalog variants start included; explicit exclusions for this set survive.
+    return options.filter(option => !known.has(option.value) || enabled.has(option.value)).map(option => option.value);
 }
 
 function positiveQuantity(value) {
@@ -86,7 +97,7 @@ export function validateExportManifest(manifest) {
     const seen = new Set();
     for (const slot of manifest.slots) {
         const id = cleanText(slot?.slotId);
-        if (!id || seen.has(id) || !cards.has(cleanText(slot?.cardId)) || !GUIDE_VARIANTS.includes(slot?.variant)) {
+        if (!id || seen.has(id) || !cards.has(cleanText(slot?.cardId)) || !isGuideVariant(slot?.variant)) {
             throw new Error('The binder guide contains invalid or duplicate slots.');
         }
         seen.add(id);
@@ -98,7 +109,7 @@ export function buildBinderPlan(manifest, ownedIndex = new Map(), options = {}) 
     const cards = validateExportManifest(manifest);
     const layout = BINDER_LAYOUTS[options.layout || '3x3'];
     if (!layout) throw new Error('Choose a supported binder layout.');
-    const variants = new Set((options.enabledVariants ?? GUIDE_VARIANTS).map(normalizeGuideVariant));
+    const variants = new Set((options.enabledVariants ?? getGuideVariantOptions(manifest).map(option => option.value)).map(normalizeGuideVariant));
     const excluded = options.excludedSlotIds instanceof Set ? options.excludedSlotIds : new Set();
     return manifest.slots.filter(slot => variants.has(normalizeGuideVariant(slot.variant)) && !excluded.has(slot.slotId))
         .map((slot, planIndex) => {

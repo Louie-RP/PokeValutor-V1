@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-30T05:16:30.834Z",
+  "generatedAt": "2026-09-30T06:24:06.870Z",
   "source": {
     "provider": "Scrydex",
     "includesPricing": false,
@@ -22,15 +22,8 @@
   "variantOrder": [
     "normal",
     "reverseHolofoil",
-    "energyReverseHolofoil",
-    "pokeBallReverseHolofoil",
-    "rocketReverseHolofoil",
-    "quickBallReverseHolofoil",
-    "duskBallReverseHolofoil",
-    "loveBallReverseHolofoil",
-    "friendBallReverseHolofoil",
-    "cosmosHolofoil",
-    "holofoil"
+    "holofoil",
+    "whatsYourFavoriteStamp"
   ],
   "cards": [
     {
@@ -1980,6 +1973,18 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me5-12:whatsYourFavoriteStamp",
+      "cardId": "me5-12",
+      "variant": "whatsYourFavoriteStamp",
+      "label": "What's Your Favorite Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me5-12wyf/small",
+        "medium": "https://images.scrydex.com/pokemon/me5-12wyf/medium",
+        "large": "https://images.scrydex.com/pokemon/me5-12wyf/large"
+      },
+      "imageSource": "variant"
+    },
+    {
       "slotId": "me5-13:normal",
       "cardId": "me5-13",
       "variant": "normal",
@@ -2158,6 +2163,18 @@
         "large": "https://images.scrydex.com/pokemon/me5-20/large"
       },
       "imageSource": "base"
+    },
+    {
+      "slotId": "me5-20:whatsYourFavoriteStamp",
+      "cardId": "me5-20",
+      "variant": "whatsYourFavoriteStamp",
+      "label": "What's Your Favorite Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me5-20wyf/small",
+        "medium": "https://images.scrydex.com/pokemon/me5-20wyf/medium",
+        "large": "https://images.scrydex.com/pokemon/me5-20wyf/large"
+      },
+      "imageSource": "variant"
     },
     {
       "slotId": "me5-21:normal",
@@ -2974,6 +2991,18 @@
         "large": "https://images.scrydex.com/pokemon/me5-56/large"
       },
       "imageSource": "base"
+    },
+    {
+      "slotId": "me5-56:whatsYourFavoriteStamp",
+      "cardId": "me5-56",
+      "variant": "whatsYourFavoriteStamp",
+      "label": "What's Your Favorite Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me5-56wyf/small",
+        "medium": "https://images.scrydex.com/pokemon/me5-56wyf/medium",
+        "large": "https://images.scrydex.com/pokemon/me5-56wyf/large"
+      },
+      "imageSource": "variant"
     },
     {
       "slotId": "me5-57:normal",
@@ -4106,7 +4135,7 @@
   ],
   "stats": {
     "cardRecords": 120,
-    "binderSlots": 199,
+    "binderSlots": 202,
     "countsByVariant": {
       "normal": 68,
       "reverseHolofoil": 74,
@@ -4118,16 +4147,21 @@
       "loveBallReverseHolofoil": 0,
       "friendBallReverseHolofoil": 0,
       "cosmosHolofoil": 0,
-      "holofoil": 57
+      "holofoil": 57,
+      "whatsYourFavoriteStamp": 3,
+      "ebGamesStamp": 0,
+      "gamestopStamp": 0,
+      "expansionStamp": 0,
+      "playPokemonStamp": 0,
+      "playPokemonStampHolofoil": 0,
+      "playPokemonStampReverseHolofoil": 0,
+      "pumpkinPikachuStamp": 0,
+      "regionalChampionshipsStamp": 0
     },
-    "variantImages": 0,
+    "variantImages": 3,
     "baseImageFallbacks": 198,
     "overrideImages": 0,
     "missingImages": 0
   },
-  "generationWarnings": [
-    "Skipped unknown variant whatsYourFavoriteStamp on me5-12.",
-    "Skipped unknown variant whatsYourFavoriteStamp on me5-20.",
-    "Skipped unknown variant whatsYourFavoriteStamp on me5-56."
-  ]
+  "generationWarnings": []
 }

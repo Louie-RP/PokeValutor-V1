@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-30T05:16:30.834Z",
+  "generatedAt": "2026-09-30T06:24:06.890Z",
   "source": {
     "provider": "Scrydex",
     "includesPricing": false,
@@ -22,15 +22,9 @@
   "variantOrder": [
     "normal",
     "reverseHolofoil",
-    "energyReverseHolofoil",
-    "pokeBallReverseHolofoil",
-    "rocketReverseHolofoil",
-    "quickBallReverseHolofoil",
-    "duskBallReverseHolofoil",
-    "loveBallReverseHolofoil",
-    "friendBallReverseHolofoil",
-    "cosmosHolofoil",
-    "holofoil"
+    "holofoil",
+    "ebGamesStamp",
+    "gamestopStamp"
   ],
   "cards": [
     {
@@ -2900,6 +2894,30 @@
       "imageSource": "base"
     },
     {
+      "slotId": "me3-50:ebGamesStamp",
+      "cardId": "me3-50",
+      "variant": "ebGamesStamp",
+      "label": "EB Games Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me3-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me3-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me3-50/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me3-50:gamestopStamp",
+      "cardId": "me3-50",
+      "variant": "gamestopStamp",
+      "label": "GameStop Stamp",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me3-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me3-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me3-50/large"
+      },
+      "imageSource": "base"
+    },
+    {
       "slotId": "me3-51:normal",
       "cardId": "me3-51",
       "variant": "normal",
@@ -4210,7 +4228,7 @@
   ],
   "stats": {
     "cardRecords": 124,
-    "binderSlots": 203,
+    "binderSlots": 205,
     "countsByVariant": {
       "normal": 68,
       "reverseHolofoil": 79,
@@ -4222,15 +4240,21 @@
       "loveBallReverseHolofoil": 0,
       "friendBallReverseHolofoil": 0,
       "cosmosHolofoil": 0,
-      "holofoil": 56
+      "holofoil": 56,
+      "whatsYourFavoriteStamp": 0,
+      "ebGamesStamp": 1,
+      "gamestopStamp": 1,
+      "expansionStamp": 0,
+      "playPokemonStamp": 0,
+      "playPokemonStampHolofoil": 0,
+      "playPokemonStampReverseHolofoil": 0,
+      "pumpkinPikachuStamp": 0,
+      "regionalChampionshipsStamp": 0
     },
     "variantImages": 0,
-    "baseImageFallbacks": 202,
+    "baseImageFallbacks": 204,
     "overrideImages": 0,
     "missingImages": 0
   },
-  "generationWarnings": [
-    "Skipped unknown variant ebGamesStamp on me3-50.",
-    "Skipped unknown variant gamestopStamp on me3-50."
-  ]
+  "generationWarnings": []
 }
