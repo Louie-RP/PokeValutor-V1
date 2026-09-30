@@ -172,13 +172,13 @@
                         <option value="ink">No images</option>
                     </select>
                 </label>
-                <label>Inserts to print
+                <label>Cards to print
                     <select id="pv-export-scope" class="form-select">
-                        <option value="all" selected>Entire planned binder</option>
-                        <option value="missing">Missing variants only</option>
+                        <option value="all" selected>All Cards</option>
+                        <option value="missing">Missing Cards</option>
                     </select>
                 </label>
-                <label>Letter paper layout
+                <label>Card layout
                     <select id="pv-export-paper" class="form-select">
                         <option value="letter9" selected>9 inserts per sheet</option>
                         <option value="letter6">6 inserts per sheet</option>
@@ -210,9 +210,9 @@
                     </div>
                 </details>
                 <details class="pv-guideExport__section">
-                    <summary>Review inserts and skip</summary>
+                    <summary>Review/Skip Cards</summary>
                     <p>Skipping an insert here keeps its binder page and pocket unchanged.</p>
-                    <label for="pv-export-print-search">Find inserts</label>
+                    <label for="pv-export-print-search">Find card</label>
                     <input id="pv-export-print-search" class="form-control" type="search" placeholder="Name, card number, or variant" autocomplete="off" />
                     <div class="pv-guideExport__toolbar">
                         <button id="pv-export-print-matching" class="pv-button pv-button--secondary btn" type="button">Print all matching</button>
