@@ -130,7 +130,9 @@ test('shows validated set logos and returns selected guides to the builder catal
     assert.match(source, /logo: safeString\(entry\?\.logo\)/);
     assert.match(source, /setImage\(logo, entry\.logo, `\$\{entry\.name\} logo`\)/);
     assert.match(css, /\.pv-guideCatalog__logo\s*\{/);
-    assert.match(html, /&larr; Back to Master Set Guide/);
+    assert.match(html, /href="master-sets\.html">&larr; Back to Master Sets/);
+    assert.match(source, /elements\.backLink\.textContent = '← Back to Master Sets'/);
+    assert.match(source, /elements\.backLink\.href = 'master-sets\.html'/);
     assert.match(source, /elements\.backLink\.textContent = '← Back to Master Set Guide'/);
     assert.match(source, /elements\.backLink\.href = 'master-set-guide\.html'/);
 });

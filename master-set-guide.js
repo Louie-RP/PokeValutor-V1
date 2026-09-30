@@ -371,8 +371,8 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         if (elements.subtitle) elements.subtitle.textContent = '';
         document.title = 'Master Set Guide | PokeValutor';
         if (elements.backLink instanceof HTMLAnchorElement) {
-            elements.backLink.href = 'master-set-guide.html';
-            elements.backLink.textContent = '← Back to Master Set Guide';
+            elements.backLink.href = 'master-sets.html';
+            elements.backLink.textContent = '← Back to Master Sets';
         }
         if (elements.catalogStatus) elements.catalogStatus.textContent = 'Loading available binder guides...';
         try {
