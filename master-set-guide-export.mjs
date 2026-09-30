@@ -1,8 +1,8 @@
 import {
-    GUIDE_VARIANTS, cleanText, normalizeGuideSearch,
+    getGuideVariantOptions, cleanText, normalizeGuideSearch,
     buildBinderPlan, selectPrintableInserts, packPrintSheets,
     sanitizeBinderFilename, hasBinderPdfAccess,
-} from './master-set-guide-model.mjs';
+} from './master-set-guide-model.mjs?v=2026-09-30-variants-1';
 
 const LIST_PAGE_SIZE = 10;
 const COLLECTION_KEY = 'pv:scrydex:collection:v1';
@@ -239,9 +239,8 @@ export function initBinderExport({ getSnapshot }) {
             e['card-search'].value = e['print-search'].value = '';
             e.status.textContent = '';
             discardResult();
-            const labels = new Map(state.snapshot.manifest.slots.map(slot => [slot.variant, cleanText(slot.label || slot.variant)]));
-            e.variants.replaceChildren(...GUIDE_VARIANTS.filter(variant => labels.has(variant)).map(variant =>
-                checkboxLabel(labels.get(variant), state.enabledVariants.has(variant), `pv-export-variant-${variant}`, checked => {
+            e.variants.replaceChildren(...getGuideVariantOptions(state.snapshot.manifest).map(({ value: variant, label }) =>
+                checkboxLabel(label, state.enabledVariants.has(variant), `pv-export-variant-${variant}`, checked => {
                     checked ? state.enabledVariants.add(variant) : state.enabledVariants.delete(variant);
                     state.cardPage = state.printPage = 1;
                     changed();
@@ -288,7 +287,7 @@ export function initBinderExport({ getSnapshot }) {
                     e.progress.value = progress.completed;
                 },
             };
-            const { renderBinderPdf } = await import('./master-set-guide-pdf.mjs?v=2026-09-29-pdf-3');
+            const { renderBinderPdf } = await import('./master-set-guide-pdf.mjs?v=2026-09-30-variants-1');
             const result = await renderBinderPdf(inserts, options);
             if (jobId !== state.jobId || !dialog.open || ownerId !== (window.PV_AUTH?.getUser?.()?.uid || '')) return;
             state.blob = new Blob([result.bytes], { type: 'application/pdf' });

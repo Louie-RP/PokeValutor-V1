@@ -72,13 +72,14 @@ function createCard() {
     };
 }
 
-test('builds only the eleven approved variant types and strips price resources', () => {
+test('includes catalog stamp variants, preserves preferred order, and strips price resources', () => {
     const { manifest } = buildMasterSetGuideManifest([createCard()], {
         expansionId: 'me2pt5',
         generatedAt: '2026-09-29T00:00:00.000Z',
     });
 
-    assert.deepEqual(manifest.variantOrder, MASTER_SET_VARIANTS);
+    assert.deepEqual(manifest.variantOrder, manifest.slots.map(slot => slot.variant));
+    assert.ok(MASTER_SET_VARIANTS.includes('gamestopStamp'));
     assert.deepEqual(manifest.slots.map((slot) => slot.variant), [
         'normal',
         'energyReverseHolofoil',
@@ -89,6 +90,7 @@ test('builds only the eleven approved variant types and strips price resources',
         'loveBallReverseHolofoil',
         'friendBallReverseHolofoil',
         'cosmosHolofoil',
+        'unexpectedStampedVariant',
     ]);
     assert.equal(manifest.source.includesPricing, false);
     assert.equal(manifest.source.includesPopulationReports, false);
@@ -113,7 +115,8 @@ test('builds only the eleven approved variant types and strips price resources',
         assert.equal(manifest.slots.find((slot) => slot.variant === variant)?.imageSource, 'base');
         assert.ok(!manifest.generationWarnings.some((warning) => warning.includes(variant)));
     }
-    assert.ok(manifest.generationWarnings.some((warning) => warning.includes('unexpectedStampedVariant')));
+    assert.deepEqual(manifest.generationWarnings, []);
+    assert.equal(manifest.slots.at(-1).label, 'Unexpected Stamped Variant');
 });
 
 test('prefers variant images and falls back to the base card image', () => {
@@ -241,4 +244,23 @@ test('rejects cards from an unexpected expansion', () => {
         () => buildMasterSetGuideManifest([card], { expansionId: 'me2pt5' }),
         /outside expansion me2pt5/,
     );
+});
+
+
+test('stamp artwork is preserved and invalid identifiers cannot become slots', () => {
+    const card = createCard();
+    card.variants = [
+        { name: 'gamestopStamp', images: card.variants[0].images },
+        { name: 'futureEventStamp', images: [] },
+        { name: '<img onerror=alert(1)>', images: [] },
+    ];
+    const { manifest } = buildMasterSetGuideManifest([card], { expansionId: 'me2pt5' });
+    assert.deepEqual(manifest.slots.map(slot => slot.variant), ['gamestopStamp', 'futureEventStamp']);
+    assert.equal(manifest.slots[0].imageSource, 'variant');
+    assert.equal(manifest.slots[0].images.medium, card.variants[0].images[0].medium);
+    assert.equal(manifest.slots[1].imageSource, 'base');
+    assert.equal(manifest.generationWarnings.length, 1);
+    assert.match(manifest.generationWarnings[0], /Skipped invalid variant/);
+    manifest.slots[0].variant = '<script>';
+    assert.ok(validateManifest(manifest).errors.some(error => /Unsupported variant/.test(error)));
 });

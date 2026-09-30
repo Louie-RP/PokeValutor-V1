@@ -1,4 +1,4 @@
-import { cleanText, packPrintSheets } from './master-set-guide-model.mjs';
+import { cleanText, packPrintSheets } from './master-set-guide-model.mjs?v=2026-09-30-variants-1';
 
 const BRAND = 'PokeValuator.com';
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;

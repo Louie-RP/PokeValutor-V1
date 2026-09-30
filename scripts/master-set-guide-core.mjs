@@ -1,32 +1,11 @@
 export const MASTER_SET_GUIDE_SCHEMA_VERSION = 1;
 
-export const MASTER_SET_VARIANTS = Object.freeze([
-    'normal',
-    'reverseHolofoil',
-    'energyReverseHolofoil',
-    'pokeBallReverseHolofoil',
-    'rocketReverseHolofoil',
-    'quickBallReverseHolofoil',
-    'duskBallReverseHolofoil',
-    'loveBallReverseHolofoil',
-    'friendBallReverseHolofoil',
-    'cosmosHolofoil',
-    'holofoil',
-]);
-
-export const MASTER_SET_VARIANT_LABELS = Object.freeze({
-    normal: 'Normal',
-    reverseHolofoil: 'Reverse Holofoil',
-    energyReverseHolofoil: 'Energy Reverse Holofoil',
-    pokeBallReverseHolofoil: 'Poké Ball Reverse Holofoil',
-    rocketReverseHolofoil: 'Rocket Reverse Holofoil',
-    quickBallReverseHolofoil: 'Quick Ball Reverse Holofoil',
-    duskBallReverseHolofoil: 'Dusk Ball Reverse Holofoil',
-    loveBallReverseHolofoil: 'Love Ball Reverse Holofoil',
-    friendBallReverseHolofoil: 'Friend Ball Reverse Holofoil',
-    cosmosHolofoil: 'Cosmos Holofoil',
-    holofoil: 'Holofoil',
-});
+import {
+    GUIDE_VARIANTS as MASTER_SET_VARIANTS,
+    GUIDE_VARIANT_LABELS as MASTER_SET_VARIANT_LABELS,
+    canonicalGuideVariant, isGuideVariant, getGuideVariantLabel, compareGuideVariants,
+} from '../master-set-guide-variants.mjs';
+export { MASTER_SET_VARIANTS, MASTER_SET_VARIANT_LABELS };
 
 const FORBIDDEN_CARD_FIELDS = new Set([
     'prices',
@@ -101,8 +80,7 @@ function normalizeVariantKey(value) {
 }
 
 function getAllowedVariantName(rawName) {
-    const wanted = normalizeVariantKey(rawName);
-    return MASTER_SET_VARIANTS.find((name) => normalizeVariantKey(name) === wanted) || '';
+    return canonicalGuideVariant(rawName);
 }
 
 function compareCards(left, right) {
@@ -174,7 +152,7 @@ export function validateManifest(manifest) {
         if (seenSlots.has(slotId)) errors.push(`Duplicate slot: ${slotId}`);
         seenSlots.add(slotId);
         if (!cardIds.has(cardId)) errors.push(`Slot ${slotId} references missing card ${cardId}.`);
-        if (!MASTER_SET_VARIANTS.includes(variant)) errors.push(`Unsupported variant ${variant} in ${slotId}.`);
+        if (!isGuideVariant(variant)) errors.push(`Unsupported variant ${variant} in ${slotId}.`);
         if (!slot?.images?.small && !slot?.images?.medium) warnings.push(`No usable image for ${slotId}.`);
         if (slot?.imageSource === 'base') warnings.push(`Variant image unavailable; base image used for ${slotId}.`);
     }
@@ -222,13 +200,9 @@ export function buildMasterSetGuideManifest(rawCards, options = {}) {
         manifestCards.push(cardRecord);
 
         const sourceVariants = Array.isArray(card?.variants) && card.variants.length > 0
-            ? card.variants.slice().sort((left, right) => {
-                const leftIndex = MASTER_SET_VARIANTS.indexOf(getAllowedVariantName(left?.name));
-                const rightIndex = MASTER_SET_VARIANTS.indexOf(getAllowedVariantName(right?.name));
-                const safeLeftIndex = leftIndex >= 0 ? leftIndex : Number.MAX_SAFE_INTEGER;
-                const safeRightIndex = rightIndex >= 0 ? rightIndex : Number.MAX_SAFE_INTEGER;
-                return safeLeftIndex - safeRightIndex;
-            })
+            ? card.variants.slice().sort((left, right) => compareGuideVariants(
+                getAllowedVariantName(left?.name), getAllowedVariantName(right?.name),
+            ))
             : [{ name: 'normal', images: [] }];
         const seenVariants = new Set();
 
@@ -236,7 +210,7 @@ export function buildMasterSetGuideManifest(rawCards, options = {}) {
             const variant = getAllowedVariantName(rawVariant?.name);
             if (!variant) {
                 const unknown = safeString(rawVariant?.name) || '(blank)';
-                generationWarnings.push(`Skipped unknown variant ${unknown} on ${cardRecord.id}.`);
+                generationWarnings.push(`Skipped invalid variant ${unknown} on ${cardRecord.id}.`);
                 continue;
             }
 
@@ -255,13 +229,13 @@ export function buildMasterSetGuideManifest(rawCards, options = {}) {
             if (resolvedImage.source === 'base') baseImageFallbackCount += 1;
             if (resolvedImage.source === 'override') overrideImageCount += 1;
             if (resolvedImage.source === 'missing') missingImageCount += 1;
-            countsByVariant[variant] += 1;
+            countsByVariant[variant] = (Object.hasOwn(countsByVariant, variant) ? countsByVariant[variant] : 0) + 1;
 
             slots.push({
                 slotId,
                 cardId: cardRecord.id,
                 variant,
-                label: MASTER_SET_VARIANT_LABELS[variant],
+                label: getGuideVariantLabel(variant),
                 images: resolvedImage.images,
                 imageSource: resolvedImage.source,
             });
@@ -287,7 +261,7 @@ export function buildMasterSetGuideManifest(rawCards, options = {}) {
             logo: safeString(firstExpansion.logo),
             symbol: safeString(firstExpansion.symbol),
         },
-        variantOrder: MASTER_SET_VARIANTS.slice(),
+        variantOrder: [...new Set(slots.map(slot => slot.variant))].sort(compareGuideVariants),
         cards: manifestCards,
         slots,
         stats: {

@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     buildGuideOwnershipIndex, buildBinderPlan, selectPrintableInserts, packPrintSheets,
     sanitizeBinderFilename, hasBinderPdfAccess, validateExportManifest,
+    getGuideVariantOptions, getGuideVariantSelection, isGuideVariant,
 } from '../master-set-guide-model.mjs';
 
 const manifest = JSON.parse(await readFile(new URL('../data/master-set-guides/me2pt5.json', import.meta.url)));
@@ -83,7 +84,7 @@ for (const [id, cards, normal, reverse, cosmos, holo, stamps] of [
     test(`${id} preserves the complete Mega Evolution catalog and supported variants`, async () => {
         const guide = JSON.parse(await readFile(new URL(`../data/master-set-guides/${id}.json`, import.meta.url)));
         const index = JSON.parse(await readFile(new URL('../data/master-set-guides/index.json', import.meta.url)));
-        const total = normal + reverse + cosmos + holo;
+        const total = normal + reverse + cosmos + holo + stamps;
         const entry = index.guides.find(row => row.expansionId === id);
         assert.equal(guide.cards.length, cards);
         assert.equal(guide.expansion.total, cards);
@@ -96,8 +97,9 @@ for (const [id, cards, normal, reverse, cosmos, holo, stamps] of [
         assert.equal(guide.stats.countsByVariant.reverseHolofoil, reverse);
         assert.equal(guide.stats.countsByVariant.cosmosHolofoil, cosmos);
         assert.equal(guide.stats.countsByVariant.holofoil, holo);
-        assert.equal(guide.generationWarnings.length, stamps);
-        assert.ok(guide.generationWarnings.every(warning => /Skipped unknown variant .*Stamp/.test(warning)));
+        assert.deepEqual(guide.generationWarnings, []);
+        assert.equal(guide.slots.filter(slot => /stamp/i.test(slot.variant)).length, stamps);
+        assert.deepEqual(getGuideVariantOptions(guide).map(option => option.value), guide.variantOrder);
         assert.ok(guide.cards.every((card, position) => card.id.startsWith(`${id}-`)
             && card.printedNumber && (position === 0 || card.sortOrder > guide.cards[position - 1].sortOrder)));
         assert.ok(guide.cards.some(card => Number(card.number) > guide.expansion.printedTotal), 'Secret rares must remain in the guide.');
@@ -199,7 +201,7 @@ test('filenames contain no path/control characters, and roles use current authen
 });
 
 test('the actual export dialog and selection renderer avoid unsafe parsing or dynamic source execution', async () => {
-    for (const name of ['master-set-guide-export.mjs', 'master-set-guide-pdf.mjs', 'master-set-guide-model.mjs']) {
+    for (const name of ['master-set-guide-export.mjs', 'master-set-guide-pdf.mjs', 'master-set-guide-model.mjs', 'master-set-guide-variants.mjs']) {
         const source = await readFile(new URL(`../${name}`, import.meta.url), 'utf8');
         assert.doesNotMatch(source, /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval)\b|new\s+Function\b/);
     }
@@ -210,4 +212,36 @@ test('the actual export dialog and selection renderer avoid unsafe parsing or dy
     const html = await readFile(new URL('../master-set-guide.html', import.meta.url), 'utf8');
     assert.doesNotMatch(html, /script-src[^;]*unsafe-eval/);
     assert.doesNotMatch(html, /<script[^>]*src="vendor\//);
+});
+
+test('filters expose only each set’s variants, including every retailer and event stamp', async () => {
+    const thirty = JSON.parse(await readFile(new URL('../data/master-set-guides/me55.json', import.meta.url)));
+    const mega = JSON.parse(await readFile(new URL('../data/master-set-guides/me1.json', import.meta.url)));
+    assert.deepEqual(getGuideVariantOptions(thirty), [{ value: 'holofoil', label: 'Holofoil' }]);
+    const options = getGuideVariantOptions(mega);
+    assert.equal(options.length, new Set(mega.slots.map(slot => slot.variant)).size);
+    assert.ok(options.some(option => option.value === 'gamestopStamp' && option.label === 'GameStop Stamp'));
+    assert.ok(options.some(option => option.value === 'playPokemonStampReverseHolofoil'));
+    assert.ok(!options.some(option => option.value === 'energyReverseHolofoil'));
+    const stamp = mega.slots.find(slot => slot.variant === 'gamestopStamp');
+    const actualOwned = buildGuideOwnershipIndex([{ id: stamp.cardId, variantQuantities: { gamestopStamp: 1 } }]);
+    const plan = buildBinderPlan(mega, actualOwned);
+    assert.equal(plan.filter(row => row.owned).length, 1);
+    assert.equal(selectPrintableInserts(plan).length, plan.length - 1);
+    assert.equal(buildBinderPlan(mega, new Map(), { enabledVariants: ['gamestopStamp'] }).length, 1);
+});
+
+test('per-set filter preferences preserve exclusions and enable newly added variants', () => {
+    const guide = { expansion: { id: 'example' }, slots: [
+        { variant: 'normal' }, { variant: 'futureEventStamp' },
+    ] };
+    const preferences = { variantSelections: { example: { availableVariants: ['normal'], enabledVariants: [] } } };
+    assert.deepEqual(getGuideVariantSelection(guide, preferences), ['futureEventStamp']);
+    assert.deepEqual(getGuideVariantSelection({ ...guide, expansion: { id: 'other' } }, preferences), ['normal', 'futureEventStamp']);
+    assert.deepEqual(getGuideVariantSelection(guide, { enabledVariants: ['holofoil'] }), ['normal', 'futureEventStamp']);
+    assert.equal(isGuideVariant('<svg onload=alert(1)>'), false);
+    assert.equal(isGuideVariant('__proto__'), false);
+    const poisoned = structuredClone(manifest);
+    poisoned.slots[0].variant = 'normal" onclick="alert(1)';
+    assert.throws(() => validateExportManifest(poisoned), /invalid or duplicate slots/);
 });

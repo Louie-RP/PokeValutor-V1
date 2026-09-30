@@ -57,52 +57,25 @@ test('the guide never loads pricing code or asks the manifest for pricing', () =
     assert.doesNotMatch(html, /Organize every supported card variant\./);
 });
 
-test('only the intended master-set variants are accepted by the UI', () => {
-    for (const variant of [
-        'normal',
-        'reverseHolofoil',
-        'energyReverseHolofoil',
-        'pokeBallReverseHolofoil',
-        'rocketReverseHolofoil',
-        'quickBallReverseHolofoil',
-        'duskBallReverseHolofoil',
-        'loveBallReverseHolofoil',
-        'friendBallReverseHolofoil',
-        'cosmosHolofoil',
-        'holofoil',
-    ]) {
-        assert.match(source, new RegExp(`['"]${variant}['"]`));
-        assert.match(html, new RegExp(`value=['"]${variant}['"]`));
-        const controls = html.match(new RegExp(`value=['"]${variant}['"]`, 'g')) || [];
-        assert.equal(controls.length, 1, `${variant} must appear exactly once in the guide controls`);
-    }
+test('builds only the current manifest variants with safe DOM controls', () => {
+    assert.match(html, /id="pv-guide-variants" class="pv-guideVariantPills"><\/div>/);
+    assert.doesNotMatch(html, /value="(?:normal|holofoil|reverseHolofoil)" data-guide-variant/);
+    assert.match(source, /for \(const option of getGuideVariantOptions\(state.manifest\)\)/);
+    assert.match(source, /input.value = option.value/);
+    assert.match(source, /option.label/);
+    assert.match(source, /elements.variants.replaceChildren\(\.\.\.nodes\)/);
+    assert.match(source, /isGuideVariant\(slot\?\.variant\)/);
+    assert.match(source, /getGuideVariantSelection\(state.manifest, preferences\)/);
+    assert.match(source, /variantSelections/);
 });
 
-test('groups reverse holo variants under an expandable reverse holofoil control', () => {
-    const group = html.match(/<details class="pv-guideVariantDisclosure"[\s\S]*?<\/details>/)?.[0] || '';
-    assert.match(group, /data-guide-variant-disclosure/);
-    assert.match(group, /<span>Reverse Holofoil<\/span>/);
-    for (const variant of [
-        'reverseHolofoil',
-        'energyReverseHolofoil',
-        'pokeBallReverseHolofoil',
-        'rocketReverseHolofoil',
-        'quickBallReverseHolofoil',
-        'duskBallReverseHolofoil',
-        'loveBallReverseHolofoil',
-        'friendBallReverseHolofoil',
-    ]) {
-        assert.match(group, new RegExp(`value=['"]${variant}['"]`));
-    }
-    assert.doesNotMatch(group, /cosmosHolofoil|holofoil/);
-    assert.match(html, /class="pv-guideVariantPill">\s*<input type="checkbox" value="cosmosHolofoil"/);
-    assert.match(html, /class="pv-guideVariantPill">\s*<input type="checkbox" value="holofoil"/);
-    assert.match(css, /\.pv-guideVariantPills\s*\{[\s\S]*grid-template-columns:\s*repeat\(2/);
-    assert.match(css, /\.pv-guideVariantDisclosure\[open\]\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1/);
-    assert.match(css, /@media \(min-width: 900px\)[\s\S]*grid-template-columns:\s*repeat\(4/);
-    assert.match(source, /function updateVariantDisclosureState\(\)/);
+test('reverse and stamp disclosures exist only when their set contains those variants', () => {
+    assert.match(source, /if \(reverse.length === 1\)/);
+    assert.match(source, /else if \(reverse.length\)/);
+    assert.match(source, /if \(stamps.length\) nodes.push\(disclosure\('Stamps and promos', stamps\)\)/);
     assert.match(source, /data-guide-variant-state/);
     assert.match(source, /state === 'partial' \? '−'/);
+    assert.match(css, /\.pv-guideVariantDisclosure\[open\]/);
 });
 
 test('uses a compact single-row pager with a live page label', () => {
