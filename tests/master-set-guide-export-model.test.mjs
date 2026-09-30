@@ -106,7 +106,7 @@ test('filenames contain no path/control characters, and roles use current authen
     assert.equal(hasBinderPdfAccess({ uid: 'x' }, { premium: 'true' }), false);
 });
 
-test('the actual export dialog and preview renderer avoid unsafe parsing or dynamic source execution', async () => {
+test('the actual export dialog and selection renderer avoid unsafe parsing or dynamic source execution', async () => {
     for (const name of ['master-set-guide-export.mjs', 'master-set-guide-pdf.mjs', 'master-set-guide-model.mjs']) {
         const source = await readFile(new URL(`../${name}`, import.meta.url), 'utf8');
         assert.doesNotMatch(source, /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write|eval)\b|new\s+Function\b/);

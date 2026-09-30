@@ -7,21 +7,29 @@ Generation happens in the browser from the existing guide manifest.
 ## User options
 
 - Binder layouts: 3 × 3, 4 × 3, and 4 × 4. Positions fill left to right, row by row.
-- Print all planned inserts or only missing variants in the Default Collection.
-- Include or exclude variant families, individual cards, or individual variants.
-- Skip selected print inserts while retaining their binder page/pocket positions.
-- US Letter sheets with nine inserts, or six inserts for more vertical margin.
-- Optional separate print calibration sheet.
+- Export the entire planned binder by default, or only missing variants in the
+  Default Collection.
+- Choose **With images** or **No images**.
+- Letter paper layout defaults to nine inserts per sheet; six is also available.
+- Open **Additional settings** to include or exclude variant families,
+  individual cards, or individual variants, or skip selected inserts while
+  retaining their binder page/pocket positions.
 - Download the PDF, or share it through the device's file share menu when supported.
 
-Every insert has rounded corners and occupies **180 × 252 PDF points (2.5 × 3.5 inches)**. Printer sheets
+The default dialog shows four dropdowns: Binder layout, Print style, Inserts to
+print, and Letter paper layout. Additional settings is collapsed on every open.
+The entire planned binder and nine-per-sheet defaults also reset on every open.
+The modal has no calibration option, print instructions, or sheet preview.
+
+Every insert has rounded corners and occupies **180 × 252 PDF points
+(2.5 × 3.5 inches)**. Printer sheets
 are independent of binder pages: a 12- or 16-pocket binder page spans multiple
 Letter sheets. Print at **100% / Actual Size**, with Fit to Page disabled.
 
 The ink-saving style contains only a white background, thin black outline, black
 card name, printed number, variant, binder page/pocket, and PokeValuator.com. Row
-and column abbreviations are omitted because the pocket number identifies the position. It
-fetches and embeds no artwork. The artwork style uses the manifest's resolved
+and column abbreviations are omitted because the pocket number identifies the
+position. It fetches and embeds no artwork. The artwork style uses the manifest's resolved
 slot image; unavailable images retain the identifying labels and are reported
 after generation.
 
@@ -52,7 +60,7 @@ it is not server enforcement. Account changes cancel jobs and discard downloads.
 - `master-set-guide-export.mjs`: accessible native dialog, paginated selectors,
   snapshot handling, generation/cancellation, downloads, and optional file sharing.
 - `master-set-guide-pdf.mjs`: lazy PDF/font loading, label layout, image fetching,
-  encoding, embedding, fallback labels, and calibration page.
+  encoding, embedding, and fallback labels.
 - `vendor/` and `fonts/binder/`: pinned local distributions and license notices.
 
 PDF dependencies and fonts load only after Generate PDF. Artwork fetches use
@@ -79,10 +87,11 @@ ownership variants and malformed quantities, exclusions versus skips, exact
 sheet geometry, Unicode labels, full-set PDFs, duplicate/failed artwork,
 cancellation, URL validation, safe DOM rendering, and lazy dependencies/CSP.
 
-Browser verification exercised selection, artwork and ink-saving downloads,
-fresh ownership, mobile sizing, focus return, cancellation, and sign-out. A
+Browser verification exercises the compact default view, Additional settings,
+selection, artwork and ink-saving downloads, fresh ownership, mobile sizing,
+focus return, cancellation, and sign-out. A
 21-insert sample produced three artwork sheets with all 21 images embedded, or
-three ink-saving sheets plus calibration with no new artwork requests. The full
+three ink-saving sheets with no new artwork requests. The full
 620-slot ink-saving set produced 69 Letter sheets. Rendered PDF pages were
 visually inspected. Browser tests used an authenticated fixture; verify real
 Firebase claims and collection sync on the running app.
@@ -93,8 +102,8 @@ Firebase claims and collection sync on the running app.
    names/labels are readable, and the downloaded file opens in a PDF reader.
 3. Test all binder layouts, missing-only versus entire binder, and card/variant
    exclusions. Check that a print-only skip does not renumber other pockets.
-4. Generate calibration and print one sheet at Actual Size. Measure the
-   one-inch line and a 2.5 × 3.5-inch insert, then cut and test the binder fit.
+4. Close and reopen the modal. Confirm Entire planned binder, nine inserts per
+   sheet, and collapsed Additional settings reset, even with an owned collection.
 5. Test cancellation, account switching, collection changes, and a Basic account.
    Check file sharing on a supporting mobile device.
 
