@@ -134,3 +134,12 @@ test('shows validated set logos and returns selected guides to the builder catal
     assert.match(source, /elements\.backLink\.textContent = '← Back to Master Set Guide'/);
     assert.match(source, /elements\.backLink\.href = 'master-set-guide\.html'/);
 });
+
+test('keeps catalog copy separate from set logos', () => {
+    assert.doesNotMatch(html, /Binder Layout/);
+    assert.doesNotMatch(source, /Choose a set to plan its binder layout/);
+    assert.doesNotMatch(source, /elements\.title\.textContent = 'Binder Builder'/);
+    assert.match(source, /details\.className = 'pv-guideCatalog__details'/);
+    assert.match(css, /\.pv-guideCatalog__logo\s*\{[\s\S]*overflow:\s*hidden/);
+    assert.match(css, /\.pv-guideCatalog__details\s*\{[\s\S]*border-top/);
+});

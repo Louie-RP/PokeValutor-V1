@@ -313,12 +313,17 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         logo.decoding = 'async';
         setImage(logo, entry.logo, `${entry.name} logo`);
         logoWrap.append(logo);
-        link.append(
-            logoWrap,
+        const details = document.createElement('div');
+        details.className = 'pv-guideCatalog__details';
+        details.append(
             createTextElement('h3', 'pv-guideCatalog__name', entry.name),
             createTextElement('p', 'pv-guideCatalog__meta', entry.binderSlots ? `${entry.binderSlots} binder slots` : 'Binder guide ready'),
             createTextElement('p', 'pv-guideCatalog__date', entry.releaseDate || 'Release date unavailable'),
-            createTextElement('span', 'pv-guideCatalog__action', 'Open binder builder'),
+            createTextElement('span', 'pv-guideCatalog__action', 'Open guide'),
+        );
+        link.append(
+            logoWrap,
+            details,
         );
         return link;
     }
@@ -362,9 +367,9 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
 
     async function loadGuideCatalog() {
         setGuideViewMode(false);
-        if (elements.title) elements.title.textContent = 'Binder Builder';
-        if (elements.subtitle) elements.subtitle.textContent = 'Choose a set to plan its binder layout.';
-        document.title = 'Binder Builder | PokeValutor';
+        if (elements.title) elements.title.textContent = 'Master Set Guide';
+        if (elements.subtitle) elements.subtitle.textContent = '';
+        document.title = 'Master Set Guide | PokeValutor';
         if (elements.backLink instanceof HTMLAnchorElement) {
             elements.backLink.href = 'master-set-guide.html';
             elements.backLink.textContent = '← Back to Master Set Guide';
