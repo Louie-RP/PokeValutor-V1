@@ -1,7 +1,9 @@
+import { buildGuideOwnershipIndex } from './master-set-guide-model.mjs';
+import { initBinderExport } from './master-set-guide-export.mjs';
+
 (function () {
     const COLLECTION_KEY = 'pv:scrydex:collection:v1';
     const PREFERENCES_KEY = 'pv:masterSetGuide:preferences:v1';
-    const DEFAULT_COLLECTION_ID = 'default';
     const LAYOUTS = Object.freeze({
         '3x3': { columns: 3, pageSize: 9 },
         '4x3': { columns: 4, pageSize: 12 },
@@ -161,39 +163,39 @@
     }
 
     function getOwnedVariantIndex() {
-        const index = new Map();
-        let collection = [];
+        return getCollectionSnapshot().ownedIndex;
+    }
+
+    function getCollectionSnapshot() {
+        let ownershipKnown = false;
+        let ownedIndex = new Map();
         try {
-            collection = parseJson(localStorage.getItem(COLLECTION_KEY), []);
-        } catch {
-            collection = [];
-        }
-        if (!Array.isArray(collection)) return index;
+            const raw = localStorage.getItem(COLLECTION_KEY);
+            const parsed = raw === null ? null : parseJson(raw, null);
+            const ownerId = safeString(localStorage.getItem('pv:scrydex:dexOwnerUid:v1'));
+            const userId = safeString(window.PV_AUTH?.getUser?.()?.uid);
+            ownershipKnown = Array.isArray(parsed) && (ownerId ? ownerId === userId : !userId);
+            if (ownershipKnown) ownedIndex = buildGuideOwnershipIndex(parsed);
+        } catch { /* Full-plan export still works when collection storage is unavailable. */ }
+        return { ownershipKnown, ownedIndex };
+    }
 
-        for (const item of collection) {
-            if (!item || typeof item !== 'object') continue;
-            const itemType = safeString(item.itemType).toLowerCase();
-            const collectionId = safeString(item.collectionId) || DEFAULT_COLLECTION_ID;
-            const cardId = safeString(item.id);
-            if ((itemType && itemType !== 'card') || collectionId !== DEFAULT_COLLECTION_ID || !cardId) continue;
-
-            const variants = index.get(cardId) || new Set();
-            const variantQuantities = item.variantQuantities && typeof item.variantQuantities === 'object'
-                ? item.variantQuantities
-                : {};
-            for (const [variant, quantity] of Object.entries(variantQuantities)) {
-                if (Math.floor(Number(quantity)) <= 0) continue;
-                const normalized = normalizeVariant(variant);
-                if (normalized) variants.add(normalized);
-            }
-
-            if (variants.size === 0 && safeString(item.selectedVariant)) {
-                variants.add(normalizeVariant(item.selectedVariant));
-            }
-            index.set(cardId, variants);
-        }
-
-        return index;
+    function getExportSnapshot() {
+        const { ownershipKnown, ownedIndex } = getCollectionSnapshot();
+        const ownershipChanged = ownedIndex.size !== state.ownedVariantsByCardId.size
+            || Array.from(ownedIndex).some(([id, variants]) => {
+                const previous = state.ownedVariantsByCardId.get(id);
+                return !previous || variants.size !== previous.size || Array.from(variants).some(variant => !previous.has(variant));
+            });
+        state.ownedVariantsByCardId = ownedIndex;
+        if (ownershipChanged) render();
+        return {
+            manifest: state.manifest,
+            ownedIndex,
+            ownershipKnown,
+            layout: LAYOUTS[elements.layout?.value] ? elements.layout.value : '3x3',
+            enabledVariants: variantInputs.filter(input => input.checked).map(input => input.value),
+        };
     }
 
     function isSlotOwned(slot) {
@@ -387,10 +389,16 @@
             if (event.target === elements.dialog) elements.dialog.close();
         });
         window.addEventListener('storage', (event) => {
-            if (event.key !== COLLECTION_KEY) return;
+            if (event.key !== COLLECTION_KEY && event.key !== null && event.key !== 'pv:scrydex:dexOwnerUid:v1') return;
             state.ownedVariantsByCardId = getOwnedVariantIndex();
             render();
         });
+        const refreshOwnership = () => {
+            state.ownedVariantsByCardId = getOwnedVariantIndex();
+            render();
+        };
+        window.addEventListener('pv:dex-state-changed', refreshOwnership);
+        window.PV_AUTH?.onAuthStateChanged?.(refreshOwnership);
     }
 
     function validateManifest(manifest, requestedExpansionId) {
@@ -433,6 +441,7 @@
         if (elements.subtitle) elements.subtitle.textContent = '';
         document.title = `${setName} Binder Guide | PokeValutor`;
         render();
+        initBinderExport({ getSnapshot: getExportSnapshot });
     }
 
     loadGuide().catch((error) => {
