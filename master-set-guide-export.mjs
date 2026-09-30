@@ -292,7 +292,7 @@ export function initBinderExport({ getSnapshot }) {
                     e.progress.value = progress.completed;
                 },
             };
-            const { renderBinderPdf } = await import('./master-set-guide-pdf.mjs');
+            const { renderBinderPdf } = await import('./master-set-guide-pdf.mjs?v=2026-09-29-pdf-2');
             const result = await renderBinderPdf(inserts, options);
             if (jobId !== state.jobId || !dialog.open || ownerId !== (window.PV_AUTH?.getUser?.()?.uid || '')) return;
             state.blob = new Blob([result.bytes], { type: 'application/pdf' });

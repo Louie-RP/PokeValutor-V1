@@ -14,12 +14,13 @@ Generation happens in the browser from the existing guide manifest.
 - Optional separate print calibration sheet.
 - Download the PDF, or share it through the device's file share menu when supported.
 
-Every insert occupies **180 × 252 PDF points (2.5 × 3.5 inches)**. Printer sheets
+Every insert has rounded corners and occupies **180 × 252 PDF points (2.5 × 3.5 inches)**. Printer sheets
 are independent of binder pages: a 12- or 16-pocket binder page spans multiple
 Letter sheets. Print at **100% / Actual Size**, with Fit to Page disabled.
 
 The ink-saving style contains only a white background, thin black outline, black
-card name, printed number, variant, binder position, and PokeValuator.com. It
+card name, printed number, variant, binder page/pocket, and PokeValuator.com. Row
+and column abbreviations are omitted because the pocket number identifies the position. It
 fetches and embeds no artwork. The artwork style uses the manifest's resolved
 slot image; unavailable images retain the identifying labels and are reported
 after generation.
