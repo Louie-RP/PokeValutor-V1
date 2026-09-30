@@ -73,6 +73,54 @@ test('Classic Collection retains historical numbering, duplicate numbers, and so
     assert.doesNotMatch(JSON.stringify(guide), /"prices"|"pop_reports"|"marketplaces"/);
 });
 
+for (const [id, cards, normal, reverse, cosmos, holo, stamps] of [
+    ['me5', 120, 68, 74, 0, 57, 3],
+    ['me4', 122, 68, 76, 0, 58, 4],
+    ['me3', 124, 68, 79, 0, 56, 2],
+    ['me2', 130, 76, 84, 4, 56, 1],
+    ['me1', 188, 113, 122, 5, 78, 35],
+]) {
+    test(`${id} preserves the complete Mega Evolution catalog and supported variants`, async () => {
+        const guide = JSON.parse(await readFile(new URL(`../data/master-set-guides/${id}.json`, import.meta.url)));
+        const index = JSON.parse(await readFile(new URL('../data/master-set-guides/index.json', import.meta.url)));
+        const total = normal + reverse + cosmos + holo;
+        const entry = index.guides.find(row => row.expansionId === id);
+        assert.equal(guide.cards.length, cards);
+        assert.equal(guide.expansion.total, cards);
+        assert.equal(guide.slots.length, total);
+        assert.equal(entry.cardRecords, cards);
+        assert.equal(entry.binderSlots, total);
+        assert.equal(entry.logo, guide.expansion.logo);
+        assert.equal(entry.path, `data/master-set-guides/${id}.json`);
+        assert.equal(guide.stats.countsByVariant.normal, normal);
+        assert.equal(guide.stats.countsByVariant.reverseHolofoil, reverse);
+        assert.equal(guide.stats.countsByVariant.cosmosHolofoil, cosmos);
+        assert.equal(guide.stats.countsByVariant.holofoil, holo);
+        assert.equal(guide.generationWarnings.length, stamps);
+        assert.ok(guide.generationWarnings.every(warning => /Skipped unknown variant .*Stamp/.test(warning)));
+        assert.ok(guide.cards.every((card, position) => card.id.startsWith(`${id}-`)
+            && card.printedNumber && (position === 0 || card.sortOrder > guide.cards[position - 1].sortOrder)));
+        assert.ok(guide.cards.some(card => Number(card.number) > guide.expansion.printedTotal), 'Secret rares must remain in the guide.');
+        assert.ok(guide.slots.every(slot => slot.images?.medium?.startsWith('https://images.scrydex.com/')));
+        assert.equal(guide.stats.missingImages, 0);
+        assert.doesNotMatch(JSON.stringify(guide), /"prices"|"pop_reports"|"marketplaces"/);
+        for (const [layout, pageSize] of [['3x3', 9], ['4x3', 12], ['4x4', 16]]) {
+            const plan = buildBinderPlan(guide, new Map(), { layout });
+            assert.equal(plan.at(-1).binderPage, Math.ceil(total / pageSize));
+            assert.deepEqual(plan.map(row => row.slotId), guide.slots.map(slot => slot.slotId));
+            assert.deepEqual([...new Set(plan.map(row => row.cardId))], guide.cards.map(card => card.id));
+            assert.equal(packPrintSheets(plan).sheets.length, Math.ceil(total / 9));
+            assert.equal(packPrintSheets(plan, 'letter6').sheets.length, Math.ceil(total / 6));
+        }
+        const ownership = buildGuideOwnershipIndex([{ id: `${id}-1`, variantQuantities: { normal: 1 } }]);
+        const plan = buildBinderPlan(guide, ownership);
+        const missing = selectPrintableInserts(plan);
+        assert.equal(missing.length, total - 1);
+        assert.equal(missing[0].slotId, `${id}-1:reverseHolofoil`);
+        assert.equal(missing[0].pocket, 2);
+    });
+}
+
 test('ownership counts finite positive quantities in Default Collection only', () => {
     const index = buildGuideOwnershipIndex([
         { id: 'a', variantQuantities: { Standard: '2', reverseHolofoil: 0, holofoil: -1, bad: 'NaN', infinite: Infinity, boolean: true } },
