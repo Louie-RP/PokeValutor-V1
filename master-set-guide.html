@@ -24,7 +24,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
-    <link rel="stylesheet" href="master-set-guide.css?v=2026-09-29-pdf-2" />
+    <link rel="stylesheet" href="master-set-guide.css?v=2026-09-29-pdf-3" />
     <link rel="icon" href="PokeValuator.png" type="image/png">
 </head>
 
@@ -156,8 +156,6 @@
             <h2 id="pv-guide-export-title">Export Binder PDF</h2>
             <button id="pv-export-close" class="pv-guideDialog__close" type="button" aria-label="Close PDF export">×</button>
         </div>
-        <p>Print card-sized inserts, cut them out, and place them in your binder. Each side fills left to right, row by row.</p>
-        <p id="pv-export-collection-note" class="pv-guideExport__note"></p>
         <fieldset id="pv-export-settings" class="pv-guideExport__settings">
             <legend class="pv-guideExport__srOnly">PDF settings</legend>
             <div class="pv-guideExport__options">
@@ -170,72 +168,68 @@
                 </label>
                 <label>Print style
                     <select id="pv-export-style" class="form-select">
-                        <option value="images">With card artwork</option>
-                        <option value="ink">Ink-saving — no images</option>
+                        <option value="images">With images</option>
+                        <option value="ink">No images</option>
                     </select>
                 </label>
                 <label>Inserts to print
                     <select id="pv-export-scope" class="form-select">
+                        <option value="all" selected>Entire planned binder</option>
                         <option value="missing">Missing variants only</option>
-                        <option value="all">Entire planned binder</option>
                     </select>
                 </label>
                 <label>Letter paper layout
                     <select id="pv-export-paper" class="form-select">
-                        <option value="letter9">9 inserts per sheet</option>
-                        <option value="letter6">6 inserts — more vertical margin</option>
+                        <option value="letter9" selected>9 inserts per sheet</option>
+                        <option value="letter6">6 inserts per sheet</option>
                     </select>
                 </label>
             </div>
-            <p class="pv-guideExport__note">Ink-saving uses a white background, black outline, card name, number, variant, and PokeValuator.com. Both styles include binder page and pocket labels.</p>
-            <fieldset class="pv-guideExport__variants">
-                <legend>Variants in your binder</legend>
-                <div id="pv-export-variants" class="pv-guideExport__variantList"></div>
-            </fieldset>
-            <details class="pv-guideExport__section">
-                <summary>Choose individual cards and variants</summary>
-                <p>Removing cards here changes your binder positions. Your collection stays the same.</p>
-                <label for="pv-export-card-search">Find cards</label>
-                <input id="pv-export-card-search" class="form-control" type="search" placeholder="Name or card number" autocomplete="off" />
-                <div class="pv-guideExport__toolbar">
-                    <button id="pv-export-include-matching" class="pv-button pv-button--secondary btn" type="button">Include all matching</button>
-                    <button id="pv-export-exclude-matching" class="pv-button pv-button--secondary btn" type="button">Exclude all matching</button>
-                    <span id="pv-export-card-count"></span>
-                </div>
-                <div id="pv-export-card-list" class="pv-guideExport__list"></div>
-                <div class="pv-guideExport__toolbar">
-                    <button id="pv-export-card-prev" class="pv-button pv-button--secondary btn" type="button">Previous</button>
-                    <span id="pv-export-card-page"></span>
-                    <button id="pv-export-card-next" class="pv-button pv-button--secondary btn" type="button">Next</button>
-                </div>
+            <details id="pv-export-additional" class="pv-guideExport__section">
+                <summary>Additional settings</summary>
+                <p id="pv-export-collection-note" class="pv-guideExport__note"></p>
+                <fieldset class="pv-guideExport__variants">
+                    <legend>Variants in your binder</legend>
+                    <div id="pv-export-variants" class="pv-guideExport__variantList"></div>
+                </fieldset>
+                <details class="pv-guideExport__section">
+                    <summary>Choose individual cards and variants</summary>
+                    <p>Removing cards here changes your binder positions. Your collection stays the same.</p>
+                    <label for="pv-export-card-search">Find cards</label>
+                    <input id="pv-export-card-search" class="form-control" type="search" placeholder="Name or card number" autocomplete="off" />
+                    <div class="pv-guideExport__toolbar">
+                        <button id="pv-export-include-matching" class="pv-button pv-button--secondary btn" type="button">Include all matching</button>
+                        <button id="pv-export-exclude-matching" class="pv-button pv-button--secondary btn" type="button">Exclude all matching</button>
+                        <span id="pv-export-card-count"></span>
+                    </div>
+                    <div id="pv-export-card-list" class="pv-guideExport__list"></div>
+                    <div class="pv-guideExport__toolbar">
+                        <button id="pv-export-card-prev" class="pv-button pv-button--secondary btn" type="button">Previous</button>
+                        <span id="pv-export-card-page"></span>
+                        <button id="pv-export-card-next" class="pv-button pv-button--secondary btn" type="button">Next</button>
+                    </div>
+                </details>
+                <details class="pv-guideExport__section">
+                    <summary>Review inserts and skip</summary>
+                    <p>Skipping an insert here keeps its binder page and pocket unchanged.</p>
+                    <label for="pv-export-print-search">Find inserts</label>
+                    <input id="pv-export-print-search" class="form-control" type="search" placeholder="Name, card number, or variant" autocomplete="off" />
+                    <div class="pv-guideExport__toolbar">
+                        <button id="pv-export-print-matching" class="pv-button pv-button--secondary btn" type="button">Print all matching</button>
+                        <button id="pv-export-skip-matching" class="pv-button pv-button--secondary btn" type="button">Skip all matching</button>
+                        <span id="pv-export-print-count"></span>
+                    </div>
+                    <div id="pv-export-print-list" class="pv-guideExport__list"></div>
+                    <div class="pv-guideExport__toolbar">
+                        <button id="pv-export-print-prev" class="pv-button pv-button--secondary btn" type="button">Previous</button>
+                        <span id="pv-export-print-page"></span>
+                        <button id="pv-export-print-next" class="pv-button pv-button--secondary btn" type="button">Next</button>
+                    </div>
+                </details>
             </details>
-            <details class="pv-guideExport__section">
-                <summary>Review inserts and skip printing</summary>
-                <p>Skipping an insert here keeps its binder page and pocket unchanged.</p>
-                <label for="pv-export-print-search">Find inserts</label>
-                <input id="pv-export-print-search" class="form-control" type="search" placeholder="Name, card number, or variant" autocomplete="off" />
-                <div class="pv-guideExport__toolbar">
-                    <button id="pv-export-print-matching" class="pv-button pv-button--secondary btn" type="button">Print all matching</button>
-                    <button id="pv-export-skip-matching" class="pv-button pv-button--secondary btn" type="button">Skip all matching</button>
-                    <span id="pv-export-print-count"></span>
-                </div>
-                <div id="pv-export-print-list" class="pv-guideExport__list"></div>
-                <div class="pv-guideExport__toolbar">
-                    <button id="pv-export-print-prev" class="pv-button pv-button--secondary btn" type="button">Previous</button>
-                    <span id="pv-export-print-page"></span>
-                    <button id="pv-export-print-next" class="pv-button pv-button--secondary btn" type="button">Next</button>
-                </div>
-            </details>
-            <label class="pv-guideExport__check"><input id="pv-export-calibration" type="checkbox" /> Add a separate print calibration sheet</label>
         </fieldset>
         <p id="pv-export-summary" class="pv-guideExport__summary" aria-live="polite"></p>
-        <p>Print on US Letter at <strong>100% / Actual Size</strong>. Do not use Fit to Page. Every cutout is 2.5 × 3.5 inches; 12- and 16-pocket binder pages span multiple printer sheets.</p>
-        <details class="pv-guideExport__section">
-            <summary>First print sheet preview</summary>
-            <p>This previews labels and cut positions. Artwork is loaded only when you generate the PDF.</p>
-            <div id="pv-export-preview" class="pv-guideExport__preview" aria-label="First print sheet layout preview"></div>
-        </details>
-        <p id="pv-export-access" class="pv-guideExport__note"></p>
+        <p id="pv-export-access" class="pv-guideExport__note" hidden></p>
         <a id="pv-export-upgrade" href="pricing.html" hidden>View Premium options</a>
         <p id="pv-export-status" role="status" aria-live="polite" aria-atomic="true"></p>
         <progress id="pv-export-progress" max="1" value="0" aria-label="PDF generation progress" hidden></progress>
@@ -281,7 +275,7 @@
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
     <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
-    <script src="master-set-guide.js?v=2026-09-29-pdf-2" type="module"></script>
+    <script src="master-set-guide.js?v=2026-09-29-pdf-3" type="module"></script>
 </body>
 
 </html>

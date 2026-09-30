@@ -1,5 +1,5 @@
 import { buildGuideOwnershipIndex } from './master-set-guide-model.mjs';
-import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf-2';
+import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf-3';
 
 (function () {
     const COLLECTION_KEY = 'pv:scrydex:collection:v1';

@@ -1,4 +1,4 @@
-import { cleanText, packPrintSheets, INSERT_WIDTH, INSERT_HEIGHT } from './master-set-guide-model.mjs';
+import { cleanText, packPrintSheets } from './master-set-guide-model.mjs';
 
 const BRAND = 'PokeValuator.com';
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -223,18 +223,9 @@ export async function renderBinderPdf(inserts, options = {}) {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
     }
-    if (options.calibration) {
-        const page = pdf.addPage([preset.width, preset.height]);
-        page.drawText('Print at Actual Size / 100%', { x: 54, y: 716, size: 16, font: fonts.bold, color: black });
-        page.drawText('Measure before cutting. Do not use Fit to Page.', { x: 54, y: 690, size: 11, font: fonts.regular, color: black });
-        drawRoundedOutline(page, 54, 360, INSERT_WIDTH, INSERT_HEIGHT, black);
-        page.drawText('2.5 x 3.5 inches', { x: 70, y: 478, size: 12, font: fonts.regular, color: black });
-        page.drawLine({ start: { x: 54, y: 320 }, end: { x: 126, y: 320 }, thickness: 0.5, color: black });
-        page.drawText('1 inch', { x: 54, y: 302, size: 10, font: fonts.regular, color: black });
-    }
     abortIfNeeded(options.signal);
     options.onProgress?.({ stage: 'Finalizing PDF', completed, total: inserts.length });
     const bytes = await pdf.save();
     abortIfNeeded(options.signal);
-    return { bytes, failedImages, insertCount: inserts.length, printSheets: sheets.length, pageCount: sheets.length + (options.calibration ? 1 : 0) };
+    return { bytes, failedImages, insertCount: inserts.length, printSheets: sheets.length, pageCount: sheets.length };
 }

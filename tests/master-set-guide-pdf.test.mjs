@@ -15,18 +15,18 @@ const dependencies = { pdfLib, fontkit, fonts: {
 const manifest = JSON.parse(await readFile(new URL('../data/master-set-guides/me2pt5.json', import.meta.url)));
 const plan = buildBinderPlan(manifest);
 
-test('ink-saving export embeds zero card images and creates Letter pages with calibration', async () => {
+test('ink-saving export embeds zero card images and creates only insert pages', async () => {
     let calls = 0;
     const result = await renderBinderPdf(plan.slice(0, 10), {
-        style: 'ink', calibration: true, dependencies,
+        style: 'ink', dependencies,
         loadImage: () => { calls++; throw new Error('Ink-saving must never fetch artwork.'); },
     });
     assert.equal(calls, 0);
     assert.equal(result.failedImages, 0);
     assert.equal(result.printSheets, 2);
-    assert.equal(result.pageCount, 3);
+    assert.equal(result.pageCount, 2);
     const pdf = await pdfLib.PDFDocument.load(result.bytes);
-    assert.equal(pdf.getPageCount(), 3);
+    assert.equal(pdf.getPageCount(), 2);
     for (const page of pdf.getPages()) {
         assert.equal(page.getWidth(), 612);
         assert.equal(page.getHeight(), 792);

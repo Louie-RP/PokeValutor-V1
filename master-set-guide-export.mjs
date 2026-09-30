@@ -1,5 +1,5 @@
 import {
-    BINDER_LAYOUTS, GUIDE_VARIANTS, cleanText, normalizeGuideSearch,
+    GUIDE_VARIANTS, cleanText, normalizeGuideSearch,
     buildBinderPlan, selectPrintableInserts, packPrintSheets,
     sanitizeBinderFilename, hasBinderPdfAccess,
 } from './master-set-guide-model.mjs';
@@ -39,7 +39,7 @@ export function initBinderExport({ getSnapshot }) {
         'close', 'settings', 'layout', 'style', 'scope', 'paper', 'variants', 'card-search', 'card-list', 'card-count',
         'include-matching', 'exclude-matching', 'card-prev', 'card-next', 'card-page',
         'print-search', 'print-list', 'print-count', 'print-matching', 'skip-matching', 'print-prev', 'print-next', 'print-page',
-        'calibration', 'summary', 'preview', 'collection-note', 'access', 'upgrade', 'status', 'progress',
+        'additional', 'summary', 'collection-note', 'access', 'upgrade', 'status', 'progress',
         'generate', 'cancel', 'download', 'share',
     ].map(id => [id, get(id)]));
     if (Object.values(e).some(value => !value)) return;
@@ -76,6 +76,7 @@ export function initBinderExport({ getSnapshot }) {
     function collectionNote() {
         const known = state.snapshot.ownershipKnown;
         e.scope.querySelector('option[value="missing"]').disabled = !known;
+        e['collection-note'].hidden = known && e.scope.value !== 'missing';
         e['collection-note'].textContent = known
             ? 'Missing status uses the Default Collection saved on this device.'
             : 'Default Collection data is unavailable or belongs to another account. Export the entire planned binder, or sync your collection in Dex first.';
@@ -85,19 +86,9 @@ export function initBinderExport({ getSnapshot }) {
         const plan = currentPlan();
         const inserts = printable(plan);
         const sheets = packPrintSheets(inserts, e.paper.value).sheets;
-        const pages = Math.ceil(plan.length / BINDER_LAYOUTS[e.layout.value].pageSize);
-        e.summary.textContent = `${inserts.length} inserts · ${sheets.length} print sheets${e.calibration.checked && inserts.length ? ' + 1 calibration sheet' : ''} · ${pages} planned binder pages`;
+        e.summary.textContent = `${inserts.length} inserts · ${sheets.length} PDF pages`;
         e.generate.disabled = state.busy || state.accessPending || !state.allowed || inserts.length === 0
             || (e.scope.value === 'missing' && !state.snapshot.ownershipKnown);
-        const preview = (sheets[0] || []).map(({ insert }) => {
-            const node = document.createElement('div');
-            node.className = 'pv-guideExport__previewInsert';
-            node.append(textElement('span', insert.printedNumber), textElement('strong', insert.name),
-                textElement('span', insert.variantLabel), textElement('span', `Page ${insert.binderPage} · Pocket ${insert.pocket}`),
-                textElement('span', 'PokeValuator.com'));
-            return node;
-        });
-        e.preview.replaceChildren(...preview);
         if (inserts.length === 0 && !state.busy) e.status.textContent = 'No inserts match your selection. Include cards or choose the entire planned binder.';
     }
 
@@ -190,6 +181,7 @@ export function initBinderExport({ getSnapshot }) {
         const requestId = ++state.accessId;
         state.accessPending = true;
         state.allowed = false;
+        e.access.hidden = false;
         e.access.textContent = 'Checking PDF access…';
         updateSummary();
         const auth = window.PV_AUTH;
@@ -198,7 +190,8 @@ export function initBinderExport({ getSnapshot }) {
             const token = user ? await auth.getIdTokenResult(forceRefresh) : null;
             if (requestId !== state.accessId || !dialog.open) return false;
             state.allowed = hasBinderPdfAccess(user, token?.claims);
-            e.access.textContent = state.allowed ? 'PDF export is available for your account.'
+            e.access.hidden = state.allowed;
+            e.access.textContent = state.allowed ? ''
                 : user ? 'Binder PDF export is available to Premium, Tester, and Admin accounts.'
                     : 'Sign in with a Premium, Tester, or Admin account to generate a PDF.';
         } catch {
@@ -239,7 +232,10 @@ export function initBinderExport({ getSnapshot }) {
             state.skippedSlotIds = new Set();
             state.cardPage = state.printPage = 1;
             e.layout.value = state.snapshot.layout;
-            e.scope.value = state.snapshot.ownershipKnown ? 'missing' : 'all';
+            e.scope.value = 'all';
+            e.paper.value = 'letter9';
+            e.additional.open = false;
+            e.additional.querySelectorAll('details').forEach(section => { section.open = false; });
             e['card-search'].value = e['print-search'].value = '';
             e.status.textContent = '';
             discardResult();
@@ -284,7 +280,7 @@ export function initBinderExport({ getSnapshot }) {
             const options = {
                 setName: cleanText(state.snapshot.manifest.expansion.name), layout: e.layout.value,
                 style: e.style.value, scope: e.scope.value, paper: e.paper.value,
-                calibration: e.calibration.checked, signal: controller.signal,
+                signal: controller.signal,
                 onProgress: progress => {
                     if (jobId !== state.jobId) return;
                     e.status.textContent = `${progress.stage} — ${progress.completed} / ${progress.total}`;
@@ -292,7 +288,7 @@ export function initBinderExport({ getSnapshot }) {
                     e.progress.value = progress.completed;
                 },
             };
-            const { renderBinderPdf } = await import('./master-set-guide-pdf.mjs?v=2026-09-29-pdf-2');
+            const { renderBinderPdf } = await import('./master-set-guide-pdf.mjs?v=2026-09-29-pdf-3');
             const result = await renderBinderPdf(inserts, options);
             if (jobId !== state.jobId || !dialog.open || ownerId !== (window.PV_AUTH?.getUser?.()?.uid || '')) return;
             state.blob = new Blob([result.bytes], { type: 'application/pdf' });
@@ -322,7 +318,7 @@ export function initBinderExport({ getSnapshot }) {
     });
     e.cancel.addEventListener('click', cancelGeneration);
     e.generate.addEventListener('click', () => { void generate(); });
-    for (const control of ['layout', 'style', 'scope', 'paper', 'calibration']) e[control].addEventListener('change', changed);
+    for (const control of ['layout', 'style', 'scope', 'paper']) e[control].addEventListener('change', changed);
     for (const prefix of ['card', 'print']) {
         e[`${prefix}-search`].addEventListener('input', () => { state[prefix === 'card' ? 'cardPage' : 'printPage'] = 1; render(); });
         for (const direction of ['prev', 'next']) e[`${prefix}-${direction}`].addEventListener('click', () => {
