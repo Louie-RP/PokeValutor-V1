@@ -2,6 +2,26 @@
   "schemaVersion": 1,
   "guides": [
     {
+      "expansionId": "me55",
+      "name": "30th Celebration",
+      "series": "Mega Evolution",
+      "releaseDate": "2026/09/16",
+      "path": "data/master-set-guides/me55.json",
+      "cardRecords": 161,
+      "binderSlots": 161,
+      "generatedAt": "2026-09-30T04:07:43.649Z"
+    },
+    {
+      "expansionId": "me55c",
+      "name": "30th Celebration: Classic Collection",
+      "series": "Mega Evolution",
+      "releaseDate": "2026/09/16",
+      "path": "data/master-set-guides/me55c.json",
+      "cardRecords": 30,
+      "binderSlots": 30,
+      "generatedAt": "2026-09-30T04:07:43.649Z"
+    },
+    {
       "expansionId": "me2pt5",
       "name": "Ascended Heroes",
       "series": "Mega Evolution",
