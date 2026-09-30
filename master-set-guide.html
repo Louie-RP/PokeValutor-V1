@@ -54,13 +54,28 @@
 
     <main id="pv-master-set-guide-main" class="pv-main" role="main">
         <section class="pv-hero container" aria-labelledby="pv-guide-title">
-            <a id="pv-guide-back-link" class="pv-backLink" href="master-sets.html">&larr; Back to Master Sets</a>
+            <a id="pv-guide-back-link" class="pv-backLink" href="master-set-guide.html">&larr; Back to Master Set Guide</a>
             <p class="pv-guideEyebrow">Binder Layout</p>
             <h1 id="pv-guide-title" class="pv-hero__title">Master Set Guide</h1>
             <p id="pv-guide-subtitle" class="pv-hero__subtitle">Loading the guide...</p>
         </section>
 
-        <section class="pv-section container" aria-labelledby="pv-guide-controls-title">
+        <section id="pv-guide-catalog" class="pv-section container" aria-labelledby="pv-guide-catalog-title" hidden>
+            <div class="pv-section__header">
+                <div>
+                    <p class="pv-guideEyebrow">Binder Builder</p>
+                    <h2 id="pv-guide-catalog-title" class="pv-section__title">Choose a set</h2>
+                </div>
+            </div>
+            <div class="pv-guideCatalogToolbar" role="search" aria-label="Find a binder guide">
+                <label class="form-label" for="pv-guide-catalog-filter">Find a set</label>
+                <input id="pv-guide-catalog-filter" class="form-control" type="search" placeholder="Search by set name or series" autocomplete="off" />
+            </div>
+            <p id="pv-guide-catalog-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading available binder guides...</p>
+            <div id="pv-guide-catalog-grid" class="pv-guideCatalog" aria-label="Available binder guides"></div>
+        </section>
+
+        <section id="pv-guide-builder-controls" class="pv-section container" aria-labelledby="pv-guide-controls-title" hidden>
             <div class="pv-section__header">
                 <h2 id="pv-guide-controls-title" class="pv-section__title">Customize your binder</h2>
                 <button id="pv-guide-export" class="pv-button pv-button--primary btn" type="button" disabled>Export Binder PDF</button>
@@ -132,7 +147,7 @@
             <p id="pv-guide-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading guide data...</p>
         </section>
 
-        <section class="pv-section container" aria-labelledby="pv-guide-binder-title">
+        <section id="pv-guide-builder-view" class="pv-section container" aria-labelledby="pv-guide-binder-title" hidden>
             <div class="pv-guideBinderHeader">
                 <div>
                     <h2 id="pv-guide-binder-title" class="pv-section__title">Binder page</h2>

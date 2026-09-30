@@ -111,6 +111,7 @@ function buildIndexEntry(manifest, fileName) {
         expansionId: manifest.expansion.id,
         name: manifest.expansion.name,
         series: manifest.expansion.series,
+        logo: manifest.expansion.logo,
         releaseDate: manifest.expansion.releaseDate,
         path: `data/master-set-guides/${fileName}`,
         cardRecords: manifest.stats.cardRecords,
