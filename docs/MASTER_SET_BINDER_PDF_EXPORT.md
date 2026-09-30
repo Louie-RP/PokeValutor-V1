@@ -4,6 +4,30 @@ The Binder Guide has an **Export Binder PDF** button. Users can generate and
 download card-sized inserts with artwork or an ink-saving labels-only style.
 Generation happens in the browser from the existing guide manifest.
 
+## Available guides
+
+| Set | Expansion ID | Card records | Binder inserts |
+| --- | --- | ---: | ---: |
+| Ascended Heroes | me2pt5 | 295 | 620 |
+| 30th Celebration | me55 | 161 | 161 |
+| 30th Celebration: Classic Collection | me55c | 30 | 30 |
+
+Both 30th Celebration snapshots currently contain one Holofoil slot per card.
+They preserve Scrydex's expansion order and exact printed numbers, including
+the R/RGB, G/RGB, and B/RGB Mew cards and Classic's historical card numbers.
+Classic cards with repeated numbers remain separate records with distinct IDs.
+
+The new manifests were generated through `buildMasterSetGuideManifest` using
+Scrydex's publicly embedded card JSON. Their source metadata records the
+catalog URL and retrieval method. No paid API credentials were used, and pricing
+and population data are excluded. Each Holofoil insert uses the published front
+scan because these records have no separate variant image.
+
+The guide index enables **Plan Binder Layout** on each supported Master Set
+detail page. Direct guide URLs are `master-set-guide.html?expansionId=me55` and
+`master-set-guide.html?expansionId=me55c`. Both support the existing layouts,
+card/variant selection, missing-card filtering, and both PDF styles.
+
 ## User options
 
 - Binder layouts: 3 × 3, 4 × 3, and 4 × 4. Positions fill left to right, row by row.

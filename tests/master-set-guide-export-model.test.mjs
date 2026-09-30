@@ -29,6 +29,50 @@ test('all three binder layouts assign row-major positions and real-set page coun
     }
 });
 
+test('30th Celebration preserves RGB Mew cards and canonical ordering across all layouts', async () => {
+    const guide = JSON.parse(await readFile(new URL('../data/master-set-guides/me55.json', import.meta.url)));
+    const index = JSON.parse(await readFile(new URL('../data/master-set-guides/index.json', import.meta.url)));
+    assert.equal(guide.cards.length, 161);
+    assert.equal(guide.slots.length, 161);
+    assert.equal(index.guides.find(entry => entry.expansionId === 'me55').binderSlots, 161);
+    assert.deepEqual(guide.cards.slice(-3).map(card => [card.id, card.printedNumber]), [
+        ['me55-R', 'R/RGB'], ['me55-G', 'G/RGB'], ['me55-B', 'B/RGB'],
+    ]);
+    for (const [layout, pages] of [['3x3', 18], ['4x3', 14], ['4x4', 11]]) {
+        const plan = buildBinderPlan(guide, new Map(), { layout });
+        assert.equal(plan.at(-1).binderPage, pages);
+        assert.deepEqual(plan.map(row => row.cardId), guide.cards.map(card => card.id));
+        assert.equal(packPrintSheets(plan).sheets.length, 18);
+    }
+    assert.equal(guide.cards[0].printedNumber, '001/128');
+    assert.ok(guide.slots.every(slot => slot.variant === 'holofoil' && slot.images?.medium));
+    assert.doesNotMatch(JSON.stringify(guide), /"prices"|"pop_reports"|"marketplaces"/);
+});
+
+test('Classic Collection retains historical numbering, duplicate numbers, and source order', async () => {
+    const guide = JSON.parse(await readFile(new URL('../data/master-set-guides/me55c.json', import.meta.url)));
+    const index = JSON.parse(await readFile(new URL('../data/master-set-guides/index.json', import.meta.url)));
+    assert.equal(guide.cards.length, 30);
+    assert.equal(guide.slots.length, 30);
+    assert.equal(index.guides.find(entry => entry.expansionId === 'me55c').binderSlots, 30);
+    assert.deepEqual(guide.cards.slice(0, 3).map(card => [card.id, card.printedNumber]), [
+        ['me55c-58', '58/102'], ['me55c-4', '4/102'], ['me55c-18', '18/132'],
+    ]);
+    assert.deepEqual(guide.cards.filter(card => card.number === '106').map(card => [card.id, card.printedNumber]), [
+        ['me55c-106', '106/105'], ['me55c-106p', '106/106'], ['me55c-106m', '106/160'],
+    ]);
+    const plan = buildBinderPlan(guide, buildGuideOwnershipIndex([
+        { id: 'me55c-106', variantQuantities: { holofoil: 1 } },
+    ]));
+    const missing = selectPrintableInserts(plan);
+    assert.equal(missing.length, 29);
+    assert.ok(missing.some(row => row.cardId === 'me55c-106p'));
+    assert.ok(missing.some(row => row.cardId === 'me55c-106m'));
+    assert.equal(packPrintSheets(plan).sheets.length, 4);
+    assert.equal(guide.cards.at(-1).id, 'me55c-203');
+    assert.doesNotMatch(JSON.stringify(guide), /"prices"|"pop_reports"|"marketplaces"/);
+});
+
 test('ownership counts finite positive quantities in Default Collection only', () => {
     const index = buildGuideOwnershipIndex([
         { id: 'a', variantQuantities: { Standard: '2', reverseHolofoil: 0, holofoil: -1, bad: 'NaN', infinite: Infinity, boolean: true } },
