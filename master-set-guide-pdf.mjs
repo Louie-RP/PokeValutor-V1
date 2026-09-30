@@ -142,10 +142,24 @@ function drawCentered(page, text, font, black, centerX, topY, width, size, minSi
     }));
 }
 
+function drawRoundedOutline(page, x, y, width, height, black) {
+    // Inset the stroke so the outside still measures exactly 2.5 x 3.5 inches.
+    const inset = 0.25, radius = 9;
+    const left = inset, top = inset, right = width - inset, bottom = height - inset;
+    const path = [
+        `M ${left + radius} ${top}`,
+        `H ${right - radius} A ${radius} ${radius} 0 0 1 ${right} ${top + radius}`,
+        `V ${bottom - radius} A ${radius} ${radius} 0 0 1 ${right - radius} ${bottom}`,
+        `H ${left + radius} A ${radius} ${radius} 0 0 1 ${left} ${bottom - radius}`,
+        `V ${top + radius} A ${radius} ${radius} 0 0 1 ${left + radius} ${top} Z`,
+    ].join(' ');
+    page.drawSvgPath(path, { x, y: y + height, borderWidth: 0.5, borderColor: black });
+}
+
 function drawInsert(page, cell, style, image, fonts, black) {
     const { x, y, width, height, insert } = cell;
     const cx = x + width / 2;
-    page.drawRectangle({ x: x + 0.25, y: y + 0.25, width: width - 0.5, height: height - 0.5, borderWidth: 0.5, borderColor: black });
+    drawRoundedOutline(page, x, y, width, height, black);
     if (style === 'images' && image) {
         const factor = Math.min((width - 16) / image.width, 172 / image.height);
         const iw = image.width * factor, ih = image.height * factor;
@@ -158,7 +172,7 @@ function drawInsert(page, cell, style, image, fonts, black) {
         drawCentered(page, insert.variantLabel, fonts.regular, black, cx, y + 66, width - 24, 10, 8, 2);
         if (style === 'images') drawCentered(page, 'Image unavailable', fonts.regular, black, cx, y + 92, width - 24, 8);
     }
-    drawCentered(page, `Page ${insert.binderPage} · Pocket ${insert.pocket} (R${insert.row}, C${insert.column})`, fonts.regular, black, cx, y + 25, width - 12, 6.5);
+    drawCentered(page, `Page ${insert.binderPage} · Pocket ${insert.pocket}`, fonts.regular, black, cx, y + 25, width - 12, 6.5);
     drawCentered(page, BRAND, fonts.regular, black, cx, y + 13, width - 12, 7);
 }
 
@@ -213,7 +227,7 @@ export async function renderBinderPdf(inserts, options = {}) {
         const page = pdf.addPage([preset.width, preset.height]);
         page.drawText('Print at Actual Size / 100%', { x: 54, y: 716, size: 16, font: fonts.bold, color: black });
         page.drawText('Measure before cutting. Do not use Fit to Page.', { x: 54, y: 690, size: 11, font: fonts.regular, color: black });
-        page.drawRectangle({ x: 54, y: 360, width: INSERT_WIDTH, height: INSERT_HEIGHT, borderWidth: 0.5, borderColor: black });
+        drawRoundedOutline(page, 54, 360, INSERT_WIDTH, INSERT_HEIGHT, black);
         page.drawText('2.5 x 3.5 inches', { x: 70, y: 478, size: 12, font: fonts.regular, color: black });
         page.drawLine({ start: { x: 54, y: 320 }, end: { x: 126, y: 320 }, thickness: 0.5, color: black });
         page.drawText('1 inch', { x: 54, y: 302, size: 10, font: fonts.regular, color: black });

@@ -35,7 +35,7 @@
 .pv-guideExport__cardVariants { display: grid; gap: 0.15rem; margin-left: 1.3rem; }
 .pv-guideExport__summary { font-weight: 800; color: var(--pv-primary, #ffcb05); }
 .pv-guideExport__preview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #ffffff; color: #000000; max-width: 520px; padding: 1rem 0.7rem; }
-.pv-guideExport__previewInsert { box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-evenly; text-align: center; aspect-ratio: 2.5 / 3.5; border: 0.5px solid #000000; padding: 0.35rem; min-width: 0; overflow: hidden; }
+.pv-guideExport__previewInsert { box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-evenly; text-align: center; aspect-ratio: 2.5 / 3.5; border: 0.5px solid #000000; border-radius: 5% / 3.5714%; padding: 0.35rem; min-width: 0; overflow: hidden; }
 .pv-guideExport__previewInsert strong { font-size: clamp(0.55rem, 2vw, 0.9rem); overflow-wrap: anywhere; }
 .pv-guideExport__previewInsert span { font-size: clamp(0.4rem, 1.5vw, 0.65rem); overflow-wrap: anywhere; }
 .pv-guideExport__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; position: sticky; bottom: -1rem; background: var(--pv-bg, #111827); padding: 1rem 0; }
