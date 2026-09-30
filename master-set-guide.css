@@ -60,6 +60,114 @@
   gap: 0.8rem;
 }
 
+.pv-guideCatalogToolbar {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+}
+
+.pv-guideCatalog {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.pv-guideCatalog__series {
+  border-bottom: 1px solid var(--pv-border);
+}
+
+.pv-guideCatalog__seriesTitle {
+  cursor: pointer;
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0.55rem;
+  color: var(--pv-primary);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.pv-guideCatalog__seriesTitle::-webkit-details-marker {
+  display: none;
+}
+
+.pv-guideCatalog__seriesTitle::before {
+  content: "+";
+  display: inline-block;
+  width: 1.3rem;
+  margin-right: 0.35rem;
+  color: var(--pv-primary);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.pv-guideCatalog__series[open] .pv-guideCatalog__seriesTitle::before {
+  content: "−";
+}
+
+.pv-guideCatalog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  padding: 0.25rem 0 1.2rem;
+}
+
+.pv-guideCatalog__card {
+  display: grid;
+  height: 100%;
+  gap: 0.45rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 203, 5, 0.8);
+  border-radius: 8px;
+  background: var(--pv-surface-2);
+  color: #ffffff;
+}
+
+.pv-guideCatalog__card:hover,
+.pv-guideCatalog__card:focus-visible {
+  border-color: var(--pv-primary);
+}
+
+.pv-guideCatalog__logo {
+  display: grid;
+  height: 92px;
+  place-items: center;
+  padding: 0.35rem;
+  border: 1px solid rgba(255, 203, 5, 0.18);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.pv-guideCatalog__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.pv-guideCatalog__name {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.pv-guideCatalog__meta,
+.pv-guideCatalog__date {
+  margin: 0;
+  color: var(--pv-muted);
+  font-size: 0.88rem;
+}
+
+.pv-guideCatalog__action {
+  margin-top: 0.25rem;
+  color: var(--pv-primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pv-guideCatalog .pv-guideEmpty {
+  padding: 1.5rem 0;
+}
+
 .pv-guideControlGroup {
   display: grid;
   gap: 0.35rem;
@@ -436,6 +544,10 @@
 }
 
 @media (min-width: 900px) {
+  .pv-guideCatalog__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .pv-guideSlot__imageWrap {
     max-height: clamp(220px, 30vh, 340px);
   }

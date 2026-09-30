@@ -46,6 +46,12 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         dialogNumber: document.getElementById('pv-guide-dialog-number'),
         dialogRarity: document.getElementById('pv-guide-dialog-rarity'),
         dialogOwned: document.getElementById('pv-guide-dialog-owned'),
+        catalog: document.getElementById('pv-guide-catalog'),
+        catalogFilter: document.getElementById('pv-guide-catalog-filter'),
+        catalogStatus: document.getElementById('pv-guide-catalog-status'),
+        catalogGrid: document.getElementById('pv-guide-catalog-grid'),
+        builderControls: document.getElementById('pv-guide-builder-controls'),
+        builderView: document.getElementById('pv-guide-builder-view'),
     };
     const variantInputs = Array.from(document.querySelectorAll('[data-guide-variant]'))
         .filter((input) => input instanceof HTMLInputElement);
@@ -54,6 +60,7 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         cardsById: new Map(),
         ownedVariantsByCardId: new Map(),
         filteredSlots: [],
+        guideEntries: [],
         page: 1,
         dialogImageRequestId: 0,
     };
@@ -252,6 +259,139 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         return element;
     }
 
+    function parseGuideReleaseDate(value) {
+        const raw = safeString(value);
+        if (!raw) return 0;
+        const normalized = raw.replace(/^(\d{4})\/(\d{2})\/(\d{2})$/, '$1-$2-$3');
+        const timestamp = Date.parse(`${normalized}T00:00:00Z`);
+        return Number.isFinite(timestamp) ? timestamp : 0;
+    }
+
+    function normalizeGuideEntry(entry) {
+        const expansionId = safeString(entry?.expansionId);
+        const name = safeString(entry?.name);
+        if (!/^[a-zA-Z0-9._-]+$/.test(expansionId) || !name) return null;
+        const cardRecords = Number(entry?.cardRecords);
+        const binderSlots = Number(entry?.binderSlots);
+        return {
+            expansionId,
+            name,
+            series: safeString(entry?.series) || 'Other',
+            logo: safeString(entry?.logo),
+            releaseDate: safeString(entry?.releaseDate),
+            releaseTimestamp: parseGuideReleaseDate(entry?.releaseDate),
+            cardRecords: Number.isFinite(cardRecords) && cardRecords > 0 ? Math.floor(cardRecords) : 0,
+            binderSlots: Number.isFinite(binderSlots) && binderSlots > 0 ? Math.floor(binderSlots) : 0,
+        };
+    }
+
+    function sortGuideEntries(entries) {
+        return entries.slice().sort((left, right) => {
+            const releaseDiff = right.releaseTimestamp - left.releaseTimestamp;
+            if (releaseDiff !== 0) return releaseDiff;
+            const seriesDiff = left.series.localeCompare(right.series);
+            return seriesDiff || left.name.localeCompare(right.name);
+        });
+    }
+
+    function buildGuideUrl(entry) {
+        const params = new URLSearchParams();
+        params.set('expansionId', entry.expansionId);
+        params.set('expansionName', entry.name);
+        return `master-set-guide.html?${params.toString()}`;
+    }
+
+    function createGuideCatalogCard(entry) {
+        const link = document.createElement('a');
+        link.className = 'pv-guideCatalog__card';
+        link.href = buildGuideUrl(entry);
+        link.setAttribute('aria-label', `Build a binder for ${entry.name}`);
+        const logoWrap = document.createElement('div');
+        logoWrap.className = 'pv-guideCatalog__logo';
+        const logo = document.createElement('img');
+        logo.loading = 'lazy';
+        logo.decoding = 'async';
+        setImage(logo, entry.logo, `${entry.name} logo`);
+        logoWrap.append(logo);
+        link.append(
+            logoWrap,
+            createTextElement('h3', 'pv-guideCatalog__name', entry.name),
+            createTextElement('p', 'pv-guideCatalog__meta', entry.binderSlots ? `${entry.binderSlots} binder slots` : 'Binder guide ready'),
+            createTextElement('p', 'pv-guideCatalog__date', entry.releaseDate || 'Release date unavailable'),
+            createTextElement('span', 'pv-guideCatalog__action', 'Open binder builder'),
+        );
+        return link;
+    }
+
+    function renderGuideCatalog() {
+        if (!(elements.catalogGrid instanceof HTMLElement)) return;
+        const query = normalizeSearch(elements.catalogFilter?.value);
+        const filtered = state.guideEntries.filter((entry) => !query
+            || normalizeSearch(`${entry.name} ${entry.series}`).includes(query));
+        const groups = new Map();
+        filtered.forEach((entry) => {
+            const group = groups.get(entry.series) || [];
+            group.push(entry);
+            groups.set(entry.series, group);
+        });
+
+        const sections = [...groups.entries()].map(([series, entries]) => {
+            const section = document.createElement('details');
+            section.className = 'pv-guideCatalog__series';
+            section.open = true;
+            const heading = createTextElement('summary', 'pv-guideCatalog__seriesTitle', series);
+            const grid = document.createElement('div');
+            grid.className = 'pv-guideCatalog__grid';
+            entries.forEach((entry) => grid.append(createGuideCatalogCard(entry)));
+            section.append(heading, grid);
+            return section;
+        });
+
+        elements.catalogGrid.replaceChildren(...sections);
+        if (!sections.length) elements.catalogGrid.append(createTextElement('p', 'pv-guideEmpty', 'No binder guides match your search.'));
+        if (elements.catalogStatus) {
+            elements.catalogStatus.textContent = `${filtered.length} binder guide${filtered.length === 1 ? '' : 's'} available.`;
+        }
+    }
+
+    function setGuideViewMode(showBuilder) {
+        if (elements.catalog) elements.catalog.hidden = showBuilder;
+        if (elements.builderControls) elements.builderControls.hidden = !showBuilder;
+        if (elements.builderView) elements.builderView.hidden = !showBuilder;
+    }
+
+    async function loadGuideCatalog() {
+        setGuideViewMode(false);
+        if (elements.title) elements.title.textContent = 'Binder Builder';
+        if (elements.subtitle) elements.subtitle.textContent = 'Choose a set to plan its binder layout.';
+        document.title = 'Binder Builder | PokeValutor';
+        if (elements.backLink instanceof HTMLAnchorElement) {
+            elements.backLink.href = 'master-set-guide.html';
+            elements.backLink.textContent = '← Back to Master Set Guide';
+        }
+        if (elements.catalogStatus) elements.catalogStatus.textContent = 'Loading available binder guides...';
+        try {
+            const response = await fetch('data/master-set-guides/index.json');
+            if (!response.ok) throw new Error('Binder guide catalog unavailable.');
+            const index = await response.json();
+            state.guideEntries = sortGuideEntries(
+                (Array.isArray(index?.guides) ? index.guides : [])
+                    .map(normalizeGuideEntry)
+                    .filter(Boolean),
+            );
+            if (elements.catalogFilter instanceof HTMLInputElement
+                && elements.catalogFilter.getAttribute('data-bound') !== '1') {
+                elements.catalogFilter.setAttribute('data-bound', '1');
+                elements.catalogFilter.addEventListener('input', renderGuideCatalog);
+            }
+            renderGuideCatalog();
+        } catch {
+            state.guideEntries = [];
+            if (elements.catalogStatus) elements.catalogStatus.textContent = 'Binder guides are temporarily unavailable.';
+            if (elements.catalogGrid) elements.catalogGrid.replaceChildren(createTextElement('p', 'pv-guideEmpty', 'Try again later.'));
+        }
+    }
+
     function openCardDialog(slot, card) {
         if (!(elements.dialog instanceof HTMLDialogElement)) return;
         const requestId = ++state.dialogImageRequestId;
@@ -417,15 +557,15 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-29-pdf
         const expansionId = safeString(params.get('expansionId'));
         const expansionName = safeString(params.get('expansionName'));
         if (!/^[a-zA-Z0-9._-]+$/.test(expansionId)) {
-            throw new Error('Choose a supported set from the Master Sets page.');
+            await loadGuideCatalog();
+            return;
         }
 
+        setGuideViewMode(true);
+
         if (elements.backLink instanceof HTMLAnchorElement) {
-            const backParams = new URLSearchParams();
-            backParams.set('expansionId', expansionId);
-            if (expansionName) backParams.set('expansionName', expansionName);
-            elements.backLink.href = `master-set.html?${backParams.toString()}`;
-            elements.backLink.textContent = '← Back to Master Set';
+            elements.backLink.href = 'master-set-guide.html';
+            elements.backLink.textContent = '← Back to Master Set Guide';
         }
 
         const response = await fetch(`data/master-set-guides/${encodeURIComponent(expansionId)}.json`);

@@ -4,6 +4,8 @@ import test from 'node:test';
 
 const source = await readFile('master-set-guide.js', 'utf8');
 const html = await readFile('master-set-guide.html', 'utf8');
+const masterSetsHtml = await readFile('master-sets.html', 'utf8');
+const guideIndex = JSON.parse(await readFile('data/master-set-guides/index.json', 'utf8'));
 const css = await readFile('master-set-guide.css', 'utf8');
 
 test('the downstream guide renderer avoids unsafe HTML parsing sinks', () => {
@@ -109,4 +111,26 @@ test('uses a compact single-row pager with a live page label', () => {
     assert.match(source, /elements\.pagerLabel\.textContent = `Page/);
     assert.match(css, /\.pv-guidePager\s*\{[\s\S]*display:\s*flex/);
     assert.match(css, /\.pv-guidePager__page\s*\{[\s\S]*flex:\s*1 1 auto/);
+});
+
+test('provides a no-selection binder guide catalog from the master sets page', () => {
+    assert.match(masterSetsHtml, /href="master-set-guide\.html">Build a Binder<\/a>/);
+    assert.match(html, /id="pv-guide-catalog"/);
+    assert.match(html, /id="pv-guide-catalog-filter"/);
+    assert.match(html, /id="pv-guide-catalog-grid"/);
+    assert.match(source, /data\/master-set-guides\/index\.json/);
+    assert.match(source, /function sortGuideEntries\(entries\)/);
+    assert.match(source, /right\.releaseTimestamp - left\.releaseTimestamp/);
+    assert.match(source, /function setGuideViewMode\(showBuilder\)/);
+});
+
+test('shows validated set logos and returns selected guides to the builder catalog', () => {
+    assert.ok(Array.isArray(guideIndex.guides) && guideIndex.guides.length > 0);
+    assert.ok(guideIndex.guides.every((entry) => /^https:\/\//.test(entry.logo)));
+    assert.match(source, /logo: safeString\(entry\?\.logo\)/);
+    assert.match(source, /setImage\(logo, entry\.logo, `\$\{entry\.name\} logo`\)/);
+    assert.match(css, /\.pv-guideCatalog__logo\s*\{/);
+    assert.match(html, /&larr; Back to Master Set Guide/);
+    assert.match(source, /elements\.backLink\.textContent = '← Back to Master Set Guide'/);
+    assert.match(source, /elements\.backLink\.href = 'master-set-guide\.html'/);
 });
