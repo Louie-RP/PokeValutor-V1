@@ -1,0 +1,414 @@
+body#pv-card-body.pv-cardRefresh {
+  --card-bg: #080809;
+  --card-surface: #111114;
+  --card-surface-raised: #18181d;
+  --card-field: #0c0c0f;
+  --card-text: #f7f7f8;
+  --card-muted: #aaaab4;
+  --card-line: #2d2d37;
+  --card-line-strong: #4a4a56;
+  --card-yellow: #ffcb05;
+  --card-yellow-hover: #ffda3d;
+  --card-yellow-ink: #171300;
+  --card-heading: "Playfair Display", Georgia, serif;
+  --card-body: "DM Sans", "Space Grotesk", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(255, 203, 5, 0.08), transparent 28rem),
+    var(--card-bg);
+  color: var(--card-text);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-header {
+  border-bottom-color: var(--card-line);
+  background: rgba(8, 8, 9, 0.94);
+  box-shadow: none;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-nav__link {
+  border-radius: 0.55rem;
+  color: var(--card-muted);
+  font-family: var(--card-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-nav__link:hover,
+body#pv-card-body.pv-cardRefresh .pv-nav__link:focus-visible {
+  background: var(--card-surface);
+  color: var(--card-text);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-navToggle,
+body#pv-card-body.pv-cardRefresh .pv-auth-menu__trigger {
+  border-color: transparent;
+  background: var(--card-surface-raised);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-navToggle:hover,
+body#pv-card-body.pv-cardRefresh .pv-navToggle:focus-visible,
+body#pv-card-body.pv-cardRefresh .pv-auth-menu__trigger:hover,
+body#pv-card-body.pv-cardRefresh .pv-auth-menu__trigger[aria-expanded="true"] {
+  border-color: var(--card-yellow);
+  color: var(--card-yellow);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-main {
+  min-height: calc(100vh - 5rem);
+  padding-bottom: clamp(4rem, 7vw, 6rem);
+}
+
+body#pv-card-body.pv-cardRefresh #pv-card-hero,
+body#pv-card-body.pv-cardRefresh .pv-cardPageContent {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+}
+
+body#pv-card-body.pv-cardRefresh #pv-card-hero {
+  margin: 0 auto;
+  padding: clamp(1.3rem, 3vw, 2.2rem) 0 1rem;
+  background: transparent;
+}
+
+body#pv-card-body.pv-cardRefresh #pv-card-hero .pv-backLink {
+  color: var(--card-muted);
+  font-family: var(--card-body);
+  font-size: 0.84rem;
+}
+
+body#pv-card-body.pv-cardRefresh #pv-card-hero .pv-backLink:hover,
+body#pv-card-body.pv-cardRefresh #pv-card-hero .pv-backLink:focus-visible {
+  color: var(--card-yellow);
+}
+
+body#pv-card-body.pv-cardRefresh #pv-card-hero .pv-hero__title {
+  max-width: 28ch;
+  margin: 0.65rem 0 0.35rem;
+  color: var(--card-text);
+  font-family: var(--card-heading);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__actions {
+  margin-top: 1rem;
+  gap: 0.6rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-button {
+  min-height: 2.75rem;
+  border-radius: 0.7rem;
+  font-family: var(--card-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-button--secondary {
+  border-color: var(--card-line-strong);
+  background: var(--card-surface-raised);
+  color: var(--card-text);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-button--secondary:hover,
+body#pv-card-body.pv-cardRefresh .pv-button--secondary:focus-visible {
+  border-color: #6b6b78;
+  background: #202027;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-button--primary {
+  border-color: #c79b00;
+  background: var(--card-yellow);
+  color: var(--card-yellow-ink);
+  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.16);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-button--primary:hover,
+body#pv-card-body.pv-cardRefresh .pv-button--primary:focus-visible {
+  background: var(--card-yellow-hover);
+}
+
+body#pv-card-body.pv-cardRefresh #pv-card-share-status,
+body#pv-card-body.pv-cardRefresh #pv-card-status {
+  margin: 0.8rem 0 0;
+  color: var(--card-muted);
+  font-family: var(--card-body);
+  font-size: 0.86rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardPageContent {
+  margin: 0 auto;
+  padding: 0;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardPageContent > .pv-section {
+  margin: clamp(1.2rem, 3vw, 2rem) 0;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--card-line);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(12, 12, 15, 0.98));
+  box-shadow: none;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail {
+  grid-template-columns: minmax(250px, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  margin: 0 0 clamp(1.2rem, 3vw, 2rem);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__mediaWrap {
+  border-color: var(--card-line-strong);
+  border-radius: 0.9rem;
+  background: var(--card-field);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__imageHint {
+  right: 0.7rem;
+  bottom: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.45rem;
+  background: rgba(8, 8, 9, 0.88);
+  color: var(--card-text);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__content {
+  border-color: var(--card-line);
+  border-radius: 0.9rem;
+  background: var(--card-surface);
+  padding: clamp(1rem, 2vw, 1.35rem);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__meta {
+  gap: 1rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__meta dt {
+  color: var(--card-muted);
+  font-family: var(--card-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__meta dd {
+  color: var(--card-text);
+  font-family: var(--card-body);
+  font-size: 1rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__market {
+  border-color: rgba(255, 203, 5, 0.38);
+  border-radius: 0.7rem;
+  background: rgba(255, 203, 5, 0.1);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__market dd {
+  color: var(--card-yellow);
+  font-size: clamp(1.2rem, 3vw, 1.55rem);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__marketLink {
+  color: var(--card-text);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__marketLink:hover,
+body#pv-card-body.pv-cardRefresh .pv-cardDetail__marketLink:focus-visible {
+  color: var(--card-yellow);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-section__title {
+  margin-bottom: 1rem;
+  color: var(--card-yellow);
+  font-family: var(--card-heading);
+  font-size: clamp(1.45rem, 3vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardTable {
+  border-color: var(--card-line-strong);
+  border-radius: 0.75rem;
+  background: var(--card-field);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardTable th,
+body#pv-card-body.pv-cardRefresh .pv-cardTable td {
+  border-bottom-color: var(--card-line);
+  padding: 0.7rem 0.85rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardTable th {
+  background: var(--card-surface-raised);
+  color: var(--card-text);
+  font-size: 0.76rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardTable td {
+  color: var(--card-muted);
+  font-size: 0.9rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardTable tbody tr:hover td {
+  background: rgba(255, 203, 5, 0.05);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-variantName {
+  color: var(--card-text);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-variantName:hover,
+body#pv-card-body.pv-cardRefresh .pv-variantName:focus-visible {
+  color: var(--card-yellow);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardHistory__controls {
+  max-width: 40rem;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-priceHistory {
+  border-color: var(--card-line);
+  border-radius: 0.8rem;
+  background: linear-gradient(145deg, rgba(8, 8, 9, 0.72), rgba(24, 24, 29, 0.72));
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-relatedCard {
+  border-color: var(--card-line);
+  border-radius: 0.75rem;
+  background: var(--card-field);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-relatedCard:hover,
+body#pv-card-body.pv-cardRefresh .pv-relatedCard:focus-visible {
+  border-color: var(--card-yellow);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-relatedCard__img {
+  background: #080809;
+}
+
+body#pv-card-body.pv-cardRefresh .pv-relatedCard__name {
+  color: var(--card-text);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-relatedCard__set {
+  color: var(--card-muted);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardImageModal {
+  border-color: var(--card-line-strong);
+  border-radius: 0.9rem;
+  background: var(--card-surface);
+  color: var(--card-text);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardImageModal__close {
+  border-color: var(--card-line-strong);
+  border-radius: 0.55rem;
+  background: var(--card-surface-raised);
+  color: var(--card-text);
+  font-family: var(--card-body);
+}
+
+body#pv-card-body.pv-cardRefresh .pv-cardImageModal__close:hover,
+body#pv-card-body.pv-cardRefresh .pv-cardImageModal__close:focus-visible {
+  border-color: var(--card-yellow);
+  color: var(--card-yellow);
+}
+
+@media (max-width: 640px) {
+  body#pv-card-body.pv-cardRefresh {
+    padding-bottom: 4.5rem;
+  }
+
+  body#pv-card-body.pv-cardRefresh #pv-card-hero {
+    width: min(100% - 1.5rem, 72rem);
+    padding-top: 1rem;
+  }
+
+  body#pv-card-body.pv-cardRefresh #pv-card-hero .pv-hero__title {
+    font-size: clamp(1.7rem, 8vw, 2.25rem);
+  }
+
+  body#pv-card-body.pv-cardRefresh #pv-card-hero .pv-cardDetail__actions {
+    border-top-color: var(--card-line);
+    background: rgba(8, 8, 9, 0.96);
+    box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-cardPageContent {
+    width: min(100% - 1.5rem, 72rem);
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-cardPageContent > .pv-section {
+    border-radius: 0.85rem;
+    padding: 1rem;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-cardDetail {
+    grid-template-columns: minmax(104px, 34vw) minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-cardDetail__meta {
+    border-color: var(--card-line);
+    border-radius: 0.75rem;
+    background: var(--card-surface);
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal {
+    margin-inline: -0.35rem;
+    padding: 0.75rem;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-tableWrap {
+    overflow-x: visible;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable {
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable th,
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable td {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable th:first-child,
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable td:first-child {
+    width: 68%;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable th:last-child,
+  body#pv-card-body.pv-cardRefresh .pv-priceHistoryLocal .pv-cardTable td:last-child {
+    width: 32%;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistory__chartWrap {
+    overflow-x: hidden;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-priceHistory__chart {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+  }
+
+  body#pv-card-body.pv-cardRefresh .pv-cardPricing .pv-cardTable th,
+  body#pv-card-body.pv-cardRefresh .pv-cardPricing .pv-cardTable td {
+    padding: 0.55rem 0.65rem;
+  }
+}
