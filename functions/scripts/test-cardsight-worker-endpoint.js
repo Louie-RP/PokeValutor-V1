@@ -7,6 +7,11 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+if (typeof vm.SourceTextModule !== 'function') {
+  console.warn('CardSight worker endpoint test skipped: run Node with --experimental-vm-modules.');
+  process.exit(0);
+}
+
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
@@ -86,6 +91,7 @@ async function run() {
               number: '125',
               releaseName: 'Phantasmal Flames',
               setName: 'Checklist',
+              manufacturer: 'The Pokemon Company',
               fields: [
                 { key: 'RELEASE_CODE', value: 'PFL' },
                 { key: 'PRINTED_TOTAL', value: '094' }
@@ -157,6 +163,7 @@ async function run() {
     });
     const env = {
       SCANNER_CARDSIGHT_ENABLED: '1',
+      SCANNER_QUOTA_ENABLED: '0',
       SCANNER_CARDSIGHT_API_KEY: 'test_cardsight_key_32_chars_123456',
       SCANNER_CARDSIGHT_IDENTIFY_URL: 'https://api.cardsight.ai/v1/identify/card'
     };
@@ -185,6 +192,7 @@ async function run() {
 
     const env = {
       SCANNER_CARDSIGHT_ENABLED: '1',
+      SCANNER_QUOTA_ENABLED: '0',
       SCANNER_CARDSIGHT_API_KEY: 'test_cardsight_key_32_chars_123456',
       SCANNER_CARDSIGHT_IDENTIFY_URL: 'https://api.cardsight.ai/v1/identify/card',
       SCANNER_CARDSIGHT_MAX_DETECTIONS: '5',

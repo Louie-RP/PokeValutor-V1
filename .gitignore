@@ -27,7 +27,11 @@ serviceAccountKey.json
 .wrangler/
 
 # Local test suites and verification harnesses
-/tests/
+/tests/*
+!/tests/
+!/tests/master-set-guide-ui-static.test.mjs
+!/tests/master-set-guide-export-model.test.mjs
+!/tests/master-set-guide-pdf.test.mjs
 
 # Node
 node_modules/
