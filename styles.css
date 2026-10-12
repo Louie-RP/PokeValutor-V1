@@ -5579,7 +5579,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   gap: 0.55rem;
 }
 
-#pv-dex-body #pv-dex-master-link {
+#pv-dex-body #pv-dex-master-link,
+#pv-dex-body #pv-dex-binder-link {
   background: linear-gradient(180deg, rgba(255, 203, 5, 0.24), rgba(255, 203, 5, 0.14));
   border-color: rgba(255, 203, 5, 0.68);
   color: #fff8d6;
@@ -5589,7 +5590,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 #pv-dex-body #pv-dex-master-link:hover,
-#pv-dex-body #pv-dex-master-link:focus {
+#pv-dex-body #pv-dex-master-link:focus,
+#pv-dex-body #pv-dex-binder-link:hover,
+#pv-dex-body #pv-dex-binder-link:focus {
   background: linear-gradient(180deg, rgba(255, 203, 5, 0.34), rgba(255, 203, 5, 0.2));
   border-color: rgba(255, 203, 5, 0.88);
   color: #fffef2;
