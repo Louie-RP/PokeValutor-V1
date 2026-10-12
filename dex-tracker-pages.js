@@ -1968,8 +1968,8 @@
 
         return {
             itemType: 'card',
-            ownershipOnly: card?.ownershipOnly === true,
-            ownershipOnlyVariants: normalizeVariantQuantities(card?.ownershipOnlyVariants, '', 0),
+            ownershipOnly: raw?.ownershipOnly === true,
+            ownershipOnlyVariants: normalizeVariantQuantities(raw?.ownershipOnlyVariants, '', 0),
             collectionId,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
