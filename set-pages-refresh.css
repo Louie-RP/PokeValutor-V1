@@ -105,7 +105,7 @@
   margin: 0.8rem 0 0;
   color: var(--set-text);
   font-family: "Playfair Display", Georgia, serif;
-  font-size: clamp(2.25rem, 8vw, 4rem);
+  font-size: clamp(2rem, 6.5vw, 3.4rem);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1;

@@ -281,7 +281,7 @@ a { color: inherit; }
   margin: 0;
   color: var(--preview-text);
   font-family: var(--preview-heading);
-  font-size: clamp(2.2rem, 8vw, 4.2rem);
+  font-size: clamp(2rem, 6.5vw, 3.5rem);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 0.98;
@@ -1401,7 +1401,7 @@ a { color: inherit; }
   .home-preview-hero h1 {
     max-width: 58rem;
     margin-inline: auto;
-    font-size: clamp(2.6rem, 5vw, 4.2rem);
+    font-size: clamp(2.25rem, 4.5vw, 3.5rem);
     line-height: 1;
   }
 
