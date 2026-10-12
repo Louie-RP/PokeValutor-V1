@@ -64,6 +64,12 @@
         <section class="pv-section container" aria-labelledby="pv-shared-collection-title">
             <div class="pv-section__header">
                 <h2 id="pv-shared-collection-title" class="pv-section__title">Collection</h2>
+                <div id="pv-shared-collection-picker" class="pv-sortRow" role="group" aria-label="Select shared collection">
+                    <label for="pv-shared-collection-select" class="form-label pv-sortLabel">Collection</label>
+                    <select id="pv-shared-collection-select" class="form-select pv-sortSelect" aria-label="Select shared collection">
+                        <option value="default" selected>Default Collection</option>
+                    </select>
+                </div>
             </div>
             <div class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">
                 <span class="pv-collectionTotalValueGroup">
@@ -88,12 +94,6 @@
                     >i</button>
                 </span>
                 <span id="pv-shared-total" class="pv-collectionTotalAmount">Total units: 0</span>
-            </div>
-            <div id="pv-shared-collection-picker" class="pv-sortRow" role="group" aria-label="Select shared collection">
-                <label for="pv-shared-collection-select" class="form-label pv-sortLabel">Collection</label>
-                <select id="pv-shared-collection-select" class="form-select pv-sortSelect" aria-label="Select shared collection">
-                    <option value="default" selected>Default Collection</option>
-                </select>
             </div>
             <div class="pv-collectionFilterRow pv-sharedFilterRow" role="search" aria-label="Filter shared collection">
                 <div class="pv-collectionFilterControl pv-sharedFilterControl--search">

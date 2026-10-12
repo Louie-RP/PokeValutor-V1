@@ -174,9 +174,9 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
 }
 
 #pv-shared-body.pv-sharedRefresh section[aria-labelledby="pv-shared-collection-title"] .pv-section__header {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 0.9rem;
   margin-bottom: 1rem;
 }
@@ -280,12 +280,22 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
 }
 
 #pv-shared-body.pv-sharedRefresh #pv-shared-collection-picker {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  margin: 0 0 1rem;
+  gap: 0.45rem;
+  min-width: 0;
+  margin: 0;
+}
+
+#pv-shared-body.pv-sharedRefresh #pv-shared-collection-picker .pv-sortLabel {
+  margin: 0;
+  white-space: nowrap;
 }
 
 #pv-shared-body.pv-sharedRefresh #pv-shared-collection-select {
-  width: min(100%, 14rem);
+  width: 12rem;
   min-height: 2.85rem;
 }
 
@@ -417,7 +427,10 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
   line-height: 1.3;
 }
 
-#pv-shared-body.pv-sharedRefresh .pv-sharedRarity,
+#pv-shared-body.pv-sharedRefresh .pv-sharedRarity {
+  color: var(--dex-yellow);
+}
+
 #pv-shared-body.pv-sharedRefresh .pv-sharedCardNo {
   color: #d7d7de;
 }
@@ -442,7 +455,14 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
 
 #pv-shared-body.pv-sharedRefresh .pv-sharedCopiesBtn,
 #pv-shared-body.pv-sharedRefresh .pv-sharedQtyBtn {
-  color: var(--dex-green, #8be0a8);
+  color: var(--dex-yellow);
+}
+
+#pv-shared-body.pv-sharedRefresh .pv-sharedCopiesBtn:hover,
+#pv-shared-body.pv-sharedRefresh .pv-sharedCopiesBtn:focus-visible,
+#pv-shared-body.pv-sharedRefresh .pv-sharedQtyBtn:hover,
+#pv-shared-body.pv-sharedRefresh .pv-sharedQtyBtn:focus-visible {
+  color: var(--dex-yellow-hover);
 }
 
 #pv-shared-body.pv-sharedRefresh .pv-sharedConditionDialog {
@@ -503,12 +523,35 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
     padding-top: 2.2rem;
   }
 
+  #pv-shared-body.pv-sharedRefresh section[aria-labelledby="pv-shared-collection-title"] .pv-section__header {
+    gap: 0.5rem;
+  }
+
+  #pv-shared-body.pv-sharedRefresh #pv-shared-collection-title {
+    font-size: 1.25rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
   #pv-shared-body.pv-sharedRefresh #pv-shared-collection-picker {
-    justify-content: stretch;
+    gap: 0.3rem;
+  }
+
+  #pv-shared-body.pv-sharedRefresh #pv-shared-collection-picker .pv-sortLabel {
+    font-size: 0.56rem;
+    letter-spacing: 0.02em;
+  }
+
+  #pv-shared-body.pv-sharedRefresh #pv-shared-collection-picker {
+    justify-content: flex-end;
   }
 
   #pv-shared-body.pv-sharedRefresh #pv-shared-collection-select {
-    width: 100%;
+    width: clamp(7.4rem, 34vw, 10rem);
+    min-width: 0;
+    padding-right: 1.1rem;
+    padding-left: 0.35rem;
+    font-size: 0.62rem;
   }
 }
 
