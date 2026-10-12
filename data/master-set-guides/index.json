@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "guides": [
+    {
+      "expansionId": "me55",
+      "name": "30th Celebration",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me55-logo/logo",
+      "releaseDate": "2026/09/16",
+      "path": "data/master-set-guides/me55.json",
+      "cardRecords": 161,
+      "binderSlots": 161,
+      "generatedAt": "2026-09-30T04:07:43.649Z"
+    },
+    {
+      "expansionId": "me55c",
+      "name": "30th Celebration: Classic Collection",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me55c-logo/logo",
+      "releaseDate": "2026/09/16",
+      "path": "data/master-set-guides/me55c.json",
+      "cardRecords": 30,
+      "binderSlots": 30,
+      "generatedAt": "2026-09-30T04:07:43.649Z"
+    },
+    {
+      "expansionId": "me5",
+      "name": "Pitch Black",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me5-logo/logo",
+      "releaseDate": "2026/07/17",
+      "path": "data/master-set-guides/me5.json",
+      "cardRecords": 120,
+      "binderSlots": 202,
+      "generatedAt": "2026-09-30T06:24:06.870Z"
+    },
+    {
+      "expansionId": "me4",
+      "name": "Chaos Rising",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me4-logo/logo",
+      "releaseDate": "2026/05/22",
+      "path": "data/master-set-guides/me4.json",
+      "cardRecords": 122,
+      "binderSlots": 206,
+      "generatedAt": "2026-09-30T06:24:06.884Z"
+    },
+    {
+      "expansionId": "me3",
+      "name": "Perfect Order",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me3-logo/logo",
+      "releaseDate": "2026/03/27",
+      "path": "data/master-set-guides/me3.json",
+      "cardRecords": 124,
+      "binderSlots": 205,
+      "generatedAt": "2026-09-30T06:24:06.890Z"
+    },
+    {
+      "expansionId": "me2pt5",
+      "name": "Ascended Heroes",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me2pt5-logo/logo",
+      "releaseDate": "2026/01/30",
+      "path": "data/master-set-guides/me2pt5.json",
+      "cardRecords": 295,
+      "binderSlots": 620,
+      "generatedAt": "2026-09-29T22:01:42.547Z"
+    },
+    {
+      "expansionId": "me2",
+      "name": "Phantasmal Flames",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me2-logo/logo",
+      "releaseDate": "2025/11/14",
+      "path": "data/master-set-guides/me2.json",
+      "cardRecords": 130,
+      "binderSlots": 221,
+      "generatedAt": "2026-09-30T06:24:06.896Z"
+    },
+    {
+      "expansionId": "me1",
+      "name": "Mega Evolution",
+      "series": "Mega Evolution",
+      "logo": "https://images.scrydex.com/pokemon/me1-logo/logo",
+      "releaseDate": "2025/09/26",
+      "path": "data/master-set-guides/me1.json",
+      "cardRecords": 188,
+      "binderSlots": 353,
+      "generatedAt": "2026-09-30T06:24:06.905Z"
+    }
+  ]
+}

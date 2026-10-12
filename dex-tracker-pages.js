@@ -4,10 +4,12 @@
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
+    const DEX_CLOUD_REVISION_KEY = `${CACHE_PREFIX}dexCloudRevision:v1`;
+    const DEX_STATE_UPDATED_AT_KEY = `${CACHE_PREFIX}dexStateUpdatedAt:v1`;
     const DEX_LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
-    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v2`;
+    const VALUE_CACHE_KEY = `${CACHE_PREFIX}collectionValueCache:v3`;
     const SET_CARDS_CACHE_KEY = `${CACHE_PREFIX}setCardsCache:v1`;
     const COLLECTION_SORT_PREF_KEY = `${CACHE_PREFIX}collectionSortMode:v1`;
     const COLLECTION_TYPE_FILTER_PREF_KEY = `${CACHE_PREFIX}collectionTypeFilter:v1`;
@@ -15,17 +17,17 @@
     const VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const SEALED_VALUE_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
     const COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+    const PRICE_REQUEST_TIMEOUT_MS = 12000;
     const COLLECTION_VALUE_LAST_REFRESH_KEY = `${CACHE_PREFIX}collectionValueLastRefresh:v2`;
     const SET_CARDS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
     const SET_SEARCH_PAGE_SIZE = 100;
     const SET_SEARCH_MAX_PAGES = 12;
-    const COLLECTION_PAGE_SIZE_MOBILE = 36;
-    const COLLECTION_PAGE_SIZE_DESKTOP = 60;
     const COLLECTION_PAGE_BREAKPOINT_QUERY = '(max-width: 767.98px)';
     const DEX_CONDITION_CODES = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const MASTER_DEFAULT_VARIANT_NAME = 'Standard';
-    const COLLECTION_TYPE_FILTER_VALUES = ['all', 'card', 'sealed'];
     const storageUtil = window?.PV_STORAGE_UTIL || null;
+    const collectionView = window.PV_COLLECTION_VIEW;
+    const sealedPricing = window.PV_SEALED_PRICING;
     const collectionSortState = {
         active: 'value',
         nameDir: 'asc',
@@ -36,10 +38,15 @@
         inFlightByCollectionId: {},
         errorUntilByCollectionId: {},
     };
+    const sealedCollectionRefreshStartedByCollectionId = new Set();
     const collectionTotalsState = {
         hidden: false,
         valueText: 'Value: $0.00',
+        coverageText: '',
         amountText: 'Amount: 0 items • 0 card copies',
+        cardValue: 0,
+        sealedValue: 0,
+        totalValue: 0,
     };
     const collectionPaginationState = {
         page: 1,
@@ -47,6 +54,10 @@
         signature: '',
     };
     let collectionPageSizeMediaBound = false;
+    let collectionValueRefreshGeneration = 0;
+    let dexStorageRenderTimer = 0;
+    let dexStorageRenderAll = false;
+    let dexStorageRenderNeedsNetwork = false;
     /** @type {Record<string, number>} */
     const collectionValueById = {};
     /** @type {Record<string, Promise<any>>} */
@@ -62,6 +73,27 @@
         } catch {
             return null;
         }
+    }
+
+    function areJsonValuesEqual(left, right) {
+        if (Object.is(left, right)) return true;
+        if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+
+        const leftIsArray = Array.isArray(left);
+        if (leftIsArray !== Array.isArray(right)) return false;
+
+        const leftKeys = Object.keys(left);
+        const rightKeys = Object.keys(right);
+        if (leftKeys.length !== rightKeys.length) return false;
+
+        for (const key of leftKeys) {
+            if (!Object.prototype.hasOwnProperty.call(right, key)
+                || !areJsonValuesEqual(left[key], right[key])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function safeString(value, fallback) {
@@ -126,8 +158,7 @@
     }
 
     function normalizeCollectionTypeFilter(value) {
-        const next = safeString(value, '').trim().toLowerCase();
-        return COLLECTION_TYPE_FILTER_VALUES.includes(next) ? next : 'all';
+        return collectionView.normalizeTypeFilter(value);
     }
 
     function normalizeSearchText(value) {
@@ -453,9 +484,7 @@
     }
 
     function formatUsd(amount) {
-        const n = Number(amount);
-        if (!Number.isFinite(n)) return '$0.00';
-        return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return collectionView.formatUsd(amount);
     }
 
     const COLLECTION_SORT_MODES = ['value-desc', 'value-asc', 'name-asc', 'name-desc'];
@@ -596,14 +625,9 @@
     }
 
     function getCollectionPageSize() {
-        try {
-            if (window?.matchMedia && window.matchMedia(COLLECTION_PAGE_BREAKPOINT_QUERY).matches) {
-                return COLLECTION_PAGE_SIZE_MOBILE;
-            }
-        } catch {
-            // ignore
-        }
-        return COLLECTION_PAGE_SIZE_DESKTOP;
+        return collectionView.getResponsivePageSize(window, {
+            breakpointQuery: COLLECTION_PAGE_BREAKPOINT_QUERY,
+        });
     }
 
     function sortCollectionMatches(matches) {
@@ -649,39 +673,6 @@
     }
 
     function renderCollectionPagination(container, options) {
-        if (!(container instanceof HTMLElement)) return;
-
-        const totalItems = Math.max(0, Math.floor(Number(options?.totalItems) || 0));
-        const pageSize = Math.max(1, Math.floor(Number(options?.pageSize) || COLLECTION_PAGE_SIZE_DESKTOP));
-        const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-        const currentPage = Math.min(Math.max(1, Math.floor(Number(options?.currentPage) || 1)), totalPages);
-
-        if (totalItems <= pageSize) {
-            container.hidden = true;
-            container.innerHTML = '';
-            return;
-        }
-
-        const start = ((currentPage - 1) * pageSize) + 1;
-        const end = Math.min(totalItems, currentPage * pageSize);
-        const prevDisabled = currentPage <= 1 ? 'disabled' : '';
-        const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
-
-        container.hidden = false;
-        container.innerHTML = `
-            <div class="pv-collectionPagination__inner">
-                <p class="pv-collectionPagination__status">Showing ${start}-${end} of ${totalItems}</p>
-                <div class="pv-collectionPagination__controls" role="group" aria-label="Collection pages">
-                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="prev" ${prevDisabled}>Previous</button>
-                    <span class="pv-collectionPagination__pageLabel">Page ${currentPage} of ${totalPages}</span>
-                    <button class="pv-button pv-button--secondary btn pv-collectionPagination__btn" type="button" data-page-nav="next" ${nextDisabled}>Next</button>
-                </div>
-            </div>
-        `;
-
-        const prevBtn = container.querySelector('[data-page-nav="prev"]');
-        const nextBtn = container.querySelector('[data-page-nav="next"]');
-
         function scrollCollectionToTop() {
             const grid = document.getElementById('pv-collection-grid');
             const firstCard = grid instanceof HTMLElement
@@ -702,23 +693,17 @@
             window.scrollTo({ top, behavior: 'smooth' });
         }
 
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => {
-                if (collectionPaginationState.page <= 1) return;
-                collectionPaginationState.page -= 1;
+        collectionView.renderPagination(container, {
+            ...options,
+            onPageChange(page) {
+                const pagination = collectionView.getPagination(options?.totalItems, options?.pageSize, page);
+                const targetPage = pagination.currentPage;
+                if (targetPage === collectionPaginationState.page) return;
+                collectionPaginationState.page = targetPage;
                 renderCollectionPage();
                 scrollCollectionToTop();
-            });
-        }
-
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => {
-                if (collectionPaginationState.page >= totalPages) return;
-                collectionPaginationState.page += 1;
-                renderCollectionPage();
-                scrollCollectionToTop();
-            });
-        }
+            },
+        });
     }
 
     function bindCollectionSortControls() {
@@ -926,11 +911,18 @@
         return Boolean(collectionTotalsState.hidden);
     }
 
+    function getCollectionValueAmountText(valueText) {
+        return safeString(valueText, 'Value: $0.00').replace(/^Value:\s*/i, '');
+    }
+
     function applyCollectionTotalsVisibilityUi() {
         const hidden = areCollectionTotalsHidden();
         const totalEl = document.getElementById('pv-collection-total');
         const valueEl = document.getElementById('pv-collection-total-value');
         const amountEl = document.getElementById('pv-collection-total-amount');
+        const breakdownBtn = document.getElementById('pv-collection-total-value');
+        const infoBtn = document.getElementById('pv-collection-value-info');
+        const breakdownDialog = document.getElementById('pv-collection-value-dialog');
         const toggleBtn = document.getElementById('pv-collection-total-toggle');
         const toggleLabelEl = document.getElementById('pv-collection-total-toggle-label');
 
@@ -939,13 +931,25 @@
         }
 
         if (valueEl) {
-            valueEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
+            valueEl.textContent = getCollectionValueAmountText(collectionTotalsState.valueText);
         } else if (totalEl) {
             totalEl.textContent = safeString(collectionTotalsState.valueText, 'Value: $0.00');
         }
 
+        collectionView.setCoverageTooltip(infoBtn, collectionTotalsState.coverageText);
+
         if (amountEl) {
             amountEl.textContent = safeString(collectionTotalsState.amountText, 'Amount: 0 items • 0 card copies');
+        }
+
+        if (breakdownBtn instanceof HTMLButtonElement) {
+            breakdownBtn.disabled = hidden;
+        }
+        if (infoBtn instanceof HTMLButtonElement) {
+            infoBtn.disabled = hidden;
+        }
+        if (hidden && breakdownDialog instanceof HTMLDialogElement && breakdownDialog.open) {
+            breakdownDialog.close();
         }
 
         if (toggleBtn) {
@@ -989,8 +993,46 @@
         applyCollectionTotalsVisibilityUi();
     }
 
-    function setCollectionTotalValueText(text) {
+    function renderCollectionValueBreakdownValues() {
+        const cardValueEl = document.getElementById('pv-collection-card-value');
+        const sealedValueEl = document.getElementById('pv-collection-sealed-value');
+        const totalValueEl = document.getElementById('pv-collection-breakdown-total');
+        if (cardValueEl) cardValueEl.textContent = formatUsd(collectionTotalsState.cardValue);
+        if (sealedValueEl) sealedValueEl.textContent = formatUsd(collectionTotalsState.sealedValue);
+        if (totalValueEl) {
+            totalValueEl.textContent = `Total value: ${formatUsd(collectionTotalsState.totalValue)}`;
+        }
+    }
+
+    function resetCollectionValueBreakdownState() {
+        collectionTotalsState.cardValue = 0;
+        collectionTotalsState.sealedValue = 0;
+        collectionTotalsState.totalValue = 0;
+        collectionTotalsState.coverageText = '';
+        renderCollectionValueBreakdownValues();
+    }
+
+    function bindCollectionValueBreakdownDialog() {
+        const trigger = document.getElementById('pv-collection-total-value');
+        const infoTrigger = document.getElementById('pv-collection-value-info');
+        const dialog = document.getElementById('pv-collection-value-dialog');
+        const closeBtn = dialog?.querySelector('[data-collection-value-close]');
+        collectionView.bindValueSummaryInteractions({
+            valueTrigger: trigger,
+            infoTrigger,
+            dialog,
+            closeTrigger: closeBtn,
+            isDisabled: areCollectionTotalsHidden,
+            beforeOpen: renderCollectionValueBreakdownValues,
+            getFallbackText() {
+                return `Card value: ${formatUsd(collectionTotalsState.cardValue)}. Sealed products: ${formatUsd(collectionTotalsState.sealedValue)}. Total value: ${formatUsd(collectionTotalsState.totalValue)}.`;
+            },
+        });
+    }
+
+    function setCollectionTotalValueText(text, coverageText = '') {
         collectionTotalsState.valueText = safeString(text, 'Value: $0.00');
+        collectionTotalsState.coverageText = safeString(coverageText, '');
         if (areCollectionTotalsHidden()) {
             applyCollectionTotalsVisibilityUi();
             return;
@@ -998,9 +1040,13 @@
 
         const totalValueEl = document.getElementById('pv-collection-total-value');
         if (totalValueEl) {
-            totalValueEl.textContent = collectionTotalsState.valueText;
-            return;
+            totalValueEl.textContent = getCollectionValueAmountText(collectionTotalsState.valueText);
         }
+
+        const infoBtn = document.getElementById('pv-collection-value-info');
+        collectionView.setCoverageTooltip(infoBtn, collectionTotalsState.coverageText);
+
+        if (totalValueEl) return;
 
         const totalEl = document.getElementById('pv-collection-total');
         if (totalEl) {
@@ -1052,7 +1098,7 @@
         const changeCents = Math.round(Number(snapshot.changeCents || 0));
         const changePercent = Number(snapshot.changePercent || 0);
         const previousValueCents = Math.round(Number(snapshot.previousValueCents || 0));
-        const hasPrevious = previousValueCents > 0;
+        const hasPrevious = snapshot.hasPreviousSnapshot === true || previousValueCents > 0;
 
         trendEl.hidden = false;
         trendEl.classList.toggle('pv-collectionTotalTrend--up', changeCents > 0);
@@ -1385,24 +1431,28 @@
     }
 
     function getBestSealedMarketFromVariants(variants) {
-        if (!Array.isArray(variants) || !variants.length) return null;
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {});
+    }
 
-        /** @type {Array<number>} */
-        const markets = [];
+    function getSealedPricingIdentity(item) {
+        return sealedPricing.getSealedPricingIdentity(item);
+    }
 
-        for (const variant of variants) {
-            const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-            for (const price of prices) {
-                const market = Number(price?.market ?? price?.marketPrice ?? price?.market_price ?? null);
-                if (Number.isFinite(market) && market > 0) {
-                    markets.push(market);
-                }
-            }
-        }
+    function getTrackedSealedMarketFromVariants(variants, variantName) {
+        return sealedPricing.getMarketFromTrackedSealedVariant(variants, {
+            variantName,
+            variantKey: sealedPricing.normalizeSealedVariantKey(variantName),
+        });
+    }
 
-        if (!markets.length) return null;
-        markets.sort((a, b) => a - b);
-        return markets[0];
+    // displayId is item.id: either a raw product ID or a synthetic "baseProductId::variantName"
+    // string. Using displayId (not baseProductId) keeps per-variant cache entries separate.
+    function buildSealedValueCacheKey(displayId) {
+        return sealedPricing.buildSealedValueCacheKey({ displayId });
+    }
+
+    function buildCardValueCacheKey(id, selectedVariant, conditionCode) {
+        return `${safeString(id, '')}|${safeString(selectedVariant, '')}|${safeString(conditionCode, '')}`;
     }
 
     function getInFlightRequest(map, key, factory) {
@@ -1417,6 +1467,31 @@
 
         map[key] = request;
         return request;
+    }
+
+    async function fetchWithTimeout(url, requestInit) {
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        let timeoutId = 0;
+        const request = (async () => {
+            const response = await fetch(
+                url,
+                controller ? { ...requestInit, signal: controller.signal } : requestInit,
+            );
+            const text = await response.text();
+            return { response, text };
+        })();
+        const timeout = new Promise((resolve, reject) => {
+            timeoutId = window.setTimeout(() => {
+                if (controller) controller.abort();
+                reject(new Error('Price request timed out.'));
+            }, PRICE_REQUEST_TIMEOUT_MS);
+        });
+
+        try {
+            return await Promise.race([request, timeout]);
+        } finally {
+            window.clearTimeout(timeoutId);
+        }
     }
 
     async function fetchCardWithPrices(cardId) {
@@ -1436,10 +1511,9 @@
 
                 const url = `${getWorkerBase()}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
                 const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-                const res = await fetch(url, requestInit);
+                const { response: res, text } = await fetchWithTimeout(url, requestInit);
                 if (!res.ok) return null;
 
-                const text = await res.text();
                 const parsed = safeParseJson(text);
                 if (!parsed || typeof parsed !== 'object') return null;
                 return parsed?.data || parsed;
@@ -1466,10 +1540,9 @@
 
                 const url = `${getWorkerBase()}/sealed/${encodeURIComponent(id)}?includePrices=1`;
                 const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-                const res = await fetch(url, requestInit);
+                const { response: res, text } = await fetchWithTimeout(url, requestInit);
                 if (!res.ok) return null;
 
-                const text = await res.text();
                 const parsed = safeParseJson(text);
                 if (!parsed || typeof parsed !== 'object') return null;
                 return parsed?.data || parsed;
@@ -1497,10 +1570,9 @@
                 const query = `id:${id}`;
                 const url = `${getWorkerBase()}/sealed/search?q=${encodeURIComponent(query)}&page=1&pageSize=10`;
                 const requestInit = headers ? { headers, cache: 'no-store' } : { cache: 'no-store' };
-                const res = await fetch(url, requestInit);
+                const { response: res, text } = await fetchWithTimeout(url, requestInit);
                 if (!res.ok) return null;
 
-                const text = await res.text();
                 const parsed = safeParseJson(text);
                 if (!parsed || typeof parsed !== 'object') return null;
 
@@ -1516,11 +1588,12 @@
 
     function isCollectionItemValueFullyCached(item) {
         if (!item || typeof item !== 'object') return true;
+        if (item.ownershipOnly === true) return true;
 
         if (isSealedCollectionItem(item)) {
             const id = safeString(item?.id, '');
             if (!id) return true;
-            const sealedCached = getCachedValue(`sealed:${id}`);
+            const sealedCached = getCachedValue(buildSealedValueCacheKey(id));
             return Boolean(sealedCached && Number.isFinite(sealedCached.market) && sealedCached.market > 0);
         }
 
@@ -1534,7 +1607,7 @@
         for (const entry of conditionEntries) {
             const code = normalizeDexConditionCode(entry?.code);
             if (!code) continue;
-            const cacheKey = `${id}|${selectedVariant}|${code}`;
+            const cacheKey = buildCardValueCacheKey(id, selectedVariant, code);
             const cached = getCachedValue(cacheKey);
             if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) {
                 return false;
@@ -1549,6 +1622,9 @@
         if (!list.length) return false;
 
         const collectionId = getActiveCollectionId();
+        const hasSealedItems = list.some((item) => isSealedCollectionItem(item));
+        if (hasSealedItems && !sealedCollectionRefreshStartedByCollectionId.has(collectionId)) return true;
+
         const lastRefreshMs = getCollectionLastValueRefreshMs(collectionId);
         const refreshDue = !lastRefreshMs || (Date.now() - lastRefreshMs) >= COLLECTION_VALUE_AUTO_REFRESH_INTERVAL_MS;
 
@@ -1560,12 +1636,13 @@
 
     async function getCurrentCardValue(item, options) {
         const allowNetwork = options?.allowNetwork !== false;
+        if (item?.ownershipOnly === true) return null;
         const id = safeString(item?.id, '');
         const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
         if (!id || !conditionCode) return null;
 
         const selectedVariant = safeString(item?.selectedVariant, '');
-        const cacheKey = `${id}|${selectedVariant}|${conditionCode}`;
+        const cacheKey = buildCardValueCacheKey(id, selectedVariant, conditionCode);
         const cached = getCachedValue(cacheKey);
         if (cached && Number.isFinite(cached.market)) {
             return cached;
@@ -1595,31 +1672,29 @@
 
     async function getCurrentSealedValue(item, options) {
         const allowNetwork = options?.allowNetwork !== false;
-        const id = safeString(item?.id, '');
-        if (!id) return null;
+        const identity = getSealedPricingIdentity(item);
+        const { displayId, baseProductId, variantName } = identity;
+        if (!displayId || !baseProductId) return null;
 
-        const cacheKey = `sealed:${id}`;
+        const cacheKey = buildSealedValueCacheKey(displayId);
         const cached = getCachedValue(cacheKey);
-        if (cached && Number.isFinite(cached.market)) {
-            return { market: cached.market };
-        }
-
         const localVariants = Array.isArray(item?.variants) ? item.variants : [];
-        const localMarket = getBestSealedMarketFromVariants(localVariants);
+        const localMarket = getTrackedSealedMarketFromVariants(localVariants, variantName);
 
         if (allowNetwork) {
-            const fetchedFromSearch = await fetchSealedFromSearchById(id);
-            const fetched = fetchedFromSearch || await fetchSealedWithPrices(id);
+            const fetchedFromSearch = await fetchSealedFromSearchById(baseProductId);
+            const fetched = fetchedFromSearch || await fetchSealedWithPrices(baseProductId);
             const fetchedVariants = Array.isArray(fetched?.variants) ? fetched.variants : [];
-            const sourceVariants = fetchedVariants.length ? fetchedVariants : localVariants;
 
-            const market = getBestSealedMarketFromVariants(sourceVariants);
+            const market = sealedPricing.getMarketFromTrackedSealedVariant(fetchedVariants, identity);
             if (Number.isFinite(market)) {
                 setCachedValue(cacheKey, market, '');
                 return { market };
             }
+            if (fetched) return null;
         }
 
+        if (cached && Number.isFinite(cached.market)) return { market: cached.market };
         if (Number.isFinite(localMarket)) {
             return { market: localMarket };
         }
@@ -1630,9 +1705,11 @@
     async function refreshCollectionValues(items, totalEl, options) {
         if (!totalEl) return;
 
+        const refreshGeneration = ++collectionValueRefreshGeneration;
         const allowNetwork = options?.allowNetwork !== false;
 
         const list = Array.isArray(items) ? items : [];
+        resetCollectionValueBreakdownState();
         for (const key of Object.keys(collectionValueById)) {
             delete collectionValueById[key];
         }
@@ -1642,9 +1719,13 @@
             return { total: 0, totalUnits: 0, pricedUnits: 0 };
         }
 
-        setCollectionTotalValueText('Value: Loading...');
+        if (allowNetwork) {
+            setCollectionTotalValueText('Value: Loading...');
+        }
 
         let total = 0;
+        let cardValue = 0;
+        let sealedValue = 0;
         let totalUnits = 0;
         let pricedUnits = 0;
 
@@ -1659,9 +1740,13 @@
             if (isSealedCollectionItem(item)) {
                 const quantity = getSealedCollectionQuantity(item);
                 totalUnits += quantity;
-                if (valueEl) valueEl.textContent = '...';
+                const cachedMarket = Number(collectionValueById[entryKey]);
+                if (valueEl && (!Number.isFinite(cachedMarket) || cachedMarket <= 0)) {
+                    valueEl.textContent = '...';
+                }
 
                 const valueInfo = await getCurrentSealedValue(item, { allowNetwork });
+                if (refreshGeneration !== collectionValueRefreshGeneration) return;
                 const market = Number(valueInfo?.market ?? null);
                 if (!Number.isFinite(market) || market <= 0) {
                     delete collectionValueById[entryKey];
@@ -1670,11 +1755,19 @@
                 }
 
                 pricedUnits += quantity;
-                total += market * quantity;
+                const itemTotal = market * quantity;
+                sealedValue += itemTotal;
+                total += itemTotal;
                 collectionValueById[entryKey] = market;
                 if (valueEl) {
                     valueEl.textContent = formatUsd(market);
                 }
+                return;
+            }
+
+            if (item?.ownershipOnly === true) {
+                delete collectionValueById[entryKey];
+                if (valueEl) valueEl.textContent = 'Not valued';
                 return;
             }
 
@@ -1701,6 +1794,7 @@
                     ...item,
                     selectedCondition: entry.code,
                 }, { allowNetwork });
+                if (refreshGeneration !== collectionValueRefreshGeneration) return;
                 if (!valueInfo || !Number.isFinite(valueInfo.market)) return;
 
                 cardTotal += valueInfo.market * entry.qty;
@@ -1714,6 +1808,8 @@
                 }
             }));
 
+            if (refreshGeneration !== collectionValueRefreshGeneration) return;
+
             if (cardTotal <= 0) {
                 delete collectionValueById[entryKey];
                 if (valueEl) valueEl.textContent = '--';
@@ -1721,6 +1817,7 @@
             }
 
             pricedUnits += cardPricedCopies;
+            cardValue += cardTotal;
             total += cardTotal;
             collectionValueById[entryKey] = Number.isFinite(cardDisplayUnit) ? Number(cardDisplayUnit) : 0;
             if (valueEl) {
@@ -1728,8 +1825,16 @@
             }
         }));
 
+        if (refreshGeneration !== collectionValueRefreshGeneration) {
+            return { total, totalUnits, pricedUnits, stale: true };
+        }
+
         const coverage = pricedUnits < totalUnits ? ` (${pricedUnits}/${totalUnits} priced)` : '';
-        setCollectionTotalValueText(`Value: ${formatUsd(total)}${coverage}`);
+        collectionTotalsState.cardValue = cardValue;
+        collectionTotalsState.sealedValue = sealedValue;
+        collectionTotalsState.totalValue = total;
+        setCollectionTotalValueText(`Value: ${formatUsd(total)}`, coverage);
+        renderCollectionValueBreakdownValues();
 
         const grid = document.getElementById('pv-collection-grid');
         applyCollectionSortToGrid(grid);
@@ -1776,6 +1881,25 @@
         return getBestSealedMarketFromVariants(variants);
     }
 
+    function getSealedCollectionVariantLabel(item) {
+        const explicitLabel = safeString(item?.variantLabel, '').trim();
+        const variants = Array.isArray(item?.variants) ? item.variants : [];
+        const rawLabel = explicitLabel
+            || safeString(item?.variantName, '').trim()
+            || safeString(variants[0]?.name, '').trim();
+        if (!rawLabel) return '';
+
+        const normalizedLabel = rawLabel
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+        if (normalizedLabel === 'pokemoncenter') return 'Pokemon Center';
+        if (normalizedLabel === 'normal' || normalizedLabel === 'default' || normalizedLabel === 'standard') return '';
+
+        return rawLabel;
+    }
+
     function slugifyForUrl(value) {
         return String(value || '')
             .toLowerCase()
@@ -1804,6 +1928,10 @@
             itemType: 'sealed',
             collectionId,
             id: safeString(raw?.id, ''),
+            baseProductId: safeString(raw?.baseProductId, ''),
+            variantName: safeString(raw?.variantName, ''),
+            variantLabel: safeString(raw?.variantLabel, ''),
+            hasMultipleVariants: raw?.hasMultipleVariants === true,
             name: safeString(raw?.name, 'Unknown'),
             type: safeString(raw?.type, ''),
             expansionName,
@@ -1840,6 +1968,8 @@
 
         return {
             itemType: 'card',
+            ownershipOnly: raw?.ownershipOnly === true,
+            ownershipOnlyVariants: normalizeVariantQuantities(raw?.ownershipOnlyVariants, '', 0),
             collectionId,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
@@ -1896,14 +2026,23 @@
     }
 
     function writeCollection(next, options) {
+        const safe = Array.isArray(next) ? next : [];
+        let serialized = '';
         let persisted = false;
         try {
-            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
+            serialized = JSON.stringify(safe);
+            const currentRaw = localStorage.getItem(DEX_COLLECTION_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, serialized);
         } catch {
             persisted = false;
         }
 
         if (!persisted) return false;
+
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
 
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
@@ -1963,15 +2102,23 @@
     }
 
     function writeMasterSets(next, options) {
+        const safe = (next && typeof next === 'object') ? next : {};
+        let serialized = '';
         let persisted = false;
         try {
-            const safe = (next && typeof next === 'object') ? next : {};
-            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            serialized = JSON.stringify(safe);
+            const currentRaw = localStorage.getItem(DEX_MASTER_SETS_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, serialized);
         } catch {
             persisted = false;
         }
 
         if (!persisted) return false;
+
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
 
         if (!options?.skipCloudSync) {
             queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
@@ -1983,10 +2130,49 @@
     const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
     let dexCloudSyncTimer = 0;
     let dexCloudSyncHydrating = false;
+    let dexCloudSyncPromise = Promise.resolve();
 
     function getDexUpdatedAt(value) {
         const n = Number(value);
         return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            return getDexUpdatedAt(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(getDexUpdatedAt(updatedAt)));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
     }
 
     function readDexOwnerUid() {
@@ -2019,14 +2205,26 @@
         writeDexOwnerUid(user.uid);
 
         const run = () => {
-            const payload = {
-                collection: readCollection(),
-                masterSets: readMasterSets(),
-            };
-
-            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
-                // ignore
-            });
+            dexCloudSyncPromise = dexCloudSyncPromise
+                .catch(() => {
+                    // keep later saves moving after a transient failure
+                })
+                .then(async () => {
+                    const payload = {
+                        collection: readCollection(),
+                        masterSets: readMasterSets(),
+                        revision: readDexCloudRevision(),
+                        updatedAt: readDexStateUpdatedAt() || Date.now(),
+                    };
+                    const result = await authApi.saveDexState(payload);
+                    return { result, submittedUpdatedAt: payload.updatedAt };
+                })
+                .then(({ result, submittedUpdatedAt }) => {
+                    handleDexCloudSaveResult(result, user.uid, submittedUpdatedAt);
+                })
+                .catch(() => {
+                    // ignore transient sync failures
+                });
         };
 
         if (immediate) {
@@ -2042,6 +2240,43 @@
             window.clearTimeout(dexCloudSyncTimer);
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function handleDexCloudSaveResult(result, ownerUid, submittedUpdatedAt) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= getDexUpdatedAt(submittedUpdatedAt)) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
+            return;
+        }
+
+        if (!result.conflict) return;
+
+        dexCloudSyncHydrating = true;
+        try {
+            writeCollection(Array.isArray(result.collection) ? result.collection : [], {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeMasterSets((result.masterSets && typeof result.masterSets === 'object') ? result.masterSets : {}, {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeDexCloudRevision(result.revision);
+            writeDexStateUpdatedAt(result.updatedAt);
+            writeDexOwnerUid(ownerUid);
+            renderActivePage();
+            const summary = document.getElementById('pv-collection-summary');
+            if (summary) {
+                summary.hidden = false;
+                summary.textContent = 'A newer collection was found in cloud sync. This page was refreshed without overwriting it.';
+            }
+        } finally {
+            dexCloudSyncHydrating = false;
+        }
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -2170,7 +2405,8 @@
         const localCollection = readCollection();
         const localMasterSets = readMasterSets();
         const localOwnerUid = readDexOwnerUid();
-        const allowLocalMerge = localOwnerUid === currentUid;
+        const localRevision = readDexCloudRevision();
+        const localUpdatedAt = readDexStateUpdatedAt();
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
@@ -2180,21 +2416,28 @@
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
+                const cloudRevision = Math.max(0, Math.floor(Number(cloudState?.revision) || 0));
+                const cloudUpdatedAt = getDexUpdatedAt(cloudState?.updatedAt);
+                const canPushLocalState = localOwnerUid === currentUid
+                    && localRevision === cloudRevision
+                    && localUpdatedAt > cloudUpdatedAt;
 
-                let resolvedCollection = cloudCollection;
-                let resolvedMasterSets = cloudMasterSets;
+                const resolvedCollection = canPushLocalState ? localCollection : cloudCollection;
+                const resolvedMasterSets = canPushLocalState ? localMasterSets : cloudMasterSets;
 
-                if (allowLocalMerge) {
-                    resolvedCollection = mergeCollectionState(localCollection, cloudCollection);
-                    resolvedMasterSets = mergeMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                if (canPushLocalState) {
                     mergedPayload = {
                         collection: resolvedCollection,
                         masterSets: resolvedMasterSets,
+                        revision: cloudRevision,
+                        updatedAt: localUpdatedAt,
                     };
                 }
 
-                writeCollection(resolvedCollection, { skipCloudSync: true });
-                writeMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                writeCollection(resolvedCollection, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeMasterSets(resolvedMasterSets, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeDexCloudRevision(cloudRevision);
+                writeDexStateUpdatedAt(canPushLocalState ? localUpdatedAt : cloudUpdatedAt);
                 writeDexOwnerUid(currentUid);
                 renderActivePage();
             })
@@ -2205,9 +2448,15 @@
                 dexCloudSyncHydrating = false;
 
                 if (mergedPayload && authApi?.saveDexState) {
-                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
-                        // ignore
-                    });
+                    dexCloudSyncPromise = dexCloudSyncPromise
+                        .catch(() => {
+                            // keep the restore save ordered after any earlier sync
+                        })
+                        .then(() => authApi.saveDexState(mergedPayload))
+                        .then((result) => handleDexCloudSaveResult(result, currentUid, mergedPayload.updatedAt))
+                        .catch(() => {
+                            // ignore
+                        });
                 }
             });
     }
@@ -2253,6 +2502,7 @@
 
             return {
                 ...entry,
+                ownershipOnly: false,
                 conditionQuantities: map,
                 selectedCondition: getPrimaryConditionCode(map),
                 updatedAt: Date.now(),
@@ -2666,7 +2916,48 @@
         return `<div class="pv-masterSetDetailGrid">${rows}</div>`;
     }
 
-    function renderCollectionPage() {
+    function syncCollectionValuesFromCache(items) {
+        if (!Array.isArray(items)) return;
+
+        for (const item of items) {
+            const id = safeString(item?.id, '');
+            if (!id) continue;
+
+            const entryKey = getCollectionEntryKey(item);
+
+            if (isSealedCollectionItem(item)) {
+                const cached = getCachedValue(buildSealedValueCacheKey(id));
+                if (cached && Number.isFinite(cached.market) && cached.market > 0) {
+                    collectionValueById[entryKey] = cached.market;
+                }
+                continue;
+            }
+
+            const selectedVariant = safeString(item?.selectedVariant, '');
+            const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
+            const primaryCondition = normalizeDexConditionCode(item?.selectedCondition);
+            let cardDisplayUnit = null;
+            let primaryValue = null;
+
+            for (const entry of conditionEntries) {
+                const cached = getCachedValue(buildCardValueCacheKey(id, selectedVariant, entry.code));
+                if (!cached || !Number.isFinite(cached.market) || cached.market <= 0) continue;
+                if (primaryCondition && entry.code === primaryCondition) {
+                    primaryValue = cached.market;
+                }
+                if (cardDisplayUnit == null) {
+                    cardDisplayUnit = cached.market;
+                }
+            }
+
+            if (primaryValue != null) cardDisplayUnit = primaryValue;
+            if (Number.isFinite(cardDisplayUnit) && cardDisplayUnit > 0) {
+                collectionValueById[entryKey] = cardDisplayUnit;
+            }
+        }
+    }
+
+    function renderCollectionPage(options) {
         const grid = document.getElementById('pv-collection-grid');
         const summary = document.getElementById('pv-collection-summary');
         const totalEl = document.getElementById('pv-collection-total');
@@ -2676,6 +2967,7 @@
         if (!grid || !summary || !totalEl) return;
 
         bindCollectionTotalsVisibilityToggle();
+        bindCollectionValueBreakdownDialog();
 
         const activeCollectionId = getActiveCollectionId();
         const items = readCollection()
@@ -2723,6 +3015,8 @@
                 safeString(item?.id, ''),
             ];
         }
+
+        syncCollectionValuesFromCache(typeFilteredItems);
 
         const filteredMatches = filterQuery
             ? typeFilteredItems.map((item) => {
@@ -2812,6 +3106,8 @@
         bindCollectionSortControls();
 
         if (!items.length) {
+            collectionValueRefreshGeneration += 1;
+            resetCollectionValueBreakdownState();
             setCollectionTotalValueText('Value: $0.00');
             grid.innerHTML = '<div class="col-12"><div class="pv-emptyState">No items tracked yet. Add cards from Dex search or sealed products from Sealed.</div></div>';
         } else if (!typeFilteredItems.length) {
@@ -2846,6 +3142,7 @@
 
                 if (isSealedCollectionItem(item)) {
                     const typeLabel = buildSearchHighlightHtml(safeString(item?.type, 'Sealed product'), filterQuery);
+                    const variantLabel = escapeHtml(getSealedCollectionVariantLabel(item));
                     const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
                     const quantity = getSealedCollectionQuantity(item);
                     const nameAttr = escapeAttr(cardName);
@@ -2859,12 +3156,13 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title">${name}</h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
-                                <p class="pv-card__text pv-dexCard__meta">Type: ${typeLabel}</p>
+                                ${variantLabel ? `<p class="pv-card__text pv-dexCard__meta">${variantLabel}</p>` : ''}
+                                <p class="pv-card__text pv-dexCard__meta"><span class="pv-dexCard__typeValue">${typeLabel}</span></p>
                                 <p class="pv-card__text pv-dexCard__meta">Sealed product</p>
                                 <p class="pv-card__text pv-dexCard__meta">Quantity: ${quantity}</p>
                                 <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">...</p>
                                 <details class="pv-dexCard__manage">
-                                    <summary class="pv-dexCard__manageSummary">Manage quantity</summary>
+                                    <summary class="pv-dexCard__manageSummary">Manage Qty</summary>
                                     <div class="pv-dexCard__manageBody">
                                         <div class="pv-conditionQtyRow">
                                             <p class="pv-card__text pv-conditionQtyLabel">Collection Qty</p>
@@ -2887,6 +3185,7 @@
                 const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
                 const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
                 const copyCount = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+                const ownershipOnly = item?.ownershipOnly === true;
                 const addConditionSelectId = `pv-add-condition-${encodeURIComponent(id)}`;
                 const addConditionOptions = buildConditionOptionsHtml('');
                 const detailPath = buildCardDetailPath(item);
@@ -2917,9 +3216,9 @@
                             <div class="pv-card__body">
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
-                                <p class="pv-card__text pv-dexCard__meta">${rarity}</p>
-                                <p class="pv-card__text pv-dexCard__meta">Copies: ${copyCount}</p>
-                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
+                                <p class="pv-card__text pv-dexCard__meta pv-dexCard__rarity">${rarity}</p>
+                                <p class="pv-card__text pv-dexCard__meta">${ownershipOnly ? 'Ownership only' : `Copies: ${copyCount}`}</p>
+                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${ownershipOnly ? 'Not valued' : (conditionEntries.length ? '...' : '--')}</p>
                                 <details class="pv-dexCard__manage">
                                     <summary class="pv-dexCard__manageSummary">Manage copies</summary>
                                     <div class="pv-dexCard__manageBody">
@@ -3100,13 +3399,20 @@
         });
 
         if (items.length) {
-            const allowNetworkRefresh = shouldAllowCollectionNetworkRefresh(items);
+            const allowNetworkRefresh = options?.skipNetworkRefresh !== true
+                && shouldAllowCollectionNetworkRefresh(items);
+            if (allowNetworkRefresh && items.some((item) => isSealedCollectionItem(item))) {
+                sealedCollectionRefreshStartedByCollectionId.add(getActiveCollectionId());
+            }
             void refreshCollectionValues(items, totalEl, { allowNetwork: allowNetworkRefresh })
                 .then((result) => {
+                    if (result?.stale) return;
                     if (!allowNetworkRefresh) return;
                     const pricedUnits = Number(result?.pricedUnits || 0);
                     if (pricedUnits > 0) {
                         setCollectionLastValueRefreshMs(getActiveCollectionId(), Date.now());
+                        // Re-render once after network pricing so pagination uses refreshed values.
+                        renderCollectionPage({ skipNetworkRefresh: true });
                     }
                 })
                 .catch(() => {
@@ -3381,10 +3687,53 @@
         }
     }
 
-    function renderActivePage() {
-        renderCollectionPage();
+    function renderActivePage(options) {
+        renderCollectionPage(options);
         renderMasterSetsPage();
         void renderMasterSetDetailPage();
+    }
+
+    function queueDexStorageRender(options) {
+        dexStorageRenderAll = dexStorageRenderAll || options?.renderAll === true;
+        dexStorageRenderNeedsNetwork = dexStorageRenderNeedsNetwork || options?.allowNetwork === true;
+
+        if (dexStorageRenderTimer) {
+            window.clearTimeout(dexStorageRenderTimer);
+        }
+
+        dexStorageRenderTimer = window.setTimeout(() => {
+            const renderAll = dexStorageRenderAll;
+            const allowNetwork = dexStorageRenderNeedsNetwork;
+            dexStorageRenderTimer = 0;
+            dexStorageRenderAll = false;
+            dexStorageRenderNeedsNetwork = false;
+
+            if (renderAll) {
+                renderActivePage({ skipNetworkRefresh: !allowNetwork });
+                return;
+            }
+
+            renderCollectionPage({ skipNetworkRefresh: true });
+        }, 100);
+    }
+
+    function handleDexStorageChange(event) {
+        if (event?.storageArea && event.storageArea !== localStorage) return;
+
+        const key = safeString(event?.key, '');
+        if (key === VALUE_CACHE_KEY) {
+            queueDexStorageRender({ renderAll: false, allowNetwork: false });
+            return;
+        }
+
+        if (!key || key === DEX_COLLECTION_KEY || key === DEX_ACTIVE_COLLECTION_KEY) {
+            queueDexStorageRender({ renderAll: true, allowNetwork: true });
+            return;
+        }
+
+        if (key === DEX_MASTER_SETS_KEY) {
+            queueDexStorageRender({ renderAll: true, allowNetwork: false });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -3427,7 +3776,7 @@
             // ignore
         }
 
-        window.addEventListener('storage', renderActivePage);
+        window.addEventListener('storage', handleDexStorageChange);
         window.addEventListener('pv:dex-state-changed', renderActivePage);
         window.addEventListener('pv:dex-collection-context-changed', () => {
             renderActivePage();

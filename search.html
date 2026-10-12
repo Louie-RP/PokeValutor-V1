@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-84T6PK2014"></script>
+    <script src="analytics.js?v=20260915-1" defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor." />
@@ -9,12 +11,12 @@
     <meta property="og:description" content="Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.pokevaluator.com/search.html" />
-    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <meta property="og:image:alt" content="PokeValutor logo" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Card Search | PokeValutor" />
     <meta name="twitter:description" content="Search Pokemon cards by name, card number, series, or set and compare variant pricing on PokeValutor." />
-    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <title>Card Search | PokeValutor</title>
     <link rel="canonical" href="https://www.pokevaluator.com/search.html" />
     <script type="application/ld+json">
@@ -31,22 +33,29 @@
             }
         }
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net 'wasm-unsafe-eval'; worker-src 'self' blob: https://cdn.jsdelivr.net; child-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' blob:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action https://formspree.io; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com https://cdn.jsdelivr.net 'wasm-unsafe-eval'; worker-src 'self' blob: https://cdn.jsdelivr.net; child-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data: blob:; media-src 'self' blob:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
     <link rel="stylesheet" href="scanner.css?v=20260709-2" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link rel="stylesheet" href="search-refresh.css?v=2026-09-26-20" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-search-body" class="pv-body pv-searchPage">
+<body id="pv-search-body" class="pv-body pv-searchPage pv-searchRefresh">
     <a class="pv-skiplink" href="#pv-search-main">Skip to content</a>
 
     <header id="pv-search-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-search-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+<<<<<<< HEAD
+            <a id="pv-search-brand" class="pv-brand pv-searchRefresh__brand" href="index.html" aria-label="PokéValuator home">
+=======
+            <a id="pv-search-brand" class="pv-brand pv-searchRefresh__brand" href="home-preview.html" aria-label="PokéValuator home">
+>>>>>>> 4584398312ecd41577b606c872bf9f55533f96a5
+                <img src="PokeValuator_Logo.png" alt="" aria-hidden="true" />
+            </a>
             <button id="pv-search-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-search-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -54,8 +63,12 @@
             </button>
             <nav id="pv-search-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
+<<<<<<< HEAD
                     <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+=======
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="home-preview.html">Home</a></li>
+>>>>>>> 4584398312ecd41577b606c872bf9f55533f96a5
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="search.html" aria-current="page">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
@@ -67,21 +80,27 @@
 
     <main id="pv-search-main" class="pv-main" role="main">
         <section id="pv-search-hero" class="pv-hero container pv-searchHero" aria-labelledby="pv-search-title">
-            <p class="pv-searchHero__eyebrow">Cards</p>
-            <h1 id="pv-search-title" class="pv-hero__title">Find cards, compare variants, track your watchlist.</h1>
-            <p class="pv-hero__subtitle">Search by name, number, series, or set.</p>
-            <div class="pv-searchHero__chips" aria-label="Search highlights">
-                <span class="pv-searchHero__chip">Variant prices</span>
-                <span class="pv-searchHero__chip">Watchlist totals</span>
-                <span class="pv-searchHero__chip">Fast sort</span>
-            </div>
+            <h1 id="pv-search-title" class="pv-hero__title">Card Search</h1>
+            <nav id="pv-search-jump-nav" class="pv-searchJumpNav" aria-label="Jump to search sections">
+                <a href="#pv-search-section">Search</a>
+                <a id="pv-search-jump-trade" href="#pv-trade" hidden>Trade</a>
+                <a href="#pv-favorites">Watchlist</a>
+            </nav>
         </section>
 
         <section id="pv-search-section" class="pv-section container pv-searchWorkspace">
             <div class="pv-searchPanel">
-                <div id="pv-card-scanner-root" data-target-input="pv-search-query" data-target-form="pv-search-form"></div>
+                <div class="pv-section__header pv-searchPanel__header">
+                    <div>
+                        <h2 id="pv-search-form-title" class="pv-section__title">Search cards</h2>
+                    </div>
+                    <button id="pv-search-toggle" class="pv-button pv-button--secondary btn" type="button"
+                        aria-controls="pv-search-content" aria-expanded="true">Hide</button>
+                </div>
+                <div id="pv-search-content">
+                        <div id="pv-card-scanner-root" data-target-input="pv-search-query" data-target-form="pv-search-form"></div>
 
-                <form id="pv-search-form" class="pv-form row g-3" role="search">
+                        <form id="pv-search-form" class="pv-form row g-3" role="search">
                     <div class="pv-form__field pv-searchField--query col-12 col-md-6 col-lg-4">
                         <div class="pv-searchFieldHeader">
                             <label for="pv-search-query" class="form-label">Search</label>
@@ -108,14 +127,14 @@
                     </div>
                     <div class="col-12 pv-search-actions">
                         <button id="pv-search-submit" class="pv-button pv-button--primary btn" type="submit">Search</button>
-                        <button id="pv-clear-results" class="pv-button pv-button--secondary btn ms-2" type="button">Clear Results</button>
+                        <button id="pv-clear-results" class="pv-button pv-button--danger btn ms-2" type="button">Clear</button>
                     </div>
                     <div class="pv-form__field pv-searchField--condition col-12">
+                        <span class="form-label" id="pv-condition-label">Condition</span>
                         <div class="pv-conditionFilterRow">
                             <details id="pv-condition-filter" class="pv-conditionFilter">
                                 <summary id="pv-condition-toggle" class="pv-conditionFilter__summary" aria-label="Condition price filter">
                                     <span class="pv-conditionFilter__summaryMain">
-                                        <span>Condition:</span>
                                         <span id="pv-condition-summary">NM</span>
                                     </span>
                                 </summary>
@@ -148,7 +167,7 @@
                         <label for="pv-search-collection-select" class="form-label">Collection</label>
                         <select id="pv-search-collection-select" class="form-select" aria-label="Choose active collection context"></select>
                     </div>
-                </form>
+                        </form>
 
                 <div id="pv-search-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">
                 </div>
@@ -175,7 +194,55 @@
                         <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
                     </div>
                 </section>
+                </div>
             </div>
+
+            <section id="pv-trade" class="pv-section pv-trade" aria-labelledby="pv-trade-title" hidden>
+                <div class="pv-section__header">
+                    <div>
+                        <h2 id="pv-trade-title" class="pv-section__title">Trade</h2>
+                    </div>
+                    <div class="pv-trade__controls">
+                        <div id="pv-trade-bulk" class="pv-trade__bulk">
+                            <div class="pv-trade__bulkLabel">
+                                <label for="pv-trade-apply-percent" class="form-label pv-sortLabel">Rate</label>
+                                <span class="pv-trade__bulkHelp" role="img" tabindex="0" aria-label="Apply this percentage to every card in Trade." data-tooltip="Apply this percentage to every card in Trade.">i</span>
+                            </div>
+                            <div class="pv-trade__bulkActions">
+                                <select id="pv-trade-apply-percent" class="form-select pv-sortSelect" aria-label="Trade percentage to apply to all cards">
+                                    <option value="100">100%</option>
+                                    <option value="90">90%</option>
+                                    <option value="80" selected>80%</option>
+                                    <option value="70">70%</option>
+                                    <option value="60">60%</option>
+                                    <option value="50">50%</option>
+                                </select>
+                                <button id="pv-trade-apply-percent-button" class="pv-button pv-button--primary btn" type="button">Apply</button>
+                            </div>
+                        </div>
+                        <button id="pv-trade-toggle" class="pv-button pv-button--secondary btn" type="button" aria-controls="pv-trade-body" aria-expanded="true">Hide</button>
+                        <button id="pv-trade-clear" class="pv-button pv-button--danger btn" type="button">Clear</button>
+                    </div>
+                </div>
+                <div class="pv-trade__summary">
+                    <span id="pv-trade-totals" class="small text-muted" aria-live="polite"></span>
+                    <span id="pv-trade-remaining" class="pv-trade__remaining" aria-live="polite"></span>
+                    <hr class="pv-trade__goalDivider" />
+                    <div class="pv-trade__target">
+                        <div class="pv-trade__targetLabel">
+                            <label for="pv-trade-target" class="form-label">Need to reach</label>
+                            <span id="pv-trade-target-help" class="pv-trade__targetHelp" role="img" tabindex="0" aria-label="Optional target amount. Enter a value from zero to ten million dollars." data-tooltip="Optional target amount. Enter a value from $0.00 to $10,000,000.00.">i</span>
+                        </div>
+                        <div class="pv-trade__targetInput">
+                            <span aria-hidden="true">$</span>
+                            <input id="pv-trade-target" class="form-control" type="number" min="0" max="10000000" step="0.01" inputmode="decimal" placeholder="0.00" aria-describedby="pv-trade-target-help" />
+                        </div>
+                    </div>
+                </div>
+                <div id="pv-trade-body">
+                    <div id="pv-trade-grid" class="row g-3" aria-label="Trade cards"></div>
+                </div>
+            </section>
 
             <section id="pv-favorites" class="pv-section pv-searchWatchlist" aria-labelledby="pv-favorites-title">
                 <div class="pv-section__header">
@@ -190,7 +257,7 @@
                         </select>
                         <button id="pv-favorites-toggle" class="pv-button pv-button--primary btn" type="button"
                             aria-controls="pv-favorites-body" aria-expanded="true">Hide</button>
-                        <button id="pv-favorites-clear" class="pv-button pv-button--secondary btn ms-2" type="button">Clear</button>
+                        <button id="pv-favorites-clear" class="pv-button pv-button--danger btn ms-2" type="button">Clear</button>
                     </div>
                 </div>
                 <div id="pv-favorites-body">
@@ -215,6 +282,8 @@
     <button id="pv-scroll-top" class="pv-scroll-top pv-button pv-button--primary btn" type="button" aria-label="Scroll to top" title="Scroll to top">&#9650;</button>
 
     <script src="script.js?v=20260721-2" defer></script>
+    <script src="feature-flags.js?v=20260817-1" defer></script>
+    <script src="trade-workspace.js?v=20260830-trade-conditions-1" defer></script>
 
     <!-- Firebase CDN (compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
@@ -225,9 +294,10 @@
     <script src="firebase-config.js" defer></script>
     <!-- Optional local-only Firebase config (ignored by git). 404 is OK in production. -->
     <script src="firebase-config.local.js" defer></script>
-    <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
+    <script src="firebase.js?v=2026-10-11-ownership-1" defer></script>
+    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
 
-    <script src="search.js?v=2026-07-21-watchlist-currency-1" defer></script>
+    <script src="search.js?v=2026-10-11-ownership-1" defer></script>
     <script src="scanner.js?v=20260712-37" defer></script>
 </body>
 

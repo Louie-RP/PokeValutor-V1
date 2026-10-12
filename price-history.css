@@ -59,6 +59,10 @@
     margin-top: 0.9rem;
 }
 
+#pv-price-history-load {
+    font-weight: 700;
+}
+
 .pv-priceHistory__promptStatus:empty {
     display: none;
 }

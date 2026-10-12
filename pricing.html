@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-84T6PK2014"></script>
+    <script src="analytics.js?v=20260915-1" defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Compare Free and Premium plans for PokeValutor and manage your subscription." />
@@ -9,12 +11,12 @@
     <meta property="og:description" content="Compare Free and Premium plans for PokeValutor and manage your subscription." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.pokevaluator.com/pricing.html" />
-    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <meta property="og:image:alt" content="PokeValutor logo" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Pricing | PokeValutor" />
     <meta name="twitter:description" content="Compare Free and Premium plans for PokeValutor and manage your subscription." />
-    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <title>Pricing | PokeValutor</title>
     <link rel="canonical" href="https://www.pokevaluator.com/pricing.html" />
     <script type="application/ld+json">
@@ -32,21 +34,22 @@
         }
     </script>
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: http://127.0.0.1:5001 http://localhost:5001 https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+        content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: http://127.0.0.1:5001 http://localhost:5001 https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
+    <link rel="stylesheet" href="pricing-refresh.css?v=2026-10-12-pricing-theme-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
 </head>
 
-<body class="pv-body pv-pricingPage">
+<body class="pv-body pv-pricingPage pv-pricingRefresh">
     <a class="pv-skiplink" href="#pv-pricing-main">Skip to content</a>
 
     <header class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a class="pv-brand" href="index.html" aria-label="Back to home">Pok&eacute;Valutor</a>
+            <a class="pv-brand" href="home-preview.html" aria-label="Back to home">Pok&eacute;Valutor</a>
             <button class="pv-navToggle" aria-expanded="false" aria-controls="pv-pricing-nav"
                 aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -55,7 +58,7 @@
             </button>
             <nav id="pv-pricing-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="home-preview.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
@@ -201,7 +204,8 @@
     <script src="firebase-config.local.js" defer></script>
     <!-- Optional local-only secrets (ignored by git). 404 is OK in production. -->
     <script src="secrets.js" defer></script>
-    <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
+    <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
+    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
     <script src="pricing.js" defer></script>
 </body>
 

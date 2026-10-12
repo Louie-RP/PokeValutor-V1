@@ -1,15 +1,20 @@
 /* Scrydex-backed Search page behavior */
 document.addEventListener('DOMContentLoaded', function () {
     const form = document.getElementById('pv-search-form');
+    const searchContent = document.getElementById('pv-search-content');
+    const searchToggle = document.getElementById('pv-search-toggle');
     const input = /** @type {HTMLInputElement} */(document.getElementById('pv-search-query'));
     const seriesSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-series'));
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
     const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
     const status = document.getElementById('pv-search-status');
+    const searchResultsEl = document.getElementById('pv-search-results');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
     const dexResultsContextEl = document.getElementById('pv-dex-results-context');
-    const dexSearchPanel = /** @type {HTMLDetailsElement|null} */ (document.getElementById('pv-dex-search-panel'));
+    const dexSearchPanel = /** @type {HTMLDialogElement|null} */ (document.getElementById('pv-dex-search-dialog'));
+    const dexSearchOpenBtn = document.getElementById('pv-dex-search-open');
+    const dexSearchCloseBtn = document.getElementById('pv-dex-search-close');
     const dexStatCardsEl = document.getElementById('pv-dex-stat-cards');
     const dexStatCopiesEl = document.getElementById('pv-dex-stat-copies');
     const grid = document.getElementById('pv-search-grid');
@@ -19,6 +24,20 @@ document.addEventListener('DOMContentLoaded', function () {
     const favoritesClearBtn = document.getElementById('pv-favorites-clear');
     const favoritesTotalsEl = document.getElementById('pv-favorites-totals');
     const favoritesSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-favorites-sort-select'));
+    const tradeSection = document.getElementById('pv-trade');
+    const tradeBody = document.getElementById('pv-trade-body');
+    const tradeGrid = document.getElementById('pv-trade-grid');
+    const tradeTotalsEl = document.getElementById('pv-trade-totals');
+    const tradeRemainingEl = document.getElementById('pv-trade-remaining');
+    const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
+    const tradeToggle = document.getElementById('pv-trade-toggle');
+    const tradeClearBtn = document.getElementById('pv-trade-clear');
+    const tradeJumpLink = document.getElementById('pv-search-jump-trade');
+    const tradeControls = document.querySelector('#pv-trade .pv-trade__controls');
+    const tradeBulk = document.getElementById('pv-trade-bulk');
+    const tradeSummary = document.querySelector('#pv-trade .pv-trade__summary');
+    const tradeApplyPercent = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-trade-apply-percent'));
+    const tradeApplyPercentBtn = document.getElementById('pv-trade-apply-percent-button');
     const scrollTopBtn = document.getElementById('pv-scroll-top');
     const clearBtn = document.getElementById('pv-clear-results');
     const searchSortSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('pv-search-sort-select'));
@@ -40,6 +59,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let actionToastHideTransitionTimer = 0;
 
     const CACHE_PREFIX = 'pv:scrydex:';
+    const SEARCH_COLLAPSED_KEY = `${CACHE_PREFIX}searchCollapsed:v1`;
+    const TRADE_COLLAPSED_KEY = `${CACHE_PREFIX}tradeCollapsed:v1`;
+    const TRADE_TARGET_KEY = `${CACHE_PREFIX}tradeTarget:v1`;
+    const MAX_TRADE_TARGET = 10000000;
+    const tradeApi = window.PV_TRADE;
+    const tradeEnabled = window?.PV_FEATURES?.tradeWorkspace === true && Boolean(tradeApi);
+    let tradeWorkspace = tradeEnabled ? tradeApi.loadTradeWorkspace() : null;
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const CARD_TTL_MS = 24 * 60 * 60 * 1000;
     const EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -99,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CARD_CONDITIONS = ['NM', 'LP', 'MP', 'HP', 'DM'];
     const DEX_DEFAULT_VARIANT_NAME = 'Standard';
 
-    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v1`;
+    const LAST_RESULTS_KEY = `${CACHE_PREFIX}lastResults:v2`;
     // Single saved-items list is now the Watchlist.
     // Migrate legacy Favorites storage into Watchlist to avoid data loss.
     const WATCHLIST_KEY = `${CACHE_PREFIX}watchlist:v1`;
@@ -109,6 +135,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_COLLECTION_KEY = `${CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${CACHE_PREFIX}masterSets:v1`;
     const DEX_OWNER_UID_KEY = `${CACHE_PREFIX}dexOwnerUid:v1`;
+    const DEX_CLOUD_REVISION_KEY = `${CACHE_PREFIX}dexCloudRevision:v1`;
+    const DEX_STATE_UPDATED_AT_KEY = `${CACHE_PREFIX}dexStateUpdatedAt:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_COLLECTIONS_META_KEY = `${CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -116,7 +144,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
-    const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
     const storageUtil = window?.PV_STORAGE_UTIL || null;
 
     const CONDITION_FILTER_KEYS_FALLBACK = ['NM', 'LP', 'MP', 'OTHER'];
@@ -200,6 +227,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /** @type {Array<any>} */
     let currentResultsCards = [];
+    let searchResultsLoading = false;
 
     const searchSortState = {
         active: 'value',
@@ -213,6 +241,8 @@ document.addEventListener('DOMContentLoaded', function () {
         valueDir: 'desc',
     };
     const favoritePriceRefreshInFlight = new Set();
+    const pendingWatchlistRemovals = new Set();
+    const watchlistCloudMutationQueues = new Map();
     let favoritesForceRefreshRenderTimer = 0;
 
     function scheduleFavoritesForceRefreshRender(restoreState) {
@@ -731,18 +761,113 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function createSelectOption(value, label, selected) {
+        const option = document.createElement('option');
+        option.value = safeString(value, '');
+        option.textContent = safeString(label, '');
+        option.selected = selected === true;
+        return option;
+    }
+
+    function formatVariantDisplayName(value) {
+        const raw = safeString(value, '').trim();
+        if (!raw) return '';
+
+        const withFirstEdition = raw.replace(/^firstEdition(?=[A-Z]|$)/i, '1st Ed. ');
+        const words = withFirstEdition
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+            .replace(/[._-]+/g, ' ')
+            .split(/\s+/)
+            .filter(Boolean);
+
+        return words
+            .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
+            .join(' ')
+            .replace('1st Ed ', '1st Ed. ')
+            .trim();
+    }
+
+    function replaceSelectWithStatus(select, label) {
+        if (!select) return;
+        select.replaceChildren(createSelectOption('', label, true));
+    }
+
+    function createTextElement(tagName, className, text) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        element.textContent = safeString(text, '');
+        return element;
+    }
+
+    function renderCardSkeletons(container, count, loadingMessage) {
+        if (!container) return;
+        container.replaceChildren();
+
+        const messageText = safeString(loadingMessage, '').trim();
+        if (messageText) {
+            const messageCol = document.createElement('div');
+            messageCol.className = 'col-12';
+
+            const message = document.createElement('div');
+            message.className = 'pv-searchLoading';
+            message.setAttribute('role', 'status');
+            message.setAttribute('aria-live', 'polite');
+            message.setAttribute('aria-atomic', 'true');
+
+            const spinner = document.createElement('span');
+            spinner.className = 'pv-searchLoading__spinner';
+            spinner.setAttribute('aria-hidden', 'true');
+
+            const label = document.createElement('span');
+            label.className = 'pv-searchLoading__label';
+            label.textContent = messageText;
+
+            message.append(spinner, label);
+            messageCol.appendChild(message);
+            container.appendChild(messageCol);
+        }
+
+        for (let i = 0; i < count; i++) {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
+            const card = document.createElement('div');
+            card.className = 'pv-card';
+            card.style.height = '260px';
+            const skeleton = document.createElement('div');
+            skeleton.className = 'pv-skeleton';
+            skeleton.style.height = '100%';
+            card.appendChild(skeleton);
+            col.appendChild(card);
+            container.appendChild(col);
+        }
+    }
+
+    function revealExpansionLoadingResults() {
+        if (!isSearchPage || !searchResultsEl || !window.matchMedia('(max-width: 767.98px)').matches) return;
+        window.requestAnimationFrame(() => {
+            searchResultsEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+    }
+
+    function waitForSearchLoadingPaint() {
+        return new Promise((resolve) => {
+            window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
+        });
+    }
+
     function setSetFilterLoadingUi(isLoading) {
         if (seriesSelect) {
             seriesSelect.disabled = isLoading;
             if (isLoading) {
-                seriesSelect.innerHTML = '<option value="">Loading series...</option>';
+                replaceSelectWithStatus(seriesSelect, 'Loading series...');
             }
         }
 
         if (setSelect) {
             setSelect.disabled = true;
             if (isLoading) {
-                setSelect.innerHTML = '<option value="">Loading sets...</option>';
+                replaceSelectWithStatus(setSelect, 'Loading sets...');
             }
         }
     }
@@ -751,13 +876,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!seriesSelect) return;
 
         const current = safeString(selectedSeries, '');
-        const options = ['<option value="">Choose a series</option>'];
+        const options = [createSelectOption('', 'Choose a series', !current)];
         for (const s of seriesNames) {
             const isSelected = current && s === current;
-            options.push(`<option value="${escapeAttr(s)}" ${isSelected ? 'selected' : ''}>${escapeHtml(s)}</option>`);
+            options.push(createSelectOption(s, s, Boolean(isSelected)));
         }
 
-        seriesSelect.innerHTML = options.join('');
+        seriesSelect.replaceChildren(...options);
     }
 
     function getSeriesListFromCatalog() {
@@ -785,16 +910,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const sets = getSetsForSeries(seriesName);
         const selectedId = safeString(selectedExpansionId, '');
 
-        const options = ['<option value="">Choose a set</option>'];
+        const options = [createSelectOption('', 'Choose a set', !selectedId)];
         for (const ex of sets) {
             const id = safeString(ex?.id, '');
             if (!id) continue;
             const label = getSetOptionLabel(ex);
             const isSelected = selectedId && id === selectedId;
-            options.push(`<option value="${escapeAttr(id)}" ${isSelected ? 'selected' : ''}>${escapeHtml(label)}</option>`);
+            options.push(createSelectOption(id, label, Boolean(isSelected)));
         }
 
-        setSelect.innerHTML = options.join('');
+        setSelect.replaceChildren(...options);
         setSelect.disabled = sets.length === 0;
     }
 
@@ -906,11 +1031,11 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (e) {
             if (seriesSelect) {
                 seriesSelect.disabled = false;
-                seriesSelect.innerHTML = '<option value="">Unable to load series</option>';
+                replaceSelectWithStatus(seriesSelect, 'Unable to load series');
             }
             if (setSelect) {
                 setSelect.disabled = true;
-                setSelect.innerHTML = '<option value="">Unable to load sets</option>';
+                replaceSelectWithStatus(setSelect, 'Unable to load sets');
             }
             throw e;
         } finally {
@@ -1164,6 +1289,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const setName = safeString(card?.setName ?? card?.set_name ?? card?.expansionName ?? card?.expansion_name, '');
         return {
             itemType: 'card',
+            ownershipOnly: card?.ownershipOnly === true,
+            ownershipOnlyVariants: normalizeVariantQuantities(card?.ownershipOnlyVariants, '', 0),
             collectionId,
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -1226,20 +1353,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveDexCollection(list, options) {
+        const safe = Array.isArray(list) ? list : [];
+        let serialized = '';
         let persisted = false;
         try {
-            const safe = Array.isArray(list) ? list : [];
-            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(safe));
+            serialized = JSON.stringify(safe);
+            const currentRaw = localStorage.getItem(DEX_COLLECTION_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, serialized);
         } catch {
             persisted = false;
         }
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync), options);
         }
 
         return true;
@@ -1256,20 +1391,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function saveDexMasterSets(map, options) {
+        const safe = (map && typeof map === 'object') ? map : {};
+        let serialized = '';
         let persisted = false;
         try {
-            const safe = (map && typeof map === 'object') ? map : {};
-            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            serialized = JSON.stringify(safe);
+            const currentRaw = localStorage.getItem(DEX_MASTER_SETS_KEY);
+            if (currentRaw === serialized || areJsonValuesEqual(safeParseJson(currentRaw), safe)) return true;
+            persisted = writeCriticalStorageItem(DEX_MASTER_SETS_KEY, serialized);
         } catch {
             persisted = false;
         }
 
         if (!persisted) return false;
 
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
+
         notifyDexStateChanged();
 
         if (!options?.skipCloudSync) {
-            queueDexCloudStateSync(Boolean(options?.immediateCloudSync));
+            queueDexCloudStateSync(Boolean(options?.immediateCloudSync), options);
         }
 
         return true;
@@ -1286,10 +1429,49 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_CLOUD_SYNC_DEBOUNCE_MS = 450;
     let dexCloudSyncTimer = 0;
     let dexCloudSyncHydrating = false;
+    let dexCloudSyncPromise = Promise.resolve();
 
     function getDexUpdatedAt(value) {
         const n = Number(value);
         return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            return getDexUpdatedAt(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(getDexUpdatedAt(updatedAt)));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
     }
 
     function readDexOwnerUid() {
@@ -1351,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return out;
     }
 
-    function queueDexCloudStateSync(immediate) {
+    function queueDexCloudStateSync(immediate, options) {
         if (!enableDexTrackingControls || dexCloudSyncHydrating) return;
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
@@ -1360,14 +1542,27 @@ document.addEventListener('DOMContentLoaded', function () {
         writeDexOwnerUid(user.uid);
 
         const run = () => {
-            const payload = {
-                collection: loadDexCollection(),
-                masterSets: loadDexMasterSets(),
-            };
-
-            Promise.resolve(authApi.saveDexState(payload)).catch(() => {
-                // ignore
-            });
+            dexCloudSyncPromise = dexCloudSyncPromise
+                .catch(() => {
+                    // keep later saves moving after a transient failure
+                })
+                .then(async () => {
+                    const payload = {
+                        collection: loadDexCollection(),
+                        masterSets: loadDexMasterSets(),
+                        revision: readDexCloudRevision(),
+                        updatedAt: readDexStateUpdatedAt() || Date.now(),
+                        intentionalEmptyCollection: options?.intentionalEmptyCollection === true,
+                    };
+                    const result = await authApi.saveDexState(payload);
+                    return { result, submittedUpdatedAt: payload.updatedAt };
+                })
+                .then(({ result, submittedUpdatedAt }) => {
+                    handleDexCloudSaveResult(result, user.uid, submittedUpdatedAt);
+                })
+                .catch(() => {
+                    // ignore transient sync failures
+                });
         };
 
         if (immediate) {
@@ -1383,6 +1578,44 @@ document.addEventListener('DOMContentLoaded', function () {
             window.clearTimeout(dexCloudSyncTimer);
         }
         dexCloudSyncTimer = window.setTimeout(run, DEX_CLOUD_SYNC_DEBOUNCE_MS);
+    }
+
+    function handleDexCloudSaveResult(result, ownerUid, submittedUpdatedAt) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= getDexUpdatedAt(submittedUpdatedAt)) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
+            return;
+        }
+
+        if (!result.conflict) return;
+
+        dexCloudSyncHydrating = true;
+        try {
+            saveDexCollection(Array.isArray(result.collection) ? result.collection : [], {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            saveDexMasterSets((result.masterSets && typeof result.masterSets === 'object') ? result.masterSets : {}, {
+                skipCloudSync: true,
+                preserveUpdatedAt: true,
+            });
+            writeDexCloudRevision(result.revision);
+            writeDexStateUpdatedAt(result.updatedAt);
+            writeDexOwnerUid(ownerUid);
+
+            if (isDexPage) {
+                updateDexCollectionStats(loadDexCollection());
+            }
+            const restoredState = loadLastResults();
+            renderCards(currentResultsCards, restoredState || undefined);
+            setSearchCollectionStatus('A newer collection was found in cloud sync. This page was refreshed without overwriting it.');
+        } finally {
+            dexCloudSyncHydrating = false;
+        }
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -1505,7 +1738,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const localCollection = loadDexCollection();
         const localMasterSets = loadDexMasterSets();
         const localOwnerUid = readDexOwnerUid();
-        const allowLocalMerge = localOwnerUid === currentUid;
+        const localRevision = readDexCloudRevision();
+        const localUpdatedAt = readDexStateUpdatedAt();
         let mergedPayload = null;
         dexCloudSyncHydrating = true;
 
@@ -1515,21 +1749,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 const cloudMasterSets = (cloudState?.masterSets && typeof cloudState.masterSets === 'object')
                     ? cloudState.masterSets
                     : {};
+                const cloudRevision = Math.max(0, Math.floor(Number(cloudState?.revision) || 0));
+                const cloudUpdatedAt = getDexUpdatedAt(cloudState?.updatedAt);
+                const canPushLocalState = localOwnerUid === currentUid
+                    && localRevision === cloudRevision
+                    && localUpdatedAt > cloudUpdatedAt;
 
-                let resolvedCollection = cloudCollection;
-                let resolvedMasterSets = cloudMasterSets;
+                const resolvedCollection = canPushLocalState ? localCollection : cloudCollection;
+                const resolvedMasterSets = canPushLocalState ? localMasterSets : cloudMasterSets;
 
-                if (allowLocalMerge) {
-                    resolvedCollection = mergeDexCollectionState(localCollection, cloudCollection);
-                    resolvedMasterSets = mergeDexMasterSetsState(localMasterSets, cloudMasterSets, resolvedCollection);
+                if (canPushLocalState) {
                     mergedPayload = {
                         collection: resolvedCollection,
                         masterSets: resolvedMasterSets,
+                        revision: cloudRevision,
+                        updatedAt: localUpdatedAt,
                     };
                 }
 
-                saveDexCollection(resolvedCollection, { skipCloudSync: true });
-                saveDexMasterSets(resolvedMasterSets, { skipCloudSync: true });
+                saveDexCollection(resolvedCollection, { skipCloudSync: true, preserveUpdatedAt: true });
+                saveDexMasterSets(resolvedMasterSets, { skipCloudSync: true, preserveUpdatedAt: true });
+                writeDexCloudRevision(cloudRevision);
+                writeDexStateUpdatedAt(canPushLocalState ? localUpdatedAt : cloudUpdatedAt);
                 writeDexOwnerUid(currentUid);
 
                 if (isDexPage) {
@@ -1546,9 +1787,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 dexCloudSyncHydrating = false;
 
                 if (mergedPayload && authApi?.saveDexState) {
-                    Promise.resolve(authApi.saveDexState(mergedPayload)).catch(() => {
-                        // ignore
-                    });
+                    dexCloudSyncPromise = dexCloudSyncPromise
+                        .catch(() => {
+                            // keep the restore save ordered after any earlier sync
+                        })
+                        .then(() => authApi.saveDexState(mergedPayload))
+                        .then((result) => handleDexCloudSaveResult(result, currentUid, mergedPayload.updatedAt))
+                        .catch(() => {
+                            // ignore
+                        });
                 }
             });
     }
@@ -1616,6 +1863,7 @@ document.addEventListener('DOMContentLoaded', function () {
             collection[existingIndex] = {
                 ...existing,
                 ...normalized,
+                ownershipOnly: false,
                 addedAt: existing.addedAt,
                 selectedVariant: nextSelectedVariant,
                 variantQuantities: nextVariantMap,
@@ -1700,7 +1948,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const removedCollection = nextCollection.length !== collection.length;
         if (removedCollection) {
-            saveDexCollection(nextCollection, { immediateCloudSync: true });
+            saveDexCollection(nextCollection, {
+                immediateCloudSync: true,
+                intentionalEmptyCollection: nextCollection.length === 0,
+            });
         }
 
         if (activeCollectionId !== DEX_DEFAULT_COLLECTION_ID) {
@@ -1739,7 +1990,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (removedMasterSet) {
-            saveDexMasterSets(master, { immediateCloudSync: true });
+            saveDexMasterSets(master, {
+                immediateCloudSync: true,
+                intentionalEmptyCollection: loadDexCollection().length === 0,
+            });
         }
 
         return { removedCollection, removedMasterSet, expansionNames };
@@ -1873,21 +2127,6 @@ document.addEventListener('DOMContentLoaded', function () {
             removedMasterSet: false,
             expansionNames: [],
         };
-    }
-
-    function escapeHtml(value) {
-        const s = String(value ?? '');
-        return s
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function escapeAttr(value) {
-        // Same escaping as HTML text; safe for placing inside quoted attributes.
-        return escapeHtml(value);
     }
 
     function normalizeVariantNameForCompare(name) {
@@ -2067,6 +2306,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function queueWatchlistCloudMutation(id, mutation) {
+        const key = normalizeWatchlistId(id);
+        const previous = watchlistCloudMutationQueues.get(key) || Promise.resolve();
+        const next = previous.catch(() => {}).then(mutation);
+        watchlistCloudMutationQueues.set(key, next);
+        void next.catch(() => {}).finally(() => {
+            if (watchlistCloudMutationQueues.get(key) === next) {
+                watchlistCloudMutationQueues.delete(key);
+            }
+        });
+        return next;
+    }
+
+    function normalizeWatchlistId(rawId) {
+        return String(rawId ?? '').trim();
+    }
+
     function saveFavorites(list) {
         try {
             localStorage.setItem(WATCHLIST_KEY, JSON.stringify(Array.isArray(list) ? list : []));
@@ -2079,7 +2335,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function clearFavorites() {
         const idsToRemove = favorites
-            .map((card) => safeString(card?.id, ''))
+            .map((card) => normalizeWatchlistId(card?.id))
             .filter(Boolean);
         const removedCount = idsToRemove.length;
 
@@ -2098,7 +2354,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             if (idsToRemove.length && window?.PV_AUTH?.removeWatchlistItem) {
-                const settled = await Promise.allSettled(idsToRemove.map((id) => window.PV_AUTH.removeWatchlistItem('card', id)));
+                idsToRemove.forEach((id) => pendingWatchlistRemovals.add(normalizeWatchlistId(id)));
+                const settled = await Promise.allSettled(idsToRemove.map((id) => queueWatchlistCloudMutation(id, () => window.PV_AUTH.removeWatchlistItem('card', id))));
+                idsToRemove.forEach((id) => pendingWatchlistRemovals.delete(normalizeWatchlistId(id)));
                 const failedCount = settled.filter((result) => result.status === 'rejected').length;
                 if (failedCount > 0) {
                     const noun = failedCount === 1 ? 'item' : 'items';
@@ -2158,26 +2416,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderCards(currentResultsCards, restoredState || undefined);
                     return;
                 }
-                const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
-
                 Promise.resolve(window.PV_AUTH.loadWatchlist('card'))
                     .then((cloudList) => {
                         if (!Array.isArray(cloudList)) return;
 
+                        const localSnapshot = (Array.isArray(favorites) ? favorites.slice() : loadFavorites())
+                            .filter((item) => !pendingWatchlistRemovals.has(normalizeWatchlistId(item?.id)));
+                        const filteredCloudList = cloudList.filter((item) => !pendingWatchlistRemovals.has(normalizeWatchlistId(item?.id)));
+
                         // Merge cloud + local to avoid wiping local watchlist when cloud is empty
                         // (common during first-time setup, permission issues, or temporary offline).
-                        favorites = mergeWatchlist(localSnapshot, cloudList);
+                        favorites = mergeWatchlist(localSnapshot, filteredCloudList);
                         saveFavorites(favorites);
 
                         // Best-effort: push any local-only items into the cloud so it follows the account.
                         try {
                             if (window?.PV_AUTH?.saveWatchlistItem) {
-                                const cloudIds = new Set(cloudList.map((x) => String(x?.id || '').trim()).filter(Boolean));
+                                const cloudIds = new Set(filteredCloudList.map((x) => normalizeWatchlistId(x?.id)).filter(Boolean));
                                 const toSync = localSnapshot
                                     .map(normalizeFavoriteCard)
-                                    .filter((x) => x && x.id && !cloudIds.has(String(x.id)));
+                                    .filter((x) => {
+                                        const normalizedId = normalizeWatchlistId(x?.id);
+                                        return normalizedId && !pendingWatchlistRemovals.has(normalizedId) && !cloudIds.has(normalizedId);
+                                    });
                                 if (toSync.length) {
-                                    void Promise.allSettled(toSync.map((x) => window.PV_AUTH.saveWatchlistItem('card', x)));
+                                    void Promise.allSettled(toSync.map((x) => queueWatchlistCloudMutation(x.id, () => window.PV_AUTH.saveWatchlistItem('card', x))));
                                 }
                             }
                         } catch {
@@ -2203,6 +2466,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (enableDexTrackingControls && window?.PV_AUTH?.onAuthStateChanged && window?.PV_AUTH?.loadDexState) {
             window.PV_AUTH.onAuthStateChanged((user) => {
                 if (!user) {
+                    if (!readDexOwnerUid()) return;
+
                     // Sign out: wipe local collection so it does not bleed into a different account.
                     try { localStorage.removeItem(DEX_COLLECTION_KEY); } catch {}
                     try { localStorage.removeItem(DEX_MASTER_SETS_KEY); } catch {}
@@ -2243,6 +2508,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function loadSearchCollapsed() {
+        try {
+            const raw = localStorage.getItem(SEARCH_COLLAPSED_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function setSearchCollapsed(isCollapsed) {
+        if (searchContent) searchContent.hidden = !!isCollapsed;
+        if (searchToggle) {
+            searchToggle.textContent = isCollapsed ? 'Show' : 'Hide';
+            searchToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        try { localStorage.setItem(SEARCH_COLLAPSED_KEY, isCollapsed ? '1' : '0'); } catch {}
+    }
+
     function saveFavoritesCollapsed(isCollapsed) {
         try {
             localStorage.setItem(WATCHLIST_COLLAPSED_KEY, isCollapsed ? '1' : '0');
@@ -2261,22 +2544,385 @@ document.addEventListener('DOMContentLoaded', function () {
         saveFavoritesCollapsed(isCollapsed);
     }
 
+    function loadTradeCollapsed() {
+        try {
+            const raw = localStorage.getItem(TRADE_COLLAPSED_KEY);
+            return raw === '1' || raw === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    function saveTradeWorkspace() {
+        if (!tradeEnabled || !tradeWorkspace) return;
+        tradeWorkspace = tradeApi.saveTradeWorkspace(tradeWorkspace);
+    }
+
+    function setTradeCollapsed(isCollapsed) {
+        if (tradeBody) tradeBody.hidden = !!isCollapsed;
+        if (tradeToggle) {
+            tradeToggle.textContent = isCollapsed ? 'Show' : 'Hide';
+            tradeToggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        }
+        try { localStorage.setItem(TRADE_COLLAPSED_KEY, isCollapsed ? '1' : '0'); } catch {}
+    }
+
+    function placeTradeBulkForViewport() {
+        if (!tradeBulk || !tradeControls || !tradeSummary || typeof window.matchMedia !== 'function') return;
+        const mobile = window.matchMedia('(max-width: 640px)').matches;
+        if (mobile) tradeSummary.insertBefore(tradeBulk, tradeRemainingEl);
+        else tradeControls.insertBefore(tradeBulk, tradeToggle);
+    }
+
+    function formatTradeMoney(value) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value) || 0);
+    }
+
+    function normalizeTradeTarget(value) {
+        if (value === null || value === undefined || String(value).trim() === '') return null;
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0 || amount > MAX_TRADE_TARGET) return null;
+        return Math.round(amount * 100) / 100;
+    }
+
+    function loadTradeTarget() {
+        try {
+            return normalizeTradeTarget(localStorage.getItem(TRADE_TARGET_KEY));
+        } catch {
+            return null;
+        }
+    }
+
+    function saveTradeTarget(value) {
+        const target = normalizeTradeTarget(value);
+        try {
+            if (target === null) localStorage.removeItem(TRADE_TARGET_KEY);
+            else localStorage.setItem(TRADE_TARGET_KEY, String(target));
+        } catch {
+            // ignore storage failures; the current input remains usable
+        }
+        return target;
+    }
+
+    function renderTradeWorkspace(targetOverride) {
+        if (!tradeEnabled || !tradeGrid || !tradeWorkspace) return;
+        const cachedCards = loadLastResults()?.cards;
+        if (Array.isArray(cachedCards)) {
+            let hydrated = false;
+            const items = tradeWorkspace.items.map((item) => {
+                if (item.variants?.length) return item;
+                const cachedCard = cachedCards.find((card) => safeString(card?.id, '') === item.id);
+                if (!Array.isArray(cachedCard?.variants) || cachedCard.variants.length === 0) return item;
+                hydrated = true;
+                return { ...item, variants: cachedCard.variants };
+            });
+            if (hydrated) {
+                tradeWorkspace = tradeApi.normalizeWorkspace({ ...tradeWorkspace, items: items });
+                saveTradeWorkspace();
+            }
+        }
+        tradeGrid.replaceChildren();
+        const totals = tradeApi.calculateTradeTotals(tradeWorkspace.items);
+        const itemCount = tradeWorkspace.items.length;
+        tradeGrid.classList.toggle('pv-tradeGrid--carousel', itemCount > 4);
+        const countSpan = createTextElement(
+            'span',
+            'pv-tradeTotals__count',
+            totals.unpricedItemCount > 0
+                ? `${totals.pricedItemCount} priced`
+                : `${itemCount} ${itemCount === 1 ? 'card' : 'cards'}`
+        );
+        const marketSpan = createTextElement('span', 'pv-tradeTotals__market', `Market ${formatTradeMoney(totals.rawMarketTotal)}`);
+        const tradeSpan = createTextElement('span', 'pv-tradeTotals__trade', `Trade ${formatTradeMoney(totals.tradeAdjustedTotal)}`);
+        tradeTotalsEl.replaceChildren(countSpan);
+        if (totals.unpricedItemCount > 0) {
+            tradeTotalsEl.append(
+                document.createTextNode(' + '),
+                createTextElement('span', 'pv-tradeTotals__unavailable', `${totals.unpricedItemCount} unavailable`)
+            );
+        }
+        tradeTotalsEl.append(
+            createTextElement('span', 'pv-tradeTotals__separator', ' · '),
+            marketSpan,
+            createTextElement('span', 'pv-tradeTotals__separator pv-tradeTotals__separator--beforeTrade', ' · '),
+            tradeSpan
+        );
+        const target = targetOverride === undefined ? loadTradeTarget() : normalizeTradeTarget(targetOverride);
+        if (tradeRemainingEl) tradeRemainingEl.replaceChildren();
+        if (target !== null && tradeRemainingEl) {
+            const difference = target - totals.tradeAdjustedTotal;
+            tradeRemainingEl.appendChild(createTextElement(
+                'span',
+                difference > 0 ? 'pv-tradeTotals__remaining' : 'pv-tradeTotals__targetMet',
+                difference > 0 ? `Remaining ${formatTradeMoney(difference)}` : `Target met · ${formatTradeMoney(Math.abs(difference))} over`
+            ));
+        }
+        if (itemCount === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'col-12';
+            empty.textContent = 'No cards added to Trade yet. Add cards from Search results or a Card Details page.';
+            tradeGrid.appendChild(empty);
+            return;
+        }
+
+        let carouselPage = null;
+        for (const [index, item] of tradeWorkspace.items.entries()) {
+            if (itemCount > 4 && index % 4 === 0) {
+                carouselPage = document.createElement('div');
+                carouselPage.className = 'pv-tradeCarouselPage';
+                tradeGrid.appendChild(carouselPage);
+            }
+            const col = document.createElement('div');
+            col.className = 'col-12 col-md-6 pv-trade__item';
+            col.dataset.tradeId = item.id;
+            const card = document.createElement('article');
+            card.className = 'pv-card pv-tradeCard h-100';
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'pv-tradeCard__remove';
+            remove.dataset.tradeAction = 'remove';
+            remove.setAttribute('aria-label', `Remove ${item.name} from Trade`);
+            remove.title = `Remove ${item.name} from Trade`;
+            remove.textContent = '×';
+            card.appendChild(remove);
+            if (item.image) {
+                const image = document.createElement('img');
+                image.className = 'pv-card__img pv-tradeCard__image';
+                image.src = item.image;
+                image.alt = `${item.name} card image`;
+                card.appendChild(image);
+            }
+            const body = document.createElement('div');
+            body.className = 'pv-card__body';
+            body.appendChild(createTextElement('h3', 'pv-card__title', item.name));
+            const cardDetails = document.createElement('details');
+            cardDetails.className = 'pv-tradeCard__details';
+            const cardDetailsSummary = document.createElement('summary');
+            cardDetailsSummary.textContent = 'Card details';
+            const cardDetailsBody = document.createElement('div');
+            cardDetailsBody.append(
+                createTextElement('p', 'pv-card__text', `${item.expansion.name || 'Unknown set'}${item.cardNumber ? ` · #${item.cardNumber}` : ''}`),
+                createTextElement('p', 'pv-card__text', `Variant: ${item.selectedVariant || 'Standard'}`)
+            );
+            cardDetails.append(cardDetailsSummary, cardDetailsBody);
+            body.appendChild(cardDetails);
+            const values = document.createElement('div');
+            values.className = 'pv-tradeCard__values';
+            values.appendChild(createTextElement('span', 'pv-tradeCard__market', item.marketValue === null ? 'Market unavailable' : `Market: ${formatTradeMoney(item.marketValue)}`));
+            values.appendChild(createTextElement('span', 'pv-tradeCard__value', item.marketValue === null ? 'Trade unavailable' : `Trade: ${formatTradeMoney(item.marketValue * item.tradePercent / 100)}`));
+            body.appendChild(values);
+
+            const controls = document.createElement('div');
+            controls.className = 'pv-tradeCard__controls';
+            const conditionLabel = createTextElement('label', 'form-label', 'Condition');
+            const conditionSelect = document.createElement('select');
+            conditionSelect.className = 'form-select pv-selectCompact';
+            conditionSelect.dataset.tradeAction = 'condition';
+            conditionSelect.setAttribute('aria-label', `Condition for ${item.name}`);
+            conditionLabel.htmlFor = `pv-trade-condition-${item.id}`;
+            conditionSelect.id = conditionLabel.htmlFor;
+            const availableConditions = tradeApi.getAvailableConditions(item.conditionValues);
+            const conditionOptions = availableConditions.length ? availableConditions : [item.selectedCondition];
+            conditionSelect.replaceChildren(...conditionOptions.map((condition) => createSelectOption(condition, condition, condition === item.selectedCondition)));
+            const conditionField = document.createElement('div');
+            conditionField.className = 'pv-tradeCard__condition';
+            conditionField.append(conditionLabel, conditionSelect);
+            const variantNames = Array.isArray(item.variants)
+                ? item.variants.map((variant) => safeString(variant?.name, '')).filter(Boolean)
+                : [];
+            const variantField = document.createElement('div');
+            variantField.className = 'pv-tradeCard__variant';
+            if (variantNames.length > 1) {
+                const variantLabel = createTextElement('label', 'form-label', 'Variant');
+                const variantSelect = document.createElement('select');
+                variantSelect.className = 'form-select pv-selectCompact';
+                variantSelect.dataset.tradeAction = 'variant';
+                variantSelect.setAttribute('aria-label', `Variant for ${item.name}`);
+                variantLabel.htmlFor = `pv-trade-variant-${item.id}`;
+                variantSelect.id = variantLabel.htmlFor;
+                variantSelect.replaceChildren(...variantNames.map((variant) => createSelectOption(variant, formatVariantDisplayName(variant), variant === item.selectedVariant)));
+                variantSelect.title = formatVariantDisplayName(item.selectedVariant);
+                variantField.append(variantLabel, variantSelect);
+            }
+            const label = createTextElement('label', 'form-label', 'Trade %');
+            const select = document.createElement('select');
+            select.className = 'form-select pv-selectCompact';
+            select.dataset.tradeAction = 'percent';
+            select.setAttribute('aria-label', `Trade percentage for ${item.name}`);
+            select.replaceChildren(...TRADE_PERCENT_CHOICES.map((percent) => createSelectOption(String(percent), `${percent}%`, percent === item.tradePercent)));
+            label.htmlFor = `pv-trade-percent-${item.id}`;
+            select.id = label.htmlFor;
+            const percentField = document.createElement('div');
+            percentField.className = 'pv-tradeCard__percent';
+            percentField.append(label, select);
+            controls.append(conditionField, ...(variantNames.length > 1 ? [variantField] : []), percentField);
+            body.appendChild(controls);
+            card.appendChild(body);
+            col.appendChild(card);
+            if (itemCount > 4) carouselPage.appendChild(col);
+            else tradeGrid.appendChild(col);
+        }
+    }
+
+    function isInTrade(cardId) {
+        return tradeEnabled && tradeWorkspace?.items.some((item) => item.id === safeString(cardId));
+    }
+
+    function syncTradeResultButtons() {
+        if (!tradeEnabled || !grid) return;
+        const buttons = grid.querySelectorAll('[data-trade-card-id]');
+        buttons.forEach((button) => {
+            const id = button.getAttribute('data-trade-card-id');
+            const inTrade = isInTrade(id);
+            const name = safeString(button.getAttribute('data-trade-card-name'), 'Card');
+            button.textContent = inTrade ? 'In Trade' : 'Add to Trade';
+            button.setAttribute('aria-pressed', inTrade ? 'true' : 'false');
+            button.setAttribute('aria-label', `${inTrade ? 'Remove' : 'Add'} ${name} ${inTrade ? 'from' : 'to'} Trade`);
+        });
+    }
+
+    function buildTradeSnapshot(card, selectedVariant, loadedPrices) {
+        const selectedVariantData = findVariantByName(card?.variants, selectedVariant);
+        const prices = Array.isArray(loadedPrices) && loadedPrices.length > 0
+            ? loadedPrices
+            : (Array.isArray(selectedVariantData?.prices) ? selectedVariantData.prices : []);
+        const variants = Array.isArray(card?.variants)
+            ? card.variants.map((variant) => (
+                findVariantByName([variant], selectedVariant) && prices.length > 0
+                    ? { ...variant, prices }
+                    : variant
+            ))
+            : [];
+        const conditionValues = getTradeConditionValues(prices);
+        const selectedCondition = DEX_CARD_CONDITIONS.find((condition) => conditionValues[condition]) || 'NM';
+        const marketValue = conditionValues[selectedCondition] ?? null;
+        return {
+            id: safeString(card?.id, ''),
+            name: safeString(card?.name, 'Unknown'),
+            expansion: { id: safeString(card?.expansion?.id, ''), name: getCardSetName(card) },
+            image: sanitizeUrl(pickFrontMediumImage(card?.images)),
+            rarity: safeString(card?.rarity, ''),
+            cardNumber: safeString(card?.printedNumber || card?.number || card?.collectorNumber, ''),
+            variants,
+            selectedVariant: safeString(selectedVariant || getDexDefaultVariantForCard(card), ''),
+            selectedCondition,
+            conditionValues,
+            marketValue,
+            tradePercent: getSavedTradePercentForId(safeString(card?.id, ''), loadLastResults()),
+            priceUpdatedAt: marketValue === null ? 0 : Date.now(),
+            addedAt: Date.now(),
+        };
+    }
+
+    function getTradeConditionValues(prices) {
+        return tradeApi.getConditionMarketValues(prices);
+    }
+
+    function syncSearchJumpNav() {
+        if (!tradeJumpLink) return;
+        tradeJumpLink.hidden = !tradeSection || tradeSection.hidden;
+    }
+
+    function toggleTradeCard(card, selectedVariant, loadedPrices, button) {
+        if (!tradeEnabled) return;
+        const id = safeString(card?.id, '');
+        if (!id) return;
+        const wasInTrade = isInTrade(id);
+        if (wasInTrade) {
+            tradeWorkspace = tradeApi.removeTradeItem(tradeWorkspace, id);
+            button.textContent = 'Add to Trade';
+            button.setAttribute('aria-pressed', 'false');
+        } else {
+            tradeWorkspace = tradeApi.addOrUpdateTradeItem(tradeWorkspace, buildTradeSnapshot(card, selectedVariant, loadedPrices));
+            button.textContent = 'In Trade';
+            button.setAttribute('aria-pressed', 'true');
+        }
+        saveTradeWorkspace();
+        renderTradeWorkspace();
+        syncTradeResultButtons();
+        showActionToast(`${safeString(card?.name, 'Card')} ${wasInTrade ? 'removed from' : 'added to'} Trade.`, wasInTrade ? 'removed' : 'added');
+    }
+
+    function bindTradeControls() {
+        if (!tradeEnabled) return;
+        tradeSection.hidden = false;
+        syncSearchJumpNav();
+        placeTradeBulkForViewport();
+        if (typeof window.matchMedia === 'function') {
+            window.matchMedia('(max-width: 640px)').addEventListener?.('change', placeTradeBulkForViewport);
+        }
+        const savedTarget = loadTradeTarget();
+        if (tradeTargetInput && savedTarget !== null) tradeTargetInput.value = savedTarget.toFixed(2);
+        renderTradeWorkspace();
+        setTradeCollapsed(loadTradeCollapsed());
+        tradeToggle?.addEventListener('click', () => setTradeCollapsed(!tradeBody?.hidden));
+        tradeClearBtn?.addEventListener('click', () => {
+            if (!tradeWorkspace?.items.length || !window.confirm('Clear all Trade cards from this browser?')) return;
+            tradeWorkspace = tradeApi.clearTradeWorkspace();
+            saveTradeWorkspace();
+            renderTradeWorkspace(tradeTargetInput.value);
+            syncTradeResultButtons();
+        });
+        tradeApplyPercentBtn?.addEventListener('click', () => {
+            tradeWorkspace = tradeApi.applyTradePercentToAll(tradeWorkspace, tradeApplyPercent?.value);
+            saveTradeWorkspace();
+            renderTradeWorkspace();
+        });
+        tradeTargetInput?.addEventListener('input', () => {
+            const target = saveTradeTarget(tradeTargetInput.value);
+            tradeTargetInput.setCustomValidity(
+                tradeTargetInput.value.trim() !== '' && target === null
+                    ? 'Enter an amount from 0.00 to 10,000,000.00.'
+                    : ''
+            );
+            renderTradeWorkspace();
+        });
+        tradeGrid?.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLSelectElement)) return;
+            const itemId = target.closest('[data-trade-id]')?.dataset.tradeId;
+            if (target.dataset.tradeAction === 'condition') {
+                tradeWorkspace = tradeApi.setTradeItemCondition(tradeWorkspace, itemId, target.value);
+            } else if (target.dataset.tradeAction === 'variant') {
+                tradeWorkspace = tradeApi.setTradeItemVariant(tradeWorkspace, itemId, target.value);
+            } else if (target.dataset.tradeAction === 'percent') {
+                tradeWorkspace = tradeApi.setTradeItemPercent(tradeWorkspace, itemId, target.value);
+            } else {
+                return;
+            }
+            saveTradeWorkspace();
+            renderTradeWorkspace();
+        });
+        tradeGrid?.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement) || target.dataset.tradeAction !== 'remove') return;
+            const itemId = target.closest('[data-trade-id]')?.dataset.tradeId;
+            tradeWorkspace = tradeApi.removeTradeItem(tradeWorkspace, itemId);
+            saveTradeWorkspace();
+            renderTradeWorkspace();
+            syncTradeResultButtons();
+        });
+    }
+
     function isFavorite(cardId) {
-        const id = String(cardId || '');
-        return favorites.some((c) => String(c?.id || '') === id);
+        const id = normalizeWatchlistId(cardId);
+        return favorites.some((c) => normalizeWatchlistId(c?.id) === id);
     }
 
     function toggleFavorite(card) {
-        const id = safeString(card?.id, '');
+        const id = normalizeWatchlistId(card?.id);
         if (!id) return;
         const cardName = getCardDisplayName(card);
         const wasInWatchlist = isFavorite(id);
 
         if (wasInWatchlist) {
-            favorites = favorites.filter((c) => String(c?.id || '') !== id);
+            favorites = favorites.filter((c) => normalizeWatchlistId(c?.id) !== id);
             try {
                 if (window?.PV_AUTH?.removeWatchlistItem) {
-                    void window.PV_AUTH.removeWatchlistItem('card', id);
+                    pendingWatchlistRemovals.add(normalizeWatchlistId(id));
+                    void queueWatchlistCloudMutation(id, () => window.PV_AUTH.removeWatchlistItem('card', id))
+                        .catch(() => {})
+                        .finally(() => pendingWatchlistRemovals.delete(normalizeWatchlistId(id)));
                 }
             } catch {
                 // ignore
@@ -2341,7 +2987,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             try {
                 if (window?.PV_AUTH?.saveWatchlistItem) {
-                    void window.PV_AUTH.saveWatchlistItem('card', favObj);
+                    void queueWatchlistCloudMutation(id, () => window.PV_AUTH.saveWatchlistItem('card', favObj));
                 }
             } catch {
                 // ignore
@@ -2437,36 +3083,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function loadDexSearchPanelOpenState() {
-        if (!isDexPage) return false;
-        try {
-            const raw = localStorage.getItem(DEX_SEARCH_PANEL_OPEN_KEY);
-            return raw === '1' || raw === 'true';
-        } catch {
-            return false;
-        }
-    }
-
-    function saveDexSearchPanelOpenState(isOpen) {
-        if (!isDexPage) return;
-        try {
-            localStorage.setItem(DEX_SEARCH_PANEL_OPEN_KEY, isOpen ? '1' : '0');
-        } catch {
-            // ignore
-        }
-    }
-
-    function setDexSearchPanelOpen(isOpen, options) {
+    function setDexSearchPanelOpen(isOpen) {
         if (!dexSearchPanel) return;
 
         if (isOpen) {
-            dexSearchPanel.setAttribute('open', '');
+            if (!dexSearchPanel.open) {
+                try {
+                    dexSearchPanel.showModal();
+                } catch {
+                    dexSearchPanel.setAttribute('open', '');
+                }
+            }
         } else {
-            dexSearchPanel.removeAttribute('open');
-        }
-
-        if (!options?.skipPersist) {
-            saveDexSearchPanelOpenState(!!isOpen);
+            if (dexSearchPanel.open) {
+                dexSearchPanel.close();
+            } else {
+                dexSearchPanel.removeAttribute('open');
+            }
         }
     }
 
@@ -2491,7 +3124,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function activateDexSearchMode() {
         if (!isDexPage) return;
-        setResultsHeading('Search Results');
+        setResultsHeading('Results');
         setDexResultsContext('Search results are shown below.');
         setDexSearchPanelOpen(true);
     }
@@ -2863,12 +3496,13 @@ document.addEventListener('DOMContentLoaded', function () {
         searchCollectionContextMeta = normalized;
         if (!searchCollectionSelectEl) return;
 
-        searchCollectionSelectEl.innerHTML = normalized.collections.map((entry) => {
+        const options = normalized.collections.map((entry) => {
             const label = entry.id === DEX_DEFAULT_COLLECTION_ID
                 ? `${entry.name} (Master Sets)`
                 : entry.name;
-            return `<option value="${escapeAttr(entry.id)}">${escapeHtml(label)}</option>`;
-        }).join('');
+            return createSelectOption(entry.id, label, entry.id === normalized.activeCollectionId);
+        });
+        searchCollectionSelectEl.replaceChildren(...options);
         searchCollectionSelectEl.value = normalized.activeCollectionId;
     }
 
@@ -3065,6 +3699,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function safeParseJson(value) {
         try { return JSON.parse(value); } catch { return null; }
+    }
+
+    function areJsonValuesEqual(left, right) {
+        if (Object.is(left, right)) return true;
+        if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+
+        const leftIsArray = Array.isArray(left);
+        if (leftIsArray !== Array.isArray(right)) return false;
+
+        const leftKeys = Object.keys(left);
+        const rightKeys = Object.keys(right);
+        if (leftKeys.length !== rightKeys.length) return false;
+
+        for (const key of leftKeys) {
+            if (!Object.prototype.hasOwnProperty.call(right, key)
+                || !areJsonValuesEqual(left[key], right[key])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     function loadJsonFromStorage(key, fallbackValue) {
@@ -3443,7 +4098,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!favoritesGrid) return;
 
         try {
-            favoritesGrid.innerHTML = '';
+            favoritesGrid.replaceChildren();
             let favoritePricePreloadCount = 0;
             let favoritePriceRefreshCount = 0;
 
@@ -3472,15 +4127,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const restoredPricesText = safeString(restoreState?.selections?.[id]?.pricesText, '');
 
-            const idAttr = escapeAttr(id);
-            const nameHtml = escapeHtml(name);
-            const nameAttr = escapeAttr(name);
-            const rarityHtml = escapeHtml(rarity);
-            const setNameHtml = escapeHtml(setName);
-            const selectedVariantHtml = escapeHtml(selectedVariant);
-            const imgUrlAttr = escapeAttr(imgUrl);
             const detailPath = buildCardDetailPath(fav);
-            const detailPathAttr = escapeAttr(detailPath);
 
             const maybePrices = selectedVariant ? getPricesForVariant(fav, selectedVariant) : null;
             const pricesText = maybePrices
@@ -3488,37 +4135,74 @@ document.addEventListener('DOMContentLoaded', function () {
                 : (restoredPricesText || safeString(fav?.pricesText, ''));
             const pricesDisplayText = pricesText || 'No prices loaded yet. Load prices in Results to show them here.';
 
-            col.innerHTML = `
-                <div class="pv-card h-100">
-                    ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
-                    <div class="pv-card__body">
-                        <div class="pv-card__header">
-                            <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
-                            <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="Remove from watchlist" aria-pressed="true" title="Remove from watchlist">★</button>
-                        </div>
-                        <p class="pv-card__text pv-card__setName">${setNameHtml}</p>
-                        <p class="pv-card__text pv-card__rarity">${rarity ? rarityHtml : 'n/a'}</p>
-                        ${selectedVariant ? `<p class="pv-card__text pv-card__variant">Variant: ${selectedVariantHtml}</p>` : ''}
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-fav-trade-${idAttr}">Trade %</label>
-                            <select class="form-select pv-selectCompact pv-selectTrade" id="pv-fav-trade-${idAttr}">
-                                ${TRADE_PERCENT_CHOICES
-                                    .map((p) => `<option value="${p}" ${p === pct ? 'selected' : ''}>${p}%</option>`)
-                                    .join('')}
-                            </select>
-                        </div>
-                        <div class="pv-card__text pv-card__prices" id="pv-fav-prices-${idAttr}" aria-live="polite"></div>
-                    </div>
-                </div>
-            `;
+            const cardEl = document.createElement('div');
+            cardEl.className = 'pv-card h-100';
+            if (imgUrl) {
+                const imageLink = document.createElement('a');
+                imageLink.className = 'pv-card__imgLink';
+                imageLink.href = detailPath;
+                imageLink.setAttribute('aria-label', `View ${name} details`);
+                const image = document.createElement('img');
+                image.className = 'pv-card__img';
+                image.src = imgUrl;
+                image.alt = `${name} card image`;
+                imageLink.appendChild(image);
+                cardEl.appendChild(imageLink);
+            }
 
-            const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
+            const body = document.createElement('div');
+            body.className = 'pv-card__body';
+            const header = document.createElement('div');
+            header.className = 'pv-card__header';
+            const title = document.createElement('div');
+            title.className = 'pv-card__title';
+            const titleLink = document.createElement('a');
+            titleLink.className = 'pv-card__titleLink';
+            titleLink.href = detailPath;
+            titleLink.setAttribute('aria-label', `View ${name} details`);
+            titleLink.textContent = name;
+            title.appendChild(titleLink);
+
+            const favBtn = document.createElement('button');
+            favBtn.id = `pv-fav-${id}`;
+            favBtn.className = 'pv-fav-btn';
+            favBtn.type = 'button';
+            favBtn.setAttribute('aria-label', 'Remove from watchlist');
+            favBtn.setAttribute('aria-pressed', 'true');
+            favBtn.title = 'Remove from watchlist';
+            favBtn.textContent = '★';
+            header.append(title, favBtn);
+            body.append(
+                header,
+                createTextElement('p', 'pv-card__text pv-card__setName', setName),
+                createTextElement('p', 'pv-card__text pv-card__rarity', rarity || 'n/a')
+            );
+            if (selectedVariant) {
+                body.appendChild(createTextElement('p', 'pv-card__text pv-card__variant', `Variant: ${selectedVariant}`));
+            }
+
+            const tradeField = document.createElement('div');
+            tradeField.className = 'pv-form__field';
+            tradeField.style.marginBottom = '0.5rem';
+            const tradeLabel = createTextElement('label', 'form-label', 'Trade %');
+            tradeLabel.htmlFor = `pv-fav-trade-${id}`;
+            const tradeEl = document.createElement('select');
+            tradeEl.className = 'form-select pv-selectCompact pv-selectTrade';
+            tradeEl.id = `pv-fav-trade-${id}`;
+            tradeEl.replaceChildren(...TRADE_PERCENT_CHOICES.map((p) => createSelectOption(String(p), `${p}%`, p === pct)));
+            tradeField.append(tradeLabel, tradeEl);
+
+            const pricesEl = document.createElement('div');
+            pricesEl.className = 'pv-card__text pv-card__prices';
+            pricesEl.id = `pv-fav-prices-${id}`;
+            pricesEl.setAttribute('aria-live', 'polite');
+            body.append(tradeField, pricesEl);
+            cardEl.appendChild(body);
+            col.appendChild(cardEl);
+
             if (favBtn) {
                 favBtn.addEventListener('click', () => toggleFavorite(fav));
             }
-
-            const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-fav-trade-${CSS.escape(id)}`));
-            const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-fav-prices-${CSS.escape(id)}`));
 
             setCardPricesDisplay(pricesEl, pricesDisplayText);
 
@@ -3737,7 +4421,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateFavoritesTotals(restoreState);
         } catch (error) {
             console.error('[PokeValutor] renderFavorites failed', error);
-            favoritesGrid.innerHTML = '';
+            favoritesGrid.replaceChildren();
             const fallback = document.createElement('div');
             fallback.className = 'col-12';
             fallback.textContent = 'Watchlist is temporarily unavailable. Reload the page to retry.';
@@ -3750,25 +4434,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function isEmptyTopCardsResponse(url, data) {
+        return /\/cards\/top-by-expansion(?:\?|$)/.test(url)
+            && Array.isArray(data?.data)
+            && data.data.length === 0;
+    }
+
     async function fetchJsonWithCache(url, ttlMs) {
         const cacheKey = `${CACHE_PREFIX}url:${url}`;
         const cached = cacheGet(cacheKey);
         if (cached) {
-            // If we previously cached a malformed card+prices response (e.g., missing `variants`),
-            // don't keep serving it forever. This can happen if the upstream API response shape
-            // changes and the Worker has been updated since.
-            const isCardWithPricesUrl = /\/cards\/.+/.test(url)
-                && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
-            if (isCardWithPricesUrl) {
-                const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
-                const variants = cardObj?.variants;
-                if (!Array.isArray(variants)) {
-                    try { localStorage.removeItem(cacheKey); } catch {}
+            if (isEmptyTopCardsResponse(url, cached)) {
+                try { localStorage.removeItem(cacheKey); } catch {}
+            } else {
+                // If we previously cached a malformed card+prices response (e.g., missing `variants`),
+                // don't keep serving it forever. This can happen if the upstream API response shape
+                // changes and the Worker has been updated since.
+                const isCardWithPricesUrl = /\/cards\/.+/.test(url)
+                    && (/[?&]includePrices=1(?:&|$)/.test(url) || /[?&]include=prices(?:&|$)/.test(url));
+                if (isCardWithPricesUrl) {
+                    const cardObj = (cached && typeof cached === 'object' && 'data' in cached) ? cached.data : cached;
+                    const variants = cardObj?.variants;
+                    if (!Array.isArray(variants)) {
+                        try { localStorage.removeItem(cacheKey); } catch {}
+                    } else {
+                        return cached;
+                    }
                 } else {
                     return cached;
                 }
-            } else {
-                return cached;
             }
         }
 
@@ -3818,7 +4512,7 @@ document.addEventListener('DOMContentLoaded', function () {
             err.isQuotaExceeded = res.status === 429 || isCreditCapCode(details.code);
             throw err;
         }
-        cacheSet(cacheKey, data, ttlMs);
+        if (!isEmptyTopCardsResponse(url, data)) cacheSet(cacheKey, data, ttlMs);
         return data;
     }
 
@@ -3879,6 +4573,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return String(raw || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
+    function buildCanonicalPokemonName(rawName) {
+        return String(rawName || '').replace(/\bpoke\b/gi, (match) =>
+            match[0] === match[0].toUpperCase() ? 'Poké' : 'poké',
+        );
+    }
+
     function buildNameQueryCandidates(rawName) {
         const raw = String(rawName || '').trim();
         if (!raw) return [];
@@ -3894,6 +4594,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         push(buildFieldQuery('name', raw));
+
+        const canonicalName = buildCanonicalPokemonName(raw);
+        if (canonicalName !== raw) {
+            push(buildFieldQuery('name', canonicalName));
+        }
 
         const tokens = raw.split(/\s+/).map(toWildcardToken).filter(Boolean);
         if (tokens.length) {
@@ -3922,8 +4627,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const upper = q.toUpperCase();
         if (/^\d{1,4}$/.test(upper)) return true;
         if (/^\d{1,4}\/\d{1,4}$/.test(upper)) return true;
+        if (/^\d{1,4}[A-Z]$/.test(upper)) return true;
         if (/^[A-Z]{1,5}\d{1,4}$/.test(upper)) return true;
         if (/^(?=.*\d)[A-Z0-9]{2,6}-[A-Z0-9]{1,6}$/.test(upper)) return true;
+        if (/^\d{1,4}[A-Z]\/\d{1,4}$/.test(upper)) return true;
         if (/^[A-Z]{1,5}\d{1,4}\/[A-Z]{1,5}\d{1,4}$/.test(upper)) return true;
         return false;
     }
@@ -3969,7 +4676,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (marketText) {
                 const prefix = conditionKey || 'VALUE';
                 const line = tradeText
-                    ? `${prefix}: ${marketText} @${pct}% ${tradeText}`
+                    ? `${prefix}: ${marketText} @% ${tradeText}`
                     : `${prefix}: ${marketText}`;
                 lines.push({ rank, line });
                 continue;
@@ -4068,12 +4775,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return nextLines.join('\n');
     }
 
-    function formatPriceDisplayHtml(rawText) {
+    function createPriceDisplayFragment(rawText) {
         const text = safeString(rawText, '').trim();
-        if (!text) return '';
+        const fragment = document.createDocumentFragment();
+        if (!text) return fragment;
 
         if (/loading prices|unable to load prices|select a holo type|no prices/i.test(text)) {
-            return `<span class="pv-priceMessage">${escapeHtml(text)}</span>`;
+            fragment.appendChild(createTextElement('span', 'pv-priceMessage', text));
+            return fragment;
         }
 
         const lines = text
@@ -4082,10 +4791,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .filter(Boolean);
 
         if (!lines.length) {
-            return `<span class="pv-priceMessage">${escapeHtml(text)}</span>`;
+            fragment.appendChild(createTextElement('span', 'pv-priceMessage', text));
+            return fragment;
         }
 
-        const out = [];
         for (const line of lines) {
             const colonAt = line.indexOf(':');
             const hasPrefix = colonAt > 0;
@@ -4095,34 +4804,41 @@ document.addEventListener('DOMContentLoaded', function () {
             const code = extractConditionCodeFromLabel(prefix);
             const conditionLabel = code || prefix;
             const marketMatch = body.match(/(\$[0-9][0-9,]*(?:\.[0-9]+)?)/);
-            const tradeMatch = body.match(/@([0-9]+(?:\.[0-9]+)?)%\s*(\$[0-9][0-9,]*(?:\.[0-9]+)?)/i);
+            const tradeMatch = body.match(/@(?:[0-9]+(?:\.[0-9]+)?)?%\s*(\$[0-9][0-9,]*(?:\.[0-9]+)?)/i);
 
             if (!marketMatch) {
-                out.push(`<div class="pv-priceLine pv-priceLine--raw">${escapeHtml(line)}</div>`);
+                fragment.appendChild(createTextElement('div', 'pv-priceLine pv-priceLine--raw', line));
                 continue;
             }
 
             const marketValue = safeString(marketMatch[1], '').trim();
-            const tradePct = tradeMatch ? safeString(tradeMatch[1], '').trim() : '';
-            const tradeValue = tradeMatch ? safeString(tradeMatch[2], '').trim() : '';
+            const tradeValue = tradeMatch ? safeString(tradeMatch[1], '').trim() : '';
 
-            const valueBits = [
-                `<span class="pv-priceToken pv-priceToken--market"><span class="pv-priceToken__amount">${escapeHtml(marketValue)}</span></span>`,
-                tradeMatch
-                    ? `<span class="pv-priceToken pv-priceToken--trade"><span class="pv-priceToken__label">@${escapeHtml(tradePct)}%</span><span class="pv-priceToken__amount">${escapeHtml(tradeValue)}</span></span>`
-                    : '',
-            ].filter(Boolean);
-
-            const valuesHtml = valueBits.join(' ');
-
+            const priceLine = document.createElement('div');
+            priceLine.className = 'pv-priceLine';
             if (conditionLabel) {
-                out.push(`<div class="pv-priceLine"><span class="pv-priceLine__condition">${escapeHtml(conditionLabel)}:</span><span class="pv-priceLine__values">${valuesHtml}</span></div>`);
-            } else {
-                out.push(`<div class="pv-priceLine"><span class="pv-priceLine__values">${valuesHtml}</span></div>`);
+                priceLine.appendChild(createTextElement('span', 'pv-priceLine__condition', `${conditionLabel}:`));
             }
+            const values = document.createElement('span');
+            values.className = 'pv-priceLine__values';
+            const marketToken = document.createElement('span');
+            marketToken.className = 'pv-priceToken pv-priceToken--market';
+            marketToken.appendChild(createTextElement('span', 'pv-priceToken__amount', marketValue));
+            values.appendChild(marketToken);
+            if (tradeMatch) {
+                const tradeToken = document.createElement('span');
+                tradeToken.className = 'pv-priceToken pv-priceToken--trade';
+                tradeToken.append(
+                    createTextElement('span', 'pv-priceToken__label', '@%'),
+                    createTextElement('span', 'pv-priceToken__amount', tradeValue)
+                );
+                values.append(document.createTextNode(' '), tradeToken);
+            }
+            priceLine.appendChild(values);
+            fragment.appendChild(priceLine);
         }
 
-        return out.join('\n');
+        return fragment;
     }
 
     function setCardPricesDisplay(pricesEl, text) {
@@ -4132,7 +4848,7 @@ document.addEventListener('DOMContentLoaded', function () {
             pricesEl.textContent = '';
             return;
         }
-        pricesEl.innerHTML = formatPriceDisplayHtml(formattedText);
+        pricesEl.replaceChildren(createPriceDisplayFragment(formattedText));
     }
 
     function formatUsd(amount) {
@@ -4182,6 +4898,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getBestVariantWithPrices(variants) {
         const list = Array.isArray(variants) ? variants : [];
+        let hasPreferredVariant = false;
+
+        for (const preferredName of ['holofoil', 'normal']) {
+            const preferred = list.find((variant) => safeString(variant?.name, '').trim().toLowerCase() === preferredName);
+            if (!preferred) continue;
+            hasPreferredVariant = true;
+            const prices = Array.isArray(preferred?.prices) ? preferred.prices : null;
+            const market = getMarketFromPricesForTotals(prices);
+            if (market != null) return { name: safeString(preferred?.name, '').trim(), prices, market };
+        }
+
+        if (hasPreferredVariant) return null;
+
         let best = null;
 
         for (const v of list) {
@@ -4211,7 +4940,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (Number.isFinite(n)) return n;
         }
 
-        // Current format support: "NM: $12.34 @80% $9.87".
+        // Current format support: "NM: $12.34 @% $9.87"; older @80% values remain readable.
         // Take the first money token from the first non-empty line (market value).
         const firstLine = text
             .split(/\r?\n/)
@@ -4227,6 +4956,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getBestMarketFromCardVariants(cardLike) {
         const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+        for (const preferredName of ['holofoil', 'normal']) {
+            const preferred = variants.find((variant) => safeString(variant?.name, '').trim().toLowerCase() === preferredName);
+            if (!preferred) continue;
+            const preferredMarket = getMarketFromPricesForTotals(preferred?.prices);
+            if (preferredMarket != null) return preferredMarket;
+        }
+
         let best = null;
 
         for (const v of variants) {
@@ -4346,8 +5082,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderCards(cards, restoreState) {
         if (!grid) return;
         const sourceCards = Array.isArray(cards) ? cards : [];
+        if (!sourceCards.length && searchResultsLoading) return;
         currentResultsCards = sourceCards.slice();
-        grid.innerHTML = '';
+        grid.replaceChildren();
 
         const dexCollectionList = enableDexTrackingControls ? loadDexCollection() : [];
         if (isDexPage) {
@@ -4416,137 +5153,235 @@ document.addEventListener('DOMContentLoaded', function () {
                 ? `Add another copy to collection${trackedCopyLabel}`
                 : 'Add to collection and master set tracker';
 
-            const variantOptions = variants.length
-                ? ['<option value="">Select a holo type</option>', ...variants.map((v) => {
-                    const vv = String(v);
-                    return `<option value="${escapeAttr(vv)}">${escapeHtml(vv)}</option>`;
-                })].join('')
-                : '<option value="">No variants</option>';
-
             const restoredSelection = restoreState?.selections?.[id];
             const restoredTradePercent = getSavedTradePercentForId(id, restoreState);
-            const idAttr = escapeAttr(id);
-            const tradePercentOptions = isDexPage
-                ? ''
-                : TRADE_PERCENT_CHOICES
-                    .map((p) => `<option value="${p}" ${p === restoredTradePercent ? 'selected' : ''}>${p}%</option>`)
-                    .join('');
-
             const selectedDexCondition = normalizeDexConditionCode(dexTracked?.selectedCondition);
             const hideConditionUntilTracked = isSearchPage;
             const showConditionField = !hideConditionUntilTracked || inDexCollection;
             const selectedDexVariant = safeString(dexTracked?.selectedVariant, '');
-            const conditionOptions = ['<option value="">Select condition</option>', ...DEX_CARD_CONDITIONS.map((c) => {
-                const label = c === 'NM'
-                    ? 'Near Mint (NM)'
-                    : c === 'LP'
-                        ? 'Lightly Played (LP)'
-                        : c === 'MP'
-                            ? 'Moderately Played (MP)'
-                            : c === 'HP'
-                                ? 'Heavily Played (HP)'
-                                : 'Damaged (DM)';
-                const selected = selectedDexCondition === c ? 'selected' : '';
-                return `<option value="${c}" ${selected}>${escapeHtml(label)}</option>`;
-            })].join('');
-
-            const tradeFieldHtml = isDexPage
-                ? ''
-                : `
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-trade-${idAttr}">Trade %</label>
-                            <select class="form-select pv-selectCompact pv-selectTrade" id="pv-trade-${idAttr}">
-                                ${tradePercentOptions}
-                            </select>
-                        </div>
-                `;
-
-            const conditionFieldHtml = enableDexTrackingControls
-                ? `
-                        <div class="pv-form__field pv-conditionField" id="pv-condition-field-${idAttr}" style="margin-bottom:0.5rem" ${showConditionField ? '' : 'hidden'}>
-                            <label class="form-label" for="pv-condition-${idAttr}">Condition</label>
-                            <select class="form-select pv-selectCompact pv-selectCondition" id="pv-condition-${idAttr}">
-                                ${conditionOptions}
-                            </select>
-                        </div>
-                `
-                : '';
-
-            const nameHtml = escapeHtml(name);
-            const nameAttr = escapeAttr(name);
-            const rarityHtml = escapeHtml(rarity);
-            const setNameHtml = escapeHtml(setName);
-            const favLabelAttr = escapeAttr(favLabel);
-            const removeLabelAttr = escapeAttr(removeLabel);
-            const imgUrlAttr = escapeAttr(imgUrl);
             const detailPath = buildCardDetailPath(card);
-            const detailPathAttr = escapeAttr(detailPath);
-            const moreActionsLabelAttr = escapeAttr('More card actions');
             const dexCardClass = isDexPage ? ' pv-dexCard pv-dexCard--search' : '';
 
             col.setAttribute('data-card-id', id);
             col.setAttribute('data-card-name', name);
 
-            col.innerHTML = `
-                <div class="pv-card h-100${dexCardClass}">
-                    ${imgUrl ? `<a class="pv-card__imgLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details"><img class="pv-card__img" src="${imgUrlAttr}" alt="${nameAttr} card image"/></a>` : ''}
-                    <div class="pv-card__body">
-                        <div class="pv-card__header">
-                            <div class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${nameHtml}</a></div>
-                            <div class="pv-card__actions" role="group" aria-label="Card actions">
-                                <button id="pv-fav-${idAttr}" class="pv-fav-btn" type="button" aria-label="${favLabelAttr}" aria-pressed="${fav ? 'true' : 'false'}" title="${favLabelAttr}">${favSymbol}</button>
-                                ${!isDexPage && enableDexTrackingControls
-                                    ? `<button id="pv-dex-add-${idAttr}" class="pv-fav-btn" type="button" aria-label="${escapeAttr(dexAddLabel)}" aria-pressed="${inDexCollection ? 'true' : 'false'}" title="${escapeAttr(dexAddLabel)}">${inDexCollection ? '✓' : '+'}</button>`
-                                    : ''}
-                                <details class="pv-card__actionsMore">
-                                    <summary class="pv-card__moreBtn" aria-label="${moreActionsLabelAttr}" title="${moreActionsLabelAttr}">
-                                        <span aria-hidden="true">...</span>
-                                    </summary>
-                                    <div class="pv-card__actionsMenu">
-                                        <button id="pv-share-${idAttr}" class="pv-share-btn pv-share-btn--menu" type="button" aria-label="Share card link" title="Share card link">
-                                            <svg class="pv-share-btn__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                <path d="M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z"></path>
-                                            </svg>
-                                            <span class="pv-card__actionLabel">Share</span>
-                                        </button>
-                                        ${enableDexTrackingControls
-                                            ? `<button id="pv-dex-remove-${idAttr}" class="pv-dex-remove-btn pv-dex-remove-btn--menu" type="button" aria-label="${removeLabelAttr}" title="${removeLabelAttr}" ${inDexCollection ? '' : 'disabled'}><span class="pv-card__actionGlyph" aria-hidden="true">-</span><span class="pv-card__actionLabel">Remove copy</span></button>`
-                                            : ''}
-                                    </div>
-                                </details>
-                            </div>
-                        </div>
-                        <p class="pv-card__text pv-dexCard__setName pv-card__setName">${setNameHtml}</p>
-                        <p class="pv-card__text pv-dexCard__meta pv-card__rarity">${rarity ? rarityHtml : 'n/a'}</p>
-                        <div class="pv-form__field" style="margin-bottom:0.5rem">
-                            <label class="form-label" for="pv-variant-${idAttr}">Variant</label>
-                            <select class="form-select pv-selectCompact pv-selectVariant" id="pv-variant-${idAttr}" ${variants.length ? '' : 'disabled'}>
-                                ${variantOptions}
-                            </select>
-                        </div>
-                        ${conditionFieldHtml}
-                        ${tradeFieldHtml}
-                        <div class="pv-card__text pv-dexCard__prices pv-card__prices" id="pv-prices-${idAttr}" aria-live="polite"></div>
-                    </div>
-                </div>
-            `;
+            const cardEl = document.createElement('div');
+            cardEl.className = `pv-card h-100${dexCardClass}`;
+            if (imgUrl) {
+                const imageLink = document.createElement('a');
+                imageLink.className = 'pv-card__imgLink';
+                imageLink.href = detailPath;
+                imageLink.setAttribute('aria-label', `View ${name} details`);
+                const image = document.createElement('img');
+                image.className = 'pv-card__img';
+                image.src = imgUrl;
+                image.alt = `${name} card image`;
+                imageLink.appendChild(image);
+                cardEl.appendChild(imageLink);
+            }
 
-            // Declare these after col.innerHTML so the elements exist
-            const selectEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-variant-${CSS.escape(id)}`));
-            const conditionEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-condition-${CSS.escape(id)}`));
-            const conditionFieldWrapEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-condition-field-${CSS.escape(id)}`));
-            const tradeEl = /** @type {HTMLSelectElement|null} */ (col.querySelector(`#pv-trade-${CSS.escape(id)}`));
-            const pricesEl = /** @type {HTMLElement|null} */ (col.querySelector(`#pv-prices-${CSS.escape(id)}`));
-            const shareBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-share-${CSS.escape(id)}`));
-            const favBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-fav-${CSS.escape(id)}`));
-            const dexAddBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-add-${CSS.escape(id)}`));
-            const removeBtn = /** @type {HTMLButtonElement|null} */ (col.querySelector(`#pv-dex-remove-${CSS.escape(id)}`));
-            const actionsMoreEl = /** @type {HTMLDetailsElement|null} */ (col.querySelector('.pv-card__actionsMore'));
+            const body = document.createElement('div');
+            body.className = 'pv-card__body';
+            const header = document.createElement('div');
+            header.className = 'pv-card__header';
+            const title = document.createElement('div');
+            title.className = 'pv-card__title';
+            const titleLink = document.createElement('a');
+            titleLink.className = 'pv-card__titleLink';
+            titleLink.href = detailPath;
+            titleLink.setAttribute('aria-label', `View ${name} details`);
+            titleLink.textContent = name;
+            title.appendChild(titleLink);
+
+            const actions = document.createElement('div');
+            actions.className = 'pv-card__actions';
+            actions.setAttribute('role', 'group');
+            actions.setAttribute('aria-label', 'Card actions');
+            const favBtn = document.createElement('button');
+            favBtn.id = `pv-fav-${id}`;
+            favBtn.className = 'pv-fav-btn';
+            favBtn.type = 'button';
+            favBtn.setAttribute('aria-label', favLabel);
+            favBtn.setAttribute('aria-pressed', fav ? 'true' : 'false');
+            favBtn.title = favLabel;
+            favBtn.textContent = favSymbol;
+            actions.appendChild(favBtn);
+
+            let dexAddBtn = null;
+            if (!isDexPage && enableDexTrackingControls) {
+                dexAddBtn = document.createElement('button');
+                dexAddBtn.id = `pv-dex-add-${id}`;
+                dexAddBtn.className = 'pv-fav-btn';
+                dexAddBtn.type = 'button';
+                dexAddBtn.setAttribute('aria-label', dexAddLabel);
+                dexAddBtn.setAttribute('aria-pressed', inDexCollection ? 'true' : 'false');
+                dexAddBtn.title = dexAddLabel;
+                dexAddBtn.textContent = inDexCollection ? '✓' : '+';
+                actions.appendChild(dexAddBtn);
+            }
+
+            const actionsMoreEl = document.createElement('details');
+            actionsMoreEl.className = 'pv-card__actionsMore';
+            const actionsSummary = document.createElement('summary');
+            actionsSummary.className = 'pv-card__moreBtn';
+            actionsSummary.setAttribute('aria-label', 'More card actions');
+            actionsSummary.title = 'More card actions';
+            const summaryGlyph = createTextElement('span', '', '...');
+            summaryGlyph.setAttribute('aria-hidden', 'true');
+            actionsSummary.appendChild(summaryGlyph);
+            const actionsMenu = document.createElement('div');
+            actionsMenu.className = 'pv-card__actionsMenu';
+
+            const shareBtn = document.createElement('button');
+            shareBtn.id = `pv-share-${id}`;
+            shareBtn.className = 'pv-share-btn pv-share-btn--menu';
+            shareBtn.type = 'button';
+            shareBtn.setAttribute('aria-label', 'Share card link');
+            shareBtn.title = 'Share card link';
+            const shareIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            shareIcon.setAttribute('class', 'pv-share-btn__icon');
+            shareIcon.setAttribute('viewBox', '0 0 24 24');
+            shareIcon.setAttribute('aria-hidden', 'true');
+            shareIcon.setAttribute('focusable', 'false');
+            const sharePath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            sharePath.setAttribute('d', 'M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z');
+            shareIcon.appendChild(sharePath);
+            shareBtn.append(shareIcon, createTextElement('span', 'pv-card__actionLabel', 'Share'));
+            actionsMenu.appendChild(shareBtn);
+
+            let tradeBtn = null;
+            if (!isDexPage && tradeEnabled) {
+                const alreadyInTrade = isInTrade(id);
+                tradeBtn = document.createElement('button');
+                tradeBtn.id = `pv-trade-toggle-${id}`;
+                tradeBtn.className = 'pv-share-btn pv-share-btn--menu';
+                tradeBtn.type = 'button';
+                tradeBtn.dataset.tradeCardId = id;
+                tradeBtn.dataset.tradeCardName = name;
+                tradeBtn.textContent = alreadyInTrade ? 'In Trade' : 'Add to Trade';
+                tradeBtn.setAttribute('aria-pressed', alreadyInTrade ? 'true' : 'false');
+                tradeBtn.setAttribute('aria-label', `${alreadyInTrade ? 'Remove' : 'Add'} ${name} ${alreadyInTrade ? 'from' : 'to'} Trade`);
+                actionsMenu.appendChild(tradeBtn);
+            }
+
+            let removeBtn = null;
+            if (enableDexTrackingControls) {
+                removeBtn = document.createElement('button');
+                removeBtn.id = `pv-dex-remove-${id}`;
+                removeBtn.className = 'pv-dex-remove-btn pv-dex-remove-btn--menu';
+                removeBtn.type = 'button';
+                removeBtn.setAttribute('aria-label', removeLabel);
+                removeBtn.title = removeLabel;
+                removeBtn.disabled = !inDexCollection;
+                const removeGlyph = createTextElement('span', 'pv-card__actionGlyph', '-');
+                removeGlyph.setAttribute('aria-hidden', 'true');
+                removeBtn.append(removeGlyph, createTextElement('span', 'pv-card__actionLabel', 'Remove copy'));
+                actionsMenu.appendChild(removeBtn);
+            }
+            actionsMoreEl.append(actionsSummary, actionsMenu);
+            actions.appendChild(actionsMoreEl);
+            header.append(title, actions);
+            body.append(
+                header,
+                createTextElement('p', 'pv-card__text pv-dexCard__setName pv-card__setName', setName),
+                createTextElement('p', 'pv-card__text pv-dexCard__meta pv-card__rarity', rarity || 'n/a')
+            );
+
+            const variantField = document.createElement('div');
+            variantField.className = 'pv-form__field';
+            variantField.style.marginBottom = '0.5rem';
+            const variantLabel = createTextElement('label', 'form-label', 'Variant');
+            variantLabel.htmlFor = `pv-variant-${id}`;
+            const selectEl = document.createElement('select');
+            selectEl.id = `pv-variant-${id}`;
+            selectEl.className = 'form-select pv-selectCompact pv-selectVariant';
+            selectEl.disabled = variants.length === 0;
+            selectEl.appendChild(createSelectOption('', variants.length ? 'Select a holo type' : 'No variants', false));
+            for (const variant of variants) {
+                selectEl.appendChild(createSelectOption(String(variant), formatVariantDisplayName(variant), false));
+            }
+            selectEl.title = formatVariantDisplayName(restoredSelection?.holoType || '');
+            variantField.append(variantLabel, selectEl);
+            body.appendChild(variantField);
+
+            const pricingDetails = isDexPage ? document.createElement('details') : null;
+            if (pricingDetails) {
+                pricingDetails.className = 'pv-dexCard__pricingDetails';
+                const pricingSummary = document.createElement('summary');
+                pricingSummary.className = 'pv-dexCard__pricingSummary';
+                pricingSummary.appendChild(createTextElement('span', '', 'Values'));
+                pricingDetails.appendChild(pricingSummary);
+            }
+
+            let conditionFieldWrapEl = null;
+            let conditionEl = null;
+            if (enableDexTrackingControls) {
+                conditionFieldWrapEl = document.createElement('div');
+                conditionFieldWrapEl.id = `pv-condition-field-${id}`;
+                conditionFieldWrapEl.className = 'pv-form__field pv-conditionField';
+                conditionFieldWrapEl.style.marginBottom = '0.5rem';
+                conditionFieldWrapEl.hidden = !showConditionField;
+                const conditionLabel = createTextElement('label', 'form-label', 'Condition');
+                conditionLabel.htmlFor = `pv-condition-${id}`;
+                conditionEl = document.createElement('select');
+                conditionEl.id = `pv-condition-${id}`;
+                conditionEl.className = 'form-select pv-selectCompact pv-selectCondition';
+                conditionEl.appendChild(createSelectOption('', 'Select condition', false));
+                for (const condition of DEX_CARD_CONDITIONS) {
+                    const label = condition === 'NM'
+                        ? 'Near Mint (NM)'
+                        : condition === 'LP'
+                            ? 'Lightly Played (LP)'
+                            : condition === 'MP'
+                                ? 'Moderately Played (MP)'
+                                : condition === 'HP'
+                                    ? 'Heavily Played (HP)'
+                                    : 'Damaged (DM)';
+                    conditionEl.appendChild(createSelectOption(condition, label, selectedDexCondition === condition));
+                }
+                conditionFieldWrapEl.append(conditionLabel, conditionEl);
+                body.appendChild(conditionFieldWrapEl);
+            }
+
+            let tradeEl = null;
+            if (!isDexPage) {
+                const tradeField = document.createElement('div');
+                tradeField.className = 'pv-form__field';
+                tradeField.style.marginBottom = '0.5rem';
+                const tradeLabel = createTextElement('label', 'form-label', 'Trade %');
+                tradeLabel.htmlFor = `pv-trade-${id}`;
+                tradeEl = document.createElement('select');
+                tradeEl.id = `pv-trade-${id}`;
+                tradeEl.className = 'form-select pv-selectCompact pv-selectTrade';
+                tradeEl.replaceChildren(...TRADE_PERCENT_CHOICES.map((p) => createSelectOption(String(p), `${p}%`, p === restoredTradePercent)));
+                tradeField.append(tradeLabel, tradeEl);
+                body.appendChild(tradeField);
+            }
+
+            const pricesEl = document.createElement('div');
+            pricesEl.id = `pv-prices-${id}`;
+            pricesEl.className = 'pv-card__text pv-dexCard__prices pv-card__prices';
+            pricesEl.setAttribute('aria-live', 'polite');
+            if (pricingDetails) {
+                pricingDetails.appendChild(pricesEl);
+                body.appendChild(pricingDetails);
+            } else {
+                body.appendChild(pricesEl);
+            }
+            cardEl.appendChild(body);
+            col.appendChild(cardEl);
 
             if (shareBtn) {
                 shareBtn.addEventListener('click', () => {
                     if (actionsMoreEl) actionsMoreEl.open = false;
                     void shareCardLink(card);
+                });
+            }
+
+            if (tradeBtn) {
+                tradeBtn.addEventListener('click', () => {
+                    if (actionsMoreEl) actionsMoreEl.open = false;
+                    toggleTradeCard(card, selectEl?.value || lastLoadedVariantName, lastLoadedPrices, tradeBtn);
                 });
             }
 
@@ -4851,6 +5686,7 @@ document.addEventListener('DOMContentLoaded', function () {
             async function showPricesForSelectedVariant() {
                 if (!selectEl || !pricesEl) return;
                 const variantName = selectEl.value;
+                selectEl.title = formatVariantDisplayName(variantName);
                 if (!variantName) {
                     setCardPricesDisplay(pricesEl, variants.length ? 'Select a holo type to load prices.' : '');
                     return;
@@ -4969,20 +5805,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         selectEl.value = String(variants[0]);
                         void showPricesForSelectedVariant();
                     } else {
-                    // If prices are already present in the card payload, pick the best-valued variant
+                    // If prices are already present in the card payload, prefer a base variant
                     // and show it immediately (useful for top-by-expansion lists).
-                    let bestVariant = '';
-                    let bestMarket = null;
-                    for (const v of variantsFull) {
-                        const vName = String(v?.name || '');
-                        const vPrices = Array.isArray(v?.prices) ? v.prices : null;
-                        const market = getMarketFromPricesForTotals(vPrices);
-                        if (!vName || market == null) continue;
-                        if (bestMarket == null || market > bestMarket) {
-                            bestMarket = market;
-                            bestVariant = vName;
-                        }
-                    }
+                    const bestVariantData = getBestVariantWithPrices(variantsFull);
+                    const bestVariant = safeString(bestVariantData?.name, '');
 
                     if (bestVariant && variants.includes(bestVariant)) {
                         selectEl.value = bestVariant;
@@ -4992,7 +5818,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         lastLoadedPrices = p;
                         const formatted = formatPriceList(p, getSelectedTradePercent());
                         setCardPricesDisplay(pricesEl, formatted);
-                        const market = getMarketFromPricesForTotals(p);
+                        const market = Number(bestVariantData.market);
                         setSearchCardValue(id, market);
                         if (searchSortState.active === 'value') {
                             applySearchSortToGrid();
@@ -5043,15 +5869,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const base = getWorkerBase();
 
         setStatus('Searching…');
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, 8);
 
         try {
             const queryCandidates = buildNameQueryCandidates(q).slice(0, 3);
@@ -5205,15 +6023,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const expansionClauses = [`expansion.id:${id}`, `expansion_id:${id}`, `expansion:${id}`];
 
         setStatus(`Searching ${name} in ${setName || id}...`);
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, 8);
 
         try {
             let cards = [];
@@ -5373,15 +6183,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         setStatus('Searching…');
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < Math.min(RESULT_LIMIT, 12); i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, Math.min(RESULT_LIMIT, 12));
 
         try {
             // Scrydex query: use printed_number:<value>
@@ -5594,38 +6396,47 @@ document.addEventListener('DOMContentLoaded', function () {
         return { cards, hasMore };
     }
 
-    async function searchTopByExpansion(expansionId, expansionName) {
+    function isMatchingExpansionResultSet(restored, expansionId) {
+        const requestedId = String(expansionId || '').trim().toLowerCase();
+        const restoredId = String(restored?.expansionId || '').trim().toLowerCase();
+        return Boolean(requestedId && restored?.mode === 'expansion' && restoredId === requestedId);
+    }
+
+    async function searchTopByExpansion(expansionId, expansionName, options) {
         activateDexSearchMode();
         const id = String(expansionId || '').trim();
         const name = String(expansionName || '').trim();
         if (!id) return;
+
+        const preserveExistingResults = options?.preserveExistingResults === true
+            && currentResultsCards.length > 0;
 
         resetDexSetBrowseState();
 
         const base = getWorkerBase();
         const RESULT_LIMIT = 10;
 
-        setStatus(`Loading top cards for ${name || id}…`);
-
         // Clear inputs so manual searching doesn't feel blocked.
         clearSearchInputs();
 
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < RESULT_LIMIT; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
+        if (!preserveExistingResults) {
+            searchResultsLoading = true;
+            setStatus('');
+            renderCardSkeletons(grid, RESULT_LIMIT, `Loading top cards for ${name || id}...`);
+            revealExpansionLoadingResults();
         }
 
         try {
             // This endpoint is designed to be cache-heavy (Worker + optional Upstash)
             // to avoid repeated API credit usage.
-            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en`;
-            const data = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(id)}&limit=${RESULT_LIMIT}&lang=en&variantPreference=v2`;
+            const dataPromise = fetchJsonWithCache(url, SEARCH_TTL_MS);
+            const [data] = await Promise.all([
+                dataPromise,
+                preserveExistingResults ? Promise.resolve() : waitForSearchLoadingPaint(),
+            ]);
             const cards = Array.isArray(data?.data) ? data.data : [];
+            searchResultsLoading = false;
             renderCards(cards);
 
             const label = name || id;
@@ -5647,7 +6458,10 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } catch (e) {
             console.warn('[PokeValutor] expansion top search error', e);
-            renderCards([]);
+            if (!preserveExistingResults) {
+                searchResultsLoading = false;
+                renderCards([]);
+            }
             if (isQuotaExceededError(e)) {
                 setStatusAndHideIfQuotaError(e);
             } else if (e && typeof e === 'object' && 'status' in e && Number(e.status) === 401) {
@@ -5675,15 +6489,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearSearchInputs();
         resetDexSetBrowseState();
 
-        if (grid) {
-            grid.innerHTML = '';
-            for (let i = 0; i < 10; i++) {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-6 col-md-4 col-lg-3';
-                col.innerHTML = '<div class="pv-card" style="height:260px"><div class="pv-skeleton" style="height:100%"></div></div>';
-                grid.appendChild(col);
-            }
-        }
+        renderCardSkeletons(grid, 10);
 
         try {
             const queryCandidates = [
@@ -5988,18 +6794,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (isDexPage && dexSearchPanel) {
-        setDexSearchPanelOpen(loadDexSearchPanelOpenState(), { skipPersist: true });
+        dexSearchOpenBtn?.addEventListener('click', () => {
+            setDexSearchPanelOpen(true);
+            input?.focus();
+        });
 
-        if (dexSearchPanel.getAttribute('data-bound') !== '1') {
-            dexSearchPanel.setAttribute('data-bound', '1');
-            dexSearchPanel.addEventListener('toggle', () => {
-                saveDexSearchPanelOpenState(!!dexSearchPanel.open);
-            });
-        }
+        dexSearchCloseBtn?.addEventListener('click', () => {
+            setDexSearchPanelOpen(false);
+        });
+
+        dexSearchPanel.addEventListener('click', (event) => {
+            if (event.target === dexSearchPanel) {
+                setDexSearchPanelOpen(false);
+            }
+        });
     }
 
     function clearResultsUI() {
-        if (grid) grid.innerHTML = '';
+        if (grid) grid.replaceChildren();
         if (status) status.textContent = '';
         currentResultsCards = [];
         for (const key of Object.keys(searchValueById)) {
@@ -6064,13 +6876,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (isDexPage) {
                 setDexSearchPanelOpen(false);
-                setResultsHeading('Search Results');
+                setResultsHeading('Results');
                 setDexResultsContext('Search and add cards to your collection.');
             }
         });
     }
 
     bindFavoritesSortControls();
+
+    searchToggle?.addEventListener('click', () => setSearchCollapsed(!searchContent?.hidden));
+    setSearchCollapsed(loadSearchCollapsed());
+
+    bindTradeControls();
 
     // Render Favorites immediately (persisted across refresh).
     renderFavorites(loadLastResults() || undefined);
@@ -6117,24 +6934,35 @@ document.addEventListener('DOMContentLoaded', function () {
     let deepLinkExpansionName = '';
     let deepLinkCardId = '';
     let deepLinkCardName = '';
+    let deepLinkQuery = '';
     try {
         const params = new URLSearchParams(window.location.search || '');
         deepLinkExpansionId = params.get('expansionId') || '';
         deepLinkExpansionName = params.get('expansionName') || '';
         deepLinkCardId = params.get('cardId') || '';
         deepLinkCardName = params.get('cardName') || '';
+        deepLinkQuery = params.get('query') || '';
     } catch {
         // ignore
     }
 
+    if (deepLinkExpansionId) {
+        setSearchCollapsed(false);
+    }
+
+    let restoredMatchingDeepLinkExpansion = false;
+
     if (isDexPage) {
-        setResultsHeading('Search Results');
+        setResultsHeading('Results');
         setDexResultsContext('Search and add cards to your collection.');
 
         if (deepLinkCardId) {
             void searchByCardId(deepLinkCardId, deepLinkCardName);
         } else if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+        } else if (deepLinkQuery) {
+            if (input) input.value = deepLinkQuery;
+            void searchByName(deepLinkQuery);
         } else {
             clearResultsUI();
         }
@@ -6142,7 +6970,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Restore last results after refresh.
         try {
             const restored = loadLastResults();
-            if (restored && Array.isArray(restored.cards) && restored.cards.length) {
+            const matchesDeepLinkExpansion = isMatchingExpansionResultSet(restored, deepLinkExpansionId);
+            const shouldRestoreResults = !deepLinkExpansionId || matchesDeepLinkExpansion;
+            if (shouldRestoreResults && restored && Array.isArray(restored.cards) && restored.cards.length) {
                 const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
                     ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
                     : restored.cards;
@@ -6168,6 +6998,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 renderCards(restoredCards, restoredView);
                 renderFavorites(restoredView);
+                restoredMatchingDeepLinkExpansion = matchesDeepLinkExpansion;
 
                 if (restored.cards.length > restoredCards.length) {
                     setStatus(`Restored ${restoredCards.length} of ${restored.cards.length} previous results to keep this page responsive.`);
@@ -6178,7 +7009,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error('[PokeValutor] failed to restore previous results', error);
             clearLastResults();
-            if (grid) grid.innerHTML = '';
+            if (grid) grid.replaceChildren();
             currentResultsCards = [];
             setStatus('Previous results cache was reset. Search again to continue.');
         }
@@ -6187,7 +7018,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (deepLinkCardId) {
             void searchByCardId(deepLinkCardId, deepLinkCardName);
         } else if (deepLinkExpansionId) {
-            void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+            void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName, {
+                preserveExistingResults: restoredMatchingDeepLinkExpansion,
+            });
+        } else if (deepLinkQuery) {
+            if (input) input.value = deepLinkQuery;
+            void searchByName(deepLinkQuery);
         }
     }
 

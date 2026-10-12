@@ -67,6 +67,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_COLLECTION_KEY = `${DEX_CACHE_PREFIX}collection:v1`;
     const DEX_MASTER_SETS_KEY = `${DEX_CACHE_PREFIX}masterSets:v1`;
     const DEX_OWNER_UID_KEY = `${DEX_CACHE_PREFIX}dexOwnerUid:v1`;
+    const DEX_CLOUD_REVISION_KEY = `${DEX_CACHE_PREFIX}dexCloudRevision:v1`;
+    const DEX_STATE_UPDATED_AT_KEY = `${DEX_CACHE_PREFIX}dexStateUpdatedAt:v1`;
     const DEX_COLLECTIONS_META_KEY = `${DEX_CACHE_PREFIX}collectionsMeta:v1`;
     const DEX_ACTIVE_COLLECTION_KEY = `${DEX_CACHE_PREFIX}activeCollectionId:v1`;
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -74,6 +76,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
     const HOME_LATEST_EXPANSIONS_CACHE_PREFIX = 'pv:expansions:latestEnglish:';
+    const SETS_CACHE_KEY = 'pv:sets:english:v2';
+    const SETS_LATEST_REFRESH_KEY = 'pv:sets:english:latest-refresh:v1';
     let localDexPanelVisible = false;
     let localDexBusy = false;
     let dexShareBusy = false;
@@ -186,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
             for (let i = 0; i < localStorage.length; i += 1) {
                 const key = localStorage.key(i);
                 if (!key) continue;
-                if (key.startsWith(HOME_URL_CACHE_PREFIX) || key.startsWith(HOME_LATEST_EXPANSIONS_CACHE_PREFIX)) {
+                if (key.startsWith(HOME_URL_CACHE_PREFIX) || key.startsWith(HOME_LATEST_EXPANSIONS_CACHE_PREFIX) || key === SETS_CACHE_KEY || key === SETS_LATEST_REFRESH_KEY) {
                     remove.push(key);
                 }
             }
@@ -607,7 +611,11 @@ document.addEventListener('DOMContentLoaded', function () {
             dexShareState = normalizeDexShareState(saved);
             applyDexShareUiState();
 
-            if (dexShareState.enabled) {
+            if (saved?.snapshotSyncFailed) {
+                setDexShareStatus(dexShareState.enabled
+                    ? 'Sharing was saved, but the shared snapshot could not be refreshed. Try again when your collection is available.'
+                    : 'Sharing was disabled, but old shared links may remain available until the snapshot is refreshed. Try again shortly.');
+            } else if (dexShareState.enabled) {
                 setDexShareStatus('Sharing enabled. Your read-only link is active.');
             } else {
                 setDexShareStatus('Sharing disabled. Anyone with the old link will now see that sharing is off.');
@@ -958,10 +966,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     return entryCollectionId !== selectedId;
                 });
 
-                await authApi.saveDexState({
+                const saveResult = await authApi.saveDexState({
                     collection: nextCloudCollection,
                     masterSets: (cloudState?.masterSets && typeof cloudState.masterSets === 'object') ? cloudState.masterSets : {},
+                    revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
+                    updatedAt: Date.now(),
+                    allowEmptyCollection: true,
                 });
+                if (!saveResult?.saved) {
+                    throw new Error('Your collection changed on another device. Reload and try deleting the collection again.');
+                }
+                writeDexCloudRevision(saveResult.revision);
             }
 
             const localCollection = readDexCollection();
@@ -1067,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function writeDexCollection(next) {
         try {
             localStorage.setItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
+            markDexStateUpdated();
         } catch {
             // ignore
         }
@@ -1076,6 +1092,39 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const safe = (next && typeof next === 'object' && !Array.isArray(next)) ? next : {};
             localStorage.setItem(DEX_MASTER_SETS_KEY, JSON.stringify(safe));
+            markDexStateUpdated();
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            const value = Number(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+            return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            const value = Number(updatedAt);
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(Number.isFinite(value) && value > 0 ? value : 0));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
         } catch {
             // ignore
         }
@@ -1144,18 +1193,35 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function syncDexStateToCloud() {
+    async function syncDexStateToCloud(options) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
-        if (!user || !authApi?.saveDexState) return false;
-
-        const payload = {
-            collection: readDexCollection(),
-            masterSets: readDexMasterSets(),
-        };
+        if (!user || !authApi?.saveDexState || !authApi?.loadDexState) return false;
 
         try {
-            await authApi.saveDexState(payload);
+            const cloudState = await authApi.loadDexState();
+            const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+            const localCollection = readDexCollection();
+            const payload = {
+                collection: options?.allowEmptyCollection || localCollection.length > 0
+                    ? localCollection
+                    : cloudCollection,
+                masterSets: readDexMasterSets(),
+                revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
+                updatedAt: readDexStateUpdatedAt() || Date.now(),
+                allowEmptyCollection: options?.allowEmptyCollection === true,
+            };
+            const result = await authApi.saveDexState(payload);
+            if (!result?.saved) {
+                if (result?.conflict) {
+                    writeDexCollection(Array.isArray(result.collection) ? result.collection : []);
+                    writeDexMasterSets((result.masterSets && typeof result.masterSets === 'object') ? result.masterSets : {});
+                    writeDexCloudRevision(result.revision);
+                    writeDexStateUpdatedAt(result.updatedAt);
+                }
+                return false;
+            }
+            writeDexCloudRevision(result.revision);
             return true;
         } catch {
             return false;
@@ -1647,7 +1713,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 writeDexCollection([]);
                 window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
-                const synced = await syncDexStateToCloud();
+                const synced = await syncDexStateToCloud({ allowEmptyCollection: true });
                 setDexStatus(synced ? 'Dex collection cleared and synced.' : 'Dex collection cleared on this device. Cloud sync unavailable.');
             } finally {
                 setDexButtonsDisabled(false);
@@ -1832,7 +1898,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 await window.PV_AUTH.callFunction('refreshHomeLatestSets', {});
                 const removedCount = clearHomeLatestSetsCacheEntries();
                 const noun = removedCount === 1 ? 'entry' : 'entries';
-                setAdminRefreshLatestSetsStatus(`Done. Forced a global latest-sets refresh and cleared ${removedCount} local cache ${noun}. Home will refetch fresh data on the next load.`);
+                setAdminRefreshLatestSetsStatus(`Done. Forced a global latest-sets refresh and cleared ${removedCount} local cache ${noun}. Home and Sets will refetch fresh data on the next load.`);
             } catch (error) {
                 const message = String(error?.message || 'Could not refresh Home latest sets cache.');
                 setAdminRefreshLatestSetsStatus(message);

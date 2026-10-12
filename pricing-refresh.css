@@ -1,0 +1,352 @@
+body.pv-pricingRefresh {
+  --pricing-bg: #080809;
+  --pricing-surface: #111114;
+  --pricing-surface-raised: #18181d;
+  --pricing-field: #0c0c0f;
+  --pricing-text: #f7f7f8;
+  --pricing-muted: #aaaab4;
+  --pricing-line: #2d2d37;
+  --pricing-line-strong: #4a4a56;
+  --pricing-yellow: #ffcb05;
+  --pricing-yellow-hover: #ffda3d;
+  --pricing-yellow-ink: #171300;
+  --pricing-heading: "Playfair Display", Georgia, serif;
+  --pricing-body: "DM Sans", "Space Grotesk", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(255, 203, 5, 0.08), transparent 28rem),
+    var(--pricing-bg);
+  color: var(--pricing-text);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-header {
+  border-bottom-color: var(--pricing-line);
+  background: rgba(8, 8, 9, 0.94);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+body.pv-pricingRefresh .pv-nav__list { gap: 0.25rem; }
+
+body.pv-pricingRefresh .pv-nav__link {
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+body.pv-pricingRefresh .pv-nav__link:hover,
+body.pv-pricingRefresh .pv-nav__link:focus-visible {
+  background: var(--pricing-surface);
+  color: var(--pricing-text);
+}
+
+body.pv-pricingRefresh .pv-nav__link[aria-current="page"] {
+  background: linear-gradient(135deg, #ffd34f 0%, #ffcb05 60%, #f3b800 100%);
+  border: 1px solid #ffe27f;
+  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.28);
+  color: #111111;
+  font-weight: 800;
+}
+
+body.pv-pricingRefresh .pv-navToggle,
+body.pv-pricingRefresh .pv-auth-menu__trigger {
+  border-color: transparent;
+  border-radius: 50%;
+  background: var(--pricing-surface-raised);
+}
+
+body.pv-pricingRefresh .pv-navToggle:hover,
+body.pv-pricingRefresh .pv-navToggle:focus-visible,
+body.pv-pricingRefresh .pv-auth-menu__trigger:hover,
+body.pv-pricingRefresh .pv-auth-menu__trigger[aria-expanded="true"] {
+  border-color: var(--pricing-yellow);
+  color: var(--pricing-yellow);
+}
+
+body.pv-pricingRefresh .pv-main {
+  min-height: calc(100vh - 5rem);
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+
+body.pv-pricingRefresh .pv-main::before { display: none; }
+
+body.pv-pricingRefresh .pv-hero,
+body.pv-pricingRefresh .pv-section {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+}
+
+body.pv-pricingRefresh .pv-pricingHero {
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 2rem) 0 clamp(1.2rem, 3vw, 2rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.pv-pricingRefresh .pv-pricingHero__copy { gap: 0.85rem; }
+
+body.pv-pricingRefresh .pv-pricingHero__eyebrow,
+body.pv-pricingRefresh .pv-pricingPlansShell__eyebrow,
+body.pv-pricingRefresh .pv-pricingFinal__eyebrow {
+  color: var(--pricing-yellow);
+  font-family: var(--pricing-body);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+body.pv-pricingRefresh .pv-pricingHero .pv-hero__title {
+  max-width: 25ch;
+  margin: 0;
+  color: var(--pricing-text);
+  font-family: var(--pricing-heading);
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+body.pv-pricingRefresh .pv-pricingHero .pv-hero__subtitle {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.55;
+}
+
+body.pv-pricingRefresh .pv-pricingHero__actions,
+body.pv-pricingRefresh .pv-pricingFinal__actions {
+  gap: 0.65rem;
+}
+
+body.pv-pricingRefresh .pv-pricingStatus {
+  max-width: 42rem;
+  margin: 0;
+  border: 1px solid var(--pricing-line);
+  border-radius: 0.7rem;
+  background: rgba(12, 12, 15, 0.7);
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+  font-size: 0.88rem;
+}
+
+body.pv-pricingRefresh .pv-pricingOffer {
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  border-radius: 1rem;
+  padding: 1.15rem;
+  background: linear-gradient(145deg, rgba(12, 74, 110, 0.3), rgba(12, 12, 15, 0.96) 62%);
+  box-shadow: none;
+}
+
+body.pv-pricingRefresh .pv-pricingOffer__tag {
+  border-color: rgba(56, 189, 248, 0.56);
+  background: rgba(12, 74, 110, 0.38);
+  color: #bae6fd;
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingOffer__title {
+  color: var(--pricing-text);
+  font-family: var(--pricing-heading);
+  font-size: 1.25rem;
+}
+
+body.pv-pricingRefresh .pv-pricingOffer__text,
+body.pv-pricingRefresh .pv-pricingOffer__list {
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-section {
+  margin-top: clamp(1.5rem, 3.5vw, 2.3rem);
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--pricing-line);
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(12, 12, 15, 0.98));
+  box-shadow: none;
+}
+
+body.pv-pricingRefresh .pv-section__title {
+  margin: 0 0 0.85rem;
+  color: var(--pricing-yellow);
+  font-family: var(--pricing-heading);
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+body.pv-pricingRefresh .pv-pricingPreview__grid {
+  gap: 0.85rem;
+  margin-top: 1.15rem;
+}
+
+body.pv-pricingRefresh .pv-pricingPreviewCard {
+  min-height: 0;
+  padding: 1rem;
+  border: 1px solid var(--pricing-line);
+  border-radius: 0.85rem;
+  background: rgba(8, 8, 9, 0.64);
+  box-shadow: none;
+}
+
+body.pv-pricingRefresh .pv-pricingPreviewCard__title {
+  color: var(--pricing-yellow);
+  font-family: var(--pricing-heading);
+  font-size: 1.1rem;
+}
+
+body.pv-pricingRefresh .pv-pricingPreviewCard__text,
+body.pv-pricingRefresh .pv-pricingPlan__subtitle,
+body.pv-pricingRefresh .pv-pricingPlan__list,
+body.pv-pricingRefresh .pv-pricingPlan__roadmap {
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingPlansShell {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(12, 12, 15, 0.98));
+}
+
+body.pv-pricingRefresh .pv-pricingPlansShell__eyebrow {
+  margin: 0 0 0.4rem;
+}
+
+body.pv-pricingRefresh .pv-pricingPlansGrid { gap: 0.85rem; }
+
+body.pv-pricingRefresh .pv-pricingPlan {
+  gap: 0.8rem;
+  padding: 1.15rem;
+  border: 1px solid var(--pricing-line-strong);
+  border-radius: 0.9rem;
+  background: rgba(8, 8, 9, 0.7);
+  box-shadow: none;
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--free {
+  border-color: var(--pricing-line-strong);
+  background: rgba(8, 8, 9, 0.7);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--premium {
+  border-color: rgba(255, 203, 5, 0.7);
+  background: linear-gradient(145deg, rgba(56, 44, 8, 0.64), rgba(8, 8, 9, 0.86) 58%);
+  box-shadow: 0 0 0 1px rgba(255, 203, 5, 0.12), 0 0 24px rgba(255, 203, 5, 0.16);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__promo {
+  margin: -1.15rem -1.15rem 0;
+  border-radius: 0.85rem 0.85rem 0 0;
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__title,
+body.pv-pricingRefresh .pv-pricingFinal__title {
+  color: var(--pricing-text);
+  font-family: var(--pricing-heading);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__title { font-size: 1.85rem; }
+
+body.pv-pricingRefresh .pv-pricingPlan__price,
+body.pv-pricingRefresh .pv-pricingPlan__price--offer strong {
+  color: var(--pricing-text);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__price > span,
+body.pv-pricingRefresh .pv-pricingPlan__priceNote,
+body.pv-pricingRefresh .pv-pricingPlan__priceWas {
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__badge {
+  border-color: var(--pricing-line-strong);
+  background: var(--pricing-surface-raised);
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__badge--premium {
+  border-color: rgba(255, 203, 5, 0.54);
+  background: rgba(255, 203, 5, 0.12);
+  color: var(--pricing-yellow);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__list li::before {
+  border-color: var(--pricing-line-strong);
+  background: var(--pricing-surface-raised);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--premium .pv-pricingPlan__list li::before {
+  background: var(--pricing-yellow);
+  color: var(--pricing-yellow-ink);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan .pv-button,
+body.pv-pricingRefresh .pv-button {
+  min-height: 2.85rem;
+  border-radius: 0.7rem;
+  font-family: var(--pricing-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--free .pv-button--secondary,
+body.pv-pricingRefresh .pv-button--secondary {
+  border-color: var(--pricing-line-strong);
+  background: var(--pricing-surface-raised);
+  color: var(--pricing-text);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--free .pv-button--secondary:hover,
+body.pv-pricingRefresh .pv-button--secondary:hover,
+body.pv-pricingRefresh .pv-button--secondary:focus-visible {
+  border-color: #666673;
+  background: #202027;
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--premium .pv-button--primary,
+body.pv-pricingRefresh .pv-button--primary {
+  border-color: #c79b00;
+  background: var(--pricing-yellow);
+  color: var(--pricing-yellow-ink);
+  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.16);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan--premium .pv-button--primary:hover,
+body.pv-pricingRefresh .pv-button--primary:hover,
+body.pv-pricingRefresh .pv-button--primary:focus-visible {
+  background: var(--pricing-yellow-hover);
+}
+
+body.pv-pricingRefresh .pv-pricingPlan__roadmapTitle {
+  color: var(--pricing-yellow);
+  font-family: var(--pricing-body);
+}
+
+body.pv-pricingRefresh .pv-pricingFinal {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid rgba(255, 203, 5, 0.32);
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, rgba(56, 44, 8, 0.64), rgba(12, 12, 15, 0.96) 62%);
+}
+
+@media (max-width: 640px) {
+  body.pv-pricingRefresh .pv-pricingHero,
+  body.pv-pricingRefresh .pv-pricingPlansShell,
+  body.pv-pricingRefresh .pv-pricingFinal,
+  body.pv-pricingRefresh .pv-section {
+    border-radius: 0.85rem;
+  }
+}

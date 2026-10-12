@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const quotaCtaEl = /** @type {HTMLAnchorElement|null} */ (document.getElementById('pv-quota-cta'));
 
     const CACHE_PREFIX = 'pv:scrydex:sealed:';
+    const SEARCH_CACHE_VERSION = 'v3';
     const SEARCH_TTL_MS = 12 * 60 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_INTERVAL_MS = 8 * 60 * 60 * 1000;
     const WATCHLIST_MARKET_REFRESH_LIMIT = 24;
@@ -77,6 +78,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const LEGACY_FAVORITES_COLLAPSED_KEY = `${CACHE_PREFIX}favoritesCollapsed:v1`;
     const DEX_COLLECTION_KEY = 'pv:scrydex:collection:v1';
     const DEX_MASTER_SETS_KEY = 'pv:scrydex:masterSets:v1';
+    const DEX_CLOUD_REVISION_KEY = 'pv:scrydex:dexCloudRevision:v1';
+    const DEX_STATE_UPDATED_AT_KEY = 'pv:scrydex:dexStateUpdatedAt:v1';
     const DEX_ACTIVE_COLLECTION_KEY = 'pv:scrydex:activeCollectionId:v1';
     const DEX_COLLECTIONS_META_KEY = 'pv:scrydex:collectionsMeta:v1';
     const DEX_DEFAULT_COLLECTION_ID = 'default';
@@ -100,6 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
         valueDir: 'desc',
     };
     const sealedFavoriteRefreshInFlight = new Set();
+    const pendingWatchlistRemovals = new Set();
+    const watchlistCloudMutationQueues = new Map();
     /** @type {Record<string, number>} */
     const sealedValueById = {};
     let currentSearchQuery = '';
@@ -702,12 +707,17 @@ document.addEventListener('DOMContentLoaded', function () {
         sealedCollectionContextMeta = normalized;
         if (!sealedCollectionSelectEl) return;
 
-        sealedCollectionSelectEl.innerHTML = normalized.collections.map((entry) => {
+        const options = normalized.collections.map((entry) => {
+            const option = document.createElement('option');
             const label = entry.id === DEX_DEFAULT_COLLECTION_ID
                 ? `${entry.name} (Master Sets)`
                 : entry.name;
-            return `<option value="${escapeAttr(entry.id)}">${escapeHtml(label)}</option>`;
-        }).join('');
+            option.value = entry.id;
+            option.textContent = label;
+            option.selected = entry.id === normalized.activeCollectionId;
+            return option;
+        });
+        sealedCollectionSelectEl.replaceChildren(...options);
         sealedCollectionSelectEl.value = normalized.activeCollectionId;
     }
 
@@ -993,6 +1003,46 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function readDexCloudRevision() {
+        try {
+            return Math.max(0, Math.floor(Number(localStorage.getItem(DEX_CLOUD_REVISION_KEY)) || 0));
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexCloudRevision(revision) {
+        try {
+            localStorage.setItem(DEX_CLOUD_REVISION_KEY, String(Math.max(0, Math.floor(Number(revision) || 0))));
+        } catch {
+            // ignore
+        }
+    }
+
+    function readDexStateUpdatedAt() {
+        try {
+            const value = Number(localStorage.getItem(DEX_STATE_UPDATED_AT_KEY));
+            return Number.isFinite(value) && value > 0 ? value : 0;
+        } catch {
+            return 0;
+        }
+    }
+
+    function writeDexStateUpdatedAt(updatedAt) {
+        try {
+            const value = Number(updatedAt);
+            localStorage.setItem(DEX_STATE_UPDATED_AT_KEY, String(Number.isFinite(value) && value > 0 ? value : 0));
+        } catch {
+            // ignore
+        }
+    }
+
+    function markDexStateUpdated() {
+        const nextUpdatedAt = Math.max(Date.now(), readDexStateUpdatedAt() + 1);
+        writeDexStateUpdatedAt(nextUpdatedAt);
+        return nextUpdatedAt;
+    }
+
     function writeCriticalStorageItem(key, serialized) {
         if (storageUtil?.writeCriticalStorageItem) {
             return storageUtil.writeCriticalStorageItem({
@@ -1012,7 +1062,49 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw) {
+    let sealedCollectionCloudSyncPromise = Promise.resolve();
+
+    function isMatchingSealedCloudEntry(item, id, collectionId) {
+        return normalizeCollectionItemType(item?.itemType) === 'sealed'
+            && safeString(item?.id, '').trim() === id
+            && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === collectionId;
+    }
+
+    function resolveNextSealedQuantity(currentCloudEntry, requestedQuantity, quantityDelta) {
+        const currentCloudQuantity = currentCloudEntry
+            ? normalizeSealedQuantity(currentCloudEntry?.quantity ?? currentCloudEntry?.sealedQuantity, 1)
+            : 0;
+        if (Number.isFinite(quantityDelta) && quantityDelta !== 0) {
+            return Math.max(0, currentCloudQuantity + quantityDelta);
+        }
+        return requestedQuantity;
+    }
+
+    function handleSealedCloudSyncResult(result, submittedUpdatedAt) {
+        if (!result || typeof result !== 'object') return;
+
+        if (result.saved) {
+            writeDexCloudRevision(result.revision);
+            if (readDexStateUpdatedAt() <= submittedUpdatedAt) {
+                writeDexStateUpdatedAt(result.updatedAt);
+            }
+            return;
+        }
+        if (!result.conflict) return;
+
+        writeDexCollection(Array.isArray(result.collection) ? result.collection : [], {
+            preserveUpdatedAt: true,
+        });
+        const masterSets = (result.masterSets && typeof result.masterSets === 'object')
+            ? result.masterSets
+            : {};
+        writeCriticalStorageItem(DEX_MASTER_SETS_KEY, JSON.stringify(masterSets));
+        writeDexCloudRevision(result.revision);
+        writeDexStateUpdatedAt(result.updatedAt);
+        setSealedCollectionStatus('A newer collection was found in cloud sync. This page was refreshed without overwriting it.');
+    }
+
+    function syncSealedCollectionInCloud(entryOrId, nextQuantityRaw, quantityDeltaRaw) {
         const authApi = window?.PV_AUTH;
         const user = authApi?.getUser ? authApi.getUser() : null;
         if (!user || !authApi?.saveDexState || !authApi?.loadDexState) return;
@@ -1021,18 +1113,32 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!id) return;
         const activeCollectionId = normalizeDexCollectionId(entryOrId?.collectionId, getActiveDexCollectionId());
 
-        const nextQuantity = normalizeSealedQuantity(nextQuantityRaw, 0);
-        const normalized = nextQuantity > 0
-            ? normalizeSealedCollectionProduct({ ...entryOrId, collectionId: activeCollectionId, quantity: nextQuantity, updatedAt: Date.now() })
-            : null;
+        const requestedQuantity = normalizeSealedQuantity(nextQuantityRaw, 0);
+        const quantityDelta = Math.floor(Number(quantityDeltaRaw));
 
-        Promise.resolve(authApi.loadDexState())
+        sealedCollectionCloudSyncPromise = sealedCollectionCloudSyncPromise
+            .catch(() => {
+                // keep later quantity changes moving after a transient failure
+            })
+            .then(() => authApi.loadDexState())
             .then((cloudState) => {
                 const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+                const currentCloudEntry = cloudCollection.find((item) => {
+                    return isMatchingSealedCloudEntry(item, id, activeCollectionId);
+                }) || null;
+                const nextQuantity = resolveNextSealedQuantity(currentCloudEntry, requestedQuantity, quantityDelta);
+                const normalized = nextQuantity > 0
+                    ? normalizeSealedCollectionProduct({
+                        ...(currentCloudEntry || {}),
+                        ...entryOrId,
+                        collectionId: activeCollectionId,
+                        quantity: nextQuantity,
+                        addedAt: currentCloudEntry?.addedAt ?? entryOrId?.addedAt,
+                        updatedAt: Date.now(),
+                    })
+                    : null;
                 const nextCollection = cloudCollection.filter((item) => {
-                    return !(normalizeCollectionItemType(item?.itemType) === 'sealed'
-                        && safeString(item?.id, '').trim() === id
-                        && normalizeDexCollectionId(item?.collectionId, DEX_DEFAULT_COLLECTION_ID) === activeCollectionId);
+                    return !isMatchingSealedCloudEntry(item, id, activeCollectionId);
                 });
 
                 if (normalized) {
@@ -1043,17 +1149,25 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? cloudState.masterSets
                     : readDexMasterSets();
 
-                return authApi.saveDexState({
+                const payload = {
                     collection: nextCollection,
                     masterSets,
-                });
+                    revision: Math.max(0, Math.floor(Number(cloudState?.revision) || 0)),
+                    updatedAt: readDexStateUpdatedAt() || Date.now(),
+                    intentionalEmptyCollection: !normalized && nextCollection.length === 0,
+                };
+                return Promise.resolve(authApi.saveDexState(payload))
+                    .then((result) => ({ result, submittedUpdatedAt: payload.updatedAt }));
+            })
+            .then(({ result, submittedUpdatedAt }) => {
+                handleSealedCloudSyncResult(result, submittedUpdatedAt);
             })
             .catch(() => {
-                // ignore
+                setSealedCollectionStatus('Your sealed item was saved locally, but cloud sync failed. Your existing cloud collection was not changed.');
             });
     }
 
-    function writeDexCollection(next) {
+    function writeDexCollection(next, options) {
         let persisted = false;
         try {
             persisted = writeCriticalStorageItem(DEX_COLLECTION_KEY, JSON.stringify(Array.isArray(next) ? next : []));
@@ -1062,6 +1176,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (!persisted) return false;
+
+        if (!options?.preserveUpdatedAt) {
+            markDexStateUpdated();
+        }
 
         try {
             window.dispatchEvent(new CustomEvent('pv:dex-state-changed'));
@@ -1124,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!writeDexCollection(next)) {
                     return { changed: false, quantity: currentQty, storageWriteFailed: true };
                 }
-                syncSealedCollectionInCloud(removed, 0);
+                syncSealedCollectionInCloud(removed, 0, qtyDelta);
                 return { changed: true, quantity: 0, storageWriteFailed: false };
             }
 
@@ -1140,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!writeDexCollection(list)) {
                 return { changed: false, quantity: currentQty, storageWriteFailed: true };
             }
-            syncSealedCollectionInCloud(updated, nextQty);
+            syncSealedCollectionInCloud(updated, nextQty, qtyDelta);
             return { changed: true, quantity: nextQty, storageWriteFailed: false };
         }
 
@@ -1153,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!writeDexCollection(list)) {
             return { changed: false, quantity: currentQty, storageWriteFailed: true };
         }
-        syncSealedCollectionInCloud(normalized, nextQty);
+        syncSealedCollectionInCloud(normalized, nextQty, qtyDelta);
         return { changed: true, quantity: nextQty, storageWriteFailed: false };
     }
 
@@ -1206,6 +1324,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function queueWatchlistCloudMutation(id, mutation) {
+        const key = normalizeWatchlistId(id);
+        const previous = watchlistCloudMutationQueues.get(key) || Promise.resolve();
+        const next = previous.catch(() => {}).then(mutation);
+        watchlistCloudMutationQueues.set(key, next);
+        void next.catch(() => {}).finally(() => {
+            if (watchlistCloudMutationQueues.get(key) === next) {
+                watchlistCloudMutationQueues.delete(key);
+            }
+        });
+        return next;
+    }
+
+    function normalizeWatchlistId(rawId) {
+        return String(rawId ?? '').trim();
+    }
+
     /** @type {Array<any>} */
     let favorites = loadFavorites();
 
@@ -1247,24 +1382,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderProducts(currentResultsProducts);
                     return;
                 }
-                const localSnapshot = Array.isArray(favorites) ? favorites.slice() : loadFavorites();
-
                 Promise.resolve(window.PV_AUTH.loadWatchlist('sealed'))
                     .then((cloudList) => {
                         if (!Array.isArray(cloudList)) return;
 
-                        favorites = mergeWatchlist(localSnapshot, cloudList);
+                        const localSnapshot = (Array.isArray(favorites) ? favorites.slice() : loadFavorites())
+                            .filter((item) => !pendingWatchlistRemovals.has(normalizeWatchlistId(item?.id)));
+                        const filteredCloudList = cloudList.filter((item) => !pendingWatchlistRemovals.has(normalizeWatchlistId(item?.id)));
+
+                        favorites = mergeWatchlist(localSnapshot, filteredCloudList);
                         saveFavorites(favorites);
 
                         // Best-effort: push any local-only items into the cloud.
                         try {
                             if (window?.PV_AUTH?.saveWatchlistItem) {
-                                const cloudIds = new Set(cloudList.map((x) => String(x?.id || '').trim()).filter(Boolean));
+                                const cloudIds = new Set(filteredCloudList.map((x) => normalizeWatchlistId(x?.id)).filter(Boolean));
                                 const toSync = localSnapshot
                                     .map(normalizeFavoriteProduct)
-                                    .filter((x) => x && x.id && !cloudIds.has(String(x.id)));
+                                    .filter((x) => {
+                                        const normalizedId = normalizeWatchlistId(x?.id);
+                                        return normalizedId && !pendingWatchlistRemovals.has(normalizedId) && !cloudIds.has(normalizedId);
+                                    });
                                 if (toSync.length) {
-                                    void Promise.allSettled(toSync.map((x) => window.PV_AUTH.saveWatchlistItem('sealed', x)));
+                                    void Promise.allSettled(toSync.map((x) => queueWatchlistCloudMutation(x.id, () => window.PV_AUTH.saveWatchlistItem('sealed', x))));
                                 }
                             }
                         } catch {
@@ -1323,19 +1463,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function isFavorite(productId) {
-        const id = String(productId || '');
-        return favorites.some((p) => String(p?.id || '') === id);
+        const id = normalizeWatchlistId(productId);
+        return favorites.some((p) => normalizeWatchlistId(p?.id) === id);
     }
 
     function toggleFavorite(product) {
-        const id = safeString(product?.id, '');
+        const id = normalizeWatchlistId(product?.id);
         if (!id) return;
 
         if (isFavorite(id)) {
-            favorites = favorites.filter((p) => String(p?.id || '') !== id);
+            favorites = favorites.filter((p) => normalizeWatchlistId(p?.id) !== id);
             try {
                 if (window?.PV_AUTH?.removeWatchlistItem) {
-                    void window.PV_AUTH.removeWatchlistItem('sealed', id);
+                    pendingWatchlistRemovals.add(normalizeWatchlistId(id));
+                    void queueWatchlistCloudMutation(id, () => window.PV_AUTH.removeWatchlistItem('sealed', id))
+                        .catch(() => {})
+                        .finally(() => pendingWatchlistRemovals.delete(normalizeWatchlistId(id)));
                 }
             } catch {
                 // ignore
@@ -1345,7 +1488,7 @@ document.addEventListener('DOMContentLoaded', function () {
             favorites = [...favorites, favObj];
             try {
                 if (window?.PV_AUTH?.saveWatchlistItem) {
-                    void window.PV_AUTH.saveWatchlistItem('sealed', favObj);
+                    void queueWatchlistCloudMutation(id, () => window.PV_AUTH.saveWatchlistItem('sealed', favObj));
                 }
             } catch {
                 // ignore
@@ -1360,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function clearFavorites() {
         const idsToRemove = favorites
-            .map((product) => safeString(product?.id, ''))
+            .map((product) => normalizeWatchlistId(product?.id))
             .filter(Boolean);
         const removedCount = idsToRemove.length;
 
@@ -1378,7 +1521,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             if (idsToRemove.length && window?.PV_AUTH?.removeWatchlistItem) {
-                const settled = await Promise.allSettled(idsToRemove.map((id) => window.PV_AUTH.removeWatchlistItem('sealed', id)));
+                idsToRemove.forEach((id) => pendingWatchlistRemovals.add(normalizeWatchlistId(id)));
+                const settled = await Promise.allSettled(idsToRemove.map((id) => queueWatchlistCloudMutation(id, () => window.PV_AUTH.removeWatchlistItem('sealed', id))));
+                idsToRemove.forEach((id) => pendingWatchlistRemovals.delete(normalizeWatchlistId(id)));
                 const failedCount = settled.filter((result) => result.status === 'rejected').length;
                 if (failedCount > 0) {
                     const noun = failedCount === 1 ? 'item' : 'items';
@@ -1414,6 +1559,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const parsed = safeParseJson(raw);
             if (!parsed || typeof parsed !== 'object') return null;
             if (!Array.isArray(parsed.products)) return null;
+            if (isUnpricedSealedSearchResponse({ data: parsed.products })) {
+                localStorage.removeItem(LAST_RESULTS_KEY);
+                return null;
+            }
             return parsed;
         } catch {
             return null;
@@ -1422,6 +1571,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function saveLastResults(next) {
         try {
+            if (isUnpricedSealedSearchResponse({ data: next?.products })) {
+                localStorage.removeItem(LAST_RESULTS_KEY);
+                return;
+            }
             localStorage.setItem(LAST_RESULTS_KEY, JSON.stringify(next));
         } catch {
             // ignore
@@ -1458,10 +1611,18 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function isUnpricedSealedSearchResponse(data) {
+        const products = Array.isArray(data?.data) ? data.data : [];
+        return products.length > 0 && !products.some((product) => getMarketQuote(product));
+    }
+
     async function fetchJsonWithCache(url, ttlMs) {
         const cacheKey = `${CACHE_PREFIX}url:${url}`;
         const cached = cacheGet(cacheKey);
-        if (cached) return cached;
+        if (cached && !isUnpricedSealedSearchResponse(cached)) return cached;
+        if (cached) {
+            try { localStorage.removeItem(cacheKey); } catch {}
+        }
 
         let headers;
         try {
@@ -1498,7 +1659,7 @@ document.addEventListener('DOMContentLoaded', function () {
             throw err;
         }
 
-        cacheSet(cacheKey, data, ttlMs);
+        if (!isUnpricedSealedSearchResponse(data)) cacheSet(cacheKey, data, ttlMs);
         return data;
     }
 
@@ -1657,6 +1818,20 @@ document.addEventListener('DOMContentLoaded', function () {
         return shown >= SEARCH_PAGE_SIZE && shown % SEARCH_PAGE_SIZE === 0;
     }
 
+    function isEnglishSealedProduct(product) {
+        const expansion = product?.expansion && typeof product.expansion === 'object' ? product.expansion : {};
+        const language = safeString(expansion.language ?? product?.language, '').trim().toLowerCase();
+        const languageCode = safeString(expansion.languageCode ?? product?.languageCode, '').trim().toLowerCase();
+        if (!language && !languageCode) return true;
+        return language === 'english' || languageCode === 'en';
+    }
+
+    function filterEnglishSealedPayload(payload) {
+        if (!payload || typeof payload !== 'object' || !Array.isArray(payload.data)) return payload;
+        const data = payload.data.filter(isEnglishSealedProduct);
+        return { ...payload, data };
+    }
+
     function updateLoadMoreButton(visible, loading) {
         if (!loadMoreBtn) return;
         const show = Boolean(visible);
@@ -1688,8 +1863,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function fetchSealedSearchPage(query, page) {
         const base = getWorkerBase();
-        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}&consumeQuota=1`;
-        return fetchJsonWithCache(url, SEARCH_TTL_MS);
+        const url = `${base}/sealed/search?q=${encodeURIComponent(query)}&page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(SEARCH_PAGE_SIZE))}&searchVersion=${SEARCH_CACHE_VERSION}&consumeQuota=1`;
+        const payload = await fetchJsonWithCache(url, SEARCH_TTL_MS);
+        return filterEnglishSealedPayload(payload);
     }
 
     function formatCurrency(value, currency) {

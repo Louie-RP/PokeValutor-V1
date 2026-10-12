@@ -67,6 +67,39 @@
     }
   }
 
+  function ensureHeaderSetsNavLink() {
+    const navLists = Array.from(document.querySelectorAll('.pv-nav__list'));
+
+    for (const navList of navLists) {
+      if (!(navList instanceof HTMLElement)) continue;
+      if (Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .some((link) => isNavLinkForPage(link, 'sets.html'))) continue;
+
+      const item = document.createElement('li');
+      const link = document.createElement('a');
+
+      item.className = 'pv-nav__item';
+      link.className = 'pv-nav__link';
+      link.href = 'sets.html';
+      link.textContent = 'Sets';
+
+      const dexLink = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .find((candidate) => isNavLinkForPage(candidate, 'dex.html'));
+      const dexItem = dexLink?.closest('.pv-nav__item');
+      const sealedLink = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'))
+        .find((candidate) => isNavLinkForPage(candidate, 'sealed.html'));
+      const sealedItem = sealedLink?.closest('.pv-nav__item');
+      item.appendChild(link);
+      if (sealedItem) {
+        navList.insertBefore(item, sealedItem.nextElementSibling);
+      } else if (dexItem) {
+        navList.insertBefore(item, dexItem);
+      } else {
+        navList.appendChild(item);
+      }
+    }
+  }
+
   // Mobile nav toggles with ARIA sync (works across pages)
   const navToggles = Array.from(document.querySelectorAll('.pv-navToggle'));
   for (const btn of navToggles) {
@@ -140,7 +173,7 @@
     if (navList.dataset.pvDesktopCondensed === '1') return;
 
     const topLevelLinks = Array.from(navList.querySelectorAll(':scope > .pv-nav__item > .pv-nav__link'));
-    const overflowPaths = ['sealed.html', 'account.html'];
+    const overflowPaths = ['sealed.html', 'sets.html', 'account.html'];
     const overflowItems = [];
 
     for (const path of overflowPaths) {
@@ -470,6 +503,7 @@
 
   markCurrentNavLinks();
   markPricingNavLinks();
+  ensureHeaderSetsNavLink();
   ensureHeaderDiscordNavLink();
   setupDesktopNavOverflow();
   setupAuthAwarePricingNavVisibility();
@@ -568,6 +602,7 @@
   const HOME_MARKET_SNAPSHOT_KEY = 'pv:home:cardMarketSnapshots:v1';
   const HOME_URL_CACHE_PREFIX = 'pv:home:url:';
   const HOME_SPOTLIGHTS_TTL_MS = 60 * 60 * 1000;
+  const HOME_MARKET_SNAPSHOT_TTL_MS = 8 * 60 * 60 * 1000;
   const HOME_LATEST_EXPANSIONS_CACHE_KEY = 'pv:expansions:latestEnglish:v6';
   const HOME_LATEST_EXPANSIONS_VERSION_KEY = 'pv:expansions:latestEnglish:version:v1';
   const HOME_LATEST_EXPANSIONS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -728,6 +763,20 @@
 
   function getBestMarketFromCard(cardLike) {
     const variants = Array.isArray(cardLike?.variants) ? cardLike.variants : [];
+    let hasPreferredVariant = false;
+    for (const preferredName of ['holofoil', 'normal']) {
+      const preferred = variants.find((variant) => String(variant?.name || '').trim().toLowerCase() === preferredName);
+      if (!preferred) continue;
+      hasPreferredVariant = true;
+      const preferredPrices = Array.isArray(preferred?.prices) ? preferred.prices : [];
+      const preferredMarkets = preferredPrices
+        .map((price) => Number(price?.market ?? price?.marketPrice ?? price?.market_price))
+        .filter((market) => Number.isFinite(market) && market > 0);
+      if (preferredMarkets.length) return Math.max(...preferredMarkets);
+    }
+
+    if (hasPreferredVariant) return null;
+
     let best = null;
 
     for (const variant of variants) {
@@ -781,10 +830,16 @@
   async function fetchJsonWithOptionalAuthAndCache(url, ttlMs) {
     const cacheKey = `${HOME_URL_CACHE_PREFIX}${url}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return cached;
+    const isEmptyTopCardsResponse = (data) => /\/cards\/top-by-expansion(?:\?|$)/.test(url)
+      && Array.isArray(data?.data)
+      && data.data.length === 0;
+    if (cached && !isEmptyTopCardsResponse(cached)) return cached;
+    if (cached) {
+      try { localStorage.removeItem(cacheKey); } catch {}
+    }
 
     const data = await fetchJsonWithOptionalAuth(url);
-    cacheSet(cacheKey, data, ttlMs);
+    if (!isEmptyTopCardsResponse(data)) cacheSet(cacheKey, data, ttlMs);
     return data;
   }
 
@@ -849,7 +904,7 @@
     const base = getWorkerBase();
     const settled = await Promise.allSettled(
       picks.map(async (setInfo) => {
-        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en`;
+        const url = `${base}/cards/top-by-expansion?expansionId=${encodeURIComponent(String(setInfo.id || ''))}&limit=3&lang=en&variantPreference=v2`;
         const data = await fetchJsonWithOptionalAuthAndCache(url, HOME_SPOTLIGHTS_TTL_MS);
         const cards = Array.isArray(data?.data) ? data.data.slice(0, 3) : [];
         return { setInfo, cards };
@@ -1019,10 +1074,15 @@
     const settled = await Promise.allSettled(
       candidates.map(async (item) => {
         const id = String(item?.id || '').trim();
-        const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
-        const data = await fetchJsonWithOptionalAuth(url, { cache: 'no-store' });
-        const card = data?.data || data || item;
-        const market = getBestMarketFromCard(card);
+        const cached = previousMap?.[id];
+        const isFresh = Number.isFinite(Number(cached?.market))
+          && Date.now() - Number(cached?.seenAt || 0) < HOME_MARKET_SNAPSHOT_TTL_MS;
+        const card = isFresh ? item : await (async () => {
+          const url = `${base}/cards/${encodeURIComponent(id)}?includePrices=1&lang=en`;
+          const data = await fetchJsonWithOptionalAuth(url, { cache: 'no-store' });
+          return data?.data || data || item;
+        })();
+        const market = isFresh ? Number(cached.market) : getBestMarketFromCard(card);
 
         const prevMarket = Number(previousMap?.[id]?.market);
         const hasPrev = Number.isFinite(prevMarket);
@@ -1032,7 +1092,7 @@
         if (hasNow) {
           nextMap[id] = {
             market: Number(market),
-            seenAt: Date.now(),
+            seenAt: isFresh ? Number(cached.seenAt) : Date.now(),
             name: String(card?.name || item?.name || ''),
           };
         }
@@ -1091,7 +1151,7 @@
 
   function renderExpansionsList(expansions) {
     if (!expansionsTrack) return;
-    const list = Array.isArray(expansions) ? expansions : [];
+    const list = (Array.isArray(expansions) ? expansions : []).slice(0, 10);
 
     const html = list.map((x) => {
       const id = String(x?.id || '').trim();
@@ -1118,13 +1178,37 @@
     }).join('');
 
     expansionsTrack.innerHTML = html;
+
+    const viewAllItem = document.createElement('li');
+    viewAllItem.className = 'pv-marquee__item';
+    viewAllItem.setAttribute('role', 'listitem');
+    const viewAllLink = document.createElement('a');
+    viewAllLink.className = 'pv-expansionCardLink pv-expansionCardLink--viewAll';
+    viewAllLink.href = 'sets.html';
+    viewAllLink.setAttribute('aria-label', 'View all sets');
+    const viewAllCard = document.createElement('article');
+    viewAllCard.className = 'pv-expansionCard pv-expansionCard--viewAll';
+    const viewAllIcon = document.createElement('div');
+    viewAllIcon.className = 'pv-expansionCard__viewAllIcon';
+    viewAllIcon.setAttribute('aria-hidden', 'true');
+    viewAllIcon.textContent = '+';
+    const viewAllName = document.createElement('p');
+    viewAllName.className = 'pv-expansionCard__name';
+    viewAllName.textContent = 'View All Sets';
+    const viewAllDate = document.createElement('p');
+    viewAllDate.className = 'pv-expansionCard__date';
+    viewAllDate.textContent = 'Browse by series';
+    viewAllCard.append(viewAllIcon, viewAllName, viewAllDate);
+    viewAllLink.append(viewAllCard);
+    viewAllItem.append(viewAllLink);
+    expansionsTrack.append(viewAllItem);
   }
 
   async function loadLatestEnglishExpansions() {
     // Only run on pages that have the marquee.
     if (!expansionsTrack) return;
 
-    const LATEST_EXPANSIONS_COUNT = 20;
+    const LATEST_EXPANSIONS_COUNT = 10;
 
     // Bump this key when filtering/shape changes so old cached results don't linger.
     const CACHE_KEY = HOME_LATEST_EXPANSIONS_CACHE_KEY;

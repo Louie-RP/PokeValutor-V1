@@ -3,6 +3,7 @@ const functions = require('firebase-functions');
 const Stripe = require('stripe');
 const crypto = require('crypto');
 const { FieldValue } = require('firebase-admin/firestore');
+const sealedPricing = require('./lib/sealed-pricing-core');
 
 admin.initializeApp();
 
@@ -1078,8 +1079,8 @@ function buildPriceKeyForCard(item, condition) {
 }
 
 function buildPriceKeyForSealed(item) {
-    const id = String(item?.id || '').trim().toLowerCase();
-    return `sealed:${id}`;
+    const identity = sealedPricing.getSealedPricingIdentity(item);
+    return sealedPricing.buildSealedValueCacheKey(identity);
 }
 
 async function readPriceCacheMap(db, keys) {
@@ -1148,24 +1149,6 @@ function bestCardMarketForCondition(cardLike, condition) {
         const market = marketForCondition(variant?.prices, condition);
         if (market > best) best = market;
     }
-    return best;
-}
-
-function bestSealedMarket(sealedLike) {
-    const variants = Array.isArray(sealedLike?.variants) ? sealedLike.variants : [];
-    if (!variants.length) return 0;
-
-    let best = 0;
-    for (const variant of variants) {
-        const prices = Array.isArray(variant?.prices) ? variant.prices : [];
-        for (const price of prices) {
-            const market = readMarketValue(price);
-            if (market > 0 && (best <= 0 || market < best)) {
-                best = market;
-            }
-        }
-    }
-
     return best;
 }
 
@@ -1266,50 +1249,16 @@ async function writePriceCacheDocs(db, docsByKey) {
     }
 }
 
-function formatUtcDateYYYYMMDD(date) {
-    const d = date instanceof Date ? date : new Date();
-    if (Number.isNaN(d.getTime())) return '';
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-}
-
-function previousDateKey(baseDateKey, daysBack) {
-    const base = String(baseDateKey || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(base)) return '';
-
-    const delta = Math.max(1, Math.floor(Number(daysBack) || 1));
-    const dt = new Date(`${base}T00:00:00.000Z`);
-    if (Number.isNaN(dt.getTime())) return '';
-    dt.setUTCDate(dt.getUTCDate() - delta);
-    return formatUtcDateYYYYMMDD(dt);
-}
-
 async function getPreviousSnapshot(db, uid, collectionId, snapshotDate) {
     const parent = db.collection('users').doc(uid).collection('dexValueSnapshots');
-    const lookbackDays = 60;
+    const snapshots = await parent
+        .where('collectionId', '==', collectionId)
+        .where('snapshotDate', '<', String(snapshotDate || ''))
+        .orderBy('snapshotDate', 'desc')
+        .limit(1)
+        .get();
 
-    const refs = [];
-    for (let i = 1; i <= lookbackDays; i += 1) {
-        const dateKey = previousDateKey(snapshotDate, i);
-        if (!dateKey) continue;
-        refs.push(parent.doc(`${collectionId}_${dateKey}`));
-    }
-
-    if (!refs.length) return null;
-
-    const chunkSize = 300;
-    for (let i = 0; i < refs.length; i += chunkSize) {
-        const chunk = refs.slice(i, i + chunkSize);
-        const snaps = chunk.length ? await db.getAll(...chunk) : [];
-        for (const snap of snaps) {
-            if (!snap.exists) continue;
-            return snap.data();
-        }
-    }
-
-    return null;
+    return snapshots.empty ? null : (snapshots.docs[0].data() || null);
 }
 
 function toSnapshotResponse(snapshotRaw, docId) {
@@ -1322,6 +1271,7 @@ function toSnapshotResponse(snapshotRaw, docId) {
         snapshotDate: String(snapshotRaw?.snapshotDate || ''),
         totalValueCents: toNonNegativeInt(snapshotRaw?.totalValueCents),
         previousValueCents: toNonNegativeInt(snapshotRaw?.previousValueCents),
+        hasPreviousSnapshot: snapshotRaw?.hasPreviousSnapshot === true,
         changeCents: Math.round(Number(snapshotRaw?.changeCents || 0)),
         changePercent: Number(snapshotRaw?.changePercent || 0),
         pricedItemCount: toNonNegativeInt(snapshotRaw?.pricedItemCount),
@@ -1349,15 +1299,6 @@ exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context
         .doc(uid)
         .collection('dexValueSnapshots')
         .doc(snapshotId);
-
-    const existing = await snapshotRef.get();
-    if (existing.exists) {
-        return {
-            ok: true,
-            snapshot: toSnapshotResponse(existing.data() || {}, existing.id),
-            cached: true,
-        };
-    }
 
     const stateSnap = await db
         .collection('users')
@@ -1405,23 +1346,29 @@ exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context
             const qty = Math.max(1, Math.floor(Number(item?.quantity ?? item?.sealedQuantity ?? 1) || 1));
             totalUnitCount += qty;
 
+            const identity = sealedPricing.getSealedPricingIdentity(item);
             const key = buildPriceKeyForSealed(item);
             let unitCents = marketCentsFromCacheDoc(priceCache.get(key));
 
             if (unitCents <= 0 && useLiveWorkerPrices) {
-                let live = liveSealedById.get(itemId);
-                if (!live) {
-                    live = await fetchSealedWithPrices(itemId);
-                    liveSealedById.set(itemId, live || null);
+                if (!liveSealedById.has(identity.baseProductId)) {
+                    const fetched = await fetchSealedWithPrices(identity.baseProductId);
+                    liveSealedById.set(identity.baseProductId, fetched || null);
                 }
-                unitCents = toCents(bestSealedMarket(live)) || centsFromMarket(live);
+                const live = liveSealedById.get(identity.baseProductId);
+                const liveVariants = Array.isArray(live?.variants) ? live.variants : [];
+                const liveMarket = sealedPricing.getMarketFromTrackedSealedVariant(liveVariants, identity);
+                unitCents = toCents(liveMarket);
+                if (unitCents <= 0 && !identity.variantKey) unitCents = centsFromMarket(live);
                 if (unitCents > 0) {
                     cacheWrites.set(key, buildCacheDocForSealed(item, unitCents));
                 }
             }
 
             if (unitCents <= 0) {
-                unitCents = centsFromMarket(item);
+                const savedVariants = Array.isArray(item?.variants) ? item.variants : [];
+                const savedMarket = sealedPricing.getMarketFromTrackedSealedVariant(savedVariants, identity);
+                unitCents = toCents(savedMarket) || centsFromMarket(item);
             }
 
             if (unitCents > 0) {
@@ -1487,6 +1434,7 @@ exports.getCollectionValueSnapshot = functions.https.onCall(async (data, context
         snapshotDate,
         totalValueCents: toNonNegativeInt(totalValueCents),
         previousValueCents,
+        hasPreviousSnapshot: Boolean(previous),
         changeCents,
         changePercent,
         pricedItemCount,

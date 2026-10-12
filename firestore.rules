@@ -25,12 +25,24 @@ service cloud.firestore {
     }
 
     function isValidDexState() {
-      return request.resource.data.keys().hasOnly(['collection', 'masterSets', 'updatedAt', 'updatedAtServer'])
+      return request.resource.data.keys().hasOnly(['collection', 'masterSets', 'revision', 'updatedAt', 'updatedAtServer'])
         && request.resource.data.collection is list
         && request.resource.data.masterSets is map
+        && request.resource.data.revision is int
+        && request.resource.data.revision > 0
         && (request.resource.data.updatedAt is int || request.resource.data.updatedAt is float)
         && request.resource.data.updatedAt > 0
         && request.resource.data.updatedAtServer is timestamp;
+    }
+
+    function advancesDexRevision() {
+      return (
+          !resource.data.keys().hasAll(['revision'])
+          && request.resource.data.revision == 1
+        ) || (
+          resource.data.revision is int
+          && request.resource.data.revision == resource.data.revision + 1
+        );
     }
 
     function isValidShareToken(token) {
@@ -101,7 +113,12 @@ service cloud.firestore {
     // Dex cloud-sync state used by dex-tracker-pages.js.
     match /users/{userId}/dex/state {
       allow read: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isValidDexState();
+      allow create: if isOwner(userId)
+        && isValidDexState()
+        && request.resource.data.revision == 1;
+      allow update: if isOwner(userId)
+        && isValidDexState()
+        && advancesDexRevision();
       allow delete: if isOwner(userId);
     }
 

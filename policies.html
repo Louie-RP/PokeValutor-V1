@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-84T6PK2014"></script>
+    <script src="analytics.js?v=20260915-1" defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Read PokeValutor policies including disclaimer, privacy, terms of use, and accessibility details." />
@@ -9,12 +11,12 @@
     <meta property="og:description" content="Read PokeValutor policies including disclaimer, privacy, terms of use, and accessibility details." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.pokevaluator.com/policies.html" />
-    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <meta property="og:image:alt" content="PokeValutor logo" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Policies and Terms | PokeValutor" />
     <meta name="twitter:description" content="Read PokeValutor policies including disclaimer, privacy, terms of use, and accessibility details." />
-    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <title>Policies and Terms | PokeValutor</title>
     <link rel="canonical" href="https://www.pokevaluator.com/policies.html" />
     <script type="application/ld+json">
@@ -31,21 +33,22 @@
             }
         }
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
+    <link rel="stylesheet" href="info-pages-refresh.css?v=2026-10-12-info-theme-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-policies-body" class="pv-body">
+<body id="pv-policies-body" class="pv-body pv-infoPage pv-infoPage--policies">
     <a class="pv-skiplink" href="#pv-policies-main">Skip to content</a>
 
     <header id="pv-policies-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-policies-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <a id="pv-policies-brand" class="pv-brand" href="home-preview.html" aria-label="Back to home">PokéValutor</a>
             <button id="pv-policies-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-policies-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -53,7 +56,7 @@
             </button>
             <nav id="pv-policies-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="home-preview.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
@@ -220,6 +223,13 @@
     </footer>
 
     <script src="script.js?v=20260721-2" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+    <script src="firebase-config.js" defer></script>
+    <script src="firebase-config.local.js" defer></script>
+    <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
+    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
 </body>
 
 </html>

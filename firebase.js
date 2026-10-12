@@ -25,8 +25,8 @@
             loadWatchlist: async () => [],
             saveWatchlistItem: async () => { },
             removeWatchlistItem: async () => { },
-            loadDexState: async () => ({ collection: [], masterSets: {} }),
-            saveDexState: async () => { },
+            loadDexState: async () => ({ collection: [], masterSets: {}, revision: 0, updatedAt: 0 }),
+            saveDexState: async () => ({ saved: false, revision: 0, updatedAt: 0 }),
             loadCollectionValueSnapshot: async () => null,
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
@@ -69,8 +69,8 @@
             loadWatchlist: async () => [],
             saveWatchlistItem: async () => { },
             removeWatchlistItem: async () => { },
-            loadDexState: async () => ({ collection: [], masterSets: {} }),
-            saveDexState: async () => { },
+            loadDexState: async () => ({ collection: [], masterSets: {}, revision: 0, updatedAt: 0 }),
+            saveDexState: async () => ({ saved: false, revision: 0, updatedAt: 0 }),
             loadCollectionValueSnapshot: async () => null,
             loadDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
             saveDexShareSettings: async () => ({ enabled: false, token: '', shareUrl: '' }),
@@ -102,6 +102,40 @@
     const auth = window.firebase.auth();
     const db = window.firebase.firestore ? window.firebase.firestore() : null;
     const functions = window.firebase.functions ? window.firebase.functions() : null;
+    const WATCHLIST_CLOUD_CACHE_PREFIX = 'pv:scrydex:watchlistCloud:v1:';
+    const WATCHLIST_CLOUD_CACHE_TTL_MS = 8 * 60 * 60 * 1000;
+
+    function getWatchlistCloudCacheKey(uid, kind) {
+        return `${WATCHLIST_CLOUD_CACHE_PREFIX}${String(uid || '').trim()}:${String(kind || 'card').trim()}`;
+    }
+
+    function readWatchlistCloudCache(uid, kind) {
+        try {
+            const raw = window.localStorage.getItem(getWatchlistCloudCacheKey(uid, kind));
+            const cached = raw ? JSON.parse(raw) : null;
+            if (!cached || !Array.isArray(cached.value) || Date.now() - Number(cached.savedAt || 0) >= WATCHLIST_CLOUD_CACHE_TTL_MS) {
+                return null;
+            }
+            return cached.value;
+        } catch {
+            return null;
+        }
+    }
+
+    function writeWatchlistCloudCache(uid, kind, value) {
+        try {
+            window.localStorage.setItem(getWatchlistCloudCacheKey(uid, kind), JSON.stringify({
+                savedAt: Date.now(),
+                value: Array.isArray(value) ? value : [],
+            }));
+        } catch {
+            // ignore storage errors
+        }
+    }
+
+    function invalidateWatchlistCloudCache(uid, kind) {
+        try { window.localStorage.removeItem(getWatchlistCloudCacheKey(uid, kind)); } catch { /* ignore */ }
+    }
 
     function normalizeLocalFlag(value) {
         const raw = String(value || '').trim().toLowerCase();
@@ -335,6 +369,21 @@
         }
     }
 
+    async function readCollectionWithStatus(ref) {
+        if (!ref) return { ok: false, items: [] };
+        try {
+            const snap = await ref.get();
+            const items = [];
+            snap.forEach((doc) => {
+                const data = doc.data();
+                if (data && typeof data === 'object') items.push(data);
+            });
+            return { ok: true, items };
+        } catch {
+            return { ok: false, items: [] };
+        }
+    }
+
     async function loadFavorites(kind) {
         const user = getUser();
         if (!user || !db) return [];
@@ -370,6 +419,8 @@
     async function loadWatchlist(kind) {
         const user = getUser();
         if (!user || !db) return [];
+        const cached = readWatchlistCloudCache(user.uid, kind);
+        if (cached) return cached;
         const watchRef = watchlistCollectionRef(user.uid, kind);
         if (!watchRef) return [];
 
@@ -377,21 +428,26 @@
         // and merge any missing items into Watchlist. This prevents data loss for
         // existing users while the UI and localStorage are renamed.
         const favRef = favoritesCollectionRef(user.uid, kind);
-        const [watchItems, legacyItems] = await Promise.all([
-            readCollection(watchRef),
-            readCollection(favRef),
+        const [watchResult, legacyResult] = await Promise.all([
+            readCollectionWithStatus(watchRef),
+            readCollectionWithStatus(favRef),
         ]);
 
         const byId = new Map();
-        for (const item of watchItems) {
+        for (const item of watchResult.items) {
             const id = String(item?.id || '').trim();
             if (!id) continue;
             byId.set(id, item);
         }
 
+        // Do not cache a failed read as an empty watchlist. Keep valid watchlist
+        // data available, but retry legacy migration on a later page load.
+        if (!watchResult.ok) return [];
+        if (!legacyResult.ok) return Array.from(byId.values());
+
         /** @type {Array<any>} */
         const toMigrate = [];
-        for (const item of legacyItems) {
+        for (const item of legacyResult.items) {
             const id = String(item?.id || '').trim();
             if (!id) continue;
             if (!byId.has(id)) {
@@ -405,12 +461,15 @@
             await Promise.allSettled(toMigrate.map((item) => saveWatchlistItem(kind, item)));
         }
 
-        return Array.from(byId.values());
+        const result = Array.from(byId.values());
+        writeWatchlistCloudCache(user.uid, kind, result);
+        return result;
     }
 
     async function saveWatchlistItem(kind, item) {
         const user = getUser();
         if (!user || !db) return;
+        invalidateWatchlistCloudCache(user.uid, kind);
         const ref = watchlistCollectionRef(user.uid, kind);
         if (!ref) return;
         const id = String(item?.id || '').trim();
@@ -426,6 +485,7 @@
     async function removeWatchlistItem(kind, id) {
         const user = getUser();
         if (!user || !db) return;
+        invalidateWatchlistCloudCache(user.uid, kind);
         const docId = String(id || '').trim();
         if (!docId) return;
         const watchRef = watchlistCollectionRef(user.uid, kind);
@@ -976,6 +1036,7 @@
                 collectionId,
                 id,
                 name: compactCollectionString(raw?.name, 160, 'Unknown'),
+                ownershipOnly: raw?.ownershipOnly === true,
                 setName: compactCollectionString(raw?.setName, 120, ''),
                 expansionName: compactCollectionString(raw?.expansionName, 120, ''),
                 images: compactCollectionImageList(raw?.images),
@@ -991,6 +1052,10 @@
             }
 
             if (itemType === 'sealed') {
+                entry.baseProductId = compactCollectionString(raw?.baseProductId, 120, '');
+                entry.variantName = compactCollectionString(raw?.variantName, 80, '');
+                entry.variantLabel = compactCollectionString(raw?.variantLabel, 80, '');
+                entry.hasMultipleVariants = raw?.hasMultipleVariants === true;
                 entry.type = compactCollectionString(raw?.type, 120, 'Sealed product');
                 entry.quantity = Math.max(1, Math.floor(Number(raw?.quantity ?? raw?.sealedQuantity ?? 1) || 1));
             } else {
@@ -1006,6 +1071,11 @@
                 );
                 entry.variantQuantities = compactCollectionQuantities(
                     raw?.variantQuantities,
+                    (value) => compactCollectionString(value, 80, ''),
+                    ''
+                );
+                entry.ownershipOnlyVariants = compactCollectionQuantities(
+                    raw?.ownershipOnlyVariants,
                     (value) => compactCollectionString(value, 80, ''),
                     ''
                 );
@@ -1161,13 +1231,28 @@
 
         cacheDexShareSettings(uid, settings);
 
-        const [dexState, dexCollectionsMeta] = await Promise.all([
-            loadDexState(),
-            loadDexCollectionsMetaFromProfile(false),
-        ]);
-        await syncSharedDexSnapshotForUser(uid, settings, dexState.collection, dexCollectionsMeta);
-
-        return buildDexShareSettingsResult(settings.enabled, settings.token);
+        try {
+            if (settings.enabled) {
+                const [dexState, dexCollectionsMeta] = await Promise.all([
+                    loadDexState(),
+                    loadDexCollectionsMetaFromProfile(false),
+                ]);
+                await syncSharedDexSnapshotForUser(uid, settings, dexState.collection, dexCollectionsMeta);
+            } else {
+                await syncSharedDexSnapshotForUser(uid, settings, [], {});
+            }
+            return {
+                ...buildDexShareSettingsResult(settings.enabled, settings.token),
+                snapshotSyncFailed: false,
+            };
+        } catch {
+            // The profile setting is already saved. Do not report total failure or
+            // fabricate an empty collection when the snapshot refresh cannot read Dex state.
+            return {
+                ...buildDexShareSettingsResult(settings.enabled, settings.token),
+                snapshotSyncFailed: true,
+            };
+        }
     }
 
     async function loadSharedDexCollection(tokenRaw) {
@@ -1220,19 +1305,23 @@
 
     async function loadDexState() {
         const user = getUser();
-        if (!user || !db) return { collection: [], masterSets: {} };
+        if (!user || !db) return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
         const ref = dexStateDocRef(user.uid);
-        if (!ref) return { collection: [], masterSets: {} };
+        if (!ref) return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
 
         try {
             const snap = await ref.get();
-            if (!snap.exists) return { collection: [], masterSets: {} };
+            if (!snap.exists) return { collection: [], masterSets: {}, revision: 0, updatedAt: 0 };
             const data = snap.data();
             const collection = Array.isArray(data?.collection) ? data.collection : [];
             const masterSets = (data?.masterSets && typeof data.masterSets === 'object') ? data.masterSets : {};
-            return { collection, masterSets };
-        } catch {
-            return { collection: [], masterSets: {} };
+            const revision = Math.max(0, Math.floor(Number(data?.revision) || 0));
+            const updatedAt = Math.max(0, Number(data?.updatedAt) || 0);
+            return { collection, masterSets, revision, updatedAt };
+        } catch (error) {
+            // A failed read must not look like an empty collection. Callers may
+            // use the result as the base for a write, which could erase cloud data.
+            throw error;
         }
     }
 
@@ -1244,6 +1333,8 @@
 
         let collection = Array.isArray(payload?.collection) ? payload.collection : [];
         const masterSets = (payload?.masterSets && typeof payload.masterSets === 'object') ? payload.masterSets : {};
+        const allowEmptyCollection = payload?.allowEmptyCollection === true;
+        const intentionalEmptyCollection = payload?.intentionalEmptyCollection === true;
 
         try {
             const role = await loadCurrentRoleFromClaims(false);
@@ -1262,10 +1353,14 @@
 
         let collectionForCloud = compactDexCollectionForCloud(collection, false);
         const masterSetsForCloud = compactDexMasterSetsForCloud(masterSets);
+        const expectedRevision = Math.max(0, Math.floor(Number(payload?.revision) || 0));
+        const requestedUpdatedAt = Math.max(0, Number(payload?.updatedAt) || 0);
+        const nextUpdatedAt = Math.max(Date.now(), requestedUpdatedAt);
         const basePayload = {
             collection: collectionForCloud,
             masterSets: masterSetsForCloud,
-            updatedAt: Date.now(),
+            revision: expectedRevision + 1,
+            updatedAt: nextUpdatedAt,
             updatedAtServer: window.firebase.firestore.FieldValue.serverTimestamp(),
         };
 
@@ -1274,14 +1369,66 @@
             basePayload.collection = collectionForCloud;
         }
 
+        const saveWithTransaction = async () => {
+            return db.runTransaction(async (transaction) => {
+                const snap = await transaction.get(ref);
+                const current = snap.exists ? (snap.data() || {}) : {};
+                const currentRevision = Math.max(0, Math.floor(Number(current?.revision) || 0));
+                const currentUpdatedAt = Math.max(0, Number(current?.updatedAt) || 0);
+
+                if (currentRevision !== expectedRevision) {
+                    return {
+                        saved: false,
+                        conflict: true,
+                        revision: currentRevision,
+                        updatedAt: currentUpdatedAt,
+                        collection: Array.isArray(current?.collection) ? current.collection : [],
+                        masterSets: (current?.masterSets && typeof current.masterSets === 'object')
+                            ? current.masterSets
+                            : {},
+                    };
+                }
+
+                const currentCollection = Array.isArray(current?.collection) ? current.collection : [];
+                if (collectionForCloud.length === 0
+                    && currentCollection.length > 0
+                    && !allowEmptyCollection
+                    && !(intentionalEmptyCollection && currentCollection.length === 1)) {
+                    return {
+                        saved: false,
+                        conflict: true,
+                        revision: currentRevision,
+                        updatedAt: currentUpdatedAt,
+                        collection: currentCollection,
+                        masterSets: (current?.masterSets && typeof current.masterSets === 'object')
+                            ? current.masterSets
+                            : {},
+                    };
+                }
+
+                transaction.set(ref, basePayload);
+                return {
+                    saved: true,
+                    conflict: false,
+                    revision: basePayload.revision,
+                    updatedAt: basePayload.updatedAt,
+                    collection: collectionForCloud,
+                    masterSets: masterSetsForCloud,
+                };
+            });
+        };
+
+        let saveResult;
         try {
-            await ref.set(basePayload, { merge: true });
+            saveResult = await saveWithTransaction();
         } catch (error) {
             if (!isFirestorePayloadTooLarge(error)) throw error;
             basePayload.collection = compactDexCollectionForCloud(collection, true);
-            await ref.set(basePayload, { merge: true });
             collectionForCloud = basePayload.collection;
+            saveResult = await saveWithTransaction();
         }
+
+        if (!saveResult?.saved) return saveResult;
 
         try {
             const settings = await loadDexShareSettingsFromProfile(false);
@@ -1290,6 +1437,8 @@
         } catch {
             // ignore share-sync failures so Dex save still succeeds
         }
+
+        return saveResult;
     }
 
     async function loadCollectionValueSnapshot(collectionId) {
@@ -1349,6 +1498,8 @@
                     `${P}collection:v1`,
                     `${P}masterSets:v1`,
                     `${P}dexOwnerUid:v1`,
+                    `${P}dexCloudRevision:v1`,
+                    `${P}dexStateUpdatedAt:v1`,
                     'pv:quota:last:v1',
                 ].forEach((key) => {
                     try { localStorage.removeItem(key); } catch { }

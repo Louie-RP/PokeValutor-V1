@@ -1,0 +1,342 @@
+/* Shared visual refresh for policies, contact, and thanks pages. */
+
+body.pv-infoPage {
+  --info-bg: #080809;
+  --info-surface: #111114;
+  --info-surface-raised: #18181d;
+  --info-field: #0c0c0f;
+  --info-text: #f7f7f8;
+  --info-muted: #aaaab4;
+  --info-line: #2d2d37;
+  --info-line-strong: #4a4a56;
+  --info-yellow: #ffcb05;
+  --info-yellow-hover: #ffda3d;
+  --info-yellow-ink: #171300;
+  --info-heading: "Playfair Display", Georgia, serif;
+  --info-body: "DM Sans", "Space Grotesk", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(255, 203, 5, 0.08), transparent 28rem),
+    var(--info-bg);
+  color: var(--info-text);
+  font-family: var(--info-body);
+}
+
+body.pv-infoPage .pv-header {
+  border-bottom-color: var(--info-line);
+  background: rgba(8, 8, 9, 0.94);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+body.pv-infoPage .pv-nav__list { gap: 0.25rem; }
+
+body.pv-infoPage .pv-nav__link {
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: var(--info-muted);
+  font-family: var(--info-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+body.pv-infoPage .pv-nav__link:hover,
+body.pv-infoPage .pv-nav__link:focus-visible {
+  background: var(--info-surface);
+  color: var(--info-text);
+}
+
+body.pv-infoPage .pv-nav__link[aria-current="page"] {
+  background: rgba(255, 203, 5, 0.14);
+  color: var(--info-yellow);
+}
+
+body.pv-infoPage .pv-nav__link--pricing,
+body.pv-infoPage .pv-nav__link--pricing[aria-current="page"] {
+  border: 1px solid #ffe27f;
+  background: linear-gradient(135deg, #ffd34f 0%, #ffcb05 60%, #f3b800 100%);
+  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.28);
+  color: #111111;
+  font-weight: 800;
+}
+
+body.pv-infoPage .pv-nav__link--pricing:hover,
+body.pv-infoPage .pv-nav__link--pricing:focus-visible {
+  background: linear-gradient(135deg, #ffe071 0%, #ffd34f 55%, #ffcb05 100%);
+  color: #050505;
+}
+
+body.pv-infoPage .pv-navToggle,
+body.pv-infoPage .pv-auth-menu__trigger {
+  border-color: transparent;
+  border-radius: 50%;
+  background: var(--info-surface-raised);
+}
+
+body.pv-infoPage .pv-navToggle:hover,
+body.pv-infoPage .pv-navToggle:focus-visible,
+body.pv-infoPage .pv-auth-menu__trigger:hover,
+body.pv-infoPage .pv-auth-menu__trigger[aria-expanded="true"] {
+  border-color: var(--info-yellow);
+  color: var(--info-yellow);
+}
+
+body.pv-infoPage .pv-main {
+  min-height: calc(100vh - 5rem);
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+
+body.pv-infoPage .pv-hero,
+body.pv-infoPage .pv-section {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+}
+
+body.pv-infoPage .pv-hero {
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 2rem) 0 clamp(1.2rem, 3vw, 2rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+body.pv-infoPage .pv-hero__title {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--info-text);
+  font-family: var(--info-heading);
+  font-size: clamp(2rem, 6.5vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+body.pv-infoPage .pv-hero__subtitle {
+  max-width: 42rem;
+  margin: 0.95rem 0 0;
+  color: var(--info-muted);
+  font-family: var(--info-body);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.5;
+}
+
+body.pv-infoPage .pv-hero__fineprint {
+  margin: 0.7rem 0 0;
+  color: #797984;
+  font-family: var(--info-body);
+  font-size: 0.78rem;
+}
+
+body.pv-infoPage .pv-section {
+  margin: 0 auto 1.25rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--info-line);
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(12, 12, 15, 0.98));
+  box-shadow: none;
+}
+
+body.pv-infoPage .pv-section__title {
+  margin: 0 0 0.85rem;
+  color: var(--info-yellow);
+  font-family: var(--info-heading);
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+body.pv-infoPage .pv-section__text {
+  color: var(--info-muted);
+  line-height: 1.65;
+}
+
+body.pv-infoPage .pv-section__text strong { color: var(--info-text); }
+
+body.pv-infoPage .pv-inlineLink {
+  color: var(--info-yellow);
+  text-decoration: none;
+}
+
+body.pv-infoPage .pv-inlineLink:hover,
+body.pv-infoPage .pv-inlineLink:focus-visible {
+  color: var(--info-yellow-hover);
+  text-decoration: underline;
+}
+
+body.pv-infoPage .pv-featureGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 1.25rem 0;
+}
+
+body.pv-infoPage .pv-feature {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--info-line);
+  border-radius: 0.85rem;
+  background: rgba(8, 8, 9, 0.64);
+}
+
+body.pv-infoPage .pv-feature__title {
+  margin: 0 0 0.45rem;
+  color: var(--info-yellow);
+  font-family: var(--info-heading);
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+body.pv-infoPage .pv-feature__text {
+  margin: 0;
+  color: var(--info-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+body.pv-infoPage #pv-policies-main > section[aria-label="On this page"] {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+body.pv-infoPage #pv-policies-main > section[aria-label="On this page"] .pv-section__text {
+  margin: 0;
+  line-height: 1.55;
+}
+
+body.pv-infoPage .pv-contact {
+  max-width: none;
+}
+
+body.pv-infoPage .pv-contact .pv-form {
+  max-width: none;
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+body.pv-infoPage .pv-contact .pv-form__field {
+  margin-bottom: 0;
+}
+
+body.pv-infoPage .form-label {
+  margin-bottom: 0.45rem;
+  color: var(--info-muted);
+  font-family: var(--info-body);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+body.pv-infoPage .pv-form input,
+body.pv-infoPage .pv-form textarea,
+body.pv-infoPage .pv-form select {
+  min-height: 3.35rem;
+  border: 1px solid #3b3b46;
+  border-radius: 0.8rem;
+  background: var(--info-field);
+  color: var(--info-text);
+  font-family: var(--info-body);
+  box-shadow: none;
+}
+
+body.pv-infoPage .pv-form textarea {
+  min-height: 10rem;
+  resize: vertical;
+}
+
+body.pv-infoPage .pv-form input::placeholder,
+body.pv-infoPage .pv-form textarea::placeholder {
+  color: #797984;
+}
+
+body.pv-infoPage .pv-form input:focus,
+body.pv-infoPage .pv-form textarea:focus,
+body.pv-infoPage .pv-form select:focus {
+  border-color: var(--info-yellow);
+  outline: 2px solid rgba(255, 203, 5, 0.24);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+body.pv-infoPage .pv-button {
+  min-height: 2.85rem;
+  border-radius: 0.7rem;
+  font-family: var(--info-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+body.pv-infoPage .pv-button--primary {
+  border-color: #c79b00;
+  background: var(--info-yellow);
+  color: var(--info-yellow-ink);
+  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.16);
+}
+
+body.pv-infoPage .pv-button--primary:hover,
+body.pv-infoPage .pv-button--primary:focus-visible {
+  background: var(--info-yellow-hover);
+}
+
+body.pv-infoPage .pv-button--secondary {
+  border-color: var(--info-line-strong);
+  background: var(--info-surface-raised);
+  color: var(--info-text);
+}
+
+body.pv-infoPage .pv-button--secondary:hover,
+body.pv-infoPage .pv-button--secondary:focus-visible {
+  border-color: #666673;
+  background: #202027;
+}
+
+body.pv-infoPage.pv-infoPage--thanks .pv-main {
+  display: flex;
+  flex-direction: column;
+}
+
+body.pv-infoPage.pv-infoPage--thanks .pv-hero {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: clamp(4rem, 12vw, 8rem);
+  padding-bottom: clamp(5rem, 14vw, 10rem);
+}
+
+body.pv-infoPage.pv-infoPage--thanks .pv-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+
+body.pv-infoPage.pv-infoPage--thanks .pv-cta .pv-button {
+  min-width: 9rem;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  body.pv-infoPage .pv-featureGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.pv-infoPage .pv-contact .pv-form > .col-md-6 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 520px) {
+  body.pv-infoPage .pv-featureGrid {
+    grid-template-columns: 1fr;
+  }
+
+  body.pv-infoPage.pv-infoPage--thanks .pv-cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

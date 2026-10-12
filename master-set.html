@@ -2,6 +2,8 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-84T6PK2014"></script>
+    <script src="analytics.js?v=20260915-1" defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="View collected and missing cards for a specific Pokemon TCG master set, including variant progress." />
@@ -9,12 +11,12 @@
     <meta property="og:description" content="View collected and missing cards for a specific Pokemon TCG master set, including variant progress." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://www.pokevaluator.com/master-set.html" />
-    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <meta property="og:image:alt" content="PokeValutor logo" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Master Set Details | PokeValutor" />
     <meta name="twitter:description" content="View collected and missing cards for a specific Pokemon TCG master set, including variant progress." />
-    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <title>Master Set Details | PokeValutor</title>
     <link rel="canonical" href="https://www.pokevaluator.com/master-set.html" />
     <script type="application/ld+json">
@@ -31,12 +33,13 @@
             }
         }
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
+    <link rel="stylesheet" href="master-set-refresh.css?v=2026-10-11-theme-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
 </head>
 
 <body id="pv-master-set-detail-body" class="pv-body">
@@ -44,7 +47,7 @@
 
     <header id="pv-master-set-detail-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-master-set-detail-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <a id="pv-master-set-detail-brand" class="pv-brand" href="home-preview.html" aria-label="Back to home">PokéValutor</a>
             <button id="pv-master-set-detail-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-master-set-detail-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -52,7 +55,7 @@
             </button>
             <nav id="pv-master-set-detail-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="home-preview.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
@@ -83,6 +86,7 @@
                     </div>
                     <p id="pv-master-set-detail-ratio" class="pv-masterSetCard__meta">Progress: 0.0%</p>
                     <p id="pv-master-set-detail-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true">Loading cards...</p>
+                    <a id="pv-master-set-guide-link" class="pv-button pv-button--primary btn" href="master-set-guide.html" hidden>Plan Binder Layout</a>
                 </div>
             </div>
         </section>
@@ -122,9 +126,12 @@
 
     <script src="firebase-config.js" defer></script>
     <script src="firebase-config.local.js" defer></script>
-    <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
+    <script src="firebase.js?v=2026-10-11-ownership-1" defer></script>
+    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
 
-    <script src="dex-tracker-pages.js?v=2026-07-21-currency-format-1" defer></script>
+    <script src="collection-view-utils.js?v=2026-09-21-value-summary-1" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-10-11-ownership-1" defer></script>
+    <script src="master-set-guide-link.js?v=2026-09-29-1" defer></script>
 </body>
 
 </html>

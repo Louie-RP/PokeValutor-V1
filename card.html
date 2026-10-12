@@ -2,19 +2,21 @@
 <html lang="en">
 
 <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-84T6PK2014"></script>
+    <script src="analytics.js?v=20260915-1" defer></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" id="pv-card-meta-description" content="Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor." />
     <meta property="og:title" id="pv-card-og-title" content="Card Details | PokeValutor" />
     <meta property="og:description" id="pv-card-og-description" content="Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" id="pv-card-og-image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta property="og:image" id="pv-card-og-image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <meta property="og:image:alt" id="pv-card-og-image-alt" content="PokeValutor logo" />
     <meta property="og:url" id="pv-card-og-url" content="https://www.pokevaluator.com/card.html" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" id="pv-card-twitter-title" content="Card Details | PokeValutor" />
     <meta name="twitter:description" id="pv-card-twitter-description" content="Pokemon card details, variant pricing, related cards, and watchlist tracking on PokeValutor." />
-    <meta name="twitter:image" id="pv-card-twitter-image" content="https://www.pokevaluator.com/PokeValuator.png" />
+    <meta name="twitter:image" id="pv-card-twitter-image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
     <link rel="canonical" id="pv-card-canonical" href="https://www.pokevaluator.com/card.html" />
     <title id="pv-card-title-tag">Card Details | PokeValutor</title>
     <script id="pv-card-schema" type="application/ld+json">
@@ -31,13 +33,13 @@
             }
         }
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260726-mobile-variant-width-1" />
+    <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
     <link rel="stylesheet" href="price-history.css?v=20260727-local-history-1" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
@@ -46,7 +48,7 @@
 
     <header id="pv-card-header" class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a id="pv-card-brand" class="pv-brand" href="index.html" aria-label="Back to home">PokéValutor</a>
+            <a id="pv-card-brand" class="pv-brand" href="home-preview.html" aria-label="Back to home">PokéValutor</a>
             <button id="pv-card-navToggle" class="pv-navToggle" aria-expanded="false" aria-controls="pv-card-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -54,7 +56,7 @@
             </button>
             <nav id="pv-card-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
                 <ul class="pv-nav__list">
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="index.html">Home</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="home-preview.html">Home</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
@@ -71,6 +73,7 @@
             <h1 id="pv-card-title" class="pv-hero__title">Card Details</h1>
             <div class="pv-cardDetail__actions" role="group" aria-label="Card actions">
                 <button id="pv-card-watch-toggle" class="pv-button pv-button--secondary btn" type="button" aria-pressed="false">Add to Watchlist</button>
+                    <button id="pv-card-trade-toggle" class="pv-button pv-button--secondary btn" type="button" aria-pressed="false" hidden>Add to Trade</button>
                 <button id="pv-card-share" class="pv-button pv-button--primary btn pv-shareAction" type="button" aria-label="Share card link" title="Share card link">
                     <svg class="pv-shareAction__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                         <path d="M18 16a3 3 0 0 0-2.39 1.2L9.91 14a3.28 3.28 0 0 0 0-4l5.7-3.2A3 3 0 1 0 15 5a3 3 0 0 0 .07.62l-5.7 3.2a3 3 0 1 0 0 6.36l5.7 3.2A3 3 0 1 0 18 16z"></path>
@@ -164,9 +167,11 @@
 
     <script src="firebase-config.js" defer></script>
     <script src="firebase-config.local.js" defer></script>
-    <script src="firebase.js?v=2026-07-13-signout-1" defer></script>
+    <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
+    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
 
     <script src="feature-flags.js?v=20260724-1" defer></script>
+    <script src="trade-workspace.js?v=20260817-1" defer></script>
     <script src="card-navigation.js?v=20260726-2" defer></script>
     <script src="pv-dom.js?v=20260728-1" defer></script>
     <script src="price-history-data.js?v=20260728-1" defer></script>
