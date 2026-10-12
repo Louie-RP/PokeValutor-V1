@@ -262,7 +262,7 @@ a { color: inherit; }
 .home-preview-hero {
   width: min(100% - 2rem, 72rem);
   margin: 0 auto;
-  padding: clamp(3.2rem, 10vw, 7rem) 0 1rem;
+  padding: clamp(1.25rem, 3vw, 2rem) 0 1rem;
 }
 
 .home-preview-hero-copy { max-width: 47rem; }
@@ -1388,7 +1388,7 @@ a { color: inherit; }
   }
 
   .home-preview-hero {
-    padding-top: clamp(3rem, 6vw, 5rem);
+    padding-top: clamp(1.25rem, 3vw, 2rem);
     padding-bottom: 1.5rem;
     text-align: center;
   }

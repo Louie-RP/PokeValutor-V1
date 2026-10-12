@@ -159,7 +159,7 @@ html:has(#pv-dex-body.pv-dexRefresh) {
 
 #pv-dex-body.pv-dexRefresh .pv-dexHero {
   margin-top: 0;
-  padding: clamp(2.2rem, 7vw, 4.5rem) 0 clamp(1.2rem, 3vw, 2rem);
+  padding: clamp(1.25rem, 3vw, 2rem) 0 clamp(1.2rem, 3vw, 2rem);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1363,7 +1363,7 @@ html:has(#pv-dex-body.pv-dexRefresh) {
   }
 
   #pv-dex-body.pv-dexRefresh .pv-dexHero {
-    padding-top: 2rem;
+    padding-top: clamp(1.25rem, 3vw, 2rem);
   }
 
   #pv-dex-body.pv-dexRefresh .pv-dexSearchDialog__body,
