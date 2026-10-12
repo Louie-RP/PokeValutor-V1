@@ -147,7 +147,7 @@
 
 #pv-search-body.pv-searchRefresh .pv-searchHero {
   margin: 0 auto;
-  padding: clamp(2.2rem, 7vw, 4.5rem) 0 clamp(1.2rem, 3vw, 2rem);
+  padding: clamp(1.25rem, 3vw, 2rem) 0 clamp(1.2rem, 3vw, 2rem);
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -877,7 +877,7 @@
   }
 
   #pv-search-body.pv-searchRefresh .pv-searchHero {
-    padding-top: clamp(3.5rem, 6vw, 5rem);
+    padding-top: clamp(1.25rem, 3vw, 2rem);
   }
 
   #pv-search-body.pv-searchRefresh .pv-searchPanel {
@@ -993,7 +993,7 @@
   }
 
   #pv-search-body.pv-searchRefresh .pv-searchHero {
-    padding-top: 2.7rem;
+    padding-top: clamp(1.25rem, 3vw, 2rem);
     padding-bottom: 1.8rem;
     text-align: left;
   }
