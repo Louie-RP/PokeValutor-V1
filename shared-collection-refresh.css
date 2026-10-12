@@ -509,8 +509,9 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
 
 @media (min-width: 768px) {
   #pv-shared-body.pv-sharedRefresh .pv-sharedFilterRow {
-    grid-template-columns: minmax(0, 1fr) repeat(2, 12rem);
+    grid-template-columns: minmax(0, 430px) repeat(2, 12rem);
     align-items: end;
+    max-width: 820px;
   }
 
   #pv-shared-body.pv-sharedRefresh .pv-sharedFilterControl--search {
