@@ -7,6 +7,8 @@ const html = await readFile('master-set-guide.html', 'utf8');
 const dexHtml = await readFile('dex.html', 'utf8');
 const guideIndex = JSON.parse(await readFile('data/master-set-guides/index.json', 'utf8'));
 const css = await readFile('master-set-guide.css', 'utf8');
+const dexTracker = await readFile('dex-tracker-pages.js', 'utf8');
+const firebase = await readFile('firebase.js', 'utf8');
 
 test('the downstream guide renderer avoids unsafe HTML parsing sinks', () => {
     assert.doesNotMatch(source, /\b(?:innerHTML|outerHTML|insertAdjacentHTML|document\.write)\b/);
@@ -53,6 +55,18 @@ test('the guide never loads pricing code or asks the manifest for pricing', () =
     assert.doesNotMatch(source, /Pricing is not included\./);
     assert.doesNotMatch(source, /Organize every supported card variant\./);
     assert.doesNotMatch(html, /Organize every supported card variant\./);
+});
+
+test('binder ownership markers avoid priced collection records', () => {
+    assert.match(html, /id="pv-guide-dialog-toggle"/);
+    assert.match(source, /ownershipOnlyVariants/);
+    assert.match(source, /saveDexState\(\{ collection, masterSets, revision, updatedAt \}\)/);
+    assert.match(source, /auth\.loadDexState\(\)/);
+    assert.match(source, /const canPushLocalState = localOwnerId === safeString\(user\.uid\)/);
+    assert.doesNotMatch(source, /includePrices|pop_reports|\/prices/);
+    assert.match(firebase, /ownershipOnlyVariants/);
+    assert.match(dexTracker, /if \(item\?\.ownershipOnly === true\) return null/);
+    assert.match(dexTracker, /ownershipOnly \? 'Ownership only'/);
 });
 
 test('builds only the current manifest variants with safe DOM controls', () => {

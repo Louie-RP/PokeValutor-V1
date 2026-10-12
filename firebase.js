@@ -1036,6 +1036,7 @@
                 collectionId,
                 id,
                 name: compactCollectionString(raw?.name, 160, 'Unknown'),
+                ownershipOnly: raw?.ownershipOnly === true,
                 setName: compactCollectionString(raw?.setName, 120, ''),
                 expansionName: compactCollectionString(raw?.expansionName, 120, ''),
                 images: compactCollectionImageList(raw?.images),
@@ -1070,6 +1071,11 @@
                 );
                 entry.variantQuantities = compactCollectionQuantities(
                     raw?.variantQuantities,
+                    (value) => compactCollectionString(value, 80, ''),
+                    ''
+                );
+                entry.ownershipOnlyVariants = compactCollectionQuantities(
+                    raw?.ownershipOnlyVariants,
                     (value) => compactCollectionString(value, 80, ''),
                     ''
                 );

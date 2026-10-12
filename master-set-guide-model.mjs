@@ -66,6 +66,10 @@ export function buildGuideOwnershipIndex(collection) {
         for (const [variant, quantity] of entries) {
             if (positiveQuantity(quantity)) owned.add(normalizeGuideVariant(variant));
         }
+        const ownershipOnlyVariants = isRecord(item.ownershipOnlyVariants) ? item.ownershipOnlyVariants : null;
+        for (const [variant, quantity] of Object.entries(ownershipOnlyVariants || {})) {
+            if (positiveQuantity(quantity)) owned.add(normalizeGuideVariant(variant));
+        }
         // A legacy collection record itself represents one owned card. Explicit
         // zero/malformed variant quantities must not resurrect selectedVariant.
         if (entries.length === 0 && cleanText(item.selectedVariant)) {

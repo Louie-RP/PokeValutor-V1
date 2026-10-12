@@ -1588,6 +1588,7 @@
 
     function isCollectionItemValueFullyCached(item) {
         if (!item || typeof item !== 'object') return true;
+        if (item.ownershipOnly === true) return true;
 
         if (isSealedCollectionItem(item)) {
             const id = safeString(item?.id, '');
@@ -1635,6 +1636,7 @@
 
     async function getCurrentCardValue(item, options) {
         const allowNetwork = options?.allowNetwork !== false;
+        if (item?.ownershipOnly === true) return null;
         const id = safeString(item?.id, '');
         const conditionCode = normalizeDexConditionCode(item?.selectedCondition);
         if (!id || !conditionCode) return null;
@@ -1760,6 +1762,12 @@
                 if (valueEl) {
                     valueEl.textContent = formatUsd(market);
                 }
+                return;
+            }
+
+            if (item?.ownershipOnly === true) {
+                delete collectionValueById[entryKey];
+                if (valueEl) valueEl.textContent = 'Not valued';
                 return;
             }
 
@@ -1960,6 +1968,8 @@
 
         return {
             itemType: 'card',
+            ownershipOnly: card?.ownershipOnly === true,
+            ownershipOnlyVariants: normalizeVariantQuantities(card?.ownershipOnlyVariants, '', 0),
             collectionId,
             id: safeString(raw?.id, ''),
             name: safeString(raw?.name, 'Unknown'),
@@ -2492,6 +2502,7 @@
 
             return {
                 ...entry,
+                ownershipOnly: false,
                 conditionQuantities: map,
                 selectedCondition: getPrimaryConditionCode(map),
                 updatedAt: Date.now(),
@@ -3174,6 +3185,7 @@
                 const valueElId = `pv-collection-value-${encodeURIComponent(entryKey)}`;
                 const conditionEntries = getConditionQuantityEntries(item?.conditionQuantities, item?.selectedCondition);
                 const copyCount = conditionEntries.reduce((sum, entry) => sum + entry.qty, 0);
+                const ownershipOnly = item?.ownershipOnly === true;
                 const addConditionSelectId = `pv-add-condition-${encodeURIComponent(id)}`;
                 const addConditionOptions = buildConditionOptionsHtml('');
                 const detailPath = buildCardDetailPath(item);
@@ -3205,8 +3217,8 @@
                                 <h3 class="pv-card__title"><a class="pv-card__titleLink" href="${detailPathAttr}" aria-label="View ${nameAttr} details">${name}</a></h3>
                                 <p class="pv-card__text pv-dexCard__setName">${setName}</p>
                                 <p class="pv-card__text pv-dexCard__meta pv-dexCard__rarity">${rarity}</p>
-                                <p class="pv-card__text pv-dexCard__meta">Copies: ${copyCount}</p>
-                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${conditionEntries.length ? '...' : '--'}</p>
+                                <p class="pv-card__text pv-dexCard__meta">${ownershipOnly ? 'Ownership only' : `Copies: ${copyCount}`}</p>
+                                <p class="pv-collectionAmount" id="${escapeAttr(valueElId)}">${ownershipOnly ? 'Not valued' : (conditionEntries.length ? '...' : '--')}</p>
                                 <details class="pv-dexCard__manage">
                                     <summary class="pv-dexCard__manageSummary">Manage copies</summary>
                                     <div class="pv-dexCard__manageBody">

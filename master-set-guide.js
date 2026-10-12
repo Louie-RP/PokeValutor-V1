@@ -1,8 +1,12 @@
-import { buildGuideOwnershipIndex, isGuideVariant, getGuideVariantOptions, getGuideVariantSelection } from './master-set-guide-model.mjs?v=2026-09-30-variants-1';
+import { buildGuideOwnershipIndex, isGuideVariant, getGuideVariantOptions, getGuideVariantSelection } from './master-set-guide-model.mjs?v=2026-10-11-ownership-1';
 import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-variants-1';
 
 (function () {
     const COLLECTION_KEY = 'pv:scrydex:collection:v1';
+    const OWNER_UID_KEY = 'pv:scrydex:dexOwnerUid:v1';
+    const CLOUD_REVISION_KEY = 'pv:scrydex:dexCloudRevision:v1';
+    const STATE_UPDATED_AT_KEY = 'pv:scrydex:dexStateUpdatedAt:v1';
+    const MASTER_SETS_KEY = 'pv:scrydex:masterSets:v1';
     const PREFERENCES_KEY = 'pv:masterSetGuide:preferences:v1';
     const LAYOUTS = Object.freeze({
         '3x3': { columns: 3, pageSize: 9 },
@@ -33,6 +37,7 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
         dialogNumber: document.getElementById('pv-guide-dialog-number'),
         dialogRarity: document.getElementById('pv-guide-dialog-rarity'),
         dialogOwned: document.getElementById('pv-guide-dialog-owned'),
+        dialogToggle: document.getElementById('pv-guide-dialog-toggle'),
         catalog: document.getElementById('pv-guide-catalog'),
         catalogFilter: document.getElementById('pv-guide-catalog-filter'),
         catalogStatus: document.getElementById('pv-guide-catalog-status'),
@@ -49,7 +54,9 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
         guideEntries: [],
         page: 1,
         dialogImageRequestId: 0,
+        dialogSlot: null,
     };
+    let dexCloudHydrating = false;
 
     function safeString(value) {
         return String(value ?? '').trim();
@@ -225,12 +232,205 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
         try {
             const raw = localStorage.getItem(COLLECTION_KEY);
             const parsed = raw === null ? null : parseJson(raw, null);
-            const ownerId = safeString(localStorage.getItem('pv:scrydex:dexOwnerUid:v1'));
+            const ownerId = safeString(localStorage.getItem(OWNER_UID_KEY));
             const userId = safeString(window.PV_AUTH?.getUser?.()?.uid);
             ownershipKnown = Array.isArray(parsed) && (ownerId ? ownerId === userId : !userId);
             if (ownershipKnown) ownedIndex = buildGuideOwnershipIndex(parsed);
         } catch { /* Full-plan export still works when collection storage is unavailable. */ }
         return { ownershipKnown, ownedIndex };
+    }
+
+    function readCollectionRecords() {
+        try {
+            const parsed = parseJson(localStorage.getItem(COLLECTION_KEY), []);
+            return Array.isArray(parsed) ? parsed.filter(item => item && typeof item === 'object' && safeString(item.id)) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function hasOwnershipOnlyMarker(slot) {
+        if (!getCollectionSnapshot().ownershipKnown) return false;
+        const cardId = safeString(slot?.cardId);
+        const variant = normalizeVariant(slot?.variant);
+        return readCollectionRecords().some((item) => {
+            if (safeString(item?.itemType).toLowerCase() === 'sealed'
+                || (safeString(item?.collectionId) || 'default') !== 'default'
+                || safeString(item?.id) !== cardId) return false;
+            const markers = item?.ownershipOnlyVariants && typeof item.ownershipOnlyVariants === 'object'
+                && !Array.isArray(item.ownershipOnlyVariants) ? item.ownershipOnlyVariants : {};
+            return Object.entries(markers).some(([key, quantity]) => normalizeVariant(key) === variant
+                && Number.isFinite(Number(quantity)) && Number(quantity) > 0);
+        });
+    }
+
+    function markDexStateUpdated() {
+        try {
+            const current = Math.max(0, Number(localStorage.getItem(STATE_UPDATED_AT_KEY)) || 0);
+            const updatedAt = Math.max(Date.now(), current + 1);
+            localStorage.setItem(STATE_UPDATED_AT_KEY, String(updatedAt));
+            return updatedAt;
+        } catch {
+            return Date.now();
+        }
+    }
+
+    function syncCollectionChange(collection, updatedAt) {
+        const auth = window.PV_AUTH;
+        const user = auth?.getUser?.();
+        if (!user || typeof auth?.saveDexState !== 'function') return;
+
+        let revision = 0;
+        let masterSets = {};
+        try {
+            revision = Math.max(0, Math.floor(Number(localStorage.getItem(CLOUD_REVISION_KEY)) || 0));
+            masterSets = parseJson(localStorage.getItem(MASTER_SETS_KEY), {});
+            if (!masterSets || typeof masterSets !== 'object' || Array.isArray(masterSets)) masterSets = {};
+        } catch {
+            masterSets = {};
+        }
+
+        Promise.resolve(auth.saveDexState({ collection, masterSets, revision, updatedAt }))
+            .then((result) => {
+                if (!result?.saved) return;
+                try {
+                    localStorage.setItem(CLOUD_REVISION_KEY, String(Number(result.revision) || revision));
+                } catch {
+                    // Local state remains usable when revision storage is unavailable.
+                }
+            })
+            .catch(() => {
+                // The local marker remains available; the next normal Dex sync can retry it.
+            });
+    }
+
+    function hydrateDexStateFromCloud() {
+        const auth = window.PV_AUTH;
+        const user = auth?.getUser?.();
+        if (!user || typeof auth?.loadDexState !== 'function' || dexCloudHydrating) return;
+
+        let localCollection = readCollectionRecords();
+        let localRevision = 0;
+        let localUpdatedAt = 0;
+        let localOwnerId = '';
+        try {
+            localRevision = Math.max(0, Math.floor(Number(localStorage.getItem(CLOUD_REVISION_KEY)) || 0));
+            localUpdatedAt = Math.max(0, Number(localStorage.getItem(STATE_UPDATED_AT_KEY)) || 0);
+            localOwnerId = safeString(localStorage.getItem(OWNER_UID_KEY));
+        } catch {
+            // Cloud state remains the safe fallback when local metadata is unavailable.
+        }
+
+        dexCloudHydrating = true;
+        Promise.resolve(auth.loadDexState())
+            .then((cloudState) => {
+                const cloudCollection = Array.isArray(cloudState?.collection) ? cloudState.collection : [];
+                const cloudRevision = Math.max(0, Math.floor(Number(cloudState?.revision) || 0));
+                const cloudUpdatedAt = Math.max(0, Number(cloudState?.updatedAt) || 0);
+                const canPushLocalState = localOwnerId === safeString(user.uid)
+                    && localRevision === cloudRevision
+                    && localUpdatedAt > cloudUpdatedAt;
+                const resolvedCollection = canPushLocalState ? localCollection : cloudCollection;
+
+                localStorage.setItem(COLLECTION_KEY, JSON.stringify(resolvedCollection));
+                localStorage.setItem(CLOUD_REVISION_KEY, String(cloudRevision));
+                localStorage.setItem(STATE_UPDATED_AT_KEY, String(canPushLocalState ? localUpdatedAt : cloudUpdatedAt));
+                localStorage.setItem(OWNER_UID_KEY, safeString(user.uid));
+
+                state.ownedVariantsByCardId = getOwnedVariantIndex();
+                render();
+
+                if (canPushLocalState) syncCollectionChange(resolvedCollection, localUpdatedAt);
+            })
+            .catch(() => {
+                // Existing local state remains usable when cloud loading is unavailable.
+            })
+            .finally(() => {
+                dexCloudHydrating = false;
+            });
+    }
+
+    function saveOwnershipMarker(slot, card, shouldOwn) {
+        const userId = safeString(window.PV_AUTH?.getUser?.()?.uid);
+        let ownerId = '';
+        try { ownerId = safeString(localStorage.getItem(OWNER_UID_KEY)); } catch { /* ignore */ }
+        if (userId && ownerId && ownerId !== userId) {
+            return { saved: false, message: 'Switch to the account that owns this Dex data before changing ownership.' };
+        }
+        if (userId && !ownerId && readCollectionRecords().length) {
+            return { saved: false, message: 'Open Dex once to load this account\'s collection before changing ownership.' };
+        }
+
+        const cardId = safeString(slot?.cardId);
+        const variant = safeString(slot?.variant);
+        const normalizedVariant = normalizeVariant(variant);
+        if (!cardId || !normalizedVariant) return { saved: false, message: 'This binder slot cannot be updated.' };
+
+        const collection = readCollectionRecords();
+        const index = collection.findIndex((item) => safeString(item?.itemType).toLowerCase() !== 'sealed'
+            && (safeString(item?.collectionId) || 'default') === 'default'
+            && safeString(item?.id) === cardId);
+
+        if (index < 0 && !shouldOwn) return { saved: true, collection };
+
+        const nextCollection = collection.slice();
+        if (index < 0) {
+            const now = Date.now();
+            nextCollection.push({
+                itemType: 'card',
+                ownershipOnly: true,
+                collectionId: 'default',
+                id: cardId,
+                name: safeString(card?.name) || 'Unknown',
+                card_no: safeString(card?.printedNumber || card?.number),
+                number: safeString(card?.printedNumber || card?.number),
+                expansionName: safeString(state.manifest?.expansion?.name),
+                setName: safeString(state.manifest?.expansion?.name),
+                expansion: state.manifest?.expansion && typeof state.manifest.expansion === 'object'
+                    ? state.manifest.expansion : null,
+                images: card?.images && typeof card.images === 'object' ? card.images : null,
+                variants: [],
+                selectedVariant: '',
+                variantQuantities: {},
+                selectedCondition: '',
+                conditionQuantities: {},
+                ownershipOnlyVariants: { [variant]: 1 },
+                addedAt: now,
+                updatedAt: now,
+            });
+        } else {
+            const existing = { ...nextCollection[index] };
+            const markers = existing.ownershipOnlyVariants && typeof existing.ownershipOnlyVariants === 'object'
+                && !Array.isArray(existing.ownershipOnlyVariants) ? { ...existing.ownershipOnlyVariants } : {};
+            Object.keys(markers).forEach((key) => {
+                if (normalizeVariant(key) === normalizedVariant) delete markers[key];
+            });
+            if (shouldOwn) markers[variant] = 1;
+            existing.ownershipOnlyVariants = markers;
+            existing.updatedAt = Date.now();
+
+            const actualVariants = existing.variantQuantities && typeof existing.variantQuantities === 'object'
+                ? Object.values(existing.variantQuantities).some(value => Number(value) > 0) : false;
+            const actualConditions = existing.conditionQuantities && typeof existing.conditionQuantities === 'object'
+                ? Object.values(existing.conditionQuantities).some(value => Number(value) > 0) : false;
+            if (!Object.keys(markers).length && existing.ownershipOnly === true && !actualVariants && !actualConditions) {
+                nextCollection.splice(index, 1);
+            } else {
+                nextCollection[index] = existing;
+            }
+        }
+
+        try {
+            localStorage.setItem(COLLECTION_KEY, JSON.stringify(nextCollection));
+            if (userId && !ownerId) localStorage.setItem(OWNER_UID_KEY, userId);
+        } catch {
+            return { saved: false, message: 'Could not save this ownership marker on this device.' };
+        }
+
+        const updatedAt = markDexStateUpdated();
+        try { window.dispatchEvent(new CustomEvent('pv:dex-state-changed')); } catch { /* ignore */ }
+        syncCollectionChange(nextCollection, updatedAt);
+        return { saved: true, collection: nextCollection };
     }
 
     function getExportSnapshot() {
@@ -446,6 +646,7 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
     function openCardDialog(slot, card) {
         if (!(elements.dialog instanceof HTMLDialogElement)) return;
         const requestId = ++state.dialogImageRequestId;
+        state.dialogSlot = slot;
         const cardName = safeString(card?.name) || 'Unknown Card';
         const imageAlt = `${cardName} ${safeString(slot?.label)} card image`;
         const largeImageUrl = slot?.images?.large
@@ -464,7 +665,16 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
             ? `Card ${safeString(card?.printedNumber || card?.number)}`
             : 'Card number unavailable';
         elements.dialogRarity.textContent = safeString(card?.rarity) || 'Rarity unavailable';
-        elements.dialogOwned.textContent = isSlotOwned(slot) ? 'Owned in Default Collection' : 'Missing from Default Collection';
+        const markerOwned = hasOwnershipOnlyMarker(slot);
+        const collectionOwned = isSlotOwned(slot);
+        elements.dialogOwned.textContent = collectionOwned
+            ? (markerOwned ? 'Marked owned for this binder (no price data)' : 'Owned in Default Collection')
+            : 'Missing from Default Collection';
+        if (elements.dialogToggle instanceof HTMLButtonElement) {
+            elements.dialogToggle.disabled = collectionOwned && !markerOwned;
+            elements.dialogToggle.textContent = markerOwned ? 'Remove binder marker' : 'Mark as owned';
+            elements.dialogToggle.setAttribute('aria-pressed', markerOwned ? 'true' : 'false');
+        }
         if (!elements.dialog.open) elements.dialog.showModal();
 
         if (safeLargeImageUrl && safeLargeImageUrl !== safePreviewImageUrl) {
@@ -575,6 +785,20 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
             render();
         });
         elements.dialogClose?.addEventListener('click', () => elements.dialog?.close());
+        elements.dialogToggle?.addEventListener('click', () => {
+            const slot = state.dialogSlot;
+            const card = slot ? getCard(slot) : null;
+            if (!slot || !card) return;
+            const markerOwned = hasOwnershipOnlyMarker(slot);
+            const result = saveOwnershipMarker(slot, card, !markerOwned);
+            if (!result.saved) {
+                elements.dialogOwned.textContent = result.message;
+                return;
+            }
+            state.ownedVariantsByCardId = getOwnedVariantIndex();
+            render();
+            openCardDialog(slot, card);
+        });
         elements.dialog?.addEventListener('click', (event) => {
             if (event.target === elements.dialog) elements.dialog.close();
         });
@@ -588,7 +812,11 @@ import { initBinderExport } from './master-set-guide-export.mjs?v=2026-09-30-var
             render();
         };
         window.addEventListener('pv:dex-state-changed', refreshOwnership);
-        window.PV_AUTH?.onAuthStateChanged?.(refreshOwnership);
+        window.PV_AUTH?.onAuthStateChanged?.(() => {
+            refreshOwnership();
+            hydrateDexStateFromCloud();
+        });
+        hydrateDexStateFromCloud();
     }
 
     function validateManifest(manifest, requestedExpansionId) {
