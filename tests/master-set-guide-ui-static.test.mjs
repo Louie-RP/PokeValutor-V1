@@ -39,7 +39,13 @@ test('uses medium images for binder thumbnails and large images for card dialogs
     );
     assert.match(source, /preload\.onload\s*=\s*\(\)\s*=>/);
     assert.match(source, /requestId === state\.dialogImageRequestId/);
+<<<<<<< HEAD
 
+=======
+});
+
+test('keeps lazy async image loading and contained-image styling hooks', async () => {
+>>>>>>> 4584398312ecd41577b606c872bf9f55533f96a5
     assert.match(source, /image\.loading = 'lazy'/);
     assert.match(source, /image\.decoding = 'async'/);
     assert.match(css, /object-fit:\s*contain/);
