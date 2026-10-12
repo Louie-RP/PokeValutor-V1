@@ -462,6 +462,14 @@
   font-weight: 800;
 }
 
+.pv-guideDialog__content .pv-guideDialog__owned {
+  color: var(--pv-muted);
+}
+
+.pv-guideDialog__content .pv-guideDialog__owned + .pv-button {
+  margin-top: 0.65rem;
+}
+
 .pv-guideSlot__name {
   display: block;
   margin-top: 0.4rem;

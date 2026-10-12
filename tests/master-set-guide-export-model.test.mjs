@@ -140,6 +140,15 @@ test('ownership counts finite positive quantities in Default Collection only', (
     assert.deepEqual([...index.keys()], ['a', 'd', 'h']);
 });
 
+test('ownership-only variant markers count without condition or price data', () => {
+    const index = buildGuideOwnershipIndex([
+        { id: 'cheap-card', ownershipOnly: true, ownershipOnlyVariants: { normal: 1, reverseHolofoil: '1' } },
+        { id: 'cheap-card', ownershipOnlyVariants: { holofoil: 0, bad: 'NaN' } },
+    ]);
+
+    assert.deepEqual([...index.get('cheap-card')], ['normal', 'reverseholofoil']);
+});
+
 test('missing-only and manual print omissions preserve original binder positions', () => {
     const ownership = buildGuideOwnershipIndex([{ id: manifest.slots[0].cardId, variantQuantities: { normal: 1 } }]);
     const plan = buildBinderPlan(manifest, ownership, { layout: '4x4' });

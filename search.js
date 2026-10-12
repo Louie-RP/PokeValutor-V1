@@ -1289,6 +1289,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const setName = safeString(card?.setName ?? card?.set_name ?? card?.expansionName ?? card?.expansion_name, '');
         return {
             itemType: 'card',
+            ownershipOnly: card?.ownershipOnly === true,
+            ownershipOnlyVariants: normalizeVariantQuantities(card?.ownershipOnlyVariants, '', 0),
             collectionId,
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -1861,6 +1863,7 @@ document.addEventListener('DOMContentLoaded', function () {
             collection[existingIndex] = {
                 ...existing,
                 ...normalized,
+                ownershipOnly: false,
                 addedAt: existing.addedAt,
                 selectedVariant: nextSelectedVariant,
                 variantQuantities: nextVariantMap,
