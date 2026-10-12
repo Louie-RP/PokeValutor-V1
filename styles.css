@@ -70,20 +70,43 @@ body {
 .pv-header {
   position: sticky;
   top: 0;
-  z-index: 10;
-  background: var(--pv-surface);
+  z-index: 100;
+  min-height: 4.7rem;
+  background: rgba(8, 8, 9, 0.94);
   border-bottom: 1px solid var(--pv-border);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
 }
 .pv-header__inner {
-  max-width: 1100px;
+  width: min(100% - 2rem, 72rem);
+  min-height: 4.7rem;
   margin: 0 auto;
-  padding: 0.75rem 1rem;
+  padding: 0;
   display: grid;
   grid-template-columns: auto 1fr 48px;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
 }
-.pv-brand { color: var(--pv-primary); text-decoration: none; font-weight: 700; font-family: var(--pv-brand-font), var(--pv-heading-font); font-size: 1.35rem; line-height: 1.1; }
+.pv-brand {
+  position: relative;
+  display: block;
+  width: 7rem;
+  height: 3.4rem;
+  overflow: hidden;
+  color: transparent;
+  text-decoration: none;
+  font-size: 0;
+  background: url("PokeValuator_Logo.png") no-repeat -0.35rem -0.45rem / 7.7rem auto;
+}
+
+.pv-brand img {
+  position: absolute;
+  top: -0.45rem;
+  left: -0.35rem;
+  width: 7.7rem;
+  max-width: none;
+  height: auto;
+}
 
 .pv-auth-menu {
   position: relative;
@@ -222,12 +245,23 @@ body {
 
 .pv-nav { display: none; }
 .pv-nav[aria-expanded="true"] { display: block; }
-.pv-nav__list { list-style: none; margin: 0; padding: 0; display: flex; gap: 1rem; justify-content: end; }
-.pv-nav__link { color: var(--pv-text); text-decoration: none; padding: 0.5rem 0.75rem; border-radius: 6px; display: inline-flex; align-items: center; }
-.pv-nav__link:focus, .pv-nav__link:hover { background: #1f2937; }
+.pv-nav__list { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.25rem; justify-content: end; }
+.pv-nav__link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: #aaaab4;
+  text-decoration: none;
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.pv-nav__link:focus, .pv-nav__link:hover { background: #111114; color: var(--pv-text); }
 .pv-nav__link[aria-current="page"] {
   background: rgba(255, 203, 5, 0.14);
-  color: #fff4c0;
+  color: var(--pv-primary);
 }
 
 /* Hide Pricing link until auth-aware nav logic resolves visibility. */
@@ -305,7 +339,7 @@ body {
 
 .pv-navMore__summary:focus,
 .pv-navMore__summary:hover {
-  background: #1f2937;
+  background: #111114;
 }
 
 .pv-navMore--hasCurrent .pv-navMore__summary {
@@ -1799,6 +1833,12 @@ h1, h2, h3, h4, h5, h6,
     margin-top: 0.25rem;
   }
 
+  #pv-favorites-totals {
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+  }
+
   /* Also stack Trade under Total and remove the bullet. */
   #pv-favorites-totals .pv-totals__sep,
   #pv-sealed-favorites-totals .pv-totals__sep {
@@ -1809,6 +1849,11 @@ h1, h2, h3, h4, h5, h6,
   #pv-sealed-favorites-totals .pv-totals__trade {
     display: block;
     margin-top: 0.15rem;
+  }
+
+  #pv-favorites-totals .pv-totals__trade {
+    display: inline;
+    margin-top: 0;
   }
 }
 
@@ -5517,7 +5562,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   gap: 0.55rem;
 }
 
-#pv-dex-body #pv-dex-master-link {
+#pv-dex-body #pv-dex-master-link,
+#pv-dex-body #pv-dex-binder-link {
   background: linear-gradient(180deg, rgba(255, 203, 5, 0.24), rgba(255, 203, 5, 0.14));
   border-color: rgba(255, 203, 5, 0.68);
   color: #fff8d6;
@@ -5527,7 +5573,9 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 }
 
 #pv-dex-body #pv-dex-master-link:hover,
-#pv-dex-body #pv-dex-master-link:focus {
+#pv-dex-body #pv-dex-master-link:focus,
+#pv-dex-body #pv-dex-binder-link:hover,
+#pv-dex-body #pv-dex-binder-link:focus {
   background: linear-gradient(180deg, rgba(255, 203, 5, 0.34), rgba(255, 203, 5, 0.2));
   border-color: rgba(255, 203, 5, 0.88);
   color: #fffef2;
@@ -7096,8 +7144,15 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   #pv-search-body #pv-favorites-totals,
   #pv-sealed-body #pv-sealed-favorites-totals {
     margin-top: 0.18rem;
-    font-size: 0.8rem;
     line-height: 1.25;
+  }
+
+  #pv-search-body #pv-favorites-totals {
+    font-size: 0.84rem;
+  }
+
+  #pv-sealed-body #pv-sealed-favorites-totals {
+    font-size: 0.8rem;
   }
 
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header,
@@ -8117,8 +8172,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   width: 116px;
   border-radius: 8px;
   border: 1px solid var(--pv-primary);
-  background: #ffffff;
-  color: #0b0b0b;
+  background: #000000;
+  color: #ffffff;
   flex: 0 0 auto;
   overflow: hidden;
 }
@@ -8126,8 +8181,8 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 #pv-search-body #pv-trade .pv-trade__targetInput > span {
   padding-left: 0.45rem;
   font-size: 0.82rem;
-  background: #ffffff;
-  color: #0b0b0b;
+  background: #000000;
+  color: #ffffff;
 }
 
 #pv-search-body #pv-trade .pv-trade__targetInput .form-control {
@@ -8135,10 +8190,14 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
   min-width: 0;
   border: 0;
   border-radius: 0;
-  background: #ffffff;
-  color: #0b0b0b;
+  background: #000000;
+  color: #ffffff;
   padding: 0.22rem 0.35rem;
   font-size: 0.82rem;
+}
+
+#pv-search-body #pv-trade .pv-trade__targetInput .form-control::placeholder {
+  color: #cbd5e1;
 }
 
 #pv-search-body #pv-trade .pv-trade__targetInput .form-control:focus {
@@ -8439,14 +8498,29 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 
 @media (max-width: 640px) {
   #pv-search-body #pv-trade .pv-section__header {
-    align-items: center;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: start;
+    gap: 0.45rem;
+  }
+
+  #pv-search-body #pv-trade .pv-section__header > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
   }
 
   #pv-search-body #pv-trade .pv-trade__controls {
-    width: auto;
-    gap: 0.3rem;
-    justify-content: flex-end;
+    display: contents;
+  }
+
+  #pv-search-body #pv-trade #pv-trade-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  #pv-search-body #pv-trade #pv-trade-clear {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   #pv-search-body #pv-trade .pv-trade__controls .btn,
@@ -8608,42 +8682,64 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
 @media (max-width: 575.98px) {
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header,
   #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist .pv-section__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 0.45rem;
+    row-gap: 0.6rem;
+  }
+
+  #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > h2,
+  #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist .pv-section__header > h2 {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0;
   }
 
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > div,
   #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist .pv-section__header > div {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.4rem;
-    width: 100%;
-    margin-left: 0;
-    align-items: center;
+    display: contents;
+    grid-row: 1;
   }
 
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > div .pv-sortLabel,
   #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist .pv-section__header > div .pv-sortLabel {
-    grid-column: 1 / -1;
-    margin: 0;
+    display: none;
   }
 
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > div .pv-sortSelect,
   #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist .pv-section__header > div .pv-sortSelect {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
+    grid-row: 2;
+    justify-self: end;
     width: min(100%, 168px);
     min-width: 112px;
     max-width: 168px;
-    justify-self: start;
   }
 
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > div .btn,
   #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist .pv-section__header > div .btn {
-    width: 100%;
+    width: auto;
     min-height: 36px;
     justify-content: center;
     white-space: nowrap;
+  }
+
+  #pv-search-body #pv-favorites.pv-searchWatchlist #pv-favorites-toggle,
+  #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist #pv-sealed-favorites-toggle {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  #pv-search-body #pv-favorites.pv-searchWatchlist #pv-favorites-clear,
+  #pv-sealed-body #pv-sealed-favorites.pv-sealedWatchlist #pv-sealed-favorites-clear {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   #pv-search-body #pv-favorites.pv-searchWatchlist .pv-section__header > div .ms-2,

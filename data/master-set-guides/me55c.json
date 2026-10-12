@@ -1,0 +1,841 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-30T04:07:43.649Z",
+  "source": {
+    "provider": "Scrydex",
+    "includesPricing": false,
+    "includesPopulationReports": false,
+    "catalogUrl": "https://scrydex.com/pokemon/expansions/30th-celebration-classic-collection/me55c?show_all_variants=true&show_expansion_variants_only=false",
+    "retrievalMethod": "public-card-page-embedded-json"
+  },
+  "expansion": {
+    "id": "me55c",
+    "name": "30th Celebration: Classic Collection",
+    "series": "Mega Evolution",
+    "code": "30C",
+    "total": 30,
+    "printedTotal": 0,
+    "releaseDate": "2026/09/16",
+    "logo": "https://images.scrydex.com/pokemon/me55c-logo/logo",
+    "symbol": "https://images.scrydex.com/pokemon/me55c-symbol/symbol"
+  },
+  "variantOrder": [
+    "normal",
+    "reverseHolofoil",
+    "energyReverseHolofoil",
+    "pokeBallReverseHolofoil",
+    "rocketReverseHolofoil",
+    "quickBallReverseHolofoil",
+    "duskBallReverseHolofoil",
+    "loveBallReverseHolofoil",
+    "friendBallReverseHolofoil",
+    "cosmosHolofoil",
+    "holofoil"
+  ],
+  "cards": [
+    {
+      "id": "me55c-58",
+      "name": "Pikachu",
+      "number": "58",
+      "printedNumber": "58/102",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 1,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-58/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-58/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-58/large"
+      }
+    },
+    {
+      "id": "me55c-4",
+      "name": "Charizard",
+      "number": "4",
+      "printedNumber": "4/102",
+      "rarity": "Rare Holo",
+      "supertype": "Pokémon",
+      "sortOrder": 2,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-4/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-4/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-4/large"
+      }
+    },
+    {
+      "id": "me55c-18",
+      "name": "Misty",
+      "number": "18",
+      "printedNumber": "18/132",
+      "rarity": "Rare Holo",
+      "supertype": "Trainer",
+      "sortOrder": 3,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-18/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-18/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-18/large"
+      }
+    },
+    {
+      "id": "me55c-69",
+      "name": "Erika's Jigglypuff",
+      "number": "69",
+      "printedNumber": "69/132",
+      "rarity": "Common",
+      "supertype": "Pokémon",
+      "sortOrder": 4,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-69/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-69/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-69/large"
+      }
+    },
+    {
+      "id": "me55c-25",
+      "name": "Sneasel",
+      "number": "25",
+      "printedNumber": "25/111",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 5,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-25/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-25/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-25/large"
+      }
+    },
+    {
+      "id": "me55c-106",
+      "name": "Shining Celebi",
+      "number": "106",
+      "printedNumber": "106/105",
+      "rarity": "Rare Secret",
+      "supertype": "Pokémon",
+      "sortOrder": 6,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-106/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-106/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-106/large"
+      }
+    },
+    {
+      "id": "me55c-149",
+      "name": "Lugia",
+      "number": "149",
+      "printedNumber": "149/147",
+      "rarity": "Rare Secret",
+      "supertype": "Pokémon",
+      "sortOrder": 7,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-149/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-149/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-149/large"
+      }
+    },
+    {
+      "id": "me55c-5",
+      "name": "Delcatty",
+      "number": "5",
+      "printedNumber": "5/109",
+      "rarity": "Rare Holo",
+      "supertype": "Pokémon",
+      "sortOrder": 8,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-5/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-5/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-5/large"
+      }
+    },
+    {
+      "id": "me55c-19",
+      "name": "Dark Tyranitar",
+      "number": "19",
+      "printedNumber": "19/109",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 9,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-19/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-19/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-19/large"
+      }
+    },
+    {
+      "id": "me55c-108",
+      "name": "Scizor ex",
+      "number": "108",
+      "printedNumber": "108/115",
+      "rarity": "Rare Holo ex",
+      "supertype": "Pokémon",
+      "sortOrder": 10,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-108/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-108/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-108/large"
+      }
+    },
+    {
+      "id": "me55c-11",
+      "name": "Metagross",
+      "number": "11",
+      "printedNumber": "11/113",
+      "rarity": "Rare Holo",
+      "supertype": "Pokémon",
+      "sortOrder": 11,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-11/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-11/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-11/large"
+      }
+    },
+    {
+      "id": "me55c-106p",
+      "name": "Palkia LV.X",
+      "number": "106",
+      "printedNumber": "106/106",
+      "rarity": "Rare Holo LV.X",
+      "supertype": "Pokémon",
+      "sortOrder": 12,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-106p/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-106p/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-106p/large"
+      }
+    },
+    {
+      "id": "me55c-43",
+      "name": "Uxie",
+      "number": "43",
+      "printedNumber": "43/146",
+      "rarity": "Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 13,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-43/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-43/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-43/large"
+      }
+    },
+    {
+      "id": "me55c-47",
+      "name": "Crobat G",
+      "number": "47",
+      "printedNumber": "47/127",
+      "rarity": "Uncommon",
+      "supertype": "Pokémon",
+      "sortOrder": 14,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-47/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-47/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-47/large"
+      }
+    },
+    {
+      "id": "me55c-94",
+      "name": "Gengar",
+      "number": "94",
+      "printedNumber": "94/102",
+      "rarity": "Rare Prime",
+      "supertype": "Pokémon",
+      "sortOrder": 15,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-94/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-94/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-94/large"
+      }
+    },
+    {
+      "id": "me55c-99",
+      "name": "Darkrai & Cresselia LEGEND",
+      "number": "99",
+      "printedNumber": "99/102",
+      "rarity": "LEGEND",
+      "supertype": "Pokémon",
+      "sortOrder": 16,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-99/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-99/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-99/large"
+      }
+    },
+    {
+      "id": "me55c-100",
+      "name": "Darkrai & Cresselia LEGEND",
+      "number": "100",
+      "printedNumber": "100/102",
+      "rarity": "LEGEND",
+      "supertype": "Pokémon",
+      "sortOrder": 17,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-100/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-100/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-100/large"
+      }
+    },
+    {
+      "id": "me55c-101",
+      "name": "N",
+      "number": "101",
+      "printedNumber": "101/101",
+      "rarity": "Rare Ultra",
+      "supertype": "Trainer",
+      "sortOrder": 18,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-101/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-101/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-101/large"
+      }
+    },
+    {
+      "id": "me55c-85",
+      "name": "Rayquaza-EX",
+      "number": "85",
+      "printedNumber": "85/124",
+      "rarity": "Rare Holo EX",
+      "supertype": "Pokémon",
+      "sortOrder": 19,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-85/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-85/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-85/large"
+      }
+    },
+    {
+      "id": "me55c-11g",
+      "name": "Genesect-EX",
+      "number": "11",
+      "printedNumber": "11/101",
+      "rarity": "Rare Holo EX",
+      "supertype": "Pokémon",
+      "sortOrder": 20,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-11g/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-11g/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-11g/large"
+      }
+    },
+    {
+      "id": "me55c-106m",
+      "name": "M Gardevoir-EX",
+      "number": "106",
+      "printedNumber": "106/160",
+      "rarity": "Rare Holo EX",
+      "supertype": "Pokémon",
+      "sortOrder": 21,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-106m/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-106m/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-106m/large"
+      }
+    },
+    {
+      "id": "me55c-41",
+      "name": "Greninja BREAK",
+      "number": "41",
+      "printedNumber": "41/122",
+      "rarity": "Rare BREAK",
+      "supertype": "Pokémon",
+      "sortOrder": 22,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-41/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-41/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-41/large"
+      }
+    },
+    {
+      "id": "me55c-89",
+      "name": "Solgaleo-GX",
+      "number": "89",
+      "printedNumber": "89/149",
+      "rarity": "Rare Holo GX",
+      "supertype": "Pokémon",
+      "sortOrder": 23,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-89/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-89/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-89/large"
+      }
+    },
+    {
+      "id": "me55c-57",
+      "name": "Buzzwole-GX",
+      "number": "57",
+      "printedNumber": "57/111",
+      "rarity": "Rare Holo GX",
+      "supertype": "Pokémon",
+      "sortOrder": 24,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-57/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-57/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-57/large"
+      }
+    },
+    {
+      "id": "me55c-33",
+      "name": "Pikachu & Zekrom-GX",
+      "number": "33",
+      "printedNumber": "33/181",
+      "rarity": "Rare Holo GX",
+      "supertype": "Pokémon",
+      "sortOrder": 25,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-33/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-33/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-33/large"
+      }
+    },
+    {
+      "id": "me55c-138",
+      "name": "Zacian V",
+      "number": "138",
+      "printedNumber": "138/202",
+      "rarity": "Holo Rare V",
+      "supertype": "Pokémon",
+      "sortOrder": 26,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-138/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-138/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-138/large"
+      }
+    },
+    {
+      "id": "me55c-50",
+      "name": "Raikou",
+      "number": "50",
+      "printedNumber": "050/185",
+      "rarity": "Amazing Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 27,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-50/large"
+      }
+    },
+    {
+      "id": "me55c-114",
+      "name": "Mew VMAX",
+      "number": "114",
+      "printedNumber": "114/264",
+      "rarity": "Holo Rare VMAX",
+      "supertype": "Pokémon",
+      "sortOrder": 28,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-114/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-114/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-114/large"
+      }
+    },
+    {
+      "id": "me55c-123",
+      "name": "Arceus VSTAR",
+      "number": "123",
+      "printedNumber": "123/172",
+      "rarity": "Holo Rare VSTAR",
+      "supertype": "Pokémon",
+      "sortOrder": 29,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-123/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-123/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-123/large"
+      }
+    },
+    {
+      "id": "me55c-203",
+      "name": "Magikarp",
+      "number": "203",
+      "printedNumber": "203/193",
+      "rarity": "Illustration Rare",
+      "supertype": "Pokémon",
+      "sortOrder": 30,
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-203/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-203/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-203/large"
+      }
+    }
+  ],
+  "slots": [
+    {
+      "slotId": "me55c-58:holofoil",
+      "cardId": "me55c-58",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-58/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-58/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-58/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-4:holofoil",
+      "cardId": "me55c-4",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-4/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-4/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-4/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-18:holofoil",
+      "cardId": "me55c-18",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-18/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-18/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-18/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-69:holofoil",
+      "cardId": "me55c-69",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-69/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-69/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-69/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-25:holofoil",
+      "cardId": "me55c-25",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-25/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-25/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-25/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-106:holofoil",
+      "cardId": "me55c-106",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-106/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-106/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-106/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-149:holofoil",
+      "cardId": "me55c-149",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-149/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-149/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-149/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-5:holofoil",
+      "cardId": "me55c-5",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-5/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-5/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-5/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-19:holofoil",
+      "cardId": "me55c-19",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-19/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-19/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-19/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-108:holofoil",
+      "cardId": "me55c-108",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-108/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-108/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-108/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-11:holofoil",
+      "cardId": "me55c-11",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-11/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-11/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-11/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-106p:holofoil",
+      "cardId": "me55c-106p",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-106p/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-106p/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-106p/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-43:holofoil",
+      "cardId": "me55c-43",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-43/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-43/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-43/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-47:holofoil",
+      "cardId": "me55c-47",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-47/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-47/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-47/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-94:holofoil",
+      "cardId": "me55c-94",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-94/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-94/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-94/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-99:holofoil",
+      "cardId": "me55c-99",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-99/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-99/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-99/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-100:holofoil",
+      "cardId": "me55c-100",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-100/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-100/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-100/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-101:holofoil",
+      "cardId": "me55c-101",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-101/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-101/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-101/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-85:holofoil",
+      "cardId": "me55c-85",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-85/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-85/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-85/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-11g:holofoil",
+      "cardId": "me55c-11g",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-11g/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-11g/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-11g/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-106m:holofoil",
+      "cardId": "me55c-106m",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-106m/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-106m/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-106m/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-41:holofoil",
+      "cardId": "me55c-41",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-41/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-41/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-41/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-89:holofoil",
+      "cardId": "me55c-89",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-89/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-89/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-89/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-57:holofoil",
+      "cardId": "me55c-57",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-57/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-57/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-57/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-33:holofoil",
+      "cardId": "me55c-33",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-33/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-33/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-33/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-138:holofoil",
+      "cardId": "me55c-138",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-138/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-138/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-138/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-50:holofoil",
+      "cardId": "me55c-50",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-50/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-50/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-50/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-114:holofoil",
+      "cardId": "me55c-114",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-114/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-114/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-114/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-123:holofoil",
+      "cardId": "me55c-123",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-123/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-123/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-123/large"
+      },
+      "imageSource": "base"
+    },
+    {
+      "slotId": "me55c-203:holofoil",
+      "cardId": "me55c-203",
+      "variant": "holofoil",
+      "label": "Holofoil",
+      "images": {
+        "small": "https://images.scrydex.com/pokemon/me55c-203/small",
+        "medium": "https://images.scrydex.com/pokemon/me55c-203/medium",
+        "large": "https://images.scrydex.com/pokemon/me55c-203/large"
+      },
+      "imageSource": "base"
+    }
+  ],
+  "stats": {
+    "cardRecords": 30,
+    "binderSlots": 30,
+    "countsByVariant": {
+      "normal": 0,
+      "reverseHolofoil": 0,
+      "energyReverseHolofoil": 0,
+      "pokeBallReverseHolofoil": 0,
+      "rocketReverseHolofoil": 0,
+      "quickBallReverseHolofoil": 0,
+      "duskBallReverseHolofoil": 0,
+      "loveBallReverseHolofoil": 0,
+      "friendBallReverseHolofoil": 0,
+      "cosmosHolofoil": 0,
+      "holofoil": 30
+    },
+    "variantImages": 0,
+    "baseImageFallbacks": 30,
+    "overrideImages": 0,
+    "missingImages": 0
+  },
+  "generationWarnings": []
+}
