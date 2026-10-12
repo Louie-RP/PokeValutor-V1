@@ -17,13 +17,15 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
   --sealed-yellow-ink: #171300;
   --sealed-green: #8be0a8;
   --sealed-danger: #dc2626;
+  --sealed-heading: "Playfair Display", Georgia, serif;
+  --sealed-body: "Space Grotesk", "DM Sans", system-ui, sans-serif;
   width: 100%;
   min-width: 0;
   background:
     radial-gradient(circle at 88% 4%, rgba(255, 203, 5, 0.08), transparent 28rem),
     var(--sealed-bg);
   color: var(--sealed-text);
-  font-family: "DM Sans", "Space Grotesk", system-ui, sans-serif;
+  font-family: var(--sealed-body);
 }
 
 #pv-sealed-body.pv-sealedRefresh .container,
@@ -177,7 +179,7 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
   max-width: 52rem;
   margin: 0;
   color: var(--sealed-text);
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: var(--sealed-heading);
   font-size: clamp(2.25rem, 8vw, 4rem);
   font-weight: 800;
   letter-spacing: 0;
@@ -354,7 +356,7 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
   min-width: 0;
   margin: 0;
   color: var(--sealed-yellow);
-  font-family: "Playfair Display", Georgia, serif;
+  font-family: var(--sealed-heading);
   font-size: clamp(1.45rem, 3vw, 1.9rem);
   line-height: 1.1;
 }
@@ -583,9 +585,11 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
 #pv-sealed-body.pv-sealedRefresh #pv-sealed-favorites-totals {
   margin-left: 0.55rem;
   color: var(--sealed-muted);
-  font-family: inherit;
-  font-size: 0.9rem;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  font-size: 0.92rem;
   font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -599,7 +603,7 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
 
 @media (min-width: 768px) {
   #pv-sealed-body.pv-sealedRefresh #pv-sealed-form {
-    grid-template-columns: minmax(0, 1fr) minmax(12rem, 15rem);
+    grid-template-columns: minmax(260px, 360px) minmax(12rem, 15rem);
   }
 
   #pv-sealed-body.pv-sealedRefresh #pv-sealed-form > .pv-form__field:first-child {
