@@ -26,7 +26,6 @@ serviceAccountKey.json
 .dev.vars
 .wrangler/
 
-<<<<<<< HEAD
 # Local test suites and verification harnesses
 /tests/*
 !/tests/
