@@ -205,6 +205,20 @@ html:has(#pv-dex-body.pv-dexRefresh) {
   gap: 0.55rem;
 }
 
+#pv-dex-body.pv-dexRefresh .pv-dexTools__actions .pv-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7rem;
+  min-height: 2.85rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+}
+
 #pv-dex-body.pv-dexRefresh #pv-dex-master-link,
 #pv-dex-body.pv-dexRefresh #pv-dex-binder-link,
 #pv-dex-body.pv-dexRefresh .pv-button--secondary {
