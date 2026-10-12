@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const source = await readFile('master-set-guide.js', 'utf8');
 const html = await readFile('master-set-guide.html', 'utf8');
-const masterSetsHtml = await readFile('master-sets.html', 'utf8');
+const dexHtml = await readFile('dex.html', 'utf8');
 const guideIndex = JSON.parse(await readFile('data/master-set-guides/index.json', 'utf8'));
 const css = await readFile('master-set-guide.css', 'utf8');
 
@@ -86,8 +86,8 @@ test('uses a compact single-row pager with a live page label', () => {
     assert.match(css, /\.pv-guidePager__page\s*\{[\s\S]*flex:\s*1 1 auto/);
 });
 
-test('provides a no-selection binder guide catalog from the master sets page', () => {
-    assert.match(masterSetsHtml, /href="master-set-guide\.html">Build a Binder<\/a>/);
+test('provides a no-selection binder guide catalog from the Dex page', () => {
+    assert.match(dexHtml, /href="master-set-guide\.html">Create Binder<\/a>/);
     assert.match(html, /id="pv-guide-catalog"/);
     assert.match(html, /id="pv-guide-catalog-filter"/);
     assert.match(html, /id="pv-guide-catalog-grid"/);
@@ -103,7 +103,7 @@ test('shows validated set logos and returns selected guides to the builder catal
     assert.match(source, /logo: safeString\(entry\?\.logo\)/);
     assert.match(source, /setImage\(logo, entry\.logo, `\$\{entry\.name\} logo`\)/);
     assert.match(css, /\.pv-guideCatalog__logo\s*\{/);
-    assert.match(html, /href="master-sets\.html">&larr; Back to Master Sets/);
+    assert.match(html, /href="dex\.html">&larr; Back to Dex/);
     assert.match(source, /elements\.backLink\.textContent = '← Back to Master Sets'/);
     assert.match(source, /elements\.backLink\.href = 'master-sets\.html'/);
     assert.match(source, /elements\.backLink\.textContent = '← Back to Master Set Guide'/);
