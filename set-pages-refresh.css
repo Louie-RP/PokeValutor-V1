@@ -76,7 +76,7 @@
 #pv-sets-body .pv-hero,
 #pv-master-sets-body .pv-hero {
   margin: 0 auto;
-  padding-top: clamp(2.2rem, 7vw, 4.5rem);
+  padding-top: clamp(1.25rem, 3vw, 2rem);
   padding-bottom: clamp(1.2rem, 3vw, 2rem);
   border: 0;
   border-radius: 0;

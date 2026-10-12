@@ -26,6 +26,8 @@ serviceAccountKey.json
 .dev.vars
 .wrangler/
 
+<<<<<<< HEAD
+=======
 # Local test suites and verification harnesses
 /tests/*
 !/tests/
@@ -33,6 +35,7 @@ serviceAccountKey.json
 !/tests/master-set-guide-export-model.test.mjs
 !/tests/master-set-guide-pdf.test.mjs
 
+>>>>>>> 4584398312ecd41577b606c872bf9f55533f96a5
 # Node
 node_modules/
 npm-debug.log*
