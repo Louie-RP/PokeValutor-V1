@@ -659,7 +659,7 @@ html:has(#pv-dex-body.pv-dexRefresh) {
   border: 0;
   background: transparent;
   color: var(--dex-yellow);
-  font-size: clamp(1.45rem, 4vw, 2rem);
+  font-size: clamp(1.2rem, 3vw, 1.55rem);
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   letter-spacing: 0;
