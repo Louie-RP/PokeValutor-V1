@@ -129,6 +129,7 @@
   function setNavigationOpen(isOpen) {
     navigation.hidden = !isOpen;
     menuButton.setAttribute('aria-expanded', String(isOpen));
+    navigation.setAttribute('aria-expanded', String(isOpen));
     menuButton.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
     menuButton.title = isOpen ? 'Close navigation' : 'Open navigation';
   }
@@ -156,10 +157,6 @@
     if (event.target === imageDialog) closeImageDialog();
   });
 
-  menuButton.addEventListener('click', function () {
-    setNavigationOpen(menuButton.getAttribute('aria-expanded') !== 'true');
-  });
-
   for (const link of navigation.querySelectorAll('a')) {
     link.addEventListener('click', function () {
       setNavigationOpen(false);
@@ -178,7 +175,7 @@
   });
 
   document.addEventListener('click', function (event) {
-    if (menuButton.getAttribute('aria-expanded') === 'true' && !event.target.closest('.home-preview-header')) {
+    if (menuButton.getAttribute('aria-expanded') === 'true' && !event.target.closest('.pv-header')) {
       setNavigationOpen(false);
     }
   });
