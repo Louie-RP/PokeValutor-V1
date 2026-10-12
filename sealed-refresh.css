@@ -180,7 +180,7 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
   margin: 0;
   color: var(--sealed-text);
   font-family: var(--sealed-heading);
-  font-size: clamp(2.25rem, 8vw, 4rem);
+  font-size: clamp(2rem, 6.5vw, 3.4rem);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1;
@@ -637,7 +637,7 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
   }
 
   #pv-sealed-body.pv-sealedRefresh .pv-sealedHero .pv-hero__title {
-    font-size: clamp(2rem, 10vw, 3rem);
+    font-size: clamp(1.85rem, 8.5vw, 2.8rem);
   }
 
   #pv-sealed-body.pv-sealedRefresh .pv-sealedPanel,

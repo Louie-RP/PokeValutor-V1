@@ -172,7 +172,7 @@ html:has(#pv-dex-body.pv-dexRefresh) {
   margin: 0;
   color: var(--dex-text);
   font-family: "Playfair Display", Georgia, serif;
-  font-size: clamp(2.25rem, 8vw, 4rem);
+  font-size: clamp(2rem, 6.5vw, 3.4rem);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1;
