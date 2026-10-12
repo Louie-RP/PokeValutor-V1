@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchResultsEl = document.getElementById('pv-search-results');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
     const dexResultsContextEl = document.getElementById('pv-dex-results-context');
-    const dexSearchPanel = /** @type {HTMLDetailsElement|null} */ (document.getElementById('pv-dex-search-panel'));
+    const dexSearchPanel = /** @type {HTMLDialogElement|null} */ (document.getElementById('pv-dex-search-dialog'));
+    const dexSearchOpenBtn = document.getElementById('pv-dex-search-open');
+    const dexSearchCloseBtn = document.getElementById('pv-dex-search-close');
     const dexStatCardsEl = document.getElementById('pv-dex-stat-cards');
     const dexStatCopiesEl = document.getElementById('pv-dex-stat-copies');
     const grid = document.getElementById('pv-search-grid');
@@ -30,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
     const tradeToggle = document.getElementById('pv-trade-toggle');
     const tradeClearBtn = document.getElementById('pv-trade-clear');
+    const tradeJumpLink = document.getElementById('pv-search-jump-trade');
     const tradeControls = document.querySelector('#pv-trade .pv-trade__controls');
     const tradeBulk = document.getElementById('pv-trade-bulk');
     const tradeSummary = document.querySelector('#pv-trade .pv-trade__summary');
@@ -141,7 +144,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
-    const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
     const storageUtil = window?.PV_STORAGE_UTIL || null;
 
     const CONDITION_FILTER_KEYS_FALLBACK = ['NM', 'LP', 'MP', 'OTHER'];
@@ -2813,6 +2815,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return tradeApi.getConditionMarketValues(prices);
     }
 
+    function syncSearchJumpNav() {
+        if (!tradeJumpLink) return;
+        tradeJumpLink.hidden = !tradeSection || tradeSection.hidden;
+    }
+
     function toggleTradeCard(card, selectedVariant, loadedPrices, button) {
         if (!tradeEnabled) return;
         const id = safeString(card?.id, '');
@@ -2836,6 +2843,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function bindTradeControls() {
         if (!tradeEnabled) return;
         tradeSection.hidden = false;
+        syncSearchJumpNav();
         placeTradeBulkForViewport();
         if (typeof window.matchMedia === 'function') {
             window.matchMedia('(max-width: 640px)').addEventListener?.('change', placeTradeBulkForViewport);
@@ -3072,36 +3080,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function loadDexSearchPanelOpenState() {
-        if (!isDexPage) return false;
-        try {
-            const raw = localStorage.getItem(DEX_SEARCH_PANEL_OPEN_KEY);
-            return raw === '1' || raw === 'true';
-        } catch {
-            return false;
-        }
-    }
-
-    function saveDexSearchPanelOpenState(isOpen) {
-        if (!isDexPage) return;
-        try {
-            localStorage.setItem(DEX_SEARCH_PANEL_OPEN_KEY, isOpen ? '1' : '0');
-        } catch {
-            // ignore
-        }
-    }
-
-    function setDexSearchPanelOpen(isOpen, options) {
+    function setDexSearchPanelOpen(isOpen) {
         if (!dexSearchPanel) return;
 
         if (isOpen) {
-            dexSearchPanel.setAttribute('open', '');
+            if (!dexSearchPanel.open) {
+                try {
+                    dexSearchPanel.showModal();
+                } catch {
+                    dexSearchPanel.setAttribute('open', '');
+                }
+            }
         } else {
-            dexSearchPanel.removeAttribute('open');
-        }
-
-        if (!options?.skipPersist) {
-            saveDexSearchPanelOpenState(!!isOpen);
+            if (dexSearchPanel.open) {
+                dexSearchPanel.close();
+            } else {
+                dexSearchPanel.removeAttribute('open');
+            }
         }
     }
 
@@ -3126,7 +3121,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function activateDexSearchMode() {
         if (!isDexPage) return;
-        setResultsHeading('Search Results');
+        setResultsHeading('Results');
         setDexResultsContext('Search results are shown below.');
         setDexSearchPanelOpen(true);
     }
@@ -5306,6 +5301,15 @@ document.addEventListener('DOMContentLoaded', function () {
             variantField.append(variantLabel, selectEl);
             body.appendChild(variantField);
 
+            const pricingDetails = isDexPage ? document.createElement('details') : null;
+            if (pricingDetails) {
+                pricingDetails.className = 'pv-dexCard__pricingDetails';
+                const pricingSummary = document.createElement('summary');
+                pricingSummary.className = 'pv-dexCard__pricingSummary';
+                pricingSummary.appendChild(createTextElement('span', '', 'Values'));
+                pricingDetails.appendChild(pricingSummary);
+            }
+
             let conditionFieldWrapEl = null;
             let conditionEl = null;
             if (enableDexTrackingControls) {
@@ -5355,7 +5359,12 @@ document.addEventListener('DOMContentLoaded', function () {
             pricesEl.id = `pv-prices-${id}`;
             pricesEl.className = 'pv-card__text pv-dexCard__prices pv-card__prices';
             pricesEl.setAttribute('aria-live', 'polite');
-            body.appendChild(pricesEl);
+            if (pricingDetails) {
+                pricingDetails.appendChild(pricesEl);
+                body.appendChild(pricingDetails);
+            } else {
+                body.appendChild(pricesEl);
+            }
             cardEl.appendChild(body);
             col.appendChild(cardEl);
 
@@ -6782,14 +6791,20 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (isDexPage && dexSearchPanel) {
-        setDexSearchPanelOpen(loadDexSearchPanelOpenState(), { skipPersist: true });
+        dexSearchOpenBtn?.addEventListener('click', () => {
+            setDexSearchPanelOpen(true);
+            input?.focus();
+        });
 
-        if (dexSearchPanel.getAttribute('data-bound') !== '1') {
-            dexSearchPanel.setAttribute('data-bound', '1');
-            dexSearchPanel.addEventListener('toggle', () => {
-                saveDexSearchPanelOpenState(!!dexSearchPanel.open);
-            });
-        }
+        dexSearchCloseBtn?.addEventListener('click', () => {
+            setDexSearchPanelOpen(false);
+        });
+
+        dexSearchPanel.addEventListener('click', (event) => {
+            if (event.target === dexSearchPanel) {
+                setDexSearchPanelOpen(false);
+            }
+        });
     }
 
     function clearResultsUI() {
@@ -6858,7 +6873,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (isDexPage) {
                 setDexSearchPanelOpen(false);
-                setResultsHeading('Search Results');
+                setResultsHeading('Results');
                 setDexResultsContext('Search and add cards to your collection.');
             }
         });
@@ -6935,7 +6950,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let restoredMatchingDeepLinkExpansion = false;
 
     if (isDexPage) {
-        setResultsHeading('Search Results');
+        setResultsHeading('Results');
         setDexResultsContext('Search and add cards to your collection.');
 
         if (deepLinkCardId) {
