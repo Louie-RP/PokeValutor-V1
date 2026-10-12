@@ -26,11 +26,7 @@ assert.match(searchMarkup, /pv-trade__bulkActions[\s\S]*pv-trade-apply-percent-b
 assert.match(searchMarkup, /id="pv-trade-remaining"/);
 assert.match(searchMarkup, /pv-trade__goalDivider/);
 assert.match(searchMarkup, /id="pv-trade-toggle"[\s\S]*id="pv-trade-clear"/);
-<<<<<<< HEAD
 assert.match(searchMarkup, /<link rel="stylesheet" href="styles\.css\?v=[^"]+" \/>/);
-=======
-assert.match(searchMarkup, /styles\.css\?v=20260921-search-loading-3/);
->>>>>>> 4584398312ecd41577b606c872bf9f55533f96a5
 
 const first = {
     id: 'base1-4',

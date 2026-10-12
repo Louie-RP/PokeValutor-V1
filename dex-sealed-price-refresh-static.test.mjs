@@ -38,11 +38,7 @@ assert.match(identitySource, /sealedPricing\.getSealedPricingIdentity\(item\)/);
 assert.match(cacheKeySource, /sealedPricing\.buildSealedValueCacheKey\(\{ displayId \}\)/);
 
 const sealedSource = await readFile(ROOT('sealed.js'), 'utf8');
-<<<<<<< HEAD
 assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v3'/, 'Sealed search requests should invalidate stale browser cache entries.');
-=======
-assert.match(sealedSource, /SEARCH_CACHE_VERSION = 'v2'/, 'Sealed search requests should invalidate stale browser cache entries.');
->>>>>>> 4584398312ecd41577b606c872bf9f55533f96a5
 assert.match(sealedSource, /SEARCH_TTL_MS = 12 \* 60 \* 60 \* 1000/, 'Sealed search browser cache should remain valid for 12 hours.');
 assert.match(sealedSource, /searchVersion=\$\{SEARCH_CACHE_VERSION\}/, 'Sealed search requests should carry the cache version.');
 const sealedCacheValiditySource = extractFunction(sealedSource, 'isUnpricedSealedSearchResponse');
