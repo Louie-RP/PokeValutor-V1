@@ -17,6 +17,7 @@ assert.doesNotMatch(accountHtml, /pv-auth-test-fill/);
 assert.match(authMenu, /'pv-auth-menu-email'/);
 assert.match(authMenu, /'pv-auth-menu-password'/);
 assert.doesNotMatch(authMenu, /'pv-auth-email'|'pv-auth-password'/);
+assert.match(authMenu, /signedInEmail\.textContent = String\(currentUser\.email \|\| ''\)\.trim\(\);\s+setOpen\(false\);/);
 assert.match(readme, /Local test login autofill/);
 
 console.log('Account switching safeguards passed.');
