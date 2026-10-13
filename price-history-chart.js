@@ -58,12 +58,12 @@
             throw new Error('Price History chart DOM utilities are unavailable.');
         }
         const width = 720;
-        const height = 300;
         const isCompact = Boolean(documentObject.defaultView?.matchMedia?.('(max-width: 640px)').matches);
+        const height = isCompact ? 380 : 300;
         const left = isCompact ? 92 : 72;
         const right = 20;
-        const top = 24;
-        const bottom = 44;
+        const top = isCompact ? 28 : 24;
+        const bottom = isCompact ? 52 : 44;
         if (rows.length < 2) {
             return createElement('p', { text: 'Not enough history points to draw a chart.' });
         }
