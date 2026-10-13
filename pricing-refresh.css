@@ -211,6 +211,13 @@ body.pv-pricingRefresh .pv-pricingPlan__roadmap {
   font-family: var(--pricing-body);
 }
 
+body.pv-pricingRefresh .pv-pricingPlansShell__details {
+  margin: 1rem 0 0;
+  font-size: 0.82rem;
+  color: var(--pricing-muted);
+  font-family: var(--pricing-body);
+}
+
 body.pv-pricingRefresh .pv-pricingPlansShell {
   padding: clamp(1rem, 2.5vw, 1.5rem);
   border-radius: 1.1rem;
@@ -349,4 +356,5 @@ body.pv-pricingRefresh .pv-pricingFinal {
   body.pv-pricingRefresh .pv-section {
     border-radius: 0.85rem;
   }
+
 }
