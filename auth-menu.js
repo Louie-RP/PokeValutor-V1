@@ -64,7 +64,7 @@
     emailInput.name = 'email';
     emailInput.autocomplete = 'email';
     emailInput.required = true;
-    emailLabel.htmlFor = isPreview ? 'home-preview-auth-email' : 'pv-auth-email';
+    emailLabel.htmlFor = isPreview ? 'home-preview-auth-email' : 'pv-auth-menu-email';
     emailInput.id = emailLabel.htmlFor;
     const passwordLabel = createElement('label', isPreview ? 'home-preview-auth-label' : 'pv-auth-menu__label', 'Password');
     const passwordInput = createElement('input', isPreview ? 'home-preview-auth-input' : 'pv-auth-menu__input');
@@ -72,7 +72,7 @@
     passwordInput.name = 'password';
     passwordInput.autocomplete = 'current-password';
     passwordInput.required = true;
-    passwordLabel.htmlFor = isPreview ? 'home-preview-auth-password' : 'pv-auth-password';
+    passwordLabel.htmlFor = isPreview ? 'home-preview-auth-password' : 'pv-auth-menu-password';
     passwordInput.id = passwordLabel.htmlFor;
     const emailButton = createElement('button', isPreview
       ? 'home-preview-auth-action home-preview-auth-action--email'
@@ -147,6 +147,7 @@
       if (currentUser) {
         signedInName.textContent = getDisplayName(currentUser);
         signedInEmail.textContent = String(currentUser.email || '').trim();
+        setOpen(false);
       }
       trigger.setAttribute('aria-label', currentUser ? 'Open account menu' : 'Open sign-in menu');
       menu.classList.toggle(isPreview ? 'is-signed-in' : 'pv-auth-menu--signed-in', Boolean(currentUser));

@@ -33,12 +33,13 @@
             }
         }
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
+    <link rel="stylesheet" href="set-pages-refresh.css?v=2026-10-11-theme-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
 </head>
 
 <body id="pv-master-sets-body" class="pv-body">
@@ -69,7 +70,6 @@
         <section class="pv-hero container" aria-labelledby="pv-master-sets-title">
             <a class="pv-backLink" href="dex.html" aria-label="Back to Dex">&larr; Back to Dex</a>
             <h1 id="pv-master-sets-title" class="pv-hero__title">Master Sets</h1>
-            <p class="pv-hero__subtitle">Track set completion from your Dex cards.</p>
         </section>
 
         <section class="pv-section container" aria-labelledby="pv-master-sets-list-title">
@@ -107,10 +107,11 @@
 
     <script src="firebase-config.js" defer></script>
     <script src="firebase-config.local.js" defer></script>
-    <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
-    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
+    <script src="firebase.js?v=2026-10-11-ownership-1" defer></script>
+    <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 
-    <script src="dex-tracker-pages.js?v=2026-09-17-dex-value-fix-7" defer></script>
+    <script src="collection-view-utils.js?v=2026-09-21-value-summary-1" defer></script>
+    <script src="dex-tracker-pages.js?v=2026-10-11-ownership-1" defer></script>
 </body>
 
 </html>

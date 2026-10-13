@@ -58,18 +58,23 @@
             throw new Error('Price History chart DOM utilities are unavailable.');
         }
         const width = 720;
-        const height = 300;
-        const left = 72;
+        const isCompact = Boolean(documentObject.defaultView?.matchMedia?.('(max-width: 640px)').matches);
+        const height = isCompact ? 380 : 300;
+        const left = isCompact ? 92 : 72;
         const right = 20;
-        const top = 24;
-        const bottom = 44;
+        const top = isCompact ? 28 : 24;
+        const bottom = isCompact ? 52 : 44;
         if (rows.length < 2) {
             return createElement('p', { text: 'Not enough history points to draw a chart.' });
         }
 
         const allRows = series.length ? series.flatMap((item) => item.rows) : rows;
         const values = allRows.map((row) => row.market);
-        const { min, max, step } = niceScale(Math.min(...values), Math.max(...values));
+        const { min, max, step } = niceScale(
+            Math.min(...values),
+            Math.max(...values),
+            isCompact ? 4 : 5
+        );
         const span = Math.max(1, max - min);
         const startTime = Math.min(...allRows.map((row) => row.date.getTime()));
         const endTime = Math.max(...allRows.map((row) => row.date.getTime()));
@@ -156,7 +161,7 @@
             svg.append(line);
         });
 
-        const tickCount = Math.min(5, rows.length);
+        const tickCount = Math.min(isCompact ? 3 : 5, rows.length);
         const usedTickIndexes = new Set();
         for (let tick = 0; tick < tickCount; tick += 1) {
             const targetTime = startTime + (tick / Math.max(1, tickCount - 1)) * timeSpan;

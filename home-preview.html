@@ -3,36 +3,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Search Pokémon cards and sealed products, track collection value, and follow the latest market signals." />
   <meta name="theme-color" content="#080809" />
-  <title>PokéValutor Home Preview</title>
+  <meta property="og:title" content="PokéValutor | Pokémon Card and Sealed Price Tracker" />
+  <meta property="og:description" content="Search Pokémon cards and sealed products, track collection value, and follow the latest market signals." />
+  <meta property="og:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
+  <meta property="og:image:alt" content="PokeValutor logo" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.pokevaluator.com/" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PokéValutor | Pokémon Card and Sealed Price Tracker" />
+  <meta name="twitter:description" content="Search Pokémon cards and sealed products, track collection value, and follow the latest market signals." />
+  <meta name="twitter:image" content="https://www.pokevaluator.com/PokeValuator_Logo.png" />
+  <link rel="canonical" href="https://www.pokevaluator.com/" />
+  <title>PokéValutor Home</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" href="PokeValuator_Logo.png" type="image/png" />
+  <link rel="stylesheet" href="styles.css?v=2026-10-11-header-1" />
   <link rel="stylesheet" href="home-preview.css?v=2026-09-23-active-nav-1" />
 </head>
-<body class="home-preview-body">
-  <a class="home-preview-skip" href="#home-preview-main">Skip to content</a>
+<body class="home-preview-body pv-body">
+  <a class="pv-skiplink" href="#home-preview-main">Skip to content</a>
 
-  <header class="home-preview-header">
-    <a class="home-preview-brand" href="#home-preview-main" aria-label="PokéValuator home">
-      <span class="home-preview-brand-visual" aria-hidden="true"><img src="PokeValuator_Logo.png" alt="" /></span>
-    </a>
-    <div class="home-preview-header-actions" aria-label="Account and navigation">
-      <a class="home-preview-icon-button" href="account.html" aria-label="Account" title="Account">
-        <span class="home-preview-account-icon" aria-hidden="true"></span>
+  <header class="pv-header" role="banner">
+    <div class="pv-header__inner" aria-label="Site header">
+      <a class="pv-brand" href="index.html" aria-label="PokéValuator home">
+        <img src="PokeValuator_Logo.png" alt="" aria-hidden="true" />
       </a>
-      <button id="home-preview-menu-button" class="home-preview-icon-button" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="home-preview-nav" title="Open navigation">
-        <span class="home-preview-menu-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+      <button id="home-preview-menu-button" class="pv-navToggle" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="home-preview-nav">
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
+        <span class="pv-navToggle__bar" aria-hidden="true"></span>
       </button>
+      <nav id="home-preview-nav" class="pv-nav" aria-label="Primary" aria-expanded="false">
+        <ul class="pv-nav__list">
+          <li class="pv-nav__item"><a class="pv-nav__link" href="index.html" aria-current="page">Home</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="search.html">Cards</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
+          <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
+        </ul>
+      </nav>
     </div>
-    <nav id="home-preview-nav" class="home-preview-nav" aria-label="Primary navigation" hidden>
-      <a href="index.html" aria-current="page">Home</a>
-      <a href="search.html">Cards</a>
-      <a href="dex.html">My Dex</a>
-      <a href="sealed.html">Sealed</a>
-      <a href="sets.html">Sets</a>
-      <a href="account.html">Account</a>
-    </nav>
   </header>
 
   <main id="home-preview-main">
@@ -188,7 +203,8 @@
   <script src="firebase-config.js" defer></script>
   <script src="firebase-config.local.js" defer></script>
   <script src="firebase.js?v=2026-09-22-home-preview-auth-1" defer></script>
+  <script src="script.js?v=2026-10-11-header-1" defer></script>
   <script src="home-preview.js?v=2026-09-24-cache-policy-1" defer></script>
-  <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
+  <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 </body>
 </html>
