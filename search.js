@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
     const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
-    const loadMoreHelp = document.getElementById('pv-search-load-more-help');
     const searchPaginationEls = [
         document.getElementById('pv-search-pagination-top'),
         document.getElementById('pv-search-pagination-bottom'),
@@ -668,7 +667,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setLoadMoreState(visible, loading) {
-        if (loadMoreHelp) loadMoreHelp.hidden = !visible;
         if (!loadMoreBtn) return;
         loadMoreBtn.hidden = !visible;
         loadMoreBtn.disabled = !!loading;
