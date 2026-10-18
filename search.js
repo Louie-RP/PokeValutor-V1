@@ -5984,6 +5984,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             renderCards(cards);
             const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
+            void window.PV_POPULARITY?.recordSearch(cards);
             const matchNote = matchedBy === 'fallback' && cards.length
                 ? ' Closest matches shown.'
                 : '';
@@ -6145,6 +6146,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const fallbackNote = usedFallback && cards.length ? ' Closest matches shown.' : '';
+            void window.PV_POPULARITY?.recordSearch(cards, { id, name: setName });
             const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in "${label}".${limitNote}${fallbackNote}`;
             setStatus(statusText);
@@ -6427,6 +6429,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Respect UI limit.
             if (cards.length > RESULT_LIMIT) cards = cards.slice(0, RESULT_LIMIT);
             renderCards(cards);
+            void window.PV_POPULARITY?.recordSearch(cards);
             const matchedNote = matchedPn !== pn ? ` Matched as "${matchedPn}".` : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".${matchedNote}`;
             setStatus(statusText);
@@ -6608,6 +6611,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const statusText = `${cards.length} card${cards.length !== 1 ? 's' : ''} in set "${label}".`;
+            void window.PV_POPULARITY?.recordSearch(cards, { id, name: setName });
             setStatus(statusText);
 
             saveLastResults({

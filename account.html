@@ -263,6 +263,22 @@
                                     <button id="pv-admin-refresh-latest-sets" class="pv-button pv-button--secondary btn" type="button">Force Refresh Latest Sets</button>
                                 </div>
                                 <p id="pv-admin-refresh-latest-sets-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                                <section id="pv-popularity-panel" hidden aria-labelledby="pv-popularity-title">
+                                    <div class="pv-authDivider" aria-hidden="true"></div>
+                                    <h3 id="pv-popularity-title" class="pv-section__title">Card and set popularity</h3>
+                                    <p class="pv-section__text pv-authSmall">Anonymous aggregate activity, not unique people. Search-result appearances and card-detail views are counted separately. Results cover the first loaded search batch only, not Load More or background price refreshes. Client-reported counts are advisory and may be incomplete.</p>
+                                    <div class="pv-authField">
+                                        <label class="form-label" for="pv-popularity-days">Reporting window</label>
+                                        <select id="pv-popularity-days" class="form-select">
+                                            <option value="30">Last 30 days</option>
+                                            <option value="60">Last 60 days</option>
+                                            <option value="90">Last 90 days</option>
+                                        </select>
+                                    </div>
+                                    <button id="pv-popularity-refresh" class="pv-button pv-button--secondary btn" type="button">Load popularity report</button>
+                                    <p id="pv-popularity-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                                    <div id="pv-popularity-results" class="pv-section__text pv-authSmall"></div>
+                                </section>
                             </div>
                         </div>
                     </div>
@@ -299,7 +315,8 @@
     <!-- Optional local-only secrets (ignored by git). 404 is OK in production. -->
     <script src="secrets.js" defer></script>
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
-    <script src="account.js?v=20260916-dex-share-safety-1" defer></script>
+    <script src="popularity.js?v=2026-10-18-popularity-1" defer></script>
+    <script src="account.js?v=2026-10-18-popularity-1" defer></script>
     <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 </body>
 

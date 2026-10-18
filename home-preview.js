@@ -1226,7 +1226,7 @@
     return { cards, totalCount: cards.length };
   }
 
-  async function runLiveCardSearch(query) {
+  async function runLiveCardSearch(query, trackPopularity = true) {
     const cacheEntry = {
       query,
       state: 'loading',
@@ -1246,6 +1246,7 @@
       if (liveSearchCache.cards !== cacheEntry) return;
 
       const cards = Array.isArray(payload.cards) ? payload.cards.filter((card) => card?.id).slice(0, 3) : [];
+      if (trackPopularity) void window.PV_POPULARITY?.recordSearch(cards);
       const totalCount = Number(payload.totalCount || cards.length);
       cacheEntry.cards = cards;
       cacheEntry.totalCount = totalCount;
@@ -1414,7 +1415,7 @@
   retryButton?.addEventListener('click', function () {
     const cachedSearch = liveSearchCache[activeMode];
     if (cachedSearch?.query) {
-      void (activeMode === 'sealed' ? runLiveSealedSearch(cachedSearch.query) : runLiveCardSearch(cachedSearch.query));
+      void (activeMode === 'sealed' ? runLiveSealedSearch(cachedSearch.query) : runLiveCardSearch(cachedSearch.query, false));
       return;
     }
     setPreviewState('empty');

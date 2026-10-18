@@ -55,14 +55,15 @@
 - This cache covers current prices, not historical-price endpoints or sealed
   products. Redis/storage operations still have their own costs.
 
-## Separate follow-up: popularity tracking (not implemented here)
+## Separate follow-up: popularity tracking
 
-Design an opt-in aggregate counter for explicit user searches by set ID and
-card ID, with daily buckets, bounded retention, and top-N reporting. Separate
-user searches from passive card loads, retries, pagination, and cache warming.
-Do not store raw search strings, IP addresses, tokens, or user identifiers.
-Decide retention, admin reporting, and write-cost limits before implementation.
-Use those aggregates to evaluate which older series/sets merit shared caching.
+Implemented separately after the set-cache work, behind
+`POPULARITY_TRACKING_ENABLED=1`. The agreed scope includes explicit search-result
+appearances and separately counted card-detail views, 90-day daily retention,
+30/60/90-day admin-only reports, and an Account admin dashboard. No raw search
+text, IP addresses, tokens, or user identifiers are stored by this feature.
+See [configuration and metric definitions](../README.md#card-and-set-popularity-admin-reports)
+for counting rules, exclusions, privacy controls, Redis cost bounds, and rollout.
 
 ## Local verification
 
@@ -75,7 +76,7 @@ regressions are also checked. Tests verify safe downstream rendering in
 
 Live Cloudflare/Upstash sizing, latency, and account billing still require a
 controlled production canary. No mock test establishes those production
-properties. Popularity data collection is not enabled by this change.
+properties. Popularity data collection requires its own explicit opt-in flag.
 
 ## Sources
 

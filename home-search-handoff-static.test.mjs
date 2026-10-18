@@ -86,10 +86,10 @@ test('downstream sealed results and home rows render external names without HTML
 
 test('both home entries and the sealed page load cache-busted handoff scripts', async () => {
     for (const file of ['index.html', 'home-preview.html']) {
-        assert.match(await read(file), /home-preview\.js\?v=2026-10-18-search-handoff-1/);
+        assert.match(await read(file), /home-preview\.js\?v=2026-10-18-popularity-1/);
     }
     assert.match(await read('sealed.html'), /sealed\.js\?v=2026-10-18-review-handoff-1/);
     for (const file of ['search.html', 'dex.html']) {
-        assert.match(await read(file), /search\.js\?v=2026-10-18-review-handoff-1/);
+        assert.match(await read(file), /search\.js\?v=2026-10-18-popularity-1/);
     }
 });

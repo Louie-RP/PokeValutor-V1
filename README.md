@@ -283,6 +283,81 @@ Run the behavior suite with a direct module import (Node 20):
 node --experimental-default-type=module --test set-price-cache-worker.test.mjs
 ```
 
+### Card and set popularity (admin reports)
+
+The local Worker supports aggregate popularity collection, separately from
+Scrydex caching. Enable `POPULARITY_TRACKING_ENABLED=1` as a Cloudflare Worker
+**Text** variable after deploying the updated Worker and the site scripts.
+Upstash credentials are required. Leave the flag unset/`0` to disable collection.
+`/health` reports `popularityTrackingEnabled`; this indicates configuration,
+not storage connectivity. No Scrydex requests or credits are used by popularity.
+
+Admins can open **Account -> Admin -> Card and set popularity**, choose **30,
+60, or 90 days**, and load the top 20 items in each of four categories:
+
+- Card search-result appearances: each distinct card in the first loaded batch
+  counts once per successful explicit search action.
+- Sets represented in searches: each distinct represented set counts once;
+  a selected set also counts if the successful search has no matches.
+- Card-detail views: once per successful card-page load, including local-cache hits.
+- Sets' card-detail views: one per card-detail page view, not a unique visitor
+  count and not deduplicated across different cards from the same set.
+
+Home card search, Card Search, and Dex search are instrumented. Home counts the
+three displayed matches; full search counts its first loaded batch (up to 100).
+Internal query fallbacks are combined into one event. Load More, client-side
+pagination, restored results, passive top-card widgets, price/variant refreshes,
+and set-cache warming do not emit events. Automatic deep-link searches are not
+classified as explicit searches; opening the actual card-detail page counts as
+a view. Sealed products are not included.
+
+The separate, uncached event POST means searches and views still count when
+their data comes from browser or shared caches. Delivery is best-effort,
+nonblocking, and never retries the underlying search. Failures are logged to the
+browser console without preventing card use. No backfill or activity before
+deployment is available.
+
+API:
+- `POST /popularity/events`: existing Worker origin/auth policy applies; no
+  search quota is consumed. Accepts a random UUID-v4 `eventId`, `type` (`search`
+  or `view`), and up to 100 distinct card records (`id`, `setId`, display `name`,
+  `setName`); search events may also supply a selected `set` (`id`, `name`).
+  Views must contain exactly one card. Unknown fields, including raw query or
+  identity fields, are rejected. JSON bodies are limited to 32 KB.
+- `GET /popularity/report?days=30&limit=20`: **verified Firebase admin claim
+  required**, including when `REQUIRE_AUTH=0`. Valid windows are 30/60/90; limit
+  is 1..50. All responses use `Cache-Control: no-store`.
+
+Retention and operating costs:
+- Daily Redis sorted sets retain up to 90 UTC days, including today. Reports sum
+  all members across the requested window before taking top-N, not daily top-N.
+- Random per-action delivery IDs expire after 24 hours; duplicate completed
+  deliveries do not count again. Pending/failed deliveries return an explicit
+  error rather than being retried into duplicate increments.
+- Display labels expire within 90 days of their last update. No user IDs,
+  browser IDs, IP addresses, auth tokens, or raw search text are persisted by
+  this feature. DNT/GPC browsers suppress popularity delivery.
+- A global 10,000-delivery-attempt/day cap bounds accepted aggregation work;
+  rejected attempts still require budget-counter commands. Each accepted
+  event uses Redis transactions and per-entity increments/label writes, so this
+  is not free in Redis operations. Reports use temporary union keys expiring
+  after 60 seconds. Review Upstash usage before increasing traffic.
+- Metrics are client-reported, potentially biased or fabricated, not a billing
+  ledger or verified unique-user analytics. No per-person identifiers are
+  collected for abuse detection. Set `ALLOWED_ORIGINS` for your site origins and
+  retain existing Cloudflare abuse protections.
+
+The dashboard hides and clears data on account switches and signout; the API
+independently checks admin access. External labels render only via safe DOM
+text APIs. The updated [privacy disclosure](policies.html#pv-privacyPolicy)
+describes aggregate collection and retention.
+
+Validation (no live services or API credits):
+
+```powershell
+node --experimental-default-type=module --test popularity-worker.test.mjs popularity-ui.test.mjs set-price-cache-worker.test.mjs
+```
+
 ### Roles + limits
 The Worker supports custom-claim roles (from the Firebase ID token):
 - `role=basic`: uses `FREE_DAILY_LIMIT`

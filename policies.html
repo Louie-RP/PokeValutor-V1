@@ -145,6 +145,10 @@
                     <p class="pv-feature__text">To improve performance and reduce repeated upstream requests, the Worker may cache selected API responses in Upstash Redis for limited time windows. Cache entries are temporary and primarily keyed by request context (for example endpoint/query and quota keys).</p>
                 </div>
                 <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Aggregate card and set popularity</h3>
+                    <p class="pv-feature__text">When enabled, successful card searches and card-detail views contribute separate daily counts by card and set in Upstash Redis. These help us decide which sets to cache. This feature does not store raw search text, account identifiers, IP addresses, or authentication tokens. Daily aggregates expire after 90 days, and temporary random event identifiers used to prevent duplicate delivery expire after 24 hours. Card/set display labels expire within 90 days of their last update. Reports are admin-only. Browsers requesting Do Not Track or Global Privacy Control do not send these popularity events.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Contact form</h3>
                     <p class="pv-feature__text">If you use the Contact page, the information you submit (name, email, message) is sent to Formspree to deliver your message. Use the form only for content you are comfortable sharing.</p>
                 </div>
