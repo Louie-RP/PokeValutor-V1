@@ -39,11 +39,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link rel="stylesheet" href="styles.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="account-refresh.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
 </head>
 
-<body class="pv-body pv-accountPage">
+<body class="pv-body pv-accountPage pv-accountRefresh">
     <a class="pv-skiplink" href="#pv-account-main">Skip to content</a>
 
     <header class="pv-header" role="banner">
@@ -62,7 +63,7 @@
                     <li class="pv-nav__item"><a class="pv-nav__link" href="dex.html">Dex</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="sealed.html">Sealed</a></li>
                     <li class="pv-nav__item"><a class="pv-nav__link" href="pricing.html">Pricing</a></li>
-                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html">Account</a></li>
+                    <li class="pv-nav__item"><a class="pv-nav__link" href="account.html" aria-current="page">Account</a></li>
                 </ul>
             </nav>
         </div>
@@ -70,7 +71,6 @@
 
     <main id="pv-account-main" class="pv-main" role="main">
         <section class="pv-hero pv-accountHero container" aria-labelledby="pv-account-title">
-            <p class="pv-accountHero__eyebrow">Cloud Sync</p>
             <div class="pv-accountHero__titleRow">
                 <h1 id="pv-account-title" class="pv-hero__title">Account</h1>
                 <span id="pv-auth-hero-badge" class="pv-authHeroBadge" hidden>Signed in</span>
@@ -86,12 +86,12 @@
                     </div>
                     <div class="pv-authField">
                         <label class="form-label" for="pv-auth-email">Email</label>
-                        <input id="pv-auth-email" class="form-control" type="email" autocomplete="email"
+                        <input id="pv-auth-email" name="email" class="form-control" type="email" autocomplete="username"
                             placeholder="you@example.com" />
                     </div>
                     <div class="pv-authField">
                         <label class="form-label" for="pv-auth-password">Password</label>
-                        <input id="pv-auth-password" class="form-control" type="password"
+                        <input id="pv-auth-password" name="password" class="form-control" type="password"
                             autocomplete="current-password" placeholder="********" />
                     </div>
                     <div class="pv-authActions">
@@ -127,25 +127,27 @@
                     <div class="pv-authCard__header">
                         <h2 class="pv-section__title">Session</h2>
                     </div>
-                    <div id="pv-auth-profile" class="pv-authProfile" hidden>
-                        <img id="pv-auth-avatar" class="pv-authProfile__avatar" src="" alt="User profile avatar" hidden />
-                        <span id="pv-auth-avatar-fallback" class="pv-authProfile__avatarFallback" aria-hidden="true">U</span>
-                        <div class="pv-authProfile__meta">
-                            <p id="pv-auth-displayname" class="pv-authProfile__name">PokeValutor user</p>
-                            <p class="pv-authProfile__email">
-                                <span class="pv-sensitiveLabel">Email: </span>
-                                <span id="pv-auth-email-display" class="pv-sensitiveValue" tabindex="0" role="button" aria-label="Reveal email"></span>
+                    <div class="pv-sessionOverview">
+                        <div id="pv-auth-profile" class="pv-authProfile" hidden>
+                            <img id="pv-auth-avatar" class="pv-authProfile__avatar" src="" alt="User profile avatar" hidden />
+                            <span id="pv-auth-avatar-fallback" class="pv-authProfile__avatarFallback" aria-hidden="true">U</span>
+                            <div class="pv-authProfile__meta">
+                                <p id="pv-auth-displayname" class="pv-authProfile__name">PokeValutor user</p>
+                                <p class="pv-authProfile__email">
+                                    <span class="pv-sensitiveLabel">Email: </span>
+                                    <span id="pv-auth-email-display" class="pv-sensitiveValue" tabindex="0" role="button" aria-label="Reveal email"></span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="pv-sessionStack">
+                            <p id="pv-auth-status" class="pv-section__text" role="status" aria-live="polite">Loading...</p>
+                            <p id="pv-auth-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
+                            <p id="pv-auth-role" class="pv-section__text pv-authSmall" aria-live="polite"></p>
+                            <p id="pv-auth-uid-row" class="pv-section__text pv-authSmall" aria-live="polite">
+                                <span class="pv-sensitiveLabel">UID: </span>
+                                <span id="pv-auth-uid" class="pv-sensitiveValue" tabindex="0" role="button" aria-label="Reveal UID"></span>
                             </p>
                         </div>
-                    </div>
-                    <div class="pv-sessionStack">
-                        <p id="pv-auth-status" class="pv-section__text" role="status" aria-live="polite">Loading...</p>
-                        <p id="pv-auth-selfcheck" class="pv-section__text pv-authSmall" role="status" aria-live="polite" hidden></p>
-                        <p id="pv-auth-role" class="pv-section__text pv-authSmall" aria-live="polite"></p>
-                        <p id="pv-auth-uid-row" class="pv-section__text pv-authSmall" aria-live="polite">
-                            <span class="pv-sensitiveLabel">UID: </span>
-                            <span id="pv-auth-uid" class="pv-sensitiveValue" tabindex="0" role="button" aria-label="Reveal UID"></span>
-                        </p>
                     </div>
                     <div class="pv-authActions pv-authActions--session">
                         <button id="pv-auth-signout" class="pv-button pv-button--secondary btn" type="button">Sign
@@ -156,107 +158,113 @@
                         </div>
                     </div>
 
-                    <div id="pv-billing-panel" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Premium</h3>
-                        <p class="pv-section__text pv-authSmall">Manage billing in Stripe. <a class="pv-inlineLink" href="pricing.html">View plan details</a>.</p>
-                        <div class="pv-authActions">
-                            <button id="pv-billing-subscribe" class="pv-button pv-button--primary btn" type="button">Subscribe monthly</button>
-                            <button id="pv-billing-manage" class="pv-button pv-button--secondary btn" type="button">Manage billing</button>
-                        </div>
-                        <p id="pv-billing-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
-                    </div>
+                    <div class="pv-sessionPanels">
+                        <div class="pv-sessionPanels__column">
+                            <div id="pv-billing-panel" class="pv-adminToolsPanel" hidden>
+                                <h3 class="pv-section__title">Premium</h3>
+                                <p class="pv-section__text pv-authSmall">Manage billing in Stripe. <a class="pv-inlineLink" href="pricing.html">View plan details</a>.</p>
+                                <div class="pv-authActions">
+                                    <button id="pv-billing-subscribe" class="pv-button pv-button--primary btn" type="button">Subscribe monthly</button>
+                                    <button id="pv-billing-manage" class="pv-button pv-button--secondary btn" type="button">Manage billing</button>
+                                </div>
+                                <p id="pv-billing-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                            </div>
 
-                    <div id="pv-premium-tools-panel" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Premium Collection Tools</h3>
-                        <p class="pv-section__text pv-authSmall">Premium members can export collection data and manage additional collections.</p>
-
-                        <div class="pv-authDivider" aria-hidden="true"></div>
-
-                        <h4 class="pv-section__title" style="font-size:1rem">Export</h4>
-                        <div class="pv-authField">
-                            <label class="form-label" for="pv-premium-export-collection-select">Collection to export</label>
-                            <select id="pv-premium-export-collection-select" class="form-select"></select>
-                        </div>
-                        <div class="pv-authActions">
-                            <button id="pv-premium-export-csv" class="pv-button pv-button--secondary btn" type="button">Export CSV</button>
-                            <button id="pv-premium-export-json" class="pv-button pv-button--secondary btn" type="button">Export JSON</button>
-                        </div>
-
-                        <div class="pv-authDivider" aria-hidden="true"></div>
-
-                        <h4 class="pv-section__title" style="font-size:1rem">Collections</h4>
-                        <div class="pv-authField">
-                            <label class="form-label" for="pv-premium-collection-select">Active collection</label>
-                            <select id="pv-premium-collection-select" class="form-select"></select>
-                        </div>
-                        <div class="pv-authField">
-                            <label class="form-label" for="pv-premium-collection-name">New collection name</label>
-                            <input id="pv-premium-collection-name" class="form-control" type="text" maxlength="50" placeholder="e.g. Trade Binder" />
-                        </div>
-                        <div class="pv-authActions">
-                            <button id="pv-premium-collection-create" class="pv-button pv-button--primary btn" type="button">Create collection</button>
-                            <button id="pv-premium-collection-delete" class="pv-button pv-button--danger btn" type="button">Delete selected collection</button>
-                        </div>
-
-                        <p id="pv-premium-tools-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
-                    </div>
-
-                    <div id="pv-dex-panel" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Dex Data</h3>
-                        <p class="pv-section__text pv-authSmall">These actions permanently remove tracked data from this device and your synced Dex state.</p>
-                        <div class="pv-authActions">
-                            <button id="pv-dex-clear-collection" class="pv-button pv-button--danger btn" type="button">Clear Dex Collection</button>
-                            <button id="pv-dex-clear-master-sets" class="pv-button pv-button--danger btn" type="button">Clear Master Sets</button>
-                        </div>
-                        <p id="pv-dex-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
-                    </div>
-
-                    <div id="pv-dex-share-panel" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Collection Sharing</h3>
-                        <p class="pv-section__text pv-authSmall">Share a read-only link to your collection. Visitors can view cards and copies but cannot edit anything.</p>
-                        <div class="form-check">
-                            <input id="pv-dex-share-enabled" class="form-check-input" type="checkbox" />
-                            <label class="form-check-label pv-section__text pv-authSmall" for="pv-dex-share-enabled">Allow read-only sharing for my collection</label>
-                        </div>
-                        <div class="pv-authField">
-                            <label class="form-label" for="pv-dex-share-link">Share link</label>
-                            <div class="pv-shareLinkRow">
-                                <input id="pv-dex-share-link" class="form-control pv-shareLinkInput" type="text" readonly placeholder="Enable sharing to generate a link" />
-                                <button id="pv-dex-share-copy" class="pv-button pv-button--secondary btn" type="button" disabled>Copy link</button>
+                            <div id="pv-dex-panel" class="pv-adminToolsPanel" hidden>
+                                <h3 class="pv-section__title">Dex Data</h3>
+                                <p class="pv-section__text pv-authSmall">These actions permanently remove tracked data from this device and your synced Dex state.</p>
+                                <div class="pv-authActions">
+                                    <button id="pv-dex-clear-collection" class="pv-button pv-button--danger btn" type="button">Clear Dex Collection</button>
+                                    <button id="pv-dex-clear-master-sets" class="pv-button pv-button--danger btn" type="button">Clear Master Sets</button>
+                                </div>
+                                <p id="pv-dex-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                             </div>
                         </div>
-                        <p id="pv-dex-share-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
-                    </div>
 
-                    <div id="pv-admin-panel" class="pv-authDivider" aria-hidden="true" hidden></div>
-                    <div id="pv-admin-tools" class="pv-adminToolsPanel" hidden>
-                        <h3 class="pv-section__title">Admin</h3>
-                        <p class="pv-section__text pv-authSmall">Assign roles. Admins only.</p>
-                        <div class="pv-authField">
-                            <label class="form-label" for="pv-admin-uid">Target UID</label>
-                            <input id="pv-admin-uid" class="form-control" type="text" placeholder="Paste Firebase UID" />
-                        </div>
-                        <div class="pv-authField">
-                            <label class="form-label" for="pv-admin-role">Role</label>
-                            <select id="pv-admin-role" class="form-select">
-                                <option value="basic">basic</option>
-                                <option value="premium">premium</option>
-                                <option value="tester">tester</option>
-                                <option value="admin">admin</option>
-                            </select>
-                        </div>
-                        <div class="pv-authActions">
-                            <button id="pv-admin-set-role" class="pv-button pv-button--primary btn" type="button">Set role</button>
-                            <button id="pv-admin-fill-self" class="pv-button pv-button--secondary btn" type="button">Use my UID</button>
-                        </div>
-                        <p id="pv-admin-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                        <div class="pv-sessionPanels__column">
+                            <div id="pv-premium-tools-panel" class="pv-adminToolsPanel" hidden>
+                                <h3 class="pv-section__title">Premium Collection Tools</h3>
+                                <p class="pv-section__text pv-authSmall">Premium members can export collection data and manage additional collections.</p>
 
-                        <div class="pv-authDivider" aria-hidden="true"></div>
-                        <p class="pv-section__text pv-authSmall">Force-refresh the newest sets for all visitors, then clear this browser's copies too.</p>
-                        <div class="pv-authActions">
-                            <button id="pv-admin-refresh-latest-sets" class="pv-button pv-button--secondary btn" type="button">Force Refresh Latest Sets</button>
+                                <div class="pv-authDivider" aria-hidden="true"></div>
+
+                                <h4 class="pv-section__title" style="font-size:1rem">Export</h4>
+                                <div class="pv-authField">
+                                    <label class="form-label" for="pv-premium-export-collection-select">Collection to export</label>
+                                    <select id="pv-premium-export-collection-select" class="form-select"></select>
+                                </div>
+                                <div class="pv-authActions">
+                                    <button id="pv-premium-export-csv" class="pv-button pv-button--secondary btn" type="button">Export CSV</button>
+                                    <button id="pv-premium-export-json" class="pv-button pv-button--secondary btn" type="button">Export JSON</button>
+                                </div>
+
+                                <div class="pv-authDivider" aria-hidden="true"></div>
+
+                                <h4 class="pv-section__title" style="font-size:1rem">Collections</h4>
+                                <div class="pv-authField">
+                                    <label class="form-label" for="pv-premium-collection-select">Active collection</label>
+                                    <select id="pv-premium-collection-select" class="form-select"></select>
+                                </div>
+                                <div class="pv-authField">
+                                    <label class="form-label" for="pv-premium-collection-name">New collection name</label>
+                                    <input id="pv-premium-collection-name" class="form-control" type="text" maxlength="50" placeholder="e.g. Trade Binder" />
+                                </div>
+                                <div class="pv-authActions">
+                                    <button id="pv-premium-collection-create" class="pv-button pv-button--primary btn" type="button">Create collection</button>
+                                    <button id="pv-premium-collection-delete" class="pv-button pv-button--danger btn" type="button">Delete selected collection</button>
+                                </div>
+
+                                <p id="pv-premium-tools-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                            </div>
+
+                            <div id="pv-dex-share-panel" class="pv-adminToolsPanel" hidden>
+                                <h3 class="pv-section__title">Collection Sharing</h3>
+                                <p class="pv-section__text pv-authSmall">Share a read-only link to your collection. Visitors can view cards and copies but cannot edit anything.</p>
+                                <div class="form-check">
+                                    <input id="pv-dex-share-enabled" class="form-check-input" type="checkbox" />
+                                    <label class="form-check-label pv-section__text pv-authSmall" for="pv-dex-share-enabled">Allow read-only sharing for my collection</label>
+                                </div>
+                                <div class="pv-authField">
+                                    <label class="form-label" for="pv-dex-share-link">Share link</label>
+                                    <div class="pv-shareLinkRow">
+                                        <input id="pv-dex-share-link" class="form-control pv-shareLinkInput" type="text" readonly placeholder="Enable sharing to generate a link" />
+                                        <button id="pv-dex-share-copy" class="pv-button pv-button--secondary btn" type="button" disabled>Copy link</button>
+                                    </div>
+                                </div>
+                                <p id="pv-dex-share-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                            </div>
+
+                            <div id="pv-admin-panel" class="pv-authDivider" aria-hidden="true" hidden></div>
+                            <div id="pv-admin-tools" class="pv-adminToolsPanel" hidden>
+                                <h3 class="pv-section__title">Admin</h3>
+                                <p class="pv-section__text pv-authSmall">Assign roles. Admins only.</p>
+                                <div class="pv-authField">
+                                    <label class="form-label" for="pv-admin-uid">Target UID</label>
+                                    <input id="pv-admin-uid" class="form-control" type="text" placeholder="Paste Firebase UID" />
+                                </div>
+                                <div class="pv-authField">
+                                    <label class="form-label" for="pv-admin-role">Role</label>
+                                    <select id="pv-admin-role" class="form-select">
+                                        <option value="basic">basic</option>
+                                        <option value="premium">premium</option>
+                                        <option value="tester">tester</option>
+                                        <option value="admin">admin</option>
+                                    </select>
+                                </div>
+                                <div class="pv-authActions">
+                                    <button id="pv-admin-set-role" class="pv-button pv-button--primary btn" type="button">Set role</button>
+                                    <button id="pv-admin-fill-self" class="pv-button pv-button--secondary btn" type="button">Use my UID</button>
+                                </div>
+                                <p id="pv-admin-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+
+                                <div class="pv-authDivider" aria-hidden="true"></div>
+                                <p class="pv-section__text pv-authSmall">Force-refresh the newest sets for all visitors, then clear this browser's copies too.</p>
+                                <div class="pv-authActions">
+                                    <button id="pv-admin-refresh-latest-sets" class="pv-button pv-button--secondary btn" type="button">Force Refresh Latest Sets</button>
+                                </div>
+                                <p id="pv-admin-refresh-latest-sets-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
+                            </div>
                         </div>
-                        <p id="pv-admin-refresh-latest-sets-status" class="pv-section__text pv-authSmall" role="status" aria-live="polite"></p>
                     </div>
                 </article>
             </div>
@@ -292,7 +300,7 @@
     <script src="secrets.js" defer></script>
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
     <script src="account.js?v=20260916-dex-share-safety-1" defer></script>
-    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
+    <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 </body>
 
 </html>

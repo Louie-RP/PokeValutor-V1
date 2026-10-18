@@ -23,17 +23,18 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="shared-collection-refresh.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
 </head>
 
-<body id="pv-shared-body" class="pv-body">
+<body id="pv-shared-body" class="pv-body pv-sharedRefresh">
     <a class="pv-skiplink" href="#pv-shared-main">Skip to content</a>
 
     <header class="pv-header" role="banner">
         <div class="pv-header__inner" aria-label="Site header">
-            <a class="pv-brand" href="index.html" aria-label="Back to home">PokeValutor</a>
+            <a class="pv-brand pv-sharedRefresh__brand" href="index.html" aria-label="Back to home">PokeValutor</a>
             <button class="pv-navToggle" aria-expanded="false" aria-controls="pv-shared-nav" aria-label="Toggle navigation">
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
                 <span class="pv-navToggle__bar" aria-hidden="true"></span>
@@ -54,15 +55,19 @@
 
     <main id="pv-shared-main" class="pv-main" role="main">
         <section class="pv-hero container pv-sharedHero" aria-labelledby="pv-shared-title">
-            <p class="pv-sharedHero__eyebrow">Read-only Link</p>
             <h1 id="pv-shared-title" class="pv-hero__title">Shared Collection</h1>
-            <p class="pv-hero__subtitle">This view is read-only. Only the owner can update this collection.</p>
             <p id="pv-shared-status" class="pv-section__text pv-sharedStatus" role="status" aria-live="polite"></p>
         </section>
 
         <section class="pv-section container" aria-labelledby="pv-shared-collection-title">
             <div class="pv-section__header">
                 <h2 id="pv-shared-collection-title" class="pv-section__title">Collection</h2>
+                <div id="pv-shared-collection-picker" class="pv-sortRow" role="group" aria-label="Select shared collection">
+                    <label for="pv-shared-collection-select" class="form-label pv-sortLabel">Collection</label>
+                    <select id="pv-shared-collection-select" class="form-select pv-sortSelect" aria-label="Select shared collection">
+                        <option value="default" selected>Default Collection</option>
+                    </select>
+                </div>
             </div>
             <div class="pv-collectionTotal" role="status" aria-live="polite" aria-atomic="true">
                 <span class="pv-collectionTotalValueGroup">
@@ -87,12 +92,6 @@
                     >i</button>
                 </span>
                 <span id="pv-shared-total" class="pv-collectionTotalAmount">Total units: 0</span>
-            </div>
-            <div id="pv-shared-collection-picker" class="pv-sortRow" role="group" aria-label="Select shared collection">
-                <label for="pv-shared-collection-select" class="form-label pv-sortLabel">Collection</label>
-                <select id="pv-shared-collection-select" class="form-select pv-sortSelect" aria-label="Select shared collection">
-                    <option value="default" selected>Default Collection</option>
-                </select>
             </div>
             <div class="pv-collectionFilterRow pv-sharedFilterRow" role="search" aria-label="Filter shared collection">
                 <div class="pv-collectionFilterControl pv-sharedFilterControl--search">
@@ -166,7 +165,7 @@
     <script src="firebase-config.js" defer></script>
     <script src="firebase-config.local.js" defer></script>
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
-    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
+    <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
     <script src="functions/lib/sealed-pricing-core.js?v=2026-09-21-sealed-pricing-2" defer></script>
     <script src="collection-view-utils.js?v=2026-09-21-value-summary-1" defer></script>
     <script src="shared-collection.js?v=2026-09-21-value-summary-2" defer></script>

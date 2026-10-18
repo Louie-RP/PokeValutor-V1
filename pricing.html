@@ -37,13 +37,14 @@
         content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: http://127.0.0.1:5001 http://localhost:5001 https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-09-23-auth-menu-2" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link rel="stylesheet" href="styles.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="pricing-refresh.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
 </head>
 
-<body class="pv-body pv-pricingPage">
+<body class="pv-body pv-pricingPage pv-pricingRefresh">
     <a class="pv-skiplink" href="#pv-pricing-main">Skip to content</a>
 
     <header class="pv-header" role="banner">
@@ -114,6 +115,7 @@
         <section class="pv-section container pv-pricingPlansShell" aria-labelledby="pv-pricing-plans-title">
             <p class="pv-pricingPlansShell__eyebrow">Plan Comparison</p>
             <h2 id="pv-pricing-plans-title" class="pv-section__title">Clear plans for collectors and vendors</h2>
+            <p class="pv-pricingPlansShell__details">Need the full feature breakdown? <a class="pv-inlineLink" href="plan-comparison.html">View Free vs Premium comparison</a>.</p>
             <div class="pv-pricingPlansGrid">
                 <article class="pv-pricingPlan pv-pricingPlan--free" aria-labelledby="pv-pricing-plan-free-title">
                     <p class="pv-pricingPlan__promo pv-pricingPlan__promo--neutral">Start free today</p>
@@ -127,6 +129,7 @@
                         <li>Card search and variant pricing</li>
                         <li>Sealed product tracking</li>
                         <li>Dex collection progress</li>
+                        <li>Master Set Binder Guide planning tools</li>
                         <li>Limited searches per day</li>
                         <li>Cloud sync for your primary collection</li>
                     </ul>
@@ -134,7 +137,7 @@
                 </article>
 
                 <article class="pv-pricingPlan pv-pricingPlan--premium" aria-labelledby="pv-pricing-plan-pro-title">
-                    <p class="pv-pricingPlan__promo pv-pricingPlan__promo--premium">Launch offer: $4.99 - Limited time</p>
+                    <p class="pv-pricingPlan__promo pv-pricingPlan__promo--premium">Launch offer: $5.99 - Limited time</p>
                     <div class="pv-pricingPlan__head">
                         <h3 id="pv-pricing-plan-pro-title" class="pv-pricingPlan__title">Premium</h3>
                         <span id="pv-pricing-pro-badge" class="pv-pricingPlan__badge pv-pricingPlan__badge--premium">Limited time</span>
@@ -142,8 +145,8 @@
                     <p class="pv-pricingPlan__subtitle">Monthly subscription with expanding premium tools.</p>
                     <div class="pv-pricingPlan__priceBlock">
                         <p class="pv-pricingPlan__price pv-pricingPlan__price--offer">
-                            <span class="pv-pricingPlan__priceWas">$6.99</span>
-                            <strong>$4.99</strong>
+                            <span class="pv-pricingPlan__priceWas">$8.99</span>
+                            <strong>$5.99</strong>
                         </p>
                         <p class="pv-pricingPlan__priceNote">per month, cancel any time</p>
                     </div>
@@ -151,6 +154,7 @@
                         <li>Increased daily search limits</li>
                         <li>Additional collections with active collection switching</li>
                         <li>Collection exports (CSV and JSON)</li>
+                        <li>Master Set Binder Guide PDF inserts and placeholders</li>
                         <li>Live market trends</li>
                         <li>First to know and try selected new features</li>
                     </ul>
@@ -204,7 +208,7 @@
     <!-- Optional local-only secrets (ignored by git). 404 is OK in production. -->
     <script src="secrets.js" defer></script>
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
-    <script src="auth-menu.js?v=2026-09-23-auth-menu-2" defer></script>
+    <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
     <script src="pricing.js" defer></script>
 </body>
 
