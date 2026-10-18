@@ -18,7 +18,7 @@
 
     document.addEventListener('DOMContentLoaded', initCardScanner);
 
-    const CARD_SCANNER_VERSION = 'scanner-mvp-2026-06-29-2';
+    const CARD_SCANNER_VERSION = 'scanner-ui-2026-10-18-1';
     const PV_SCANNER_QUERY_MODE = 'number-first';
     // CardSight is now the only active detection pipeline in production.
     const PV_SCANNER_ENABLE_CANDIDATES = true;
@@ -188,6 +188,9 @@
         const elements = getScannerElements(root);
         const state = {
             stream: null,
+            cameraTrack: null,
+            torchSupported: false,
+            torchEnabled: false,
             capturedBlob: null,
             previewUrl: '',
             busy: false,
@@ -229,9 +232,6 @@
                     <div class="pv-cardScanner__header">
                         <div>
                             <h2 id="pv-cardScanner-title" class="pv-cardScanner__title">Scan Card</h2>
-                            <p class="pv-cardScanner__text">
-                                Use your phone camera to scan a card, review the detected text, then search for the best match.
-                            </p>
                         </div>
                     </div>
 
@@ -252,6 +252,12 @@
                         <img id="pv-cardScanner-preview" class="pv-cardScanner__preview" alt="Captured card preview" hidden />
                         <canvas id="pv-cardScanner-canvas" hidden></canvas>
                         <div class="pv-cardScanner__frame" aria-hidden="true"></div>
+                        <button id="pv-cardScanner-flash" class="pv-cardScanner__flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
+                            <svg class="pv-cardScanner__flashIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M13.2 2.5 5.5 13h5l-.8 8.5L18.5 11h-5.2l-.1-8.5Z"></path>
+                            </svg>
+                            <span class="pv-cardScanner__flashLabel">Flash</span>
+                        </button>
                         <button id="pv-cardScanner-capture-fab" class="pv-cardScanner__captureFab btn" type="button" hidden aria-label="Capture card">
                             <svg class="pv-cardScanner__captureIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                 <path d="M9 3 7.5 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.5L15 3H9Zm3 15a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"></path>
@@ -325,6 +331,7 @@
             video: root.querySelector('#pv-cardScanner-video'),
             canvas: root.querySelector('#pv-cardScanner-canvas'),
             preview: root.querySelector('#pv-cardScanner-preview'),
+            flashBtn: root.querySelector('#pv-cardScanner-flash'),
             captureFabBtn: root.querySelector('#pv-cardScanner-capture-fab'),
             status: root.querySelector('#pv-cardScanner-status'),
             limitNotice: root.querySelector('#pv-cardScanner-limit-notice'),
@@ -366,6 +373,16 @@
                 startCamera(root, elements, state);
             });
         }
+
+        if (elements.flashBtn) {
+            elements.flashBtn.addEventListener('click', function () {
+                toggleCameraTorch(elements, state);
+            });
+        }
+
+        window.addEventListener('resize', function () {
+            syncCaptureFab(elements, state.stream ? 'camera' : 'idle');
+        });
 
         if (elements.retakeBtn) {
             elements.retakeBtn.addEventListener('click', function () {
@@ -483,6 +500,7 @@
                     height: { ideal: 720 }
                 }
             });
+            configureCameraTorch(elements, state);
 
             if (!elements.video) {
                 throw new Error('Scanner video element is missing.');
@@ -511,7 +529,7 @@
             syncCaptureFab(elements, 'camera');
 
             setScannerState(root, 'camera');
-            setStatus(elements, 'Place the card inside the frame, reduce glare, then tap Capture.');
+            setStatus(elements, '');
             if (!options?.suppressAutoScroll) {
                 scrollScannerCameraIntoView(elements);
             }
@@ -564,6 +582,67 @@
             setStatus(elements, 'Unable to capture/read the card. Try retaking the photo with better lighting.');
         } finally {
             setBusy(elements, state, false);
+        }
+    }
+
+    function configureCameraTorch(elements, state) {
+        const track = state.stream?.getVideoTracks?.()[0] || null;
+        let capabilities = null;
+
+        state.cameraTrack = track;
+        state.torchSupported = false;
+        state.torchEnabled = false;
+
+        if (track && typeof track.getCapabilities === 'function') {
+            try {
+                capabilities = track.getCapabilities();
+            } catch (error) {
+                console.warn('[PokeValutor Scanner] unable to read camera capabilities', error);
+            }
+        }
+
+        state.torchSupported = capabilities?.torch === true && typeof track?.applyConstraints === 'function';
+        syncCameraTorchButton(elements, state);
+    }
+
+    async function toggleCameraTorch(elements, state) {
+        if (!state.torchSupported || !state.cameraTrack) {
+            return;
+        }
+
+        const nextTorchState = !state.torchEnabled;
+        setBusy(elements, state, true);
+        try {
+            await state.cameraTrack.applyConstraints({
+                advanced: [{ torch: nextTorchState }]
+            });
+            state.torchEnabled = nextTorchState;
+            syncCameraTorchButton(elements, state);
+            setStatus(elements, nextTorchState ? 'Flash is on.' : 'Flash is off.');
+        } catch (error) {
+            console.warn('[PokeValutor Scanner] unable to toggle camera flash', error);
+            setStatus(elements, `Unable to turn the flash ${nextTorchState ? 'on' : 'off'} on this camera.`);
+        } finally {
+            setBusy(elements, state, false);
+        }
+    }
+
+    function syncCameraTorchButton(elements, state) {
+        const button = elements.flashBtn;
+        if (!button) {
+            return;
+        }
+
+        const available = !!state.torchSupported && !!state.cameraTrack;
+        button.hidden = !available;
+        button.disabled = !available || !!state.busy;
+        button.setAttribute('aria-pressed', String(!!state.torchEnabled));
+        button.setAttribute('aria-label', state.torchEnabled ? 'Turn flash off' : 'Turn flash on');
+        button.dataset.active = String(!!state.torchEnabled);
+
+        const label = button.querySelector('.pv-cardScanner__flashLabel');
+        if (label) {
+            label.textContent = state.torchEnabled ? 'On' : 'Flash';
         }
     }
 
@@ -3670,6 +3749,11 @@
             state.stream = null;
         }
 
+        state.cameraTrack = null;
+        state.torchSupported = false;
+        state.torchEnabled = false;
+        syncCameraTorchButton(elements, state);
+
         if (elements.video) {
             elements.video.pause();
             elements.video.srcObject = null;
@@ -3800,6 +3884,7 @@
         const buttons = [
             elements.startBtn,
             elements.captureBtn,
+            elements.flashBtn,
             elements.captureFabBtn,
             elements.retakeBtn,
             elements.stopBtn,
@@ -3812,6 +3897,7 @@
         buttons.forEach(function (button) {
             if (button) button.disabled = !!isBusy;
         });
+        syncCameraTorchButton(elements, state);
     }
 
     function setScannerState(root, scannerState) {
@@ -3828,6 +3914,7 @@
         }
         if (elements.status) {
             elements.status.textContent = message || '';
+            elements.status.hidden = !message;
         }
     }
 
