@@ -235,6 +235,54 @@ What happens on webhook receipt:
 
 Worker cache keys for price-bearing routes now include these versions, so updated expansions bypass stale cached payloads without fully disabling caching.
 
+### Shared current-price cache for recent-series sets
+
+See the [implementation plan](docs/SHARED_SET_CACHE_IMPLEMENTATION.md) for scope,
+rollout, tests, and the separate popularity-tracking follow-up.
+
+The local `scrydex-worker.js` supports optional, demand-driven **per-set**
+snapshots for the English **Scarlet & Violet** and **Mega Evolution** series.
+These are two series containing multiple sets; a lookup loads only the requested
+set, not an entire series. Candidate IDs use the `sv`/`me` naming families; the
+returned expansion's series and English language metadata must also qualify.
+
+Worker variables:
+- `SET_PRICE_CACHE_ENABLED=1` enables the feature; unset/`0` keeps legacy behavior.
+- Upstash credentials above are required; without them the legacy paths remain.
+- `CACHE_TTL_SET_PRICES_SECONDS` defaults to `72000` (20 hours); shorter positive
+  values are supported for canary testing, and values above 20 hours are capped.
+
+Known-set searches, individual-card lookups, and top-by-expansion requests share
+complete snapshots fetched with prices and 100 cards per page. A 295-card set
+uses three upstream requests on a successful cold refresh. Later covered
+lookups require no Scrydex requests until expiration or expansion webhook
+invalidation. Broad searches, unsupported Lucene expressions, older series,
+other languages, sealed products, history, and explicit `cache=no-store` keep
+their existing paths. Search quotas still count explicit user searches, even
+when the data comes from Redis.
+
+Refreshes are limited to ten pages, with an eight-second timeout per upstream
+request and a 120-second distributed lease. Concurrent requests wait up to five
+seconds for a completed snapshot before receiving a retryable 503. A failed
+refresh never publishes partial data or silently falls back to more paid
+requests; its lease expires within 120 seconds. Redis failures surface as errors
+while the feature is enabled. Roll back by setting the flag to `0`.
+
+`x-pv-cache` reports `MISS` for a newly populated snapshot and `HIT` for reuse.
+`/health` reports `setPriceCacheEnabled`. Response freshness is the snapshot's
+remaining lifetime; existing browser-local caches still have their own lifetimes
+and do not observe webhooks immediately.
+
+The Worker source is intentionally git-ignored in this repository and must be
+deployed separately to Cloudflare; deploying GitHub Pages does not deploy it.
+No production deployment or paid canary fetch is performed by these tests.
+
+Run the behavior suite with a direct module import (Node 20):
+
+```powershell
+node --experimental-default-type=module --test set-price-cache-worker.test.mjs
+```
+
 ### Roles + limits
 The Worker supports custom-claim roles (from the Firebase ID token):
 - `role=basic`: uses `FREE_DAILY_LIMIT`
