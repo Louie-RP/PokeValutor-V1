@@ -47,7 +47,9 @@ for (const file of files.filter((name) => name.endsWith('.html'))) {
         if (!html.includes('pv-nav__link')) return;
         const stylesheetVersion = file === 'search.html'
             ? '2026-10-18-search-pagination-1'
-            : '2026-10-18-pricing-nav-1';
+            : file === 'sealed.html'
+                ? '2026-10-18-sealed-pagination-1'
+                : '2026-10-18-pricing-nav-1';
         assert.ok(html.includes(`href="styles.css?v=${stylesheetVersion}"`));
         assert.match(html, /src="script\.js(?:\?[^"]*)?"[^>]*defer/);
         for (const [, stylesheet] of html.matchAll(/href="([^"]+-refresh\.css)\?[^"]*"/g)) {

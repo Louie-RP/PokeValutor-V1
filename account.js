@@ -208,6 +208,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const show = !!isVisible;
         if (adminDivider) adminDivider.hidden = !show;
         if (adminTools) adminTools.hidden = !show;
+        window.PV_POPULARITY?.setAdminVisible(show);
         if (!show) {
             setAdminStatus('');
             setAdminRefreshLatestSetsStatus('');
@@ -1506,7 +1507,10 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    let authViewGeneration = 0;
     window.PV_AUTH.onAuthStateChanged((user) => {
+        const generation = ++authViewGeneration;
+        setAdminVisible(false);
         if (!user) {
             currentRole = 'basic';
             setAuthViewMode(false);
@@ -1544,6 +1548,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fetch/refresh custom claims for role display + admin gating.
         Promise.resolve(window.PV_AUTH.getIdTokenResult ? window.PV_AUTH.getIdTokenResult(true) : null)
             .then((tokenResult) => {
+                if (generation !== authViewGeneration) return;
                 const claims = tokenResult?.claims || null;
                 const role = normalizeRoleFromClaims(claims);
                 currentRole = role;
@@ -1553,6 +1558,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 void refreshPremiumTools();
             })
             .catch(() => {
+                if (generation !== authViewGeneration) return;
                 currentRole = 'basic';
                 setRoleText('Role: unknown');
                 setUidText(uid);

@@ -184,6 +184,11 @@
     if (resultsSection) resultsSection.hidden = !isVisible;
   }
 
+  function getLiveSearchHref(mode, query) {
+    const page = mode === 'sealed' ? 'sealed.html' : 'search.html';
+    return `${page}?${new URLSearchParams({ query, source: 'home-preview' }).toString()}`;
+  }
+
   function updateSearchPreview(mode, options = {}) {
     const isSealed = mode === 'sealed';
     activeMode = isSealed ? 'sealed' : 'cards';
@@ -198,7 +203,7 @@
       resultCount.textContent = cachedSearch.resultCount;
       resultKicker.textContent = 'Live search';
       resultLink.textContent = cachedSearch.linkText;
-      resultLink.href = cachedSearch.linkHref;
+      resultLink.href = getLiveSearchHref(activeMode, cachedSearch.query);
       clearButton.hidden = false;
       input.value = cachedSearch.query;
       status.textContent = cachedSearch.status;
@@ -977,7 +982,7 @@
     row.className = 'home-preview-result-row';
     const detailsLink = document.createElement('a');
     detailsLink.className = 'home-preview-result-copy';
-    detailsLink.href = 'sealed.html';
+    detailsLink.href = getLiveSearchHref('sealed', name);
 
     const art = createLiveImageButton(getEntityImages(product), name);
     art.classList.add('home-preview-card-art--sealed', `home-preview-card-art--${['gold', 'green', 'orange'][index % 3]}`);
@@ -1221,14 +1226,14 @@
     return { cards, totalCount: cards.length };
   }
 
-  async function runLiveCardSearch(query) {
+  async function runLiveCardSearch(query, trackPopularity = true) {
     const cacheEntry = {
       query,
       state: 'loading',
       title: 'Top Card Matches',
       resultCount: `Searching for “${query}”...`,
       linkText: 'View all card results →',
-      linkHref: `search.html?${new URLSearchParams({ query, source: 'home-preview' }).toString()}`,
+      linkHref: getLiveSearchHref('cards', query),
       status: `Searching cards for ${query}...`,
     };
     liveSearchCache.cards = cacheEntry;
@@ -1241,6 +1246,7 @@
       if (liveSearchCache.cards !== cacheEntry) return;
 
       const cards = Array.isArray(payload.cards) ? payload.cards.filter((card) => card?.id).slice(0, 3) : [];
+      if (trackPopularity) void window.PV_POPULARITY?.recordSearch(cards);
       const totalCount = Number(payload.totalCount || cards.length);
       cacheEntry.cards = cards;
       cacheEntry.totalCount = totalCount;
@@ -1299,7 +1305,7 @@
       title: 'Sealed Search Results',
       resultCount: `Searching for “${query}”...`,
       linkText: 'Open sealed search →',
-      linkHref: 'sealed.html',
+      linkHref: getLiveSearchHref('sealed', query),
       status: `Searching sealed products for ${query}...`,
     };
     liveSearchCache.sealed = cacheEntry;
@@ -1409,7 +1415,7 @@
   retryButton?.addEventListener('click', function () {
     const cachedSearch = liveSearchCache[activeMode];
     if (cachedSearch?.query) {
-      void (activeMode === 'sealed' ? runLiveSealedSearch(cachedSearch.query) : runLiveCardSearch(cachedSearch.query));
+      void (activeMode === 'sealed' ? runLiveSealedSearch(cachedSearch.query) : runLiveCardSearch(cachedSearch.query, false));
       return;
     }
     setPreviewState('empty');

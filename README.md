@@ -17,6 +17,21 @@ python -m http.server 8080
 # Then visit http://localhost:8080
 ```
 
+### Home search handoff
+
+Home card and sealed searches pass the original search text to their full search
+pages using the `query` URL parameter. Sealed product links carry the product name.
+Restored home previews rebuild these links from the saved query, including previews
+saved before query links were supported. Card Search (including Dex search) and
+Sealed Search prefill URL text queries instead of automatically spending search
+credits. The user selects **Search** to run them; unrelated saved results are not
+restored over the supplied query. Direct card and set links retain their existing
+behavior. Clearing results removes the saved search and recognized search handoff
+parameters, preserving unrelated query parameters and the URL hash. Without a text
+query, the pages continue restoring saved results where supported.
+
+Run `node --test home-search-handoff-static.test.mjs` for handoff and safe-rendering checks.
+
 ### Card Search pagination
 
 [Card Search](search.html) uses the same responsive page sizes as the Dex:
@@ -34,6 +49,23 @@ Search pagination resets for a new search or cleared results.
 
 Run `node --test search-pagination-static.test.mjs dex-pagination-static.test.mjs shared-collection-pagination-static.test.mjs`
 for the responsive-size, boundary, sorting-wiring, and safe-rendering checks.
+
+### Sealed Search pagination
+
+[Sealed Search](sealed.html) uses the same pagination and page sizes as Card Search:
+36 result tiles on mobile and 60 on desktop. Product variants become separate
+tiles before sorting and pagination, so every variant remains reachable. Controls
+appear above and below nonempty results, including single-page results. Sorting
+returns to page 1; resizing retains the first visible position within the new size.
+
+Page navigation browses loaded products without additional API requests.
+**Load More** keeps the existing 10-product API batches, re-sorts all loaded
+variants, returns to page 1, and scrolls/focuses the Results heading below the
+sticky header. Reduced-motion preferences are respected. A failed load preserves
+the current page for retry, and a new search or Clear discards stale responses.
+
+Run `node --test sealed-pagination-static.test.mjs search-pagination-static.test.mjs`
+for the pagination wiring and downstream safe-rendering checks.
 
 ### Shared Pricing navigation button
 
@@ -202,6 +234,129 @@ What happens on webhook receipt:
 	- `pv:scrydex:dirty:global:v1`
 
 Worker cache keys for price-bearing routes now include these versions, so updated expansions bypass stale cached payloads without fully disabling caching.
+
+### Shared current-price cache for recent-series sets
+
+See the [implementation plan](docs/SHARED_SET_CACHE_IMPLEMENTATION.md) for scope,
+rollout, tests, and the separate popularity-tracking follow-up.
+
+The local `scrydex-worker.js` supports optional, demand-driven **per-set**
+snapshots for the English **Scarlet & Violet** and **Mega Evolution** series.
+These are two series containing multiple sets; a lookup loads only the requested
+set, not an entire series. Candidate IDs use the `sv`/`me` naming families; the
+returned expansion's series and English language metadata must also qualify.
+
+Worker variables:
+- `SET_PRICE_CACHE_ENABLED=1` enables the feature; unset/`0` keeps legacy behavior.
+- Upstash credentials above are required; without them the legacy paths remain.
+- `CACHE_TTL_SET_PRICES_SECONDS` defaults to `72000` (20 hours); shorter positive
+  values are supported for canary testing, and values above 20 hours are capped.
+
+Known-set searches, individual-card lookups, and top-by-expansion requests share
+complete snapshots fetched with prices and 100 cards per page. A 295-card set
+uses three upstream requests on a successful cold refresh. Later covered
+lookups require no Scrydex requests until expiration or expansion webhook
+invalidation. Broad searches, unsupported Lucene expressions, older series,
+other languages, sealed products, history, and explicit `cache=no-store` keep
+their existing paths. Search quotas still count explicit user searches, even
+when the data comes from Redis.
+
+Refreshes are limited to ten pages, with an eight-second timeout per upstream
+request and a 120-second distributed lease. Concurrent requests wait up to five
+seconds for a completed snapshot before receiving a retryable 503. A failed
+refresh never publishes partial data or silently falls back to more paid
+requests; its lease expires within 120 seconds. Redis failures surface as errors
+while the feature is enabled. Roll back by setting the flag to `0`.
+
+`x-pv-cache` reports `MISS` for a newly populated snapshot and `HIT` for reuse.
+`/health` reports `setPriceCacheEnabled`. Response freshness is the snapshot's
+remaining lifetime; existing browser-local caches still have their own lifetimes
+and do not observe webhooks immediately.
+
+The Worker source is intentionally git-ignored in this repository and must be
+deployed separately to Cloudflare; deploying GitHub Pages does not deploy it.
+No production deployment or paid canary fetch is performed by these tests.
+
+Run the behavior suite with a direct module import (Node 20):
+
+```powershell
+node --experimental-default-type=module --test set-price-cache-worker.test.mjs
+```
+
+### Card and set popularity (admin reports)
+
+The local Worker supports aggregate popularity collection, separately from
+Scrydex caching. Enable `POPULARITY_TRACKING_ENABLED=1` as a Cloudflare Worker
+**Text** variable after deploying the updated Worker and the site scripts.
+Upstash credentials are required. Leave the flag unset/`0` to disable collection.
+`/health` reports `popularityTrackingEnabled`; this indicates configuration,
+not storage connectivity. No Scrydex requests or credits are used by popularity.
+
+Admins can open **Account -> Admin -> Card and set popularity**, choose **30,
+60, or 90 days**, and load the top 20 items in each of four categories:
+
+- Card search-result appearances: each distinct card in the first loaded batch
+  counts once per successful explicit search action.
+- Sets represented in searches: each distinct represented set counts once;
+  a selected set also counts if the successful search has no matches.
+- Card-detail views: once per successful card-page load, including local-cache hits.
+- Sets' card-detail views: one per card-detail page view, not a unique visitor
+  count and not deduplicated across different cards from the same set.
+
+Home card search, Card Search, and Dex search are instrumented. Home counts the
+three displayed matches; full search counts its first loaded batch (up to 100).
+Internal query fallbacks are combined into one event. Load More, client-side
+pagination, restored results, passive top-card widgets, price/variant refreshes,
+and set-cache warming do not emit events. Automatic deep-link searches are not
+classified as explicit searches; opening the actual card-detail page counts as
+a view. Sealed products are not included.
+
+The separate, uncached event POST means searches and views still count when
+their data comes from browser or shared caches. Delivery is best-effort,
+nonblocking, and never retries the underlying search. Failures are logged to the
+browser console without preventing card use. No backfill or activity before
+deployment is available.
+
+API:
+- `POST /popularity/events`: existing Worker origin/auth policy applies; no
+  search quota is consumed. Accepts a random UUID-v4 `eventId`, `type` (`search`
+  or `view`), and up to 100 distinct card records (`id`, `setId`, display `name`,
+  `setName`); search events may also supply a selected `set` (`id`, `name`).
+  Views must contain exactly one card. Unknown fields, including raw query or
+  identity fields, are rejected. JSON bodies are limited to 32 KB.
+- `GET /popularity/report?days=30&limit=20`: **verified Firebase admin claim
+  required**, including when `REQUIRE_AUTH=0`. Valid windows are 30/60/90; limit
+  is 1..50. All responses use `Cache-Control: no-store`.
+
+Retention and operating costs:
+- Daily Redis sorted sets retain up to 90 UTC days, including today. Reports sum
+  all members across the requested window before taking top-N, not daily top-N.
+- Random per-action delivery IDs expire after 24 hours; duplicate completed
+  deliveries do not count again. Pending/failed deliveries return an explicit
+  error rather than being retried into duplicate increments.
+- Display labels expire within 90 days of their last update. No user IDs,
+  browser IDs, IP addresses, auth tokens, or raw search text are persisted by
+  this feature. DNT/GPC browsers suppress popularity delivery.
+- A global 10,000-delivery-attempt/day cap bounds accepted aggregation work;
+  rejected attempts still require budget-counter commands. Each accepted
+  event uses Redis transactions and per-entity increments/label writes, so this
+  is not free in Redis operations. Reports use temporary union keys expiring
+  after 60 seconds. Review Upstash usage before increasing traffic.
+- Metrics are client-reported, potentially biased or fabricated, not a billing
+  ledger or verified unique-user analytics. No per-person identifiers are
+  collected for abuse detection. Set `ALLOWED_ORIGINS` for your site origins and
+  retain existing Cloudflare abuse protections.
+
+The dashboard hides and clears data on account switches and signout; the API
+independently checks admin access. External labels render only via safe DOM
+text APIs. The updated [privacy disclosure](policies.html#pv-privacyPolicy)
+describes aggregate collection and retention.
+
+Validation (no live services or API credits):
+
+```powershell
+node --experimental-default-type=module --test popularity-worker.test.mjs popularity-ui.test.mjs set-price-cache-worker.test.mjs
+```
 
 ### Roles + limits
 The Worker supports custom-claim roles (from the Firebase ID token):

@@ -5984,6 +5984,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             renderCards(cards);
             const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
+            void window.PV_POPULARITY?.recordSearch(cards);
             const matchNote = matchedBy === 'fallback' && cards.length
                 ? ' Closest matches shown.'
                 : '';
@@ -6145,6 +6146,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const fallbackNote = usedFallback && cards.length ? ' Closest matches shown.' : '';
+            void window.PV_POPULARITY?.recordSearch(cards, { id, name: setName });
             const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in "${label}".${limitNote}${fallbackNote}`;
             setStatus(statusText);
@@ -6427,6 +6429,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Respect UI limit.
             if (cards.length > RESULT_LIMIT) cards = cards.slice(0, RESULT_LIMIT);
             renderCards(cards);
+            void window.PV_POPULARITY?.recordSearch(cards);
             const matchedNote = matchedPn !== pn ? ` Matched as "${matchedPn}".` : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".${matchedNote}`;
             setStatus(statusText);
@@ -6608,6 +6611,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const statusText = `${cards.length} card${cards.length !== 1 ? 's' : ''} in set "${label}".`;
+            void window.PV_POPULARITY?.recordSearch(cards, { id, name: setName });
             setStatus(statusText);
 
             saveLastResults({
@@ -6959,15 +6963,15 @@ document.addEventListener('DOMContentLoaded', function () {
             clearResultsUI();
             clearLastResults();
 
-            // If the page was deep-linked (top-by-expansion), also remove query params
-            // so a reload doesn't immediately re-run the expansion flow.
-            try {
-                if (window.location.search) {
-                    const nextUrl = window.location.pathname;
-                    window.history.replaceState(null, '', nextUrl);
+            if (window.location.search) {
+                const params = new URLSearchParams(window.location.search);
+                for (const key of ['query', 'cardId', 'cardName', 'expansionId', 'expansionName']) {
+                    params.delete(key);
                 }
-            } catch {
-                // ignore
+                if (params.get('source') === 'home-preview') params.delete('source');
+                const query = params.toString();
+                const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+                window.history.replaceState(window.history.state, '', nextUrl);
             }
 
             // Also clear any cached top-by-expansion responses so a bad response can't linger.
@@ -7042,12 +7046,12 @@ document.addEventListener('DOMContentLoaded', function () {
         deepLinkExpansionName = params.get('expansionName') || '';
         deepLinkCardId = params.get('cardId') || '';
         deepLinkCardName = params.get('cardName') || '';
-        deepLinkQuery = params.get('query') || '';
+        deepLinkQuery = (params.get('query') || '').trim();
     } catch {
         // ignore
     }
 
-    if (deepLinkExpansionId) {
+    if (deepLinkExpansionId || deepLinkQuery) {
         setSearchCollapsed(false);
     }
 
@@ -7062,8 +7066,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
         } else if (deepLinkQuery) {
+            activateDexSearchMode();
             if (input) input.value = deepLinkQuery;
-            void searchByName(deepLinkQuery);
+            setStatus('Search is ready. Select Search to load results and use search credits.');
         } else {
             clearResultsUI();
         }
@@ -7072,7 +7077,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const restored = loadLastResults();
             const matchesDeepLinkExpansion = isMatchingExpansionResultSet(restored, deepLinkExpansionId);
-            const shouldRestoreResults = !deepLinkExpansionId || matchesDeepLinkExpansion;
+            const shouldRestoreResults = !deepLinkQuery && (!deepLinkExpansionId || matchesDeepLinkExpansion);
             if (shouldRestoreResults && restored && Array.isArray(restored.cards) && restored.cards.length) {
                 const restoredCards = !isSearchPage && restored.cards.length > MAX_RESTORE_RENDER_CARDS
                     ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
@@ -7124,7 +7129,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } else if (deepLinkQuery) {
             if (input) input.value = deepLinkQuery;
-            void searchByName(deepLinkQuery);
+            setStatus('Search is ready. Select Search to load results and use search credits.');
         }
     }
 
