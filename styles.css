@@ -433,11 +433,11 @@ body {
   }
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination {
   margin-top: 0.9rem;
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__inner {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__inner {
   border: 1px solid rgba(148, 163, 184, 0.34);
   border-radius: 12px;
   background: rgba(15, 23, 42, 0.42);
@@ -449,19 +449,19 @@ body {
   justify-content: space-between;
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__status {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__status {
   margin: 0;
   color: #dbeafe;
   font-size: 0.82rem;
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__controls {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__controls {
   display: flex;
   align-items: center;
   gap: 0.36rem;
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__pageLabel {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__pageLabel {
   color: #e2e8f0;
   font-size: 0.8rem;
   font-weight: 700;
@@ -469,13 +469,13 @@ body {
   text-align: center;
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__btn {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__btn {
   min-height: 1.95rem;
   padding: 0.28rem 0.56rem;
   font-size: 0.76rem;
 }
 
-:is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__btn[disabled] {
+:is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__btn[disabled] {
   opacity: 0.5;
   pointer-events: none;
 }
@@ -6332,22 +6332,22 @@ label[for="pv-search-number"] { color: var(--pv-primary); }
     grid-row: 7;
   }
 
-  :is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__inner {
+  :is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__inner {
     padding: 0.46rem 0.5rem;
   }
 
-  :is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__controls {
+  :is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__controls {
     width: 100%;
     justify-content: space-between;
     gap: 0.22rem;
   }
 
-  :is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__pageLabel {
+  :is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__pageLabel {
     min-width: 0;
     flex: 1 1 auto;
   }
 
-  :is(#pv-dex-body, #pv-shared-body) .pv-collectionPagination__btn {
+  :is(#pv-search-body, #pv-dex-body, #pv-shared-body) .pv-collectionPagination__btn {
     flex: 0 0 auto;
     padding-inline: 0.42rem;
   }

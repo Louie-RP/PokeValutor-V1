@@ -762,6 +762,25 @@
 
 #pv-search-body.pv-searchRefresh .pv-loadMoreWrap {
   margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+#pv-search-body.pv-searchRefresh .pv-collectionPagination {
+  margin-block: 1rem;
+}
+
+#pv-search-body.pv-searchRefresh .pv-collectionPagination__inner {
+  border-color: var(--search-line);
+  background: var(--search-surface);
+}
+
+#pv-search-body.pv-searchRefresh .pv-collectionPagination__status,
+#pv-search-body.pv-searchRefresh .pv-collectionPagination__pageLabel {
+  color: var(--search-text);
 }
 
 #pv-search-body.pv-searchRefresh #pv-search-load-more {

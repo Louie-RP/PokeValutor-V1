@@ -17,6 +17,24 @@ python -m http.server 8080
 # Then visit http://localhost:8080
 ```
 
+### Card Search pagination
+
+[Card Search](search.html) uses the same responsive page sizes as the Dex:
+36 cards below 768px and 60 cards on desktop. First, Previous, Next, and Last
+controls appear above and below nonempty results, including "Page 1 of 1" with
+disabled navigation when the loaded cards fit on one page.
+Sorting applies to all loaded cards before pagination; changing the sort returns
+to page 1. Crossing the mobile breakpoint keeps the first visible card's position
+within the new page size.
+
+Pages browse already-loaded results without consuming search quota. **Load More**
+keeps the existing API batch sizes, merges additional matches, and returns to
+page 1 and the top of Results so newly loaded high-priced cards are not missed.
+Search pagination resets for a new search or cleared results.
+
+Run `node --test search-pagination-static.test.mjs dex-pagination-static.test.mjs shared-collection-pagination-static.test.mjs`
+for the responsive-size, boundary, sorting-wiring, and safe-rendering checks.
+
 ### Shared Pricing navigation button
 
 The gold Pricing navigation button is styled in [styles.css](styles.css).

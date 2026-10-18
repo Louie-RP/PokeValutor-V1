@@ -37,9 +37,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="styles.css?v=2026-10-18-search-pagination-1" />
     <link rel="stylesheet" href="scanner.css?v=20260709-2" />
-    <link rel="stylesheet" href="search-refresh.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="search-refresh.css?v=2026-10-18-search-pagination-1" />
     <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -166,7 +166,7 @@
 
                 <section id="pv-search-results" class="pv-section pv-searchResults" aria-labelledby="pv-search-results-title">
                     <div class="pv-section__header">
-                        <h2 id="pv-search-results-title" class="pv-section__title">Results</h2>
+                        <h2 id="pv-search-results-title" class="pv-section__title" tabindex="-1">Results</h2>
                         <div id="pv-search-sort" class="pv-sortRow" role="group" aria-label="Sort search results">
                             <label for="pv-search-sort-select" class="form-label pv-sortLabel">Sort</label>
                             <select id="pv-search-sort-select" class="form-select pv-sortSelect" aria-label="Sort search results">
@@ -181,9 +181,12 @@
                         <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
                         <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
                     </div>
+                    <nav id="pv-search-pagination-top" class="pv-collectionPagination" aria-label="Search pagination above results" hidden></nav>
                     <div id="pv-search-grid" class="row g-3" aria-label="Search results grid"></div>
+                    <nav id="pv-search-pagination-bottom" class="pv-collectionPagination" aria-label="Search pagination below results" hidden></nav>
                     <div class="pv-loadMoreWrap">
-                        <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
+                        <button id="pv-search-load-more" class="pv-button pv-button--secondary btn" type="button" aria-describedby="pv-search-load-more-help" hidden>Load More</button>
+                        <span id="pv-search-load-more-help" class="small" hidden>Pages browse loaded cards. Load More fetches additional matches and returns to page 1.</span>
                     </div>
                 </section>
                 </div>
@@ -289,7 +292,8 @@
     <script src="firebase.js?v=2026-10-11-ownership-1" defer></script>
     <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 
-    <script src="search.js?v=2026-10-11-ownership-1" defer></script>
+    <script src="collection-view-utils.js?v=20261018-search-pagination-2" defer></script>
+    <script src="search.js?v=20261018-search-pagination-2" defer></script>
     <script src="scanner.js?v=20260712-37" defer></script>
 </body>
 

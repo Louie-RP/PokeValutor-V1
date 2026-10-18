@@ -8,6 +8,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
     const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
+    const loadMoreHelp = document.getElementById('pv-search-load-more-help');
+    const searchPaginationEls = [
+        document.getElementById('pv-search-pagination-top'),
+        document.getElementById('pv-search-pagination-bottom'),
+    ];
+    const collectionView = window.PV_COLLECTION_VIEW;
     const status = document.getElementById('pv-search-status');
     const searchResultsEl = document.getElementById('pv-search-results');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
@@ -228,6 +234,9 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let currentResultsCards = [];
     let searchResultsLoading = false;
+    const searchPaginationState = { page: 1, perPage: 0 };
+    let searchPaginationSortFrame = 0;
+    let loadingBrowseState = null;
 
     const searchSortState = {
         active: 'value',
@@ -473,6 +482,25 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!grid) return;
         if (searchSortState.active !== 'name' && searchSortState.active !== 'value') return;
 
+        // Price updates can move a card across page boundaries, not just within the DOM.
+        if (isSearchPage && currentResultsCards.length > searchPaginationState.perPage && !searchPaginationSortFrame) {
+            searchPaginationSortFrame = window.requestAnimationFrame(() => {
+                searchPaginationSortFrame = 0;
+                if (searchResultsLoading || grid.querySelector('.pv-skeleton')) return;
+                const pagination = collectionView.getPagination(
+                    currentResultsCards.length, searchPaginationState.perPage, searchPaginationState.page
+                );
+                const expectedIds = currentResultsCards.slice().sort(compareSearchCardsForSort)
+                    .slice(pagination.startIndex, pagination.endIndex)
+                    .map((card) => safeString(card?.id, ''));
+                const renderedIds = Array.from(grid.querySelectorAll('.pv-searchCol'))
+                    .map((col) => col.getAttribute('data-card-id'));
+                if (expectedIds.length !== renderedIds.length || expectedIds.some((id) => !renderedIds.includes(id))) {
+                    renderCards(currentResultsCards, loadLastResults() || undefined);
+                }
+            });
+        }
+
         const cols = Array.from(grid.querySelectorAll('.pv-searchCol'));
         if (cols.length <= 1) return;
 
@@ -516,7 +544,14 @@ document.addEventListener('DOMContentLoaded', function () {
             searchSortSelect.addEventListener('change', () => {
                 applySearchSortMode(searchSortSelect.value);
                 updateSearchSortUi();
-                applySearchSortToGrid();
+                if (isSearchPage) {
+                    searchPaginationState.page = 1;
+                    if (!searchResultsLoading && !grid?.querySelector('.pv-skeleton')) {
+                        renderCards(currentResultsCards, loadLastResults() || undefined);
+                    }
+                } else {
+                    applySearchSortToGrid();
+                }
                 saveSortModePreference(SEARCH_SORT_PREF_KEY, getSearchSortMode());
             });
         }
@@ -633,6 +668,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function setLoadMoreState(visible, loading) {
+        if (loadMoreHelp) loadMoreHelp.hidden = !visible;
         if (!loadMoreBtn) return;
         loadMoreBtn.hidden = !visible;
         loadMoreBtn.disabled = !!loading;
@@ -640,6 +676,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetDexSetBrowseState() {
+        searchPaginationState.page = 1;
         dexSetBrowseState = {
             active: false,
             mode: '',
@@ -802,6 +839,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderCardSkeletons(container, count, loadingMessage) {
         if (!container) return;
+        if (container === grid && isSearchPage) {
+            searchPaginationState.page = 1;
+            for (const paginationEl of searchPaginationEls) {
+                if (paginationEl) {
+                    paginationEl.hidden = true;
+                    paginationEl.replaceChildren();
+                }
+            }
+        }
         container.replaceChildren();
 
         const messageText = safeString(loadingMessage, '').trim();
@@ -5079,6 +5125,50 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     }
 
+    function scrollSearchResultsToTop() {
+        if (!isSearchPage || !searchResultsEl) return;
+        const header = document.getElementById('pv-search-header');
+        const clearance = (header ? header.getBoundingClientRect().height : 0) + 20;
+        const top = Math.max(0, searchResultsEl.getBoundingClientRect().top + window.scrollY - clearance);
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' });
+        searchResultsTitleEl?.focus({ preventScroll: true });
+    }
+
+    function paginateSearchCards(sortedCards) {
+        if (!isSearchPage) return sortedCards;
+        const pageSize = collectionView.getResponsivePageSize(window);
+        if (searchPaginationState.perPage && searchPaginationState.perPage !== pageSize) {
+            const firstVisibleIndex = (searchPaginationState.page - 1) * searchPaginationState.perPage;
+            searchPaginationState.page = Math.floor(firstVisibleIndex / pageSize) + 1;
+        }
+        searchPaginationState.perPage = pageSize;
+        const pagination = collectionView.getPagination(sortedCards.length, pageSize, searchPaginationState.page);
+        searchPaginationState.page = pagination.currentPage;
+        for (const paginationEl of searchPaginationEls) {
+            collectionView.renderPagination(paginationEl, {
+                totalItems: sortedCards.length,
+                pageSize,
+                currentPage: pagination.currentPage,
+                pagesLabel: 'Search result pages',
+                showSinglePage: true,
+                onPageChange(page) {
+                    searchPaginationState.page = page;
+                    renderCards(currentResultsCards, loadLastResults() || undefined);
+                    scrollSearchResultsToTop();
+                },
+            });
+        }
+        return sortedCards.slice(pagination.startIndex, pagination.endIndex);
+    }
+
+    if (isSearchPage) {
+        window.matchMedia('(max-width: 767.98px)').addEventListener('change', () => {
+            if (searchResultsLoading || grid?.querySelector('.pv-skeleton')) return;
+            renderCards(currentResultsCards, loadLastResults() || undefined);
+        });
+    }
+
     function renderCards(cards, restoreState) {
         if (!grid) return;
         const sourceCards = Array.isArray(cards) ? cards : [];
@@ -5096,6 +5186,8 @@ document.addEventListener('DOMContentLoaded', function () {
             : null;
 
         if (!sourceCards.length) {
+            searchPaginationState.page = 1;
+            paginateSearchCards([]);
             for (const key of Object.keys(searchValueById)) {
                 delete searchValueById[key];
             }
@@ -5121,8 +5213,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const sortedCards = sourceCards.slice().sort(compareSearchCardsForSort);
+        const visibleCards = paginateSearchCards(sortedCards);
 
-        for (const card of sortedCards) {
+        for (const card of visibleCards) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-searchCol';
 
@@ -6567,17 +6660,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function loadMoreDexSetCards() {
+        if (loadingBrowseState === dexSetBrowseState) return;
         if (!dexSetBrowseState.active || !dexSetBrowseState.hasMore || !dexSetBrowseState.matchedQuery) {
             setLoadMoreState(false, false);
             return;
         }
 
         const base = getWorkerBase();
+        const browseState = dexSetBrowseState;
+        loadingBrowseState = browseState;
         setLoadMoreState(true, true);
 
         try {
             const page = dexSetBrowseState.nextPage;
             const next = await fetchCardsSearchPage(base, dexSetBrowseState.matchedQuery, page, dexSetBrowseState.pageSize);
+            if (dexSetBrowseState !== browseState) return;
 
             const merged = mergeUniqueCardsById(dexSetBrowseState.cards, next.cards);
             dexSetBrowseState.cards = merged;
@@ -6585,7 +6682,9 @@ document.addEventListener('DOMContentLoaded', function () {
             dexSetBrowseState.hasMore = next.hasMore;
 
             const restored = loadLastResults();
+            searchPaginationState.page = 1;
             renderCards(merged, restored || undefined);
+            scrollSearchResultsToTop();
 
             const mode = String(dexSetBrowseState.mode || '');
             let statusText = `${merged.length} card${merged.length !== 1 ? 's' : ''} loaded.`;
@@ -6625,12 +6724,15 @@ document.addEventListener('DOMContentLoaded', function () {
             setLoadMoreState(dexSetBrowseState.hasMore, false);
         } catch (e) {
             console.warn('[PokeValutor] dex load more error', e);
+            if (dexSetBrowseState !== browseState) return;
             setLoadMoreState(true, false);
             if (isQuotaExceededError(e)) {
                 setStatusAndHideIfQuotaError(e);
             } else {
                 setStatus('Unable to load more cards right now. Please try again.');
             }
+        } finally {
+            if (loadingBrowseState === browseState) loadingBrowseState = null;
         }
     }
 
@@ -6814,6 +6916,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (grid) grid.replaceChildren();
         if (status) status.textContent = '';
         currentResultsCards = [];
+        paginateSearchCards([]);
         for (const key of Object.keys(searchValueById)) {
             delete searchValueById[key];
         }
@@ -6973,7 +7076,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const matchesDeepLinkExpansion = isMatchingExpansionResultSet(restored, deepLinkExpansionId);
             const shouldRestoreResults = !deepLinkExpansionId || matchesDeepLinkExpansion;
             if (shouldRestoreResults && restored && Array.isArray(restored.cards) && restored.cards.length) {
-                const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
+                const restoredCards = !isSearchPage && restored.cards.length > MAX_RESTORE_RENDER_CARDS
                     ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
                     : restored.cards;
                 const restoredView = restoredCards === restored.cards

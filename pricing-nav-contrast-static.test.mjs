@@ -45,13 +45,16 @@ for (const file of files.filter((name) => name.endsWith('.html'))) {
     test(`${file} uses the cache-busted shared navigation stylesheet`, async () => {
         const html = await readFile(file, 'utf8');
         if (!html.includes('pv-nav__link')) return;
-        assert.match(html, /href="styles\.css\?v=2026-10-18-pricing-nav-1"/);
+        const stylesheetVersion = file === 'search.html'
+            ? '2026-10-18-search-pagination-1'
+            : '2026-10-18-pricing-nav-1';
+        assert.ok(html.includes(`href="styles.css?v=${stylesheetVersion}"`));
         assert.match(html, /src="script\.js(?:\?[^"]*)?"[^>]*defer/);
         for (const [, stylesheet] of html.matchAll(/href="([^"]+-refresh\.css)\?[^"]*"/g)) {
             const css = await readFile(stylesheet, 'utf8');
             if (!ordinaryLink.test(css)) continue;
             assert.ok(
-                html.includes(`${stylesheet}?v=2026-10-18-pricing-nav-1`),
+                html.includes(`${stylesheet}?v=${stylesheetVersion}`),
                 `${file} must invalidate the cached ${stylesheet}`,
             );
         }
