@@ -17,6 +17,18 @@ python -m http.server 8080
 # Then visit http://localhost:8080
 ```
 
+### Home search handoff
+
+Home card and sealed searches pass the original search text to their full search
+pages using the `query` URL parameter. Sealed product links search by product name.
+Restored home previews rebuild these links from the saved query, including previews
+saved before query links were supported. An explicit sealed query runs automatically
+instead of restoring unrelated results; clearing sealed results also removes the
+URL query so reloading does not repeat the search. Without a query, the sealed page
+continues restoring saved results.
+
+Run `node --test home-search-handoff-static.test.mjs` for handoff and safe-rendering checks.
+
 ### Card Search pagination
 
 [Card Search](search.html) uses the same responsive page sizes as the Dex:

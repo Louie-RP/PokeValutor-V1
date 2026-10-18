@@ -184,6 +184,11 @@
     if (resultsSection) resultsSection.hidden = !isVisible;
   }
 
+  function getLiveSearchHref(mode, query) {
+    const page = mode === 'sealed' ? 'sealed.html' : 'search.html';
+    return `${page}?${new URLSearchParams({ query, source: 'home-preview' }).toString()}`;
+  }
+
   function updateSearchPreview(mode, options = {}) {
     const isSealed = mode === 'sealed';
     activeMode = isSealed ? 'sealed' : 'cards';
@@ -198,7 +203,7 @@
       resultCount.textContent = cachedSearch.resultCount;
       resultKicker.textContent = 'Live search';
       resultLink.textContent = cachedSearch.linkText;
-      resultLink.href = cachedSearch.linkHref;
+      resultLink.href = getLiveSearchHref(activeMode, cachedSearch.query);
       clearButton.hidden = false;
       input.value = cachedSearch.query;
       status.textContent = cachedSearch.status;
@@ -977,7 +982,7 @@
     row.className = 'home-preview-result-row';
     const detailsLink = document.createElement('a');
     detailsLink.className = 'home-preview-result-copy';
-    detailsLink.href = 'sealed.html';
+    detailsLink.href = getLiveSearchHref('sealed', name);
 
     const art = createLiveImageButton(getEntityImages(product), name);
     art.classList.add('home-preview-card-art--sealed', `home-preview-card-art--${['gold', 'green', 'orange'][index % 3]}`);
@@ -1228,7 +1233,7 @@
       title: 'Top Card Matches',
       resultCount: `Searching for “${query}”...`,
       linkText: 'View all card results →',
-      linkHref: `search.html?${new URLSearchParams({ query, source: 'home-preview' }).toString()}`,
+      linkHref: getLiveSearchHref('cards', query),
       status: `Searching cards for ${query}...`,
     };
     liveSearchCache.cards = cacheEntry;
@@ -1299,7 +1304,7 @@
       title: 'Sealed Search Results',
       resultCount: `Searching for “${query}”...`,
       linkText: 'Open sealed search →',
-      linkHref: 'sealed.html',
+      linkHref: getLiveSearchHref('sealed', query),
       status: `Searching sealed products for ${query}...`,
     };
     liveSearchCache.sealed = cacheEntry;

@@ -2518,13 +2518,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const sourceProducts = Array.isArray(products) ? products : [];
         const displayProducts = createSealedDisplayProducts(sourceProducts);
         currentResultsProducts = sourceProducts.slice();
-        grid.innerHTML = '';
+        grid.replaceChildren();
 
         if (!displayProducts.length) {
             for (const key of Object.keys(sealedValueById)) {
                 delete sealedValueById[key];
             }
-            grid.innerHTML = '<div class="col-12"><p class="pv-section__text">No results found.</p></div>';
+            const emptyColumn = document.createElement('div');
+            emptyColumn.className = 'col-12';
+            const emptyMessage = document.createElement('p');
+            emptyMessage.className = 'pv-section__text';
+            emptyMessage.textContent = 'No results found.';
+            emptyColumn.appendChild(emptyMessage);
+            grid.appendChild(emptyColumn);
             return;
         }
 
@@ -2631,9 +2637,13 @@ document.addEventListener('DOMContentLoaded', function () {
             tradeSelect.className = 'form-select pv-selectCompact pv-selectTrade';
             tradeSelect.id = `pv-sealed-trade-${productId}`;
             const pct = getSavedTradePercentForId(productId, restoreState);
-            tradeSelect.innerHTML = TRADE_PERCENT_CHOICES
-                .map((pp) => `<option value="${pp}" ${pp === pct ? 'selected' : ''}>${pp}%</option>`)
-                .join('');
+            for (const pp of TRADE_PERCENT_CHOICES) {
+                const option = document.createElement('option');
+                option.value = String(pp);
+                option.textContent = `${pp}%`;
+                option.selected = pp === pct;
+                tradeSelect.appendChild(option);
+            }
 
             tradeField.appendChild(tradeLabel);
             tradeField.appendChild(tradeSelect);
@@ -2666,7 +2676,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const q = (name || '').trim();
         if (!q) {
             setStatus('Enter a product name.');
-            if (grid) grid.innerHTML = '';
+            if (grid) grid.replaceChildren();
             currentSearchHasMore = false;
             updateLoadMoreButton(false, false);
             return;
@@ -2681,7 +2691,7 @@ document.addEventListener('DOMContentLoaded', function () {
         isLoadingMore = false;
 
         setStatus('Searching…');
-        if (grid) grid.innerHTML = '';
+        if (grid) grid.replaceChildren();
         updateLoadMoreButton(false, false);
 
         try {
@@ -2739,7 +2749,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 setStatus(`Error: ${e?.message || 'Search failed.'}`);
             }
-            if (grid) grid.innerHTML = '';
+            if (grid) grid.replaceChildren();
             updateLoadMoreButton(false, false);
         }
     }
@@ -2805,7 +2815,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function clearResultsUI() {
-        if (grid) grid.innerHTML = '';
+        if (grid) grid.replaceChildren();
         setStatus('');
         currentResultsProducts = [];
         for (const key of Object.keys(sealedValueById)) {
@@ -2831,6 +2841,9 @@ document.addEventListener('DOMContentLoaded', function () {
         clearBtn.addEventListener('click', () => {
             if (input) input.value = '';
             clearResultsUI();
+            if (window.location.search) {
+                window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+            }
         });
     }
 
@@ -2915,8 +2928,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Restore last results after refresh.
-    const restored = loadLastResults();
+    const deepLinkQuery = (new URLSearchParams(window.location.search).get('query') || '').trim();
+
+    // An explicit search takes precedence over saved results.
+    const restored = deepLinkQuery ? null : loadLastResults();
     if (restored && Array.isArray(restored.products) && restored.products.length) {
         if (restored.mode === 'name' && input) input.value = String(restored.query || '');
         const restoredCandidates = buildSealedSearchQueryCandidates(restored.query || '');
@@ -2936,6 +2951,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 setStatus(restoredStatus);
             }
         }
+    }
+
+    if (deepLinkQuery) {
+        if (input) input.value = deepLinkQuery;
+        void searchByName(deepLinkQuery);
     }
 
     if (scrollTopBtn) {
