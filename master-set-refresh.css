@@ -41,8 +41,8 @@
   padding-left: 0;
 }
 
-#pv-master-set-guide-body .pv-nav__link,
-#pv-master-set-detail-body .pv-nav__link {
+#pv-master-set-guide-body .pv-nav__link:not(.pv-nav__link--pricing),
+#pv-master-set-detail-body .pv-nav__link:not(.pv-nav__link--pricing) {
   border-radius: 0.55rem;
   color: var(--master-muted);
   font-family: inherit;
@@ -51,10 +51,10 @@
   text-transform: none;
 }
 
-#pv-master-set-guide-body .pv-nav__link:hover,
-#pv-master-set-guide-body .pv-nav__link:focus-visible,
-#pv-master-set-detail-body .pv-nav__link:hover,
-#pv-master-set-detail-body .pv-nav__link:focus-visible {
+#pv-master-set-guide-body .pv-nav__link:not(.pv-nav__link--pricing):hover,
+#pv-master-set-guide-body .pv-nav__link:not(.pv-nav__link--pricing):focus-visible,
+#pv-master-set-detail-body .pv-nav__link:not(.pv-nav__link--pricing):hover,
+#pv-master-set-detail-body .pv-nav__link:not(.pv-nav__link--pricing):focus-visible {
   background: var(--master-surface);
   color: var(--master-text);
 }

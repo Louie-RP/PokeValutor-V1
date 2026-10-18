@@ -36,8 +36,8 @@ body.pv-accountRefresh .pv-nav__list {
   gap: 0.25rem;
 }
 
-#pv-account-body.pv-accountRefresh .pv-nav__link,
-body.pv-accountRefresh .pv-nav__link {
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing),
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing) {
   padding: 0.55rem 0.7rem;
   border: 0;
   border-radius: 0.55rem;
@@ -48,37 +48,18 @@ body.pv-accountRefresh .pv-nav__link {
   text-transform: none;
 }
 
-#pv-account-body.pv-accountRefresh .pv-nav__link:hover,
-#pv-account-body.pv-accountRefresh .pv-nav__link:focus-visible,
-body.pv-accountRefresh .pv-nav__link:hover,
-body.pv-accountRefresh .pv-nav__link:focus-visible {
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):hover,
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):focus-visible,
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):hover,
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):focus-visible {
   background: var(--account-surface);
   color: var(--account-text);
 }
 
-#pv-account-body.pv-accountRefresh .pv-nav__link[aria-current="page"],
-body.pv-accountRefresh .pv-nav__link[aria-current="page"] {
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing)[aria-current="page"],
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing)[aria-current="page"] {
   background: rgba(255, 203, 5, 0.14);
   color: var(--account-yellow);
-}
-
-#pv-account-body.pv-accountRefresh .pv-nav__link--pricing,
-#pv-account-body.pv-accountRefresh .pv-nav__link--pricing[aria-current="page"],
-body.pv-accountRefresh .pv-nav__link--pricing,
-body.pv-accountRefresh .pv-nav__link--pricing[aria-current="page"] {
-  border: 1px solid #ffe27f;
-  background: linear-gradient(135deg, #ffd34f 0%, #ffcb05 60%, #f3b800 100%);
-  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.28);
-  color: #111111;
-  font-weight: 800;
-}
-
-#pv-account-body.pv-accountRefresh .pv-nav__link--pricing:hover,
-#pv-account-body.pv-accountRefresh .pv-nav__link--pricing:focus-visible,
-body.pv-accountRefresh .pv-nav__link--pricing:hover,
-body.pv-accountRefresh .pv-nav__link--pricing:focus-visible {
-  background: linear-gradient(135deg, #ffe071 0%, #ffd34f 55%, #ffcb05 100%);
-  color: #050505;
 }
 
 #pv-account-body.pv-accountRefresh .pv-navToggle,

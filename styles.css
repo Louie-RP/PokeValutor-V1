@@ -289,7 +289,8 @@ body {
   display: inline-flex;
 }
 
-.pv-nav__link--pricing {
+/* Page themes must exclude this CTA from ordinary navigation link overrides. */
+.pv-nav__link.pv-nav__link--pricing {
   background: linear-gradient(135deg, #ffd34f 0%, #ffcb05 60%, #f3b800 100%);
   color: #111111;
   border: 1px solid #ffe27f;
@@ -297,13 +298,14 @@ body {
   font-weight: 800;
 }
 
-.pv-nav__link--pricing:focus,
-.pv-nav__link--pricing:hover {
+.pv-nav__link.pv-nav__link--pricing:focus,
+.pv-nav__link.pv-nav__link--pricing:focus-visible,
+.pv-nav__link.pv-nav__link--pricing:hover {
   background: linear-gradient(135deg, #ffe071 0%, #ffd34f 55%, #ffcb05 100%);
   color: #050505;
 }
 
-.pv-nav__link--pricing[aria-current="page"] {
+.pv-nav__link.pv-nav__link--pricing[aria-current="page"] {
   background: linear-gradient(135deg, #ffe071 0%, #ffd34f 55%, #ffcb05 100%);
   color: #050505;
 }

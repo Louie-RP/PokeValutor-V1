@@ -58,7 +58,7 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
   gap: 0.25rem;
 }
 
-#pv-shared-body.pv-sharedRefresh .pv-nav__link {
+#pv-shared-body.pv-sharedRefresh .pv-nav__link:not(.pv-nav__link--pricing) {
   padding: 0.55rem 0.7rem;
   border: 0;
   border-radius: 0.55rem;
@@ -69,8 +69,8 @@ html:has(#pv-shared-body.pv-sharedRefresh) {
   text-transform: none;
 }
 
-#pv-shared-body.pv-sharedRefresh .pv-nav__link:hover,
-#pv-shared-body.pv-sharedRefresh .pv-nav__link:focus-visible {
+#pv-shared-body.pv-sharedRefresh .pv-nav__link:not(.pv-nav__link--pricing):hover,
+#pv-shared-body.pv-sharedRefresh .pv-nav__link:not(.pv-nav__link--pricing):focus-visible {
   background: var(--dex-surface);
   color: var(--dex-text);
 }

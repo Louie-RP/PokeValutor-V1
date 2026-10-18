@@ -25,7 +25,7 @@ body#pv-card-body.pv-cardRefresh .pv-header {
   box-shadow: none;
 }
 
-body#pv-card-body.pv-cardRefresh .pv-nav__link {
+body#pv-card-body.pv-cardRefresh .pv-nav__link:not(.pv-nav__link--pricing) {
   border-radius: 0.55rem;
   color: var(--card-muted);
   font-family: var(--card-body);
@@ -33,8 +33,8 @@ body#pv-card-body.pv-cardRefresh .pv-nav__link {
   font-weight: 600;
 }
 
-body#pv-card-body.pv-cardRefresh .pv-nav__link:hover,
-body#pv-card-body.pv-cardRefresh .pv-nav__link:focus-visible {
+body#pv-card-body.pv-cardRefresh .pv-nav__link:not(.pv-nav__link--pricing):hover,
+body#pv-card-body.pv-cardRefresh .pv-nav__link:not(.pv-nav__link--pricing):focus-visible {
   background: var(--card-surface);
   color: var(--card-text);
 }

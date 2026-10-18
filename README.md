@@ -17,6 +17,15 @@ python -m http.server 8080
 # Then visit http://localhost:8080
 ```
 
+### Shared Pricing navigation button
+
+The gold Pricing navigation button is styled in [styles.css](styles.css).
+Page-specific navigation appearance rules must exclude
+`.pv-nav__link--pricing` using `:not(.pv-nav__link--pricing)` so they cannot
+replace its dark text or gold background, including hover, focus, and current-page states.
+Run `node --test pricing-nav-contrast-static.test.mjs` to check all page themes
+and their stylesheet cache versions.
+
 Deploy to GitHub Pages
 1. Commit and push to main.
 2. In GitHub, Settings → Pages → Source: **GitHub Actions**.

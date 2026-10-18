@@ -30,7 +30,7 @@ body.pv-infoPage .pv-header {
 
 body.pv-infoPage .pv-nav__list { gap: 0.25rem; }
 
-body.pv-infoPage .pv-nav__link {
+body.pv-infoPage .pv-nav__link:not(.pv-nav__link--pricing) {
   padding: 0.55rem 0.7rem;
   border: 0;
   border-radius: 0.55rem;
@@ -41,30 +41,15 @@ body.pv-infoPage .pv-nav__link {
   text-transform: none;
 }
 
-body.pv-infoPage .pv-nav__link:hover,
-body.pv-infoPage .pv-nav__link:focus-visible {
+body.pv-infoPage .pv-nav__link:not(.pv-nav__link--pricing):hover,
+body.pv-infoPage .pv-nav__link:not(.pv-nav__link--pricing):focus-visible {
   background: var(--info-surface);
   color: var(--info-text);
 }
 
-body.pv-infoPage .pv-nav__link[aria-current="page"] {
+body.pv-infoPage .pv-nav__link:not(.pv-nav__link--pricing)[aria-current="page"] {
   background: rgba(255, 203, 5, 0.14);
   color: var(--info-yellow);
-}
-
-body.pv-infoPage .pv-nav__link--pricing,
-body.pv-infoPage .pv-nav__link--pricing[aria-current="page"] {
-  border: 1px solid #ffe27f;
-  background: linear-gradient(135deg, #ffd34f 0%, #ffcb05 60%, #f3b800 100%);
-  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.28);
-  color: #111111;
-  font-weight: 800;
-}
-
-body.pv-infoPage .pv-nav__link--pricing:hover,
-body.pv-infoPage .pv-nav__link--pricing:focus-visible {
-  background: linear-gradient(135deg, #ffe071 0%, #ffd34f 55%, #ffcb05 100%);
-  color: #050505;
 }
 
 body.pv-infoPage .pv-navToggle,
