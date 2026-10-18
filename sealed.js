@@ -12,6 +12,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     const status = document.getElementById('pv-sealed-status');
     const grid = document.getElementById('pv-sealed-grid');
+    const resultsEl = document.getElementById('pv-sealed-results');
+    const resultsTitleEl = document.getElementById('pv-sealed-results-title');
+    const paginationEls = [
+        document.getElementById('pv-sealed-pagination-top'),
+        document.getElementById('pv-sealed-pagination-bottom'),
+    ];
+    const collectionView = window.PV_COLLECTION_VIEW;
     const favoritesGrid = document.getElementById('pv-sealed-favorites-grid');
     const favoritesBody = document.getElementById('pv-sealed-favorites-body');
     const favoritesToggle = document.getElementById('pv-sealed-favorites-toggle');
@@ -112,6 +119,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentSearchTotalCount = null;
     let currentSearchHasMore = false;
     let isLoadingMore = false;
+    let isSearching = false;
+    let searchRequestVersion = 0;
+    const paginationState = { page: 1, perPage: 0 };
     let sealedCollectionContextBusy = false;
     let sealedCollectionContextMeta = {
         activeCollectionId: DEX_DEFAULT_COLLECTION_ID,
@@ -245,48 +255,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return (va - vb) * dir;
     }
 
-    function applySealedSortToGrid() {
-        if (!grid) return;
-        const cols = Array.from(grid.querySelectorAll('.pv-sealedCol'));
-        if (cols.length <= 1) return;
-
-        cols.sort((a, b) => {
-            const nameA = safeString(a.getAttribute('data-product-name'), '').toLowerCase();
-            const nameB = safeString(b.getAttribute('data-product-name'), '').toLowerCase();
-
-            if (sealedSortState.active === 'name') {
-                const dir = sealedSortState.nameDir === 'asc' ? 1 : -1;
-                return nameA.localeCompare(nameB) * dir;
-            }
-
-            const idA = safeString(a.getAttribute('data-product-id'), '');
-            const idB = safeString(b.getAttribute('data-product-id'), '');
-            const va = Number(sealedValueById[idA]);
-            const vb = Number(sealedValueById[idB]);
-            const hasA = Number.isFinite(va);
-            const hasB = Number.isFinite(vb);
-
-            if (!hasA && !hasB) return nameA.localeCompare(nameB);
-            if (!hasA) return 1;
-            if (!hasB) return -1;
-
-            const dir = sealedSortState.valueDir === 'asc' ? 1 : -1;
-            if (va === vb) return nameA.localeCompare(nameB);
-            return (va - vb) * dir;
-        });
-
-        for (const col of cols) {
-            grid.appendChild(col);
-        }
-    }
-
     function bindSealedSortControls() {
         if (sealedSortSelect && sealedSortSelect.getAttribute('data-bound') !== '1') {
             sealedSortSelect.setAttribute('data-bound', '1');
             sealedSortSelect.addEventListener('change', () => {
                 applySealedSortMode(sealedSortSelect.value);
                 updateSealedSortUi();
-                applySealedSortToGrid();
+                paginationState.page = 1;
+                if (!isSearching) renderProducts(currentResultsProducts, loadLastResults() || undefined);
                 saveSortModePreference(SEALED_RESULTS_SORT_PREF_KEY, getSealedSortMode());
             });
         }
@@ -2513,6 +2489,46 @@ document.addEventListener('DOMContentLoaded', function () {
         updateFavoritesTotals(restoreState);
     }
 
+    function scrollResultsToTop() {
+        if (!resultsEl) return;
+        const header = document.getElementById('pv-sealed-header');
+        const clearance = (header ? header.getBoundingClientRect().height : 0) + 20;
+        const top = Math.max(0, resultsEl.getBoundingClientRect().top + window.scrollY - clearance);
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' });
+        resultsTitleEl?.focus({ preventScroll: true });
+    }
+
+    function paginateProducts(sortedProducts) {
+        const pageSize = collectionView.getResponsivePageSize(window);
+        if (paginationState.perPage && paginationState.perPage !== pageSize) {
+            const firstVisibleIndex = (paginationState.page - 1) * paginationState.perPage;
+            paginationState.page = Math.floor(firstVisibleIndex / pageSize) + 1;
+        }
+        paginationState.perPage = pageSize;
+        const pagination = collectionView.getPagination(sortedProducts.length, pageSize, paginationState.page);
+        paginationState.page = pagination.currentPage;
+        for (const paginationEl of paginationEls) {
+            collectionView.renderPagination(paginationEl, {
+                totalItems: sortedProducts.length,
+                pageSize,
+                currentPage: pagination.currentPage,
+                pagesLabel: 'Sealed result pages',
+                showSinglePage: true,
+                onPageChange(page) {
+                    paginationState.page = page;
+                    renderProducts(currentResultsProducts, loadLastResults() || undefined);
+                    scrollResultsToTop();
+                },
+            });
+        }
+        return sortedProducts.slice(pagination.startIndex, pagination.endIndex);
+    }
+
+    window.matchMedia('(max-width: 767.98px)').addEventListener('change', () => {
+        if (!isSearching) renderProducts(currentResultsProducts, loadLastResults() || undefined);
+    });
+
     function renderProducts(products, restoreState) {
         if (!grid) return;
         const sourceProducts = Array.isArray(products) ? products : [];
@@ -2521,6 +2537,8 @@ document.addEventListener('DOMContentLoaded', function () {
         grid.replaceChildren();
 
         if (!displayProducts.length) {
+            paginationState.page = 1;
+            paginateProducts([]);
             for (const key of Object.keys(sealedValueById)) {
                 delete sealedValueById[key];
             }
@@ -2549,9 +2567,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const sortedProducts = displayProducts.slice().sort(compareSealedProductsForSort);
+        const visibleProducts = paginateProducts(sortedProducts);
         const collectionQtyById = getSealedCollectionQuantityMap();
 
-        for (const p of sortedProducts) {
+        for (const p of visibleProducts) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-sealedCol';
             const productId = safeString(p?.id, '');
@@ -2669,19 +2688,21 @@ document.addEventListener('DOMContentLoaded', function () {
             grid.appendChild(col);
         }
 
-        applySealedSortToGrid();
     }
 
     async function searchByName(name) {
         const q = (name || '').trim();
         if (!q) {
+            clearResultsUI();
             setStatus('Enter a product name.');
-            if (grid) grid.replaceChildren();
-            currentSearchHasMore = false;
-            updateLoadMoreButton(false, false);
             return;
         }
 
+        const requestVersion = ++searchRequestVersion;
+        isSearching = true;
+        paginationState.page = 1;
+        currentResultsProducts = [];
+        paginateProducts([]);
         const queryCandidates = buildSealedSearchQueryCandidates(q);
         const fallbackQuery = queryCandidates[0] || '';
         currentSearchQuery = fallbackQuery;
@@ -2701,6 +2722,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             for (const candidate of queryCandidates) {
                 const nextData = await fetchSealedSearchPage(candidate, 1);
+                if (requestVersion !== searchRequestVersion) return;
                 const nextList = Array.isArray(nextData?.data) ? nextData.data : [];
                 data = nextData;
                 list = nextList;
@@ -2744,6 +2766,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 savedAt: Date.now(),
             });
         } catch (e) {
+            if (requestVersion !== searchRequestVersion) return;
             if (isQuotaExceededError(e)) {
                 setStatus(getQuotaExceededStatusMessage(e));
             } else {
@@ -2751,6 +2774,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             if (grid) grid.replaceChildren();
             updateLoadMoreButton(false, false);
+        } finally {
+            if (requestVersion === searchRequestVersion) isSearching = false;
         }
     }
 
@@ -2758,11 +2783,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!currentSearchQuery || isLoadingMore || !currentSearchHasMore) return;
 
         isLoadingMore = true;
+        const requestVersion = searchRequestVersion;
         updateLoadMoreButton(true, true);
 
         const nextPage = currentSearchPage + 1;
         try {
             const data = await fetchSealedSearchPage(currentSearchQuery, nextPage);
+            if (requestVersion !== searchRequestVersion) return;
             const nextItems = Array.isArray(data?.data) ? data.data : [];
             const totalCountNum = Number(data?.totalCount);
             const totalCount = Number.isFinite(totalCountNum) ? totalCountNum : currentSearchTotalCount;
@@ -2777,7 +2804,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const merged = mergeUniqueProducts(currentResultsProducts, nextItems);
             currentSearchPage = nextPage;
             currentSearchTotalCount = totalCount;
-            renderProducts(merged);
+            paginationState.page = 1;
+            renderProducts(merged, loadLastResults() || undefined);
+            scrollResultsToTop();
 
             const statusText = getResultStatusText(merged.length, totalCount);
             setStatus(statusText);
@@ -2802,6 +2831,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 savedAt: Date.now(),
             });
         } catch (e) {
+            if (requestVersion !== searchRequestVersion) return;
             if (isQuotaExceededError(e)) {
                 setStatus(getQuotaExceededStatusMessage(e));
             } else {
@@ -2809,15 +2839,21 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             updateLoadMoreButton(currentSearchHasMore, false);
         } finally {
-            isLoadingMore = false;
-            updateLoadMoreButton(currentSearchHasMore, false);
+            if (requestVersion === searchRequestVersion) {
+                isLoadingMore = false;
+                updateLoadMoreButton(currentSearchHasMore, false);
+            }
         }
     }
 
     function clearResultsUI() {
+        searchRequestVersion++;
+        isSearching = false;
         if (grid) grid.replaceChildren();
         setStatus('');
         currentResultsProducts = [];
+        paginationState.page = 1;
+        paginateProducts([]);
         for (const key of Object.keys(sealedValueById)) {
             delete sealedValueById[key];
         }
@@ -2842,7 +2878,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (input) input.value = '';
             clearResultsUI();
             if (window.location.search) {
-                window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+                const params = new URLSearchParams(window.location.search);
+                params.delete('query');
+                if (params.get('source') === 'home-preview') params.delete('source');
+                const query = params.toString();
+                const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+                window.history.replaceState(window.history.state, '', nextUrl);
             }
         });
     }
@@ -2955,7 +2996,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (deepLinkQuery) {
         if (input) input.value = deepLinkQuery;
-        void searchByName(deepLinkQuery);
+        setStatus('Search is ready. Select Search to load results and use search credits.');
     }
 
     if (scrollTopBtn) {

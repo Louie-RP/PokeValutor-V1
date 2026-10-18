@@ -550,6 +550,20 @@ html:has(#pv-sealed-body.pv-sealedRefresh) {
   font-weight: 700;
 }
 
+#pv-sealed-body.pv-sealedRefresh .pv-collectionPagination {
+  margin-block: 1rem;
+}
+
+#pv-sealed-body.pv-sealedRefresh .pv-collectionPagination__inner {
+  border-color: var(--sealed-line);
+  background: var(--sealed-surface);
+}
+
+#pv-sealed-body.pv-sealedRefresh .pv-collectionPagination__status,
+#pv-sealed-body.pv-sealedRefresh .pv-collectionPagination__pageLabel {
+  color: var(--sealed-text);
+}
+
 #pv-sealed-body.pv-sealedRefresh .pv-sealedResults__more {
   display: flex;
   justify-content: center;

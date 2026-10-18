@@ -118,7 +118,7 @@ for (const position of ['top', 'bottom']) {
 assert.match(html, /id="pv-search-results-title"[^>]*tabindex="-1"/);
 assert.doesNotMatch(html, /pv-search-load-more-help|Pages browse loaded cards/);
 assert.doesNotMatch(source, /loadMoreHelp|pv-search-load-more-help/);
-assert.match(styles, /:is\(#pv-search-body, #pv-dex-body, #pv-shared-body\) \.pv-collectionPagination/);
+assert.match(styles, /:is\(#pv-search-body, #pv-sealed-body, #pv-dex-body, #pv-shared-body\) \.pv-collectionPagination/);
 
 const renderStart = source.indexOf('    function renderCards(');
 const renderEnd = source.indexOf('\n    async function searchByName(', renderStart);

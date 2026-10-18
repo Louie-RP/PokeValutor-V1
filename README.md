@@ -20,12 +20,15 @@ python -m http.server 8080
 ### Home search handoff
 
 Home card and sealed searches pass the original search text to their full search
-pages using the `query` URL parameter. Sealed product links search by product name.
+pages using the `query` URL parameter. Sealed product links carry the product name.
 Restored home previews rebuild these links from the saved query, including previews
-saved before query links were supported. An explicit sealed query runs automatically
-instead of restoring unrelated results; clearing sealed results also removes the
-URL query so reloading does not repeat the search. Without a query, the sealed page
-continues restoring saved results.
+saved before query links were supported. Card Search (including Dex search) and
+Sealed Search prefill URL text queries instead of automatically spending search
+credits. The user selects **Search** to run them; unrelated saved results are not
+restored over the supplied query. Direct card and set links retain their existing
+behavior. Clearing results removes the saved search and recognized search handoff
+parameters, preserving unrelated query parameters and the URL hash. Without a text
+query, the pages continue restoring saved results where supported.
 
 Run `node --test home-search-handoff-static.test.mjs` for handoff and safe-rendering checks.
 
@@ -46,6 +49,23 @@ Search pagination resets for a new search or cleared results.
 
 Run `node --test search-pagination-static.test.mjs dex-pagination-static.test.mjs shared-collection-pagination-static.test.mjs`
 for the responsive-size, boundary, sorting-wiring, and safe-rendering checks.
+
+### Sealed Search pagination
+
+[Sealed Search](sealed.html) uses the same pagination and page sizes as Card Search:
+36 result tiles on mobile and 60 on desktop. Product variants become separate
+tiles before sorting and pagination, so every variant remains reachable. Controls
+appear above and below nonempty results, including single-page results. Sorting
+returns to page 1; resizing retains the first visible position within the new size.
+
+Page navigation browses loaded products without additional API requests.
+**Load More** keeps the existing 10-product API batches, re-sorts all loaded
+variants, returns to page 1, and scrolls/focuses the Results heading below the
+sticky header. Reduced-motion preferences are respected. A failed load preserves
+the current page for retry, and a new search or Clear discards stale responses.
+
+Run `node --test sealed-pagination-static.test.mjs search-pagination-static.test.mjs`
+for the pagination wiring and downstream safe-rendering checks.
 
 ### Shared Pricing navigation button
 

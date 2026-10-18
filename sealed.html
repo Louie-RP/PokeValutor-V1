@@ -37,8 +37,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=2026-10-18-pricing-nav-1" />
-    <link rel="stylesheet" href="sealed-refresh.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="styles.css?v=2026-10-18-sealed-pagination-1" />
+    <link rel="stylesheet" href="sealed-refresh.css?v=2026-10-18-sealed-pagination-1" />
     <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
@@ -100,7 +100,7 @@
                 <div id="pv-sealed-status" class="pv-section__text" role="status" aria-live="polite" aria-atomic="true"></div>
                 <section id="pv-sealed-results" class="pv-section pv-sealedResults" aria-labelledby="pv-sealed-results-title">
                     <div class="pv-section__header">
-                        <h2 id="pv-sealed-results-title" class="pv-section__title">Results</h2>
+                        <h2 id="pv-sealed-results-title" class="pv-section__title" tabindex="-1">Results</h2>
                         <div id="pv-sealed-sort" class="pv-sortRow" role="group" aria-label="Sort sealed results">
                             <label for="pv-sealed-sort-select" class="form-label pv-sortLabel">Sort</label>
                             <select id="pv-sealed-sort-select" class="form-select pv-sortSelect" aria-label="Sort sealed results">
@@ -115,7 +115,9 @@
                         <div class="pv-quotaBanner__message" id="pv-quota-message"></div>
                         <a id="pv-quota-cta" class="pv-button pv-button--primary btn pv-quotaBanner__cta" href="account.html" hidden>Sign in</a>
                     </div>
+                    <nav id="pv-sealed-pagination-top" class="pv-collectionPagination" aria-label="Sealed pagination above results" hidden></nav>
                     <div id="pv-sealed-grid" class="row g-3" aria-label="Sealed products results grid"></div>
+                    <nav id="pv-sealed-pagination-bottom" class="pv-collectionPagination" aria-label="Sealed pagination below results" hidden></nav>
                     <div id="pv-sealed-load-more-wrap" class="pv-sealedResults__more">
                         <button id="pv-sealed-load-more" class="pv-button pv-button--secondary btn" type="button" hidden>Load More</button>
                     </div>
@@ -173,7 +175,8 @@
     <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
     <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 
-    <script src="sealed.js?v=2026-10-18-search-handoff-1" defer></script>
+    <script src="collection-view-utils.js?v=20261018-search-pagination-2" defer></script>
+    <script src="sealed.js?v=2026-10-18-review-handoff-1" defer></script>
 </body>
 
 </html>

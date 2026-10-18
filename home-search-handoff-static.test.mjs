@@ -27,19 +27,47 @@ test('home search links encode queries for both destinations, including restored
     assert.match(row, /detailsLink\.href = getLiveSearchHref\('sealed', name\)/);
 });
 
-test('sealed URL queries auto-search and take precedence over saved results', () => {
+test('URL text queries prefill without automatically consuming search credits', () => {
     assert.match(sealed, /const deepLinkQuery = \(new URLSearchParams\(window\.location\.search\)\.get\('query'\) \|\| ''\)\.trim\(\)/);
     assert.match(sealed, /const restored = deepLinkQuery \? null : loadLastResults\(\)/);
-    assert.match(sealed, /if \(deepLinkQuery\) \{\s*if \(input\) input\.value = deepLinkQuery;\s*void searchByName\(deepLinkQuery\);/);
-    const clear = functionBody(sealed, "clearBtn.addEventListener('click'", 'if (loadMoreBtn)');
-    assert.match(clear, /clearResultsUI\(\)/);
-    assert.match(clear, /window\.history\.replaceState\(null, '', window\.location\.pathname \+ window\.location\.hash\)/);
+    const readyBranch = /(?:else )?if \(deepLinkQuery\) \{\s*(?:activateDexSearchMode\(\);\s*)?if \(input\) input\.value = deepLinkQuery;\s*setStatus\('Search is ready\.[^']*'\);/g;
+    assert.equal([...sealed.matchAll(readyBranch)].length, 1);
+    assert.equal([...cards.matchAll(readyBranch)].length, 2, 'Both Card Search and Dex must require confirmation.');
+    for (const source of [sealed, cards]) {
+        assert.doesNotMatch(source, /searchByName\(deepLinkQuery\)/);
+        assert.match(source, /addEventListener\('submit',[\s\S]*?searchByName\((?:input\.value|query)\)/,
+            'Submitting the form must still execute searches.');
+    }
+    assert.match(cards, /const shouldRestoreResults = !deepLinkQuery && \(!deepLinkExpansionId \|\| matchesDeepLinkExpansion\)/);
+    assert.match(cards, /else if \(deepLinkQuery\) \{\s*activateDexSearchMode\(\)/,
+        'Dex must open Quick Add so users can confirm the prefilled query.');
 });
 
-test('card query and exact-card handoffs remain connected to their searches', () => {
-    assert.match(cards, /deepLinkQuery = params\.get\('query'\) \|\| ''/);
-    assert.match(cards, /else if \(deepLinkQuery\) \{\s*if \(input\) input\.value = deepLinkQuery;\s*void searchByName\(deepLinkQuery\);/);
+test('clearing removes saved results and only recognized search URL parameters', () => {
+    const sealedClear = functionBody(sealed, "clearBtn.addEventListener('click'", 'if (loadMoreBtn)');
+    const cardClear = functionBody(cards, "clearBtn.addEventListener('click'", 'let deepLinkExpansionId');
+    const sealedReset = functionBody(sealed, 'function clearResultsUI(', 'if (form && input)');
+    assert.match(sealedReset, /clearLastResults\(\)/);
+    assert.match(sealedReset, /searchRequestVersion\+\+/,
+        'Pending sealed requests must not repopulate cleared saved results.');
+    assert.match(cardClear, /clearLastResults\(\)/);
+    assert.match(sealedClear, /params\.delete\('query'\)/);
+    assert.match(cardClear, /\['query', 'cardId', 'cardName', 'expansionId', 'expansionName'\]/);
+    for (const clear of [sealedClear, cardClear]) {
+        assert.match(clear, /clearResultsUI\(\)/);
+        assert.match(clear, /new URLSearchParams\(window\.location\.search\)/);
+        assert.match(clear, /if \(params\.get\('source'\) === 'home-preview'\) params\.delete\('source'\)/);
+        assert.match(clear, /params\.toString\(\)/);
+        assert.match(clear, /window\.location\.hash/);
+        assert.match(clear, /window\.history\.replaceState\(window\.history\.state, '', nextUrl\)/);
+        assert.doesNotMatch(clear, /params\.delete\('(?:utm_source|campaign|ref)'\)/);
+    }
+});
+
+test('direct card and set links retain their existing behavior', () => {
+    assert.match(cards, /deepLinkQuery = \(params\.get\('query'\) \|\| ''\)\.trim\(\)/);
     assert.match(cards, /if \(deepLinkCardId\) \{\s*void searchByCardId\(deepLinkCardId, deepLinkCardName\)/);
+    assert.match(cards, /else if \(deepLinkExpansionId\) \{\s*void searchTopByExpansion\(/);
     const row = functionBody(home, 'function createLiveCardRow(', 'function createLiveSealedRow(');
     assert.match(row, /new URLSearchParams\(\{ cardId: id, cardName: name \}\)/);
 });
@@ -60,5 +88,8 @@ test('both home entries and the sealed page load cache-busted handoff scripts', 
     for (const file of ['index.html', 'home-preview.html']) {
         assert.match(await read(file), /home-preview\.js\?v=2026-10-18-search-handoff-1/);
     }
-    assert.match(await read('sealed.html'), /sealed\.js\?v=2026-10-18-search-handoff-1/);
+    assert.match(await read('sealed.html'), /sealed\.js\?v=2026-10-18-review-handoff-1/);
+    for (const file of ['search.html', 'dex.html']) {
+        assert.match(await read(file), /search\.js\?v=2026-10-18-review-handoff-1/);
+    }
 });
