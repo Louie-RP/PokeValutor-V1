@@ -8,11 +8,18 @@ document.addEventListener('DOMContentLoaded', function () {
     const setSelect = /** @type {HTMLSelectElement|null} */(document.getElementById('pv-search-set'));
     const seriesSetToggle = /** @type {HTMLInputElement|null} */(document.getElementById('pv-search-series-set-toggle'));
     const loadMoreBtn = /** @type {HTMLButtonElement|null} */(document.getElementById('pv-search-load-more'));
+    const searchPaginationEls = [
+        document.getElementById('pv-search-pagination-top'),
+        document.getElementById('pv-search-pagination-bottom'),
+    ];
+    const collectionView = window.PV_COLLECTION_VIEW;
     const status = document.getElementById('pv-search-status');
     const searchResultsEl = document.getElementById('pv-search-results');
     const searchResultsTitleEl = document.getElementById('pv-search-results-title');
     const dexResultsContextEl = document.getElementById('pv-dex-results-context');
-    const dexSearchPanel = /** @type {HTMLDetailsElement|null} */ (document.getElementById('pv-dex-search-panel'));
+    const dexSearchPanel = /** @type {HTMLDialogElement|null} */ (document.getElementById('pv-dex-search-dialog'));
+    const dexSearchOpenBtn = document.getElementById('pv-dex-search-open');
+    const dexSearchCloseBtn = document.getElementById('pv-dex-search-close');
     const dexStatCardsEl = document.getElementById('pv-dex-stat-cards');
     const dexStatCopiesEl = document.getElementById('pv-dex-stat-copies');
     const grid = document.getElementById('pv-search-grid');
@@ -30,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tradeTargetInput = /** @type {HTMLInputElement|null} */ (document.getElementById('pv-trade-target'));
     const tradeToggle = document.getElementById('pv-trade-toggle');
     const tradeClearBtn = document.getElementById('pv-trade-clear');
+    const tradeJumpLink = document.getElementById('pv-search-jump-trade');
     const tradeControls = document.querySelector('#pv-trade .pv-trade__controls');
     const tradeBulk = document.getElementById('pv-trade-bulk');
     const tradeSummary = document.querySelector('#pv-trade .pv-trade__summary');
@@ -141,7 +149,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const DEX_MAX_COLLECTIONS_PREMIUM = 3;
     const TRADE_PERCENT_MAP_KEY = `${CACHE_PREFIX}tradePercentById:v1`;
     const CONDITION_FILTER_KEY = `${CACHE_PREFIX}conditionFilter:v1`;
-    const DEX_SEARCH_PANEL_OPEN_KEY = `${CACHE_PREFIX}dexSearchPanelOpen:v1`;
     const storageUtil = window?.PV_STORAGE_UTIL || null;
 
     const CONDITION_FILTER_KEYS_FALLBACK = ['NM', 'LP', 'MP', 'OTHER'];
@@ -226,6 +233,9 @@ document.addEventListener('DOMContentLoaded', function () {
     /** @type {Array<any>} */
     let currentResultsCards = [];
     let searchResultsLoading = false;
+    const searchPaginationState = { page: 1, perPage: 0 };
+    let searchPaginationSortFrame = 0;
+    let loadingBrowseState = null;
 
     const searchSortState = {
         active: 'value',
@@ -471,6 +481,25 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!grid) return;
         if (searchSortState.active !== 'name' && searchSortState.active !== 'value') return;
 
+        // Price updates can move a card across page boundaries, not just within the DOM.
+        if (isSearchPage && currentResultsCards.length > searchPaginationState.perPage && !searchPaginationSortFrame) {
+            searchPaginationSortFrame = window.requestAnimationFrame(() => {
+                searchPaginationSortFrame = 0;
+                if (searchResultsLoading || grid.querySelector('.pv-skeleton')) return;
+                const pagination = collectionView.getPagination(
+                    currentResultsCards.length, searchPaginationState.perPage, searchPaginationState.page
+                );
+                const expectedIds = currentResultsCards.slice().sort(compareSearchCardsForSort)
+                    .slice(pagination.startIndex, pagination.endIndex)
+                    .map((card) => safeString(card?.id, ''));
+                const renderedIds = Array.from(grid.querySelectorAll('.pv-searchCol'))
+                    .map((col) => col.getAttribute('data-card-id'));
+                if (expectedIds.length !== renderedIds.length || expectedIds.some((id) => !renderedIds.includes(id))) {
+                    renderCards(currentResultsCards, loadLastResults() || undefined);
+                }
+            });
+        }
+
         const cols = Array.from(grid.querySelectorAll('.pv-searchCol'));
         if (cols.length <= 1) return;
 
@@ -514,7 +543,14 @@ document.addEventListener('DOMContentLoaded', function () {
             searchSortSelect.addEventListener('change', () => {
                 applySearchSortMode(searchSortSelect.value);
                 updateSearchSortUi();
-                applySearchSortToGrid();
+                if (isSearchPage) {
+                    searchPaginationState.page = 1;
+                    if (!searchResultsLoading && !grid?.querySelector('.pv-skeleton')) {
+                        renderCards(currentResultsCards, loadLastResults() || undefined);
+                    }
+                } else {
+                    applySearchSortToGrid();
+                }
                 saveSortModePreference(SEARCH_SORT_PREF_KEY, getSearchSortMode());
             });
         }
@@ -638,6 +674,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function resetDexSetBrowseState() {
+        searchPaginationState.page = 1;
         dexSetBrowseState = {
             active: false,
             mode: '',
@@ -800,6 +837,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderCardSkeletons(container, count, loadingMessage) {
         if (!container) return;
+        if (container === grid && isSearchPage) {
+            searchPaginationState.page = 1;
+            for (const paginationEl of searchPaginationEls) {
+                if (paginationEl) {
+                    paginationEl.hidden = true;
+                    paginationEl.replaceChildren();
+                }
+            }
+        }
         container.replaceChildren();
 
         const messageText = safeString(loadingMessage, '').trim();
@@ -1287,6 +1333,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const setName = safeString(card?.setName ?? card?.set_name ?? card?.expansionName ?? card?.expansion_name, '');
         return {
             itemType: 'card',
+            ownershipOnly: card?.ownershipOnly === true,
+            ownershipOnlyVariants: normalizeVariantQuantities(card?.ownershipOnlyVariants, '', 0),
             collectionId,
             id: safeString(card?.id, ''),
             name: safeString(card?.name, 'Unknown'),
@@ -1859,6 +1907,7 @@ document.addEventListener('DOMContentLoaded', function () {
             collection[existingIndex] = {
                 ...existing,
                 ...normalized,
+                ownershipOnly: false,
                 addedAt: existing.addedAt,
                 selectedVariant: nextSelectedVariant,
                 variantQuantities: nextVariantMap,
@@ -2813,6 +2862,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return tradeApi.getConditionMarketValues(prices);
     }
 
+    function syncSearchJumpNav() {
+        if (!tradeJumpLink) return;
+        tradeJumpLink.hidden = !tradeSection || tradeSection.hidden;
+    }
+
     function toggleTradeCard(card, selectedVariant, loadedPrices, button) {
         if (!tradeEnabled) return;
         const id = safeString(card?.id, '');
@@ -2836,6 +2890,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function bindTradeControls() {
         if (!tradeEnabled) return;
         tradeSection.hidden = false;
+        syncSearchJumpNav();
         placeTradeBulkForViewport();
         if (typeof window.matchMedia === 'function') {
             window.matchMedia('(max-width: 640px)').addEventListener?.('change', placeTradeBulkForViewport);
@@ -3072,36 +3127,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function loadDexSearchPanelOpenState() {
-        if (!isDexPage) return false;
-        try {
-            const raw = localStorage.getItem(DEX_SEARCH_PANEL_OPEN_KEY);
-            return raw === '1' || raw === 'true';
-        } catch {
-            return false;
-        }
-    }
-
-    function saveDexSearchPanelOpenState(isOpen) {
-        if (!isDexPage) return;
-        try {
-            localStorage.setItem(DEX_SEARCH_PANEL_OPEN_KEY, isOpen ? '1' : '0');
-        } catch {
-            // ignore
-        }
-    }
-
-    function setDexSearchPanelOpen(isOpen, options) {
+    function setDexSearchPanelOpen(isOpen) {
         if (!dexSearchPanel) return;
 
         if (isOpen) {
-            dexSearchPanel.setAttribute('open', '');
+            if (!dexSearchPanel.open) {
+                try {
+                    dexSearchPanel.showModal();
+                } catch {
+                    dexSearchPanel.setAttribute('open', '');
+                }
+            }
         } else {
-            dexSearchPanel.removeAttribute('open');
-        }
-
-        if (!options?.skipPersist) {
-            saveDexSearchPanelOpenState(!!isOpen);
+            if (dexSearchPanel.open) {
+                dexSearchPanel.close();
+            } else {
+                dexSearchPanel.removeAttribute('open');
+            }
         }
     }
 
@@ -3126,7 +3168,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function activateDexSearchMode() {
         if (!isDexPage) return;
-        setResultsHeading('Search Results');
+        setResultsHeading('Results');
         setDexResultsContext('Search results are shown below.');
         setDexSearchPanelOpen(true);
     }
@@ -5081,6 +5123,50 @@ document.addEventListener('DOMContentLoaded', function () {
         );
     }
 
+    function scrollSearchResultsToTop() {
+        if (!isSearchPage || !searchResultsEl) return;
+        const header = document.getElementById('pv-search-header');
+        const clearance = (header ? header.getBoundingClientRect().height : 0) + 20;
+        const top = Math.max(0, searchResultsEl.getBoundingClientRect().top + window.scrollY - clearance);
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' });
+        searchResultsTitleEl?.focus({ preventScroll: true });
+    }
+
+    function paginateSearchCards(sortedCards) {
+        if (!isSearchPage) return sortedCards;
+        const pageSize = collectionView.getResponsivePageSize(window);
+        if (searchPaginationState.perPage && searchPaginationState.perPage !== pageSize) {
+            const firstVisibleIndex = (searchPaginationState.page - 1) * searchPaginationState.perPage;
+            searchPaginationState.page = Math.floor(firstVisibleIndex / pageSize) + 1;
+        }
+        searchPaginationState.perPage = pageSize;
+        const pagination = collectionView.getPagination(sortedCards.length, pageSize, searchPaginationState.page);
+        searchPaginationState.page = pagination.currentPage;
+        for (const paginationEl of searchPaginationEls) {
+            collectionView.renderPagination(paginationEl, {
+                totalItems: sortedCards.length,
+                pageSize,
+                currentPage: pagination.currentPage,
+                pagesLabel: 'Search result pages',
+                showSinglePage: true,
+                onPageChange(page) {
+                    searchPaginationState.page = page;
+                    renderCards(currentResultsCards, loadLastResults() || undefined);
+                    scrollSearchResultsToTop();
+                },
+            });
+        }
+        return sortedCards.slice(pagination.startIndex, pagination.endIndex);
+    }
+
+    if (isSearchPage) {
+        window.matchMedia('(max-width: 767.98px)').addEventListener('change', () => {
+            if (searchResultsLoading || grid?.querySelector('.pv-skeleton')) return;
+            renderCards(currentResultsCards, loadLastResults() || undefined);
+        });
+    }
+
     function renderCards(cards, restoreState) {
         if (!grid) return;
         const sourceCards = Array.isArray(cards) ? cards : [];
@@ -5098,6 +5184,8 @@ document.addEventListener('DOMContentLoaded', function () {
             : null;
 
         if (!sourceCards.length) {
+            searchPaginationState.page = 1;
+            paginateSearchCards([]);
             for (const key of Object.keys(searchValueById)) {
                 delete searchValueById[key];
             }
@@ -5123,8 +5211,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const sortedCards = sourceCards.slice().sort(compareSearchCardsForSort);
+        const visibleCards = paginateSearchCards(sortedCards);
 
-        for (const card of sortedCards) {
+        for (const card of visibleCards) {
             const col = document.createElement('div');
             col.className = 'col-6 col-sm-6 col-md-4 col-lg-3 pv-searchCol';
 
@@ -5306,6 +5395,15 @@ document.addEventListener('DOMContentLoaded', function () {
             variantField.append(variantLabel, selectEl);
             body.appendChild(variantField);
 
+            const pricingDetails = isDexPage ? document.createElement('details') : null;
+            if (pricingDetails) {
+                pricingDetails.className = 'pv-dexCard__pricingDetails';
+                const pricingSummary = document.createElement('summary');
+                pricingSummary.className = 'pv-dexCard__pricingSummary';
+                pricingSummary.appendChild(createTextElement('span', '', 'Values'));
+                pricingDetails.appendChild(pricingSummary);
+            }
+
             let conditionFieldWrapEl = null;
             let conditionEl = null;
             if (enableDexTrackingControls) {
@@ -5355,7 +5453,12 @@ document.addEventListener('DOMContentLoaded', function () {
             pricesEl.id = `pv-prices-${id}`;
             pricesEl.className = 'pv-card__text pv-dexCard__prices pv-card__prices';
             pricesEl.setAttribute('aria-live', 'polite');
-            body.appendChild(pricesEl);
+            if (pricingDetails) {
+                pricingDetails.appendChild(pricesEl);
+                body.appendChild(pricingDetails);
+            } else {
+                body.appendChild(pricesEl);
+            }
             cardEl.appendChild(body);
             col.appendChild(cardEl);
 
@@ -5881,6 +5984,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             renderCards(cards);
             const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
+            void window.PV_POPULARITY?.recordSearch(cards);
             const matchNote = matchedBy === 'fallback' && cards.length
                 ? ' Closest matches shown.'
                 : '';
@@ -6042,6 +6146,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const fallbackNote = usedFallback && cards.length ? ' Closest matches shown.' : '';
+            void window.PV_POPULARITY?.recordSearch(cards, { id, name: setName });
             const limitNote = hasMore ? ' Showing first 15. Load More for more.' : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for "${name}" in "${label}".${limitNote}${fallbackNote}`;
             setStatus(statusText);
@@ -6324,6 +6429,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Respect UI limit.
             if (cards.length > RESULT_LIMIT) cards = cards.slice(0, RESULT_LIMIT);
             renderCards(cards);
+            void window.PV_POPULARITY?.recordSearch(cards);
             const matchedNote = matchedPn !== pn ? ` Matched as "${matchedPn}".` : '';
             const statusText = `${cards.length} result${cards.length !== 1 ? 's' : ''} for printed number "${pn}".${matchedNote}`;
             setStatus(statusText);
@@ -6505,6 +6611,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const label = setSeries ? `${setSeries} • ${setName || id}` : (setName || id);
             const statusText = `${cards.length} card${cards.length !== 1 ? 's' : ''} in set "${label}".`;
+            void window.PV_POPULARITY?.recordSearch(cards, { id, name: setName });
             setStatus(statusText);
 
             saveLastResults({
@@ -6555,17 +6662,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function loadMoreDexSetCards() {
+        if (loadingBrowseState === dexSetBrowseState) return;
         if (!dexSetBrowseState.active || !dexSetBrowseState.hasMore || !dexSetBrowseState.matchedQuery) {
             setLoadMoreState(false, false);
             return;
         }
 
         const base = getWorkerBase();
+        const browseState = dexSetBrowseState;
+        loadingBrowseState = browseState;
         setLoadMoreState(true, true);
 
         try {
             const page = dexSetBrowseState.nextPage;
             const next = await fetchCardsSearchPage(base, dexSetBrowseState.matchedQuery, page, dexSetBrowseState.pageSize);
+            if (dexSetBrowseState !== browseState) return;
 
             const merged = mergeUniqueCardsById(dexSetBrowseState.cards, next.cards);
             dexSetBrowseState.cards = merged;
@@ -6573,7 +6684,9 @@ document.addEventListener('DOMContentLoaded', function () {
             dexSetBrowseState.hasMore = next.hasMore;
 
             const restored = loadLastResults();
+            searchPaginationState.page = 1;
             renderCards(merged, restored || undefined);
+            scrollSearchResultsToTop();
 
             const mode = String(dexSetBrowseState.mode || '');
             let statusText = `${merged.length} card${merged.length !== 1 ? 's' : ''} loaded.`;
@@ -6613,12 +6726,15 @@ document.addEventListener('DOMContentLoaded', function () {
             setLoadMoreState(dexSetBrowseState.hasMore, false);
         } catch (e) {
             console.warn('[PokeValutor] dex load more error', e);
+            if (dexSetBrowseState !== browseState) return;
             setLoadMoreState(true, false);
             if (isQuotaExceededError(e)) {
                 setStatusAndHideIfQuotaError(e);
             } else {
                 setStatus('Unable to load more cards right now. Please try again.');
             }
+        } finally {
+            if (loadingBrowseState === browseState) loadingBrowseState = null;
         }
     }
 
@@ -6782,20 +6898,27 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (isDexPage && dexSearchPanel) {
-        setDexSearchPanelOpen(loadDexSearchPanelOpenState(), { skipPersist: true });
+        dexSearchOpenBtn?.addEventListener('click', () => {
+            setDexSearchPanelOpen(true);
+            input?.focus();
+        });
 
-        if (dexSearchPanel.getAttribute('data-bound') !== '1') {
-            dexSearchPanel.setAttribute('data-bound', '1');
-            dexSearchPanel.addEventListener('toggle', () => {
-                saveDexSearchPanelOpenState(!!dexSearchPanel.open);
-            });
-        }
+        dexSearchCloseBtn?.addEventListener('click', () => {
+            setDexSearchPanelOpen(false);
+        });
+
+        dexSearchPanel.addEventListener('click', (event) => {
+            if (event.target === dexSearchPanel) {
+                setDexSearchPanelOpen(false);
+            }
+        });
     }
 
     function clearResultsUI() {
         if (grid) grid.replaceChildren();
         if (status) status.textContent = '';
         currentResultsCards = [];
+        paginateSearchCards([]);
         for (const key of Object.keys(searchValueById)) {
             delete searchValueById[key];
         }
@@ -6840,15 +6963,15 @@ document.addEventListener('DOMContentLoaded', function () {
             clearResultsUI();
             clearLastResults();
 
-            // If the page was deep-linked (top-by-expansion), also remove query params
-            // so a reload doesn't immediately re-run the expansion flow.
-            try {
-                if (window.location.search) {
-                    const nextUrl = window.location.pathname;
-                    window.history.replaceState(null, '', nextUrl);
+            if (window.location.search) {
+                const params = new URLSearchParams(window.location.search);
+                for (const key of ['query', 'cardId', 'cardName', 'expansionId', 'expansionName']) {
+                    params.delete(key);
                 }
-            } catch {
-                // ignore
+                if (params.get('source') === 'home-preview') params.delete('source');
+                const query = params.toString();
+                const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
+                window.history.replaceState(window.history.state, '', nextUrl);
             }
 
             // Also clear any cached top-by-expansion responses so a bad response can't linger.
@@ -6858,7 +6981,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (isDexPage) {
                 setDexSearchPanelOpen(false);
-                setResultsHeading('Search Results');
+                setResultsHeading('Results');
                 setDexResultsContext('Search and add cards to your collection.');
             }
         });
@@ -6916,30 +7039,36 @@ document.addEventListener('DOMContentLoaded', function () {
     let deepLinkExpansionName = '';
     let deepLinkCardId = '';
     let deepLinkCardName = '';
+    let deepLinkQuery = '';
     try {
         const params = new URLSearchParams(window.location.search || '');
         deepLinkExpansionId = params.get('expansionId') || '';
         deepLinkExpansionName = params.get('expansionName') || '';
         deepLinkCardId = params.get('cardId') || '';
         deepLinkCardName = params.get('cardName') || '';
+        deepLinkQuery = (params.get('query') || '').trim();
     } catch {
         // ignore
     }
 
-    if (deepLinkExpansionId) {
+    if (deepLinkExpansionId || deepLinkQuery) {
         setSearchCollapsed(false);
     }
 
     let restoredMatchingDeepLinkExpansion = false;
 
     if (isDexPage) {
-        setResultsHeading('Search Results');
+        setResultsHeading('Results');
         setDexResultsContext('Search and add cards to your collection.');
 
         if (deepLinkCardId) {
             void searchByCardId(deepLinkCardId, deepLinkCardName);
         } else if (deepLinkExpansionId) {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName);
+        } else if (deepLinkQuery) {
+            activateDexSearchMode();
+            if (input) input.value = deepLinkQuery;
+            setStatus('Search is ready. Select Search to load results and use search credits.');
         } else {
             clearResultsUI();
         }
@@ -6948,9 +7077,9 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const restored = loadLastResults();
             const matchesDeepLinkExpansion = isMatchingExpansionResultSet(restored, deepLinkExpansionId);
-            const shouldRestoreResults = !deepLinkExpansionId || matchesDeepLinkExpansion;
+            const shouldRestoreResults = !deepLinkQuery && (!deepLinkExpansionId || matchesDeepLinkExpansion);
             if (shouldRestoreResults && restored && Array.isArray(restored.cards) && restored.cards.length) {
-                const restoredCards = restored.cards.length > MAX_RESTORE_RENDER_CARDS
+                const restoredCards = !isSearchPage && restored.cards.length > MAX_RESTORE_RENDER_CARDS
                     ? restored.cards.slice(0, MAX_RESTORE_RENDER_CARDS)
                     : restored.cards;
                 const restoredView = restoredCards === restored.cards
@@ -6998,6 +7127,9 @@ document.addEventListener('DOMContentLoaded', function () {
             void searchTopByExpansion(deepLinkExpansionId, deepLinkExpansionName, {
                 preserveExistingResults: restoredMatchingDeepLinkExpansion,
             });
+        } else if (deepLinkQuery) {
+            if (input) input.value = deepLinkQuery;
+            setStatus('Search is ready. Select Search to load results and use search credits.');
         }
     }
 

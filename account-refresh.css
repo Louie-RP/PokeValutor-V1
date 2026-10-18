@@ -1,0 +1,502 @@
+/* Account visual refresh. Behavior and existing auth hooks remain unchanged. */
+
+#pv-account-body.pv-accountRefresh,
+body.pv-accountRefresh {
+  --account-bg: #080809;
+  --account-surface: #111114;
+  --account-surface-raised: #18181d;
+  --account-field: #0c0c0f;
+  --account-text: #f7f7f8;
+  --account-muted: #aaaab4;
+  --account-line: #2d2d37;
+  --account-line-strong: #4a4a56;
+  --account-yellow: #ffcb05;
+  --account-yellow-hover: #ffda3d;
+  --account-yellow-ink: #171300;
+  --account-danger: #ff9c86;
+  --account-heading: "Playfair Display", Georgia, serif;
+  --account-body: "DM Sans", "Space Grotesk", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 88% 4%, rgba(255, 203, 5, 0.08), transparent 28rem),
+    var(--account-bg);
+  color: var(--account-text);
+  font-family: var(--account-body);
+}
+
+#pv-account-body.pv-accountRefresh .pv-header,
+body.pv-accountRefresh .pv-header {
+  border-bottom-color: var(--account-line);
+  background: rgba(8, 8, 9, 0.94);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+#pv-account-body.pv-accountRefresh .pv-nav__list,
+body.pv-accountRefresh .pv-nav__list {
+  gap: 0.25rem;
+}
+
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing),
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing) {
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: 0.55rem;
+  color: var(--account-muted);
+  font-family: var(--account-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+}
+
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):hover,
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):focus-visible,
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):hover,
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing):focus-visible {
+  background: var(--account-surface);
+  color: var(--account-text);
+}
+
+#pv-account-body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing)[aria-current="page"],
+body.pv-accountRefresh .pv-nav__link:not(.pv-nav__link--pricing)[aria-current="page"] {
+  background: rgba(255, 203, 5, 0.14);
+  color: var(--account-yellow);
+}
+
+#pv-account-body.pv-accountRefresh .pv-navToggle,
+body.pv-accountRefresh .pv-navToggle {
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--account-surface-raised);
+}
+
+#pv-account-body.pv-accountRefresh .pv-navToggle:hover,
+#pv-account-body.pv-accountRefresh .pv-navToggle:focus-visible,
+body.pv-accountRefresh .pv-navToggle:hover,
+body.pv-accountRefresh .pv-navToggle:focus-visible {
+  border-color: var(--account-yellow);
+}
+
+#pv-account-body.pv-accountRefresh .pv-navToggle__bar,
+body.pv-accountRefresh .pv-navToggle__bar {
+  background: var(--account-text);
+}
+
+#pv-account-body.pv-accountRefresh .pv-main,
+body.pv-accountRefresh .pv-main {
+  min-height: calc(100vh - 5rem);
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountHero,
+body.pv-accountRefresh .pv-accountHero {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 3vw, 2rem) 0 clamp(1.2rem, 3vw, 2rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountHero__eyebrow,
+body.pv-accountRefresh .pv-accountHero__eyebrow {
+  margin: 0 0 0.65rem;
+  color: var(--account-yellow);
+  font-family: var(--account-body);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountHero__titleRow,
+body.pv-accountRefresh .pv-accountHero__titleRow {
+  justify-content: flex-start;
+  gap: 0.8rem;
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountHero .pv-hero__title,
+body.pv-accountRefresh .pv-accountHero .pv-hero__title {
+  max-width: 45rem;
+  margin: 0;
+  color: var(--account-text);
+  font-family: var(--account-heading);
+  font-size: clamp(2rem, 6.5vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountHero .pv-hero__subtitle,
+body.pv-accountRefresh .pv-accountHero .pv-hero__subtitle {
+  max-width: 38rem;
+  margin: 0.95rem 0 0;
+  color: var(--account-muted);
+  font-family: var(--account-body);
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  line-height: 1.5;
+}
+
+#pv-account-body.pv-accountRefresh .pv-authHeroBadge,
+body.pv-accountRefresh .pv-authHeroBadge {
+  border-color: rgba(255, 203, 5, 0.45);
+  background: rgba(255, 203, 5, 0.12);
+  color: var(--account-yellow);
+  font-family: var(--account-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountSection,
+body.pv-accountRefresh .pv-accountSection {
+  width: min(100% - 2rem, 72rem);
+  max-width: none;
+  margin: 0 auto;
+  padding: 0 0 clamp(4rem, 8vw, 7rem);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authGrid,
+body.pv-accountRefresh .pv-authGrid {
+  max-width: none;
+  grid-template-columns: minmax(0, 42rem);
+  justify-content: start;
+  gap: 1rem;
+}
+
+#pv-account-body.pv-accountRefresh .pv-authGrid:has(> .pv-authCard--session:not([hidden])),
+body.pv-accountRefresh .pv-authGrid:has(> .pv-authCard--session:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authCard,
+body.pv-accountRefresh .pv-authCard {
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border: 1px solid var(--account-line);
+  border-radius: 1.1rem;
+  background: linear-gradient(145deg, rgba(22, 22, 26, 0.98), rgba(12, 12, 15, 0.98));
+  box-shadow: none;
+  animation: pv-accountRefreshIn 420ms ease both;
+}
+
+#pv-account-body.pv-accountRefresh .pv-authCard--session:not([hidden]),
+body.pv-accountRefresh .pv-authCard--session:not([hidden]) {
+  grid-column: 1 / -1;
+}
+
+#pv-account-body.pv-accountRefresh .pv-authCard::before,
+body.pv-accountRefresh .pv-authCard::before {
+  height: 2px;
+  background: var(--account-yellow);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authCard__header,
+body.pv-accountRefresh .pv-authCard__header {
+  align-items: flex-start;
+  margin-bottom: 1.35rem;
+}
+
+#pv-account-body.pv-accountRefresh .pv-authCard__header .pv-section__title,
+body.pv-accountRefresh .pv-authCard__header .pv-section__title {
+  margin: 0;
+  color: var(--account-yellow);
+  font-family: var(--account-heading);
+  font-size: clamp(1.55rem, 3vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+#pv-account-body.pv-accountRefresh .form-label,
+body.pv-accountRefresh .form-label {
+  margin-bottom: 0.45rem;
+  color: var(--account-muted);
+  font-family: var(--account-body);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+#pv-account-body.pv-accountRefresh .form-control,
+#pv-account-body.pv-accountRefresh .form-select,
+body.pv-accountRefresh .form-control,
+body.pv-accountRefresh .form-select {
+  min-height: 3.35rem;
+  border: 1px solid #3b3b46;
+  border-radius: 0.8rem;
+  background-color: var(--account-field);
+  color: var(--account-text);
+  font-family: var(--account-body);
+  box-shadow: none;
+}
+
+#pv-account-body.pv-accountRefresh .form-control::placeholder,
+body.pv-accountRefresh .form-control::placeholder {
+  color: #797984;
+}
+
+#pv-account-body.pv-accountRefresh .form-control:focus,
+#pv-account-body.pv-accountRefresh .form-select:focus,
+body.pv-accountRefresh .form-control:focus,
+body.pv-accountRefresh .form-select:focus {
+  border-color: var(--account-yellow);
+  outline: 2px solid rgba(255, 203, 5, 0.24);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+#pv-account-body.pv-accountRefresh .pv-button,
+body.pv-accountRefresh .pv-button {
+  min-height: 2.85rem;
+  border-radius: 0.7rem;
+  font-family: var(--account-body);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+#pv-account-body.pv-accountRefresh .pv-button--primary,
+body.pv-accountRefresh .pv-button--primary {
+  border-color: #c79b00;
+  background: var(--account-yellow);
+  color: var(--account-yellow-ink);
+  box-shadow: 0 8px 18px rgba(255, 203, 5, 0.16);
+}
+
+#pv-account-body.pv-accountRefresh .pv-button--primary:hover,
+#pv-account-body.pv-accountRefresh .pv-button--primary:focus-visible,
+body.pv-accountRefresh .pv-button--primary:hover,
+body.pv-accountRefresh .pv-button--primary:focus-visible {
+  background: var(--account-yellow-hover);
+}
+
+#pv-account-body.pv-accountRefresh .pv-button--secondary,
+body.pv-accountRefresh .pv-button--secondary {
+  border-color: var(--account-line-strong);
+  background: var(--account-surface-raised);
+  color: var(--account-text);
+}
+
+#pv-account-body.pv-accountRefresh .pv-button--secondary:hover,
+#pv-account-body.pv-accountRefresh .pv-button--secondary:focus-visible,
+body.pv-accountRefresh .pv-button--secondary:hover,
+body.pv-accountRefresh .pv-button--secondary:focus-visible {
+  border-color: #666673;
+  background: #202027;
+}
+
+#pv-account-body.pv-accountRefresh .pv-button--danger,
+body.pv-accountRefresh .pv-button--danger {
+  border-color: rgba(255, 156, 134, 0.5);
+  background: rgba(102, 35, 25, 0.28);
+  color: var(--account-danger);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authDivider,
+body.pv-accountRefresh .pv-authDivider {
+  background: var(--account-line);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authSmall,
+#pv-account-body.pv-accountRefresh .pv-section__text,
+body.pv-accountRefresh .pv-authSmall,
+body.pv-accountRefresh .pv-section__text {
+  color: var(--account-muted);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authProfile,
+body.pv-accountRefresh .pv-authProfile {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--account-line-strong);
+  border-radius: 0.85rem;
+  background: var(--account-surface-raised);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authProfile__avatarFallback,
+body.pv-accountRefresh .pv-authProfile__avatarFallback {
+  border-color: rgba(255, 203, 5, 0.58);
+  background: rgba(255, 203, 5, 0.14);
+  color: var(--account-yellow);
+}
+
+#pv-account-body.pv-accountRefresh .pv-authProfile__name,
+body.pv-accountRefresh .pv-authProfile__name {
+  color: var(--account-text);
+}
+
+#pv-account-body.pv-accountRefresh .pv-accountPage #pv-auth-status,
+#pv-account-body.pv-accountRefresh #pv-auth-status,
+#pv-account-body.pv-accountRefresh #pv-auth-role,
+#pv-account-body.pv-accountRefresh #pv-auth-selfcheck,
+body.pv-accountRefresh #pv-auth-status,
+body.pv-accountRefresh #pv-auth-role,
+body.pv-accountRefresh #pv-auth-selfcheck {
+  border-color: var(--account-line);
+  border-radius: 0.7rem;
+  background: rgba(12, 12, 15, 0.7);
+}
+
+#pv-account-body.pv-accountRefresh .pv-adminToolsPanel,
+body.pv-accountRefresh .pv-adminToolsPanel {
+  padding: 1rem;
+  border: 1px dashed var(--account-line-strong);
+  border-radius: 0.85rem;
+  background: rgba(8, 8, 9, 0.62);
+}
+
+#pv-account-body.pv-accountRefresh .pv-adminToolsPanel .pv-section__title,
+body.pv-accountRefresh .pv-adminToolsPanel .pv-section__title {
+  color: var(--account-yellow);
+  font-family: var(--account-heading);
+  font-size: 1.25rem !important;
+}
+
+#pv-account-body.pv-accountRefresh .pv-inlineLink,
+body.pv-accountRefresh .pv-inlineLink {
+  color: var(--account-yellow);
+}
+
+#pv-account-body.pv-accountRefresh .pv-inlineLink:hover,
+body.pv-accountRefresh .pv-inlineLink:hover {
+  color: var(--account-yellow-hover);
+}
+
+@media (min-width: 768px) {
+  #pv-account-body.pv-accountRefresh .pv-authGrid,
+  body.pv-accountRefresh .pv-authGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin:not([hidden]),
+  body.pv-accountRefresh .pv-authCard--signin:not([hidden]) {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > .pv-authCard__header,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > .pv-authActions,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > .pv-authDivider,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > #pv-auth-google,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > #pv-auth-form-status,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > #pv-auth-form-selfcheck,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > .pv-authSmall,
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > #pv-local-dex-panel,
+  body.pv-accountRefresh .pv-authCard--signin > .pv-authCard__header,
+  body.pv-accountRefresh .pv-authCard--signin > .pv-authActions,
+  body.pv-accountRefresh .pv-authCard--signin > .pv-authDivider,
+  body.pv-accountRefresh .pv-authCard--signin > #pv-auth-google,
+  body.pv-accountRefresh .pv-authCard--signin > #pv-auth-form-status,
+  body.pv-accountRefresh .pv-authCard--signin > #pv-auth-form-selfcheck,
+  body.pv-accountRefresh .pv-authCard--signin > .pv-authSmall,
+  body.pv-accountRefresh .pv-authCard--signin > #pv-local-dex-panel {
+    grid-column: 1 / -1;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authCard--signin > .pv-authField,
+  body.pv-accountRefresh .pv-authCard--signin > .pv-authField {
+    grid-column: span 6;
+    width: 100%;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authGrid:has(> .pv-authCard--session:not([hidden])),
+  body.pv-accountRefresh .pv-authGrid:has(> .pv-authCard--session:not([hidden])) {
+    gap: 1.1rem;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authCard--session:not([hidden]),
+  body.pv-accountRefresh .pv-authCard--session:not([hidden]) {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authCard--session > .pv-authCard__header,
+  #pv-account-body.pv-accountRefresh .pv-authCard--session > .pv-sessionOverview,
+  #pv-account-body.pv-accountRefresh .pv-authCard--session > .pv-authActions--session,
+  #pv-account-body.pv-accountRefresh .pv-authCard--session > .pv-sessionPanels,
+  body.pv-accountRefresh .pv-authCard--session > .pv-authCard__header,
+  body.pv-accountRefresh .pv-authCard--session > .pv-sessionOverview,
+  body.pv-accountRefresh .pv-authCard--session > .pv-authActions--session,
+  body.pv-accountRefresh .pv-authCard--session > .pv-sessionPanels {
+    grid-column: 1 / -1;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-sessionOverview,
+  body.pv-accountRefresh .pv-sessionOverview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-sessionPanels,
+  body.pv-accountRefresh .pv-sessionPanels {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-sessionPanels__column,
+  body.pv-accountRefresh .pv-sessionPanels__column {
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 767.98px) {
+  #pv-account-body.pv-accountRefresh .pv-authGrid:has(> .pv-authCard--session:not([hidden])),
+  body.pv-accountRefresh .pv-authGrid:has(> .pv-authCard--session:not([hidden])) {
+    grid-template-columns: minmax(0, 42rem);
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-sessionOverview,
+  #pv-account-body.pv-accountRefresh .pv-sessionPanels,
+  body.pv-accountRefresh .pv-sessionOverview,
+  body.pv-accountRefresh .pv-sessionPanels {
+    display: block;
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-sessionPanels__column,
+  body.pv-accountRefresh .pv-sessionPanels__column {
+    display: grid;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  #pv-account-body.pv-accountRefresh .pv-accountHero,
+  body.pv-accountRefresh .pv-accountHero,
+  #pv-account-body.pv-accountRefresh .pv-accountSection,
+  body.pv-accountRefresh .pv-accountSection {
+    width: min(100% - 1.5rem, 72rem);
+  }
+
+  #pv-account-body.pv-accountRefresh .pv-authCard,
+  body.pv-accountRefresh .pv-authCard {
+    border-radius: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pv-account-body.pv-accountRefresh .pv-authCard,
+  body.pv-accountRefresh .pv-authCard {
+    animation: none;
+  }
+}
+
+@keyframes pv-accountRefreshIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

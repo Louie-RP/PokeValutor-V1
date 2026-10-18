@@ -121,7 +121,7 @@
         if (!container || typeof container.replaceChildren !== 'function') return;
 
         const pagination = getPagination(options?.totalItems, options?.pageSize, options?.currentPage);
-        if (pagination.totalItems <= pagination.pageSize) {
+        if (pagination.totalItems === 0 || (pagination.totalPages === 1 && options?.showSinglePage !== true)) {
             container.hidden = true;
             container.replaceChildren();
             return;
@@ -140,7 +140,7 @@
         const controls = documentObject.createElement('div');
         controls.className = 'pv-collectionPagination__controls';
         controls.setAttribute('role', 'group');
-        controls.setAttribute('aria-label', 'Collection pages');
+        controls.setAttribute('aria-label', options?.pagesLabel || 'Collection pages');
 
         const pageLabel = documentObject.createElement('span');
         pageLabel.className = 'pv-collectionPagination__pageLabel';

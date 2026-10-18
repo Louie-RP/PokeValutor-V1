@@ -157,12 +157,23 @@
 }
 
 .pv-cardScanner__video,
+.pv-cardScanner__live,
 .pv-cardScanner__preview {
   display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-height: 64vh;
-  object-fit: contain;
-  background: #050505;
+  height: 100%;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center;
+}
+
+.pv-cardScanner__video {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .pv-cardScanner__searchReview {
@@ -184,6 +195,91 @@
   box-shadow:
     0 0 0 999px rgba(0, 0, 0, 0.22),
     0 0 24px rgba(255, 203, 5, 0.2);
+}
+
+.pv-cardScanner__cameraControl {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  z-index: 4;
+  margin: 0;
+}
+
+.pv-cardScanner__cameraSelect {
+  max-width: min(12rem, 52vw);
+  min-height: 2.8rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(8, 13, 25, 0.38);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.pv-cardScanner__cameraSelect option {
+  background: #101319;
+  color: #fff;
+}
+
+.pv-cardScanner__visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pv-cardScanner__flash {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 2.8rem;
+  min-height: 2.8rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(8, 13, 25, 0.34);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  cursor: pointer;
+}
+
+.pv-cardScanner__flash:hover,
+.pv-cardScanner__flash:focus-visible {
+  border-color: rgba(255, 203, 5, 0.8);
+  background: rgba(8, 13, 25, 0.5);
+}
+
+.pv-cardScanner__flash[data-active="true"] {
+  border-color: rgba(255, 203, 5, 0.95);
+  background: rgba(8, 13, 25, 0.38);
+  color: #ffe066;
+}
+
+.pv-cardScanner__flashIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+}
+
+.pv-cardScanner__flashLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .pv-cardScanner__captureFab {
@@ -221,6 +317,7 @@
 }
 
 .pv-cardScanner[data-state="idle"] .pv-cardScanner__frame,
+.pv-cardScanner[data-state="starting"] .pv-cardScanner__frame,
 .pv-cardScanner[data-state="stopped"] .pv-cardScanner__frame {
   display: none;
 }
@@ -508,11 +605,6 @@
     max-height: 78%;
   }
 
-  .pv-cardScanner__video,
-  .pv-cardScanner__preview {
-    max-height: 58vh;
-  }
-
   .pv-cardScanner__status {
     order: 4;
     margin-top: 0.1rem;
@@ -648,5 +740,158 @@
 
   .pv-cardScanner__frame {
     height: 80%;
+  }
+}
+
+.pv-cardScanner[data-state="camera"] .pv-cardScanner__frame {
+  top: 50%;
+  width: 80%;
+  height: 80%;
+  max-height: none;
+  aspect-ratio: 5 / 7;
+  z-index: 2;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) left top / 3px 26px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) left top / 26px 3px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) right top / 3px 26px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) right top / 26px 3px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) left bottom / 3px 26px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) left bottom / 26px 3px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) right bottom / 3px 26px no-repeat,
+    linear-gradient(var(--pv-primary, #ffcb05), var(--pv-primary, #ffcb05)) right bottom / 26px 3px no-repeat;
+  box-shadow: none;
+}
+
+.pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.38)) top / 100% 10% no-repeat,
+    linear-gradient(rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.38)) bottom / 100% 10% no-repeat,
+    linear-gradient(rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.38)) left center / 10% 80% no-repeat,
+    linear-gradient(rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.38)) right center / 10% 80% no-repeat;
+}
+
+.pv-cardScanner[data-state="starting"] .pv-cardScanner__cameraWrap,
+.pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap,
+.pv-cardScanner[data-state="captured"] .pv-cardScanner__cameraWrap {
+  width: min(100%, 28rem, 42vh);
+  aspect-ratio: auto;
+  min-height: 0;
+  flex-shrink: 0;
+  margin-inline: auto;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.pv-cardScanner[data-state="starting"] .pv-cardScanner__cameraWrap::before,
+.pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap::before,
+.pv-cardScanner[data-state="captured"] .pv-cardScanner__cameraWrap::before {
+  content: "";
+  display: block;
+  padding-top: 140%;
+}
+
+.pv-cardScanner[data-state="starting"] .pv-cardScanner__empty,
+.pv-cardScanner[data-state="camera"] .pv-cardScanner__empty,
+.pv-cardScanner[data-state="captured"] .pv-cardScanner__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.pv-cardScanner[data-state="captured"] .pv-cardScanner__frame {
+  display: none;
+}
+
+.pv-cardScanner__status {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.58);
+  line-height: 1.45;
+}
+
+.pv-cardScanner__captureFab:focus-visible,
+.pv-cardScanner__flash:focus-visible,
+.pv-cardScanner__actions .pv-button:focus-visible {
+  outline: 3px solid rgba(255, 224, 102, 0.95);
+  outline-offset: 3px;
+}
+
+@media (max-width: 768px) {
+  .pv-cardScanner[data-state="starting"] .pv-cardScanner__cameraWrap,
+  .pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap,
+  .pv-cardScanner[data-state="captured"] .pv-cardScanner__cameraWrap {
+    width: min(100%, 36vh);
+  }
+
+  .pv-cardScanner[data-state="starting"] .pv-cardScanner__cameraWrap::before,
+  .pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap::before,
+  .pv-cardScanner[data-state="captured"] .pv-cardScanner__cameraWrap::before {
+    padding-top: 160%;
+  }
+
+  .pv-cardScanner[data-state="camera"] .pv-cardScanner__frame {
+    height: 70%;
+    aspect-ratio: 5 / 7;
+  }
+
+  .pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap::after {
+    background-size: 100% 15%, 100% 15%, 10% 70%, 10% 70%;
+  }
+
+  .pv-cardScanner__actions {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+
+  .pv-cardScanner__actions .pv-button {
+    min-height: 2.75rem;
+  }
+
+  .pv-cardScanner__cameraWrap .pv-cardScanner__captureFab {
+    bottom: max(0.9rem, env(safe-area-inset-bottom, 0px));
+    width: 4.25rem;
+    height: 4.25rem;
+    min-width: 4.25rem;
+    min-height: 4.25rem;
+    flex: 0 0 4.25rem;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 203, 5, 0.9);
+    background: rgba(7, 12, 25, 0.94);
+    box-shadow:
+      0 0 0 4px rgba(7, 12, 25, 0.62),
+      0 10px 24px rgba(0, 0, 0, 0.42);
+  }
+
+  #pv-search-body.pv-searchRefresh .pv-cardScanner .pv-cardScanner__cameraWrap .pv-cardScanner__captureFab {
+    border-radius: 50%;
+  }
+
+  .pv-cardScanner__flash {
+    top: max(0.7rem, env(safe-area-inset-top, 0px));
+    right: 0.7rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .pv-cardScanner__cameraSelect {
+    min-height: 2.75rem;
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .pv-cardScanner[data-state="starting"] .pv-cardScanner__cameraWrap,
+  .pv-cardScanner[data-state="camera"] .pv-cardScanner__cameraWrap,
+  .pv-cardScanner[data-state="captured"] .pv-cardScanner__cameraWrap {
+    width: min(72vw, 50vh);
   }
 }

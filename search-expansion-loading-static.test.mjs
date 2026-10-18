@@ -10,8 +10,8 @@ assert.match(
 );
 assert.match(
     source,
-    /const shouldRestoreResults = !deepLinkExpansionId \|\| matchesDeepLinkExpansion;/,
-    'A different expansion deep link must skip restoration of stale cards.',
+    /const shouldRestoreResults = !deepLinkQuery && \(!deepLinkExpansionId \|\| matchesDeepLinkExpansion\);/,
+    'A text query or different expansion deep link must skip restoration of stale cards.',
 );
 assert.match(
     source,

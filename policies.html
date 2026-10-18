@@ -36,13 +36,14 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://www.gstatic.com https://apis.google.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' https: data:; connect-src 'self' https: https://www.googleapis.com https://*.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.google.com; upgrade-insecure-requests" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=20260724-black-background-1" />
-    <link rel="icon" href="PokeValuator.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="stylesheet" href="info-pages-refresh.css?v=2026-10-18-pricing-nav-1" />
+    <link rel="icon" href="PokeValuator_Logo.png" type="image/png">
     <meta name="google-adsense-account" content="ca-pub-8238047297476040">
 </head>
 
-<body id="pv-policies-body" class="pv-body">
+<body id="pv-policies-body" class="pv-body pv-infoPage pv-infoPage--policies">
     <a class="pv-skiplink" href="#pv-policies-main">Skip to content</a>
 
     <header id="pv-policies-header" class="pv-header" role="banner">
@@ -144,6 +145,10 @@
                     <p class="pv-feature__text">To improve performance and reduce repeated upstream requests, the Worker may cache selected API responses in Upstash Redis for limited time windows. Cache entries are temporary and primarily keyed by request context (for example endpoint/query and quota keys).</p>
                 </div>
                 <div class="pv-feature" role="listitem">
+                    <h3 class="pv-feature__title">Aggregate card and set popularity</h3>
+                    <p class="pv-feature__text">When enabled, successful card searches and card-detail views contribute separate daily counts by card and set in Upstash Redis. These help us decide which sets to cache. This feature does not store raw search text, account identifiers, IP addresses, or authentication tokens. Daily aggregates expire after 90 days, and temporary random event identifiers used to prevent duplicate delivery expire after 24 hours. Card/set display labels expire within 90 days of their last update. Reports are admin-only. Browsers requesting Do Not Track or Global Privacy Control do not send these popularity events.</p>
+                </div>
+                <div class="pv-feature" role="listitem">
                     <h3 class="pv-feature__title">Contact form</h3>
                     <p class="pv-feature__text">If you use the Contact page, the information you submit (name, email, message) is sent to Formspree to deliver your message. Use the form only for content you are comfortable sharing.</p>
                 </div>
@@ -222,6 +227,13 @@
     </footer>
 
     <script src="script.js?v=20260721-2" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
+    <script src="firebase-config.js" defer></script>
+    <script src="firebase-config.local.js" defer></script>
+    <script src="firebase.js?v=2026-09-17-dex-value-fix-1" defer></script>
+    <script src="auth-menu.js?v=2026-10-12-auth-menu-3" defer></script>
 </body>
 
 </html>

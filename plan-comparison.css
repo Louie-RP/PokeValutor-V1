@@ -1,0 +1,215 @@
+body.pv-planComparisonPage {
+  --comparison-blue: #38bdf8;
+  --comparison-blue-soft: rgba(56, 189, 248, 0.12);
+  --comparison-yellow: var(--info-yellow);
+}
+
+body.pv-planComparisonPage .pv-backLink {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--info-muted);
+  text-decoration: none;
+}
+
+body.pv-planComparisonPage .pv-backLink:hover,
+body.pv-planComparisonPage .pv-backLink:focus-visible {
+  color: var(--info-yellow);
+  text-decoration: underline;
+}
+
+body.pv-planComparisonPage .pv-planComparison__eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--comparison-yellow);
+  font-family: var(--info-body);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body.pv-planComparisonPage .pv-hero__title {
+  max-width: 26ch;
+}
+
+body.pv-planComparisonPage .pv-planComparison__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.35rem;
+}
+
+body.pv-planComparisonPage .pv-comparisonTableWrap {
+  overflow-x: auto;
+  margin-top: 1rem;
+  border: 1px solid var(--info-line);
+  border-radius: 0.85rem;
+  background: rgba(8, 8, 9, 0.5);
+}
+
+body.pv-planComparisonPage .pv-comparisonTable {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: collapse;
+  color: var(--info-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+body.pv-planComparisonPage .pv-comparisonTable th,
+body.pv-planComparisonPage .pv-comparisonTable td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--info-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+body.pv-planComparisonPage .pv-comparisonTable thead th {
+  color: var(--info-text);
+  background: rgba(24, 24, 29, 0.9);
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+body.pv-planComparisonPage .pv-comparisonTable thead th:nth-child(3) {
+  color: var(--comparison-yellow);
+}
+
+body.pv-planComparisonPage .pv-comparisonTable tbody th {
+  width: 38%;
+  color: var(--info-text);
+  font-weight: 700;
+}
+
+body.pv-planComparisonPage .pv-comparisonTable tbody td:nth-child(3) {
+  color: #d8f3ff;
+}
+
+body.pv-planComparisonPage .pv-comparisonTable tr:last-child th,
+body.pv-planComparisonPage .pv-comparisonTable tr:last-child td {
+  border-bottom: 0;
+}
+
+body.pv-planComparisonPage .pv-comparisonDetail {
+  border-color: rgba(56, 189, 248, 0.34);
+  background: linear-gradient(145deg, rgba(12, 74, 110, 0.22), rgba(12, 12, 15, 0.98) 58%);
+}
+
+body.pv-planComparisonPage .pv-comparisonDetail__intro {
+  max-width: 48rem;
+}
+
+body.pv-planComparisonPage .pv-planDetailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+
+body.pv-planComparisonPage .pv-planDetail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.1rem;
+  border: 1px solid var(--info-line-strong);
+  border-radius: 0.85rem;
+  background: rgba(8, 8, 9, 0.66);
+}
+
+body.pv-planComparisonPage .pv-planDetail--premium {
+  border-color: rgba(255, 203, 5, 0.58);
+  background: linear-gradient(145deg, rgba(56, 44, 8, 0.52), rgba(8, 8, 9, 0.86) 64%);
+}
+
+body.pv-planComparisonPage .pv-planDetail__label {
+  margin: 0;
+  color: var(--comparison-yellow);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+body.pv-planComparisonPage .pv-planDetail__title {
+  margin: 0;
+  color: var(--info-text);
+  font-family: var(--info-heading);
+  font-size: 1.35rem;
+}
+
+body.pv-planComparisonPage .pv-planDetail ul {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  color: var(--info-muted);
+  list-style: none;
+}
+
+body.pv-planComparisonPage .pv-planDetail li {
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+body.pv-planComparisonPage .pv-planDetail li::before {
+  position: absolute;
+  top: 0.55rem;
+  left: 0;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--comparison-blue);
+  content: '';
+}
+
+body.pv-planComparisonPage .pv-planDetail--premium li::before {
+  background: var(--comparison-yellow);
+}
+
+body.pv-planComparisonPage .pv-planDetail .pv-button {
+  margin-top: auto;
+}
+
+body.pv-planComparisonPage .pv-comparisonNext {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-color: rgba(255, 203, 5, 0.32);
+  background: linear-gradient(145deg, rgba(56, 44, 8, 0.64), rgba(12, 12, 15, 0.96) 62%);
+}
+
+body.pv-planComparisonPage .pv-comparisonNext .pv-section__title {
+  max-width: 26ch;
+  margin-bottom: 0;
+}
+
+body.pv-planComparisonPage .pv-srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 700px) {
+  body.pv-planComparisonPage .pv-planDetailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  body.pv-planComparisonPage .pv-comparisonNext {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  body.pv-planComparisonPage .pv-hero,
+  body.pv-planComparisonPage .pv-section {
+    border-radius: 0.85rem;
+  }
+}

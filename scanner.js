@@ -18,7 +18,7 @@
 
     document.addEventListener('DOMContentLoaded', initCardScanner);
 
-    const CARD_SCANNER_VERSION = 'scanner-mvp-2026-06-29-2';
+    const CARD_SCANNER_VERSION = 'scanner-ui-2026-10-18-2';
     const PV_SCANNER_QUERY_MODE = 'number-first';
     // CardSight is now the only active detection pipeline in production.
     const PV_SCANNER_ENABLE_CANDIDATES = true;
@@ -188,6 +188,12 @@
         const elements = getScannerElements(root);
         const state = {
             stream: null,
+            previewAnimationId: 0,
+            cameraTrack: null,
+            availableCameras: [],
+            selectedCameraId: '',
+            torchSupported: false,
+            torchEnabled: false,
             capturedBlob: null,
             previewUrl: '',
             busy: false,
@@ -229,9 +235,6 @@
                     <div class="pv-cardScanner__header">
                         <div>
                             <h2 id="pv-cardScanner-title" class="pv-cardScanner__title">Scan Card</h2>
-                            <p class="pv-cardScanner__text">
-                                Use your phone camera to scan a card, review the detected text, then search for the best match.
-                            </p>
                         </div>
                     </div>
 
@@ -249,9 +252,20 @@
                             Camera preview will appear here.
                         </div>
                         <video id="pv-cardScanner-video" class="pv-cardScanner__video" autoplay playsinline muted hidden></video>
+                        <canvas id="pv-cardScanner-live" class="pv-cardScanner__live" aria-label="Live camera preview" hidden></canvas>
                         <img id="pv-cardScanner-preview" class="pv-cardScanner__preview" alt="Captured card preview" hidden />
                         <canvas id="pv-cardScanner-canvas" hidden></canvas>
                         <div class="pv-cardScanner__frame" aria-hidden="true"></div>
+                        <label class="pv-cardScanner__cameraControl" for="pv-cardScanner-camera" hidden>
+                            <span class="pv-cardScanner__visuallyHidden">Camera lens</span>
+                            <select id="pv-cardScanner-camera" class="pv-cardScanner__cameraSelect" aria-label="Camera lens"></select>
+                        </label>
+                        <button id="pv-cardScanner-flash" class="pv-cardScanner__flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
+                            <svg class="pv-cardScanner__flashIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M13.2 2.5 5.5 13h5l-.8 8.5L18.5 11h-5.2l-.1-8.5Z"></path>
+                            </svg>
+                            <span class="pv-cardScanner__flashLabel">Flash</span>
+                        </button>
                         <button id="pv-cardScanner-capture-fab" class="pv-cardScanner__captureFab btn" type="button" hidden aria-label="Capture card">
                             <svg class="pv-cardScanner__captureIcon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                 <path d="M9 3 7.5 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.5L15 3H9Zm3 15a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"></path>
@@ -323,8 +337,12 @@
             cameraFrame: root.querySelector('.pv-cardScanner__frame'),
             empty: root.querySelector('#pv-cardScanner-empty'),
             video: root.querySelector('#pv-cardScanner-video'),
+            liveCanvas: root.querySelector('#pv-cardScanner-live'),
             canvas: root.querySelector('#pv-cardScanner-canvas'),
             preview: root.querySelector('#pv-cardScanner-preview'),
+            cameraSelect: root.querySelector('#pv-cardScanner-camera'),
+            cameraControl: root.querySelector('.pv-cardScanner__cameraControl'),
+            flashBtn: root.querySelector('#pv-cardScanner-flash'),
             captureFabBtn: root.querySelector('#pv-cardScanner-capture-fab'),
             status: root.querySelector('#pv-cardScanner-status'),
             limitNotice: root.querySelector('#pv-cardScanner-limit-notice'),
@@ -366,6 +384,30 @@
                 startCamera(root, elements, state);
             });
         }
+
+        if (elements.flashBtn) {
+            elements.flashBtn.addEventListener('click', function () {
+                toggleCameraTorch(elements, state);
+            });
+        }
+
+        if (elements.cameraSelect) {
+            elements.cameraSelect.addEventListener('change', function () {
+                const selectedCameraId = elements.cameraSelect.value;
+                if (selectedCameraId === state.selectedCameraId) {
+                    return;
+                }
+                state.selectedCameraId = selectedCameraId;
+                startCamera(root, elements, state, {
+                    cameraDeviceId: selectedCameraId,
+                    suppressAutoScroll: true
+                });
+            });
+        }
+
+        window.addEventListener('resize', function () {
+            syncCaptureFab(elements, state.stream ? 'camera' : 'idle');
+        });
 
         if (elements.retakeBtn) {
             elements.retakeBtn.addEventListener('click', function () {
@@ -472,32 +514,64 @@
             setStatus(elements, 'Opening camera...');
 
             stopCamera(elements, state);
+            setScannerState(root, 'starting');
             resetDetectedFields(elements);
             clearCandidateSuggestions(elements);
 
-            state.stream = await navigator.mediaDevices.getUserMedia({
-                audio: false,
-                video: {
-                    facingMode: { ideal: 'environment' },
+            const isCompactCameraLayout = window.matchMedia
+                && window.matchMedia('(max-width: 768px)').matches;
+            const videoConstraints = isCompactCameraLayout
+                ? {
+                    width: { ideal: 720 },
+                    height: { ideal: 1280 },
+                    aspectRatio: { ideal: 5 / 8 }
+                }
+                : {
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
+                };
+            const selectedCameraId = options?.cameraDeviceId || state.selectedCameraId;
+            if (selectedCameraId) {
+                videoConstraints.deviceId = { exact: selectedCameraId };
+            } else {
+                videoConstraints.facingMode = { exact: 'environment' };
+            }
+
+            const cameraRequest = {
+                audio: false,
+                video: videoConstraints
+            };
+            try {
+                state.stream = await navigator.mediaDevices.getUserMedia(cameraRequest);
+            } catch (error) {
+                if (selectedCameraId || !isRearCameraConstraintError(error)) {
+                    throw error;
                 }
-            });
+
+                cameraRequest.video.facingMode = { ideal: 'environment' };
+                state.stream = await navigator.mediaDevices.getUserMedia(cameraRequest);
+            }
+            configureCameraTorch(elements, state);
 
             if (!elements.video) {
                 throw new Error('Scanner video element is missing.');
             }
 
-            elements.video.srcObject = state.stream;
-            await elements.video.play();
-
             if (elements.empty) elements.empty.hidden = true;
-            if (elements.video) elements.video.hidden = false;
+            elements.video.hidden = false;
             if (elements.preview) {
                 revokePreviewUrl(state);
                 elements.preview.hidden = true;
                 elements.preview.removeAttribute('src');
             }
+
+            elements.video.srcObject = state.stream;
+            elements.video.hidden = false;
+            await elements.video.play();
+            await waitForVideoDimensions(elements.video);
+            setScannerState(root, 'camera');
+            startLivePreview(root, elements, state);
+            await refreshCameraChoices(elements, state);
 
             if (elements.captureBtn) elements.captureBtn.hidden = false;
             if (elements.stopBtn) elements.stopBtn.hidden = false;
@@ -510,8 +584,7 @@
             syncSessionButtons(elements, state);
             syncCaptureFab(elements, 'camera');
 
-            setScannerState(root, 'camera');
-            setStatus(elements, 'Place the card inside the frame, reduce glare, then tap Capture.');
+            setStatus(elements, '');
             if (!options?.suppressAutoScroll) {
                 scrollScannerCameraIntoView(elements);
             }
@@ -519,6 +592,8 @@
             console.warn('[PokeValutor Scanner] camera error', error);
             setStatus(elements, 'Unable to open the camera. Check browser camera permissions and make sure the site is using HTTPS.');
             stopCamera(elements, state);
+            state.cameraSessionStarted = false;
+            syncSessionButtons(elements, state);
             setScannerState(root, 'stopped');
         } finally {
             setBusy(elements, state, false);
@@ -564,6 +639,204 @@
             setStatus(elements, 'Unable to capture/read the card. Try retaking the photo with better lighting.');
         } finally {
             setBusy(elements, state, false);
+        }
+    }
+
+    function waitForVideoDimensions(video) {
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+            return Promise.resolve();
+        }
+
+        return new Promise(function (resolve, reject) {
+            let timeoutId = 0;
+            const cleanup = function () {
+                video.removeEventListener('loadedmetadata', checkDimensions);
+                video.removeEventListener('loadeddata', checkDimensions);
+                video.removeEventListener('resize', checkDimensions);
+                window.clearTimeout(timeoutId);
+            };
+            const checkDimensions = function () {
+                if (video.readyState < 2 || video.videoWidth <= 0 || video.videoHeight <= 0) {
+                    return;
+                }
+                cleanup();
+                resolve();
+            };
+
+            video.addEventListener('loadedmetadata', checkDimensions);
+            video.addEventListener('loadeddata', checkDimensions);
+            video.addEventListener('resize', checkDimensions);
+            timeoutId = window.setTimeout(function () {
+                cleanup();
+                reject(new Error('Camera preview did not provide video dimensions.'));
+            }, 5000);
+            checkDimensions();
+        });
+    }
+
+    function startLivePreview(root, elements, state) {
+        const video = elements.video;
+        const canvas = elements.liveCanvas;
+        const context = canvas && canvas.getContext('2d', { alpha: false });
+        if (!video || !canvas || !context || !elements.cameraWrap) {
+            throw new Error('Unable to create the live camera preview.');
+        }
+
+        const stream = state.stream;
+        const draw = function () {
+            if (state.stream !== stream) return;
+            if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+                const stage = elements.cameraWrap.getBoundingClientRect();
+                if (stage.width > 0 && stage.height > 0) {
+                    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+                    const width = Math.max(1, Math.round(stage.width * pixelRatio));
+                    const height = Math.max(1, Math.round(stage.height * pixelRatio));
+                    if (canvas.width !== width || canvas.height !== height) {
+                        canvas.width = width;
+                        canvas.height = height;
+                    }
+
+                    // Crop decoded pixels, not the iOS video compositor's letterboxed layer.
+                    const scale = Math.max(width / video.videoWidth, height / video.videoHeight);
+                    const sourceWidth = width / scale;
+                    const sourceHeight = height / scale;
+                    context.drawImage(
+                        video,
+                        (video.videoWidth - sourceWidth) / 2,
+                        (video.videoHeight - sourceHeight) / 2,
+                        sourceWidth,
+                        sourceHeight,
+                        0, 0, width, height
+                    );
+                    canvas.hidden = false;
+                }
+            }
+            state.previewAnimationId = window.requestAnimationFrame(render);
+        };
+        const render = function () {
+            try {
+                draw();
+            } catch (error) {
+                console.warn('[PokeValutor Scanner] live preview error', error);
+                stopCamera(elements, state);
+                setScannerState(root, 'stopped');
+                setStatus(elements, 'Camera preview stopped. Tap Start Camera to try again.');
+            }
+        };
+        draw();
+    }
+
+    async function refreshCameraChoices(elements, state) {
+        const select = elements.cameraSelect;
+        const control = elements.cameraControl;
+        if (!select || !control || !navigator.mediaDevices?.enumerateDevices) {
+            return;
+        }
+
+        let cameras;
+        try {
+            cameras = (await navigator.mediaDevices.enumerateDevices())
+                .filter((device) => device.kind === 'videoinput' && device.deviceId);
+        } catch (error) {
+            console.warn('[PokeValutor Scanner] unable to list available cameras', error);
+            return;
+        }
+
+        state.availableCameras = cameras;
+        select.replaceChildren();
+        if (cameras.length < 2) {
+            control.hidden = true;
+            return;
+        }
+
+        const currentCameraOption = document.createElement('option');
+        currentCameraOption.value = '';
+        currentCameraOption.textContent = 'Back camera (default)';
+        select.appendChild(currentCameraOption);
+
+        cameras.forEach(function (camera, index) {
+            const option = document.createElement('option');
+            option.value = camera.deviceId;
+            option.textContent = camera.label.trim() || `Camera ${index + 1}`;
+            select.appendChild(option);
+        });
+
+        if (state.selectedCameraId && !cameras.some((camera) => camera.deviceId === state.selectedCameraId)) {
+            state.selectedCameraId = '';
+        }
+        select.value = state.selectedCameraId;
+        if (state.selectedCameraId && select.value !== state.selectedCameraId) {
+            select.value = '';
+            state.selectedCameraId = '';
+        }
+        control.hidden = false;
+    }
+
+    function isRearCameraConstraintError(error) {
+        return error?.name === 'OverconstrainedError'
+            || error?.name === 'ConstraintNotSatisfiedError'
+            || error?.name === 'NotFoundError'
+            || error instanceof TypeError;
+    }
+
+    function configureCameraTorch(elements, state) {
+        const track = state.stream?.getVideoTracks?.()[0] || null;
+        let capabilities = null;
+
+        state.cameraTrack = track;
+        state.torchSupported = false;
+        state.torchEnabled = false;
+
+        if (track && typeof track.getCapabilities === 'function') {
+            try {
+                capabilities = track.getCapabilities();
+            } catch (error) {
+                console.warn('[PokeValutor Scanner] unable to read camera capabilities', error);
+            }
+        }
+
+        state.torchSupported = capabilities?.torch === true && typeof track?.applyConstraints === 'function';
+        syncCameraTorchButton(elements, state);
+    }
+
+    async function toggleCameraTorch(elements, state) {
+        if (!state.torchSupported || !state.cameraTrack) {
+            return;
+        }
+
+        const nextTorchState = !state.torchEnabled;
+        setBusy(elements, state, true);
+        try {
+            await state.cameraTrack.applyConstraints({
+                advanced: [{ torch: nextTorchState }]
+            });
+            state.torchEnabled = nextTorchState;
+            syncCameraTorchButton(elements, state);
+            setStatus(elements, nextTorchState ? 'Flash is on.' : 'Flash is off.');
+        } catch (error) {
+            console.warn('[PokeValutor Scanner] unable to toggle camera flash', error);
+            setStatus(elements, `Unable to turn the flash ${nextTorchState ? 'on' : 'off'} on this camera.`);
+        } finally {
+            setBusy(elements, state, false);
+        }
+    }
+
+    function syncCameraTorchButton(elements, state) {
+        const button = elements.flashBtn;
+        if (!button) {
+            return;
+        }
+
+        const available = !!state.torchSupported && !!state.cameraTrack;
+        button.hidden = !available;
+        button.disabled = !available || !!state.busy;
+        button.setAttribute('aria-pressed', String(!!state.torchEnabled));
+        button.setAttribute('aria-label', state.torchEnabled ? 'Turn flash off' : 'Turn flash on');
+        button.dataset.active = String(!!state.torchEnabled);
+
+        const label = button.querySelector('.pv-cardScanner__flashLabel');
+        if (label) {
+            label.textContent = state.torchEnabled ? 'On' : 'Flash';
         }
     }
 
@@ -3662,6 +3935,11 @@
     }
 
     function stopCamera(elements, state) {
+        window.cancelAnimationFrame(state.previewAnimationId);
+        state.previewAnimationId = 0;
+        if (elements.liveCanvas) {
+            elements.liveCanvas.hidden = true;
+        }
         if (state.stream) {
             state.stream.getTracks().forEach(function (track) {
                 track.stop();
@@ -3670,7 +3948,20 @@
             state.stream = null;
         }
 
+        state.cameraTrack = null;
+        state.torchSupported = false;
+        state.torchEnabled = false;
+        syncCameraTorchButton(elements, state);
+
+        if (elements.cameraControl) {
+            elements.cameraControl.hidden = true;
+        }
+        if (elements.cameraSelect) {
+            elements.cameraSelect.disabled = false;
+        }
+
         if (elements.video) {
+            elements.video.style.removeProperty('visibility');
             elements.video.pause();
             elements.video.srcObject = null;
             elements.video.hidden = true;
@@ -3800,6 +4091,8 @@
         const buttons = [
             elements.startBtn,
             elements.captureBtn,
+            elements.cameraSelect,
+            elements.flashBtn,
             elements.captureFabBtn,
             elements.retakeBtn,
             elements.stopBtn,
@@ -3812,6 +4105,7 @@
         buttons.forEach(function (button) {
             if (button) button.disabled = !!isBusy;
         });
+        syncCameraTorchButton(elements, state);
     }
 
     function setScannerState(root, scannerState) {
@@ -3828,6 +4122,7 @@
         }
         if (elements.status) {
             elements.status.textContent = message || '';
+            elements.status.hidden = !message;
         }
     }
 

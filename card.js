@@ -1121,6 +1121,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             renderCard(card);
+            void window.PV_POPULARITY?.recordView(card);
             setStatus('');
         } catch {
             setStatus('Unable to load this card right now. Please try again later.');
